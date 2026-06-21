@@ -48,7 +48,10 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
             )
         }
         composable(Routes.MAP) {
-            MapScreen(onBack = { navController.popBackStack() })
+            MapScreen(
+                onBack = { navController.popBackStack() },
+                onFlowerClick = { id -> navController.navigate(Routes.detail(id)) },
+            )
         }
         composable(
             route = Routes.DETAIL,

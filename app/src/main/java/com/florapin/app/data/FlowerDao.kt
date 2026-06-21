@@ -18,6 +18,10 @@ interface FlowerDao {
     @Query("SELECT * FROM flowers WHERE id = :id")
     suspend fun getById(id: Long): FlowerEntity?
 
+    /** Flux d'une fleur (émet null si elle est supprimée). */
+    @Query("SELECT * FROM flowers WHERE id = :id")
+    fun observeById(id: Long): Flow<FlowerEntity?>
+
     /** Insère une fleur et renvoie son identifiant généré. */
     @Insert
     suspend fun insert(flower: FlowerEntity): Long

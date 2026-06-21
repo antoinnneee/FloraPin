@@ -19,6 +19,7 @@ class FlowerRepositoryTest {
 
         override fun observeAll(): Flow<List<FlowerEntity>> = flowOf(emptyList())
         override suspend fun getById(id: Long): FlowerEntity? = null
+        override fun observeById(id: Long): Flow<FlowerEntity?> = flowOf(null)
         override suspend fun insert(flower: FlowerEntity): Long {
             lastInserted = flower
             return 42L

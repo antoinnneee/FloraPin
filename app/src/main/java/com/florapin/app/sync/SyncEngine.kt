@@ -9,6 +9,7 @@ import com.florapin.app.network.dto.SyncPushRequest
 import com.florapin.app.network.dto.UpdateFlowerRequest
 import java.io.File
 import java.time.Instant
+import retrofit2.HttpException
 
 /**
  * Orchestration offline-first (NODE-44) : pousse les changements locaux, tire le
@@ -54,20 +55,41 @@ class SyncEngine(
         }
 
         updated.forEach { flower ->
-            runCatching {
+            try {
                 flowersApi.update(
                     flower.serverId!!,
                     UpdateFlowerRequest(notes = flower.notes),
                 )
                 repository.markSynced(flower.id, flower.serverId, now())
-            }.onFailure { repository.markFailed(flower.id) }
+            } catch (e: Exception) {
+                handlePushFailure(flower.id, flower.serverId!!, e)
+            }
         }
 
         deleted.forEach { flower ->
-            runCatching {
+            try {
                 flowersApi.delete(flower.serverId!!)
                 repository.markSynced(flower.id, flower.serverId, now())
-            }.onFailure { repository.markFailed(flower.id) }
+            } catch (e: Exception) {
+                handlePushFailure(flower.id, flower.serverId!!, e)
+            }
+        }
+    }
+
+    /**
+     * Sur 409 (conflit), le serveur fait foi : on marque synchronisé, le pull
+     * suivant réconcilie le contenu (last-write-wins). Sinon, on marque en échec
+     * pour réessayer plus tard.
+     */
+    private suspend fun handlePushFailure(
+        localId: Long,
+        serverId: String,
+        error: Exception,
+    ) {
+        if (error is HttpException && error.code() == 409) {
+            repository.markSynced(localId, serverId, now())
+        } else {
+            repository.markFailed(localId)
         }
     }
 

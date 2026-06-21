@@ -1,9 +1,22 @@
-# Caddy : HTTPS automatique (Let's Encrypt) + proxy vers l'API.
+# Caddy : HTTPS automatique (Let's Encrypt).
 # DOMAIN est injecté depuis l'environnement (docker-compose).
+#
+# Même domaine pour la vitrine et l'API :
+#   - /api/*  -> API NestJS (préfixe global api/v1, Swagger sur /api/docs)
+#   - reste   -> site statique (landing, build Astro monté dans le conteneur)
 
 {$DOMAIN} {
 	encode gzip
 
-	# API FloraPin
-	reverse_proxy api:3000
+	# API FloraPin (toutes les routes sont sous /api).
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	# Vitrine statique (build Astro) servie à la racine.
+	handle {
+		root * /srv/landing
+		file_server
+		try_files {path} {path}/ /index.html
+	}
 }

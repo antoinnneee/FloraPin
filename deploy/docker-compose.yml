@@ -76,6 +76,8 @@ services:
       DOMAIN: ${DOMAIN}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Build statique de la vitrine (à produire : npm --prefix ../landing run build).
+      - ../landing/dist:/srv/landing:ro
       - caddy-data:/data
       - caddy-config:/config
 

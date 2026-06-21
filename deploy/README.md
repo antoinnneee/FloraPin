@@ -42,6 +42,32 @@ docker compose pull && docker compose up -d --build   # mise à jour
 docker compose down            # arrêt (les volumes sont conservés)
 ```
 
+## Vitrine (site landing)
+
+Le même domaine sert la **vitrine statique** (à la racine) et l'**API** (sous
+`/api/*`) — voir `Caddyfile`. Caddy sert le build Astro monté depuis
+`../landing/dist`.
+
+```bash
+# 1. Construire la vitrine (génère landing/dist)
+npm --prefix ../landing ci
+npm --prefix ../landing run build
+
+# 2. (Re)démarrer le proxy pour servir le nouveau build
+docker compose up -d proxy
+```
+
+- Vitrine : `https://<DOMAIN>/`
+- API : `https://<DOMAIN>/api/v1` · Swagger : `https://<DOMAIN>/api/docs`
+- DNS : un seul enregistrement A `<DOMAIN>` → IP du VPS (déjà requis pour l'API).
+- `landing/dist` est gitignoré : il faut **builder sur le VPS** (ou copier le
+  build) avant `up`. `astro.config.mjs` fixe `site: https://florapin.fr` — adapter
+  si le domaine diffère (impacte les URLs Open Graph/canoniques).
+
+> Alternatives sans VPS : Vercel/Netlify (déploiement Git + CDN) ou GitHub Pages
+> (domaine custom + HTTPS). Dans ce cas, la vitrine est indépendante de cette
+> stack et l'API garde son domaine.
+
 ## Sauvegarde (POC — voir NODE-30)
 
 Décision POC : **pas de sauvegarde robuste**. Les données survivent aux

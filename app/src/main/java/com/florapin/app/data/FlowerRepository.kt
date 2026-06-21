@@ -66,6 +66,15 @@ class FlowerRepository(private val dao: FlowerDao) {
 
     suspend fun markFailed(localId: Long) = dao.markFailed(localId)
 
+    suspend fun findByServerId(serverId: String): FlowerEntity? =
+        dao.findByServerId(serverId)
+
+    /** Réécrit une ligne existante (réconciliation depuis le serveur). */
+    suspend fun update(flower: FlowerEntity) = dao.update(flower)
+
+    suspend fun softDeleteByServerId(serverId: String, deletedAt: Long) =
+        dao.softDeleteByServerId(serverId, deletedAt)
+
     companion object {
         /** Construit un repository câblé sur la base singleton. */
         fun from(context: Context): FlowerRepository =

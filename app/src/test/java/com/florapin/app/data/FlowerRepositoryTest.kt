@@ -31,6 +31,9 @@ class FlowerRepositoryTest {
         override suspend fun markSynced(id: Long, serverId: String, updatedAt: Long) =
             Unit
         override suspend fun markFailed(id: Long) = Unit
+        override suspend fun findByServerId(serverId: String): FlowerEntity? = null
+        override suspend fun softDeleteByServerId(serverId: String, deletedAt: Long) =
+            Unit
     }
 
     @Test

@@ -125,6 +125,9 @@ dependencies {
     // Stockage sécurisé des tokens
     implementation(libs.androidx.security.crypto)
 
+    // Synchronisation en arrière-plan
+    implementation(libs.androidx.work.runtime.ktx)
+
     // Room (persistance locale)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

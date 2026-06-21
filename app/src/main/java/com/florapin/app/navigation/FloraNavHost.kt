@@ -22,6 +22,7 @@ import com.florapin.app.detail.DetailScreen
 import com.florapin.app.gallery.GalleryScreen
 import com.florapin.app.map.MapScreen
 import com.florapin.app.network.auth.EncryptedTokenStore
+import com.florapin.app.sync.SyncScheduler
 
 /** Destinations de l'application. */
 private object Routes {
@@ -58,7 +59,10 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
             val authViewModel: AuthViewModel =
                 viewModel(factory = AuthViewModel.factory(context))
             val state by authViewModel.state.collectAsStateWithLifecycle()
-            OnAuthSuccess(state) { navController.goToGallery() }
+            OnAuthSuccess(state) {
+                startSync(context)
+                navController.goToGallery()
+            }
 
             LoginScreen(
                 isLoading = state is AuthUiState.Loading,
@@ -72,7 +76,10 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
             val authViewModel: AuthViewModel =
                 viewModel(factory = AuthViewModel.factory(context))
             val state by authViewModel.state.collectAsStateWithLifecycle()
-            OnAuthSuccess(state) { navController.goToGallery() }
+            OnAuthSuccess(state) {
+                startSync(context)
+                navController.goToGallery()
+            }
 
             RegisterScreen(
                 isLoading = state is AuthUiState.Loading,
@@ -117,6 +124,12 @@ private fun OnAuthSuccess(state: AuthUiState, onSuccess: () -> Unit) {
     androidx.compose.runtime.LaunchedEffect(state) {
         if (state is AuthUiState.Success) onSuccess()
     }
+}
+
+/** Amorce la synchronisation après une authentification réussie. */
+private fun startSync(context: android.content.Context) {
+    SyncScheduler.schedulePeriodic(context)
+    SyncScheduler.syncNow(context)
 }
 
 /** Va à la galerie en vidant toute la back-stack (sortie du flux d'auth). */

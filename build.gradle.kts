@@ -1,0 +1,7 @@
+// Build script racine — déclare les plugins partagés en `apply false`.
+// Chaque module applique ce dont il a besoin via son propre build.gradle.kts.
+plugins {
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.kotlin.android) apply false
+    alias(libs.plugins.kotlin.compose) apply false
+}

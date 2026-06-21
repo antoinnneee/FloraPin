@@ -31,4 +31,19 @@ interface FlowerDao {
 
     @Delete
     suspend fun delete(flower: FlowerEntity)
+
+    // --- Synchronisation (NODE-43) ---
+
+    /** Fleurs en attente d'envoi (créées/maj hors-ligne). */
+    @Query("SELECT * FROM flowers WHERE syncState != 'SYNCED' ORDER BY createdAt ASC")
+    suspend fun pendingSync(): List<FlowerEntity>
+
+    @Query(
+        "UPDATE flowers SET serverId = :serverId, syncState = 'SYNCED', " +
+            "updatedAt = :updatedAt WHERE id = :id",
+    )
+    suspend fun markSynced(id: Long, serverId: String, updatedAt: Long)
+
+    @Query("UPDATE flowers SET syncState = 'FAILED' WHERE id = :id")
+    suspend fun markFailed(id: Long)
 }

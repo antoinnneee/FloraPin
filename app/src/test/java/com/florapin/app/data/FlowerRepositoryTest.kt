@@ -27,6 +27,19 @@ class FlowerRepositoryTest {
 
         override suspend fun update(flower: FlowerEntity) = Unit
         override suspend fun delete(flower: FlowerEntity) = Unit
+        override suspend fun pendingSync(): List<FlowerEntity> = emptyList()
+        override suspend fun markSynced(id: Long, serverId: String, updatedAt: Long) =
+            Unit
+        override suspend fun markFailed(id: Long) = Unit
+    }
+
+    @Test
+    fun saveCapture_marksPending() = runBlocking {
+        val dao = FakeFlowerDao()
+        val repository = FlowerRepository(dao)
+        repository.saveCapture(imagePath = "/p.jpg", location = null, createdAt = 7L)
+        assertEquals(SyncState.PENDING.name, dao.lastInserted!!.syncState)
+        assertEquals(7L, dao.lastInserted!!.updatedAt)
     }
 
     @Test

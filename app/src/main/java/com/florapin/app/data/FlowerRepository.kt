@@ -35,13 +35,36 @@ class FlowerRepository(private val dao: FlowerDao) {
             accuracyMeters = location?.accuracyMeters,
             createdAt = createdAt,
             notes = notes,
+            // Nouvelle capture : à synchroniser.
+            syncState = SyncState.PENDING.name,
+            updatedAt = createdAt,
         ),
     )
 
     suspend fun updateNotes(flower: FlowerEntity, notes: String) =
-        dao.update(flower.copy(notes = notes))
+        dao.update(
+            flower.copy(
+                notes = notes,
+                syncState = SyncState.PENDING.name,
+                updatedAt = System.currentTimeMillis(),
+            ),
+        )
 
     suspend fun delete(flower: FlowerEntity) = dao.delete(flower)
+
+    // --- Synchronisation (NODE-43) ---
+
+    /** Fleurs locales restant à synchroniser. */
+    suspend fun pendingSync(): List<FlowerEntity> = dao.pendingSync()
+
+    /** Marque une fleur comme synchronisée et associe son id serveur. */
+    suspend fun markSynced(
+        localId: Long,
+        serverId: String,
+        updatedAt: Long = System.currentTimeMillis(),
+    ) = dao.markSynced(localId, serverId, updatedAt)
+
+    suspend fun markFailed(localId: Long) = dao.markFailed(localId)
 
     companion object {
         /** Construit un repository câblé sur la base singleton. */

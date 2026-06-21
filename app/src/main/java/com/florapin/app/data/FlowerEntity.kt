@@ -32,4 +32,25 @@ data class FlowerEntity(
 
     /** Notes saisies par l'utilisateur (vide par défaut). */
     val notes: String = "",
+
+    // --- Champs de synchronisation (NODE-43) ---
+
+    /** Identifiant serveur (UUID) une fois synchronisée ; null si locale seule. */
+    val serverId: String? = null,
+
+    /** État de sync : voir [SyncState] (stocké par nom). */
+    val syncState: String = SyncState.PENDING.name,
+
+    /** Dernière modification locale (epoch millis) — base de réconciliation. */
+    val updatedAt: Long = 0,
+
+    /** Suppression logique locale (epoch millis), ou null. */
+    val deletedAt: Long? = null,
 )
+
+/** État de synchronisation d'une fleur locale. */
+enum class SyncState {
+    PENDING,
+    SYNCED,
+    FAILED,
+}

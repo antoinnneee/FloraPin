@@ -131,6 +131,19 @@ CREATE INDEX idx_notifications_unread
     ON notifications(user_id) WHERE read_at IS NULL;
 
 -- =====================================================================
+-- Jetons d'appareil pour le push FCM/APNs (NODE-57)
+-- =====================================================================
+CREATE TABLE device_tokens (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token       TEXT NOT NULL UNIQUE,             -- jeton FCM/APNs
+    platform    TEXT NOT NULL                     -- 'android' | 'ios' | 'web'
+                CHECK (platform IN ('android', 'ios', 'web')),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_device_tokens_user ON device_tokens(user_id);
+
+-- =====================================================================
 -- Notes
 -- =====================================================================
 -- * Visibilité d'une fleur pour l'utilisateur U :

@@ -2,6 +2,8 @@ import { NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
+import { DeviceTokensService } from '../push/device-tokens.service';
+import { PushSender } from '../push/push.sender';
 import { Notification } from './notification.entity';
 import { NotificationsService } from './notifications.service';
 
@@ -40,13 +42,22 @@ const USER = 'user-1';
 describe('NotificationsService', () => {
   let service: NotificationsService;
   let repo: FakeNotifRepo;
+  let send: jest.Mock;
+  let tokens: string[];
 
   beforeEach(async () => {
     repo = new FakeNotifRepo();
+    send = jest.fn();
+    tokens = [];
     const moduleRef = await Test.createTestingModule({
       providers: [
         NotificationsService,
         { provide: getRepositoryToken(Notification), useValue: repo },
+        { provide: PushSender, useValue: { send } },
+        {
+          provide: DeviceTokensService,
+          useValue: { tokensFor: async () => tokens },
+        },
       ],
     }).compile();
     service = moduleRef.get(NotificationsService);
@@ -71,5 +82,21 @@ describe('NotificationsService', () => {
     await expect(service.markRead('autre', n.id)).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  it('envoie un push aux appareils enregistrés', async () => {
+    tokens = ['tok-1', 'tok-2'];
+    await service.create(USER, 'flower_shared', { shareId: 'x' });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith(
+      ['tok-1', 'tok-2'],
+      expect.objectContaining({ type: 'flower_shared' }),
+    );
+  });
+
+  it('n’envoie pas de push sans appareil enregistré', async () => {
+    tokens = [];
+    await service.create(USER, 'friend_request');
+    expect(send).not.toHaveBeenCalled();
   });
 });

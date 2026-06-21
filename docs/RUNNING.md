@@ -140,6 +140,30 @@ npm run start:dev
 
 ---
 
+## 🔒 Sécurité des dépendances (npm audit)
+
+`npm audit` (backend) remonte des vulnérabilités résiduelles. **Ne lance pas
+`npm audit fix --force`** : il rétrograderait NestJS en versions cassées (« Will
+install @nestjs/core@7.5.5 ») et démolirait le build.
+
+Comment lire les alertes :
+
+- **Tooling de dev** (jest/istanbul, glob, js-yaml, etc.) : présent uniquement
+  pour les tests/builds, **jamais embarqué en production** → impact nul.
+- **`multer`** (high, DoS) : dépendance transitive de `@nestjs/platform-express`.
+  **Non atteignable ici** : l'API n'utilise pas `multer` (aucun `FileInterceptor`)
+  — l'upload d'images passe par des **URLs présignées MinIO**.
+- Les correctifs **non-breaking** sont OK : `npm audit fix` (sans `--force`).
+
+Historique : le backend a été migré **NestJS 10 → 11** (tag `nest10-baseline`
+pour rollback), ce qui a fait chuter le total de 45 à ~25 vulnérabilités. Le
+reste nécessite des upgrades majeurs en amont (Nest/Express) — à faire de façon
+**contrôlée** (brancher, bumper, `npm test` + `npm run build`), pas via `--force`.
+
+> Note : `app/google-services.json` (config Firebase) et `backend/.env`
+> (dont les secrets `FCM_*`) sont **gitignorés**. La CI génère un
+> `google-services.json` placeholder pour pouvoir compiler.
+
 ## ⚠️ Points d'attention
 
 - Ne **jamais** committer `local.properties`, `backend/.env`, `deploy/.env`

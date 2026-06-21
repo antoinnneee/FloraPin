@@ -52,6 +52,7 @@ set +a
 REMOTE_USER=$(echo "$REMOTE_USER" | sed 's/[\"\r]//g')
 REMOTE_HOST=$(echo "$REMOTE_HOST" | sed 's/[\"\r]//g')
 REMOTE_DIR=$(echo "$REMOTE_DIR" | sed 's/[\"\r]//g')
+REMOTE_DIR="${REMOTE_DIR%/}"   # retire un éventuel / final (évite les // dans les chemins)
 REMOTE_PASSWORD=$(echo "$REMOTE_PASSWORD" | sed 's/[\"\r]//g')
 
 if [ -z "$REMOTE_USER" ] || [ -z "$REMOTE_HOST" ] || [ -z "$REMOTE_DIR" ] || [ -z "$REMOTE_PASSWORD" ]; then
@@ -110,37 +111,43 @@ remote_sync() {
     rsync -az --delete -e "ssh -o ControlPath=$SSH_MUX_SOCKET" "$@"
 }
 
-# S'assurer que le dossier distant existe.
-remote_ssh "mkdir -p '$REMOTE_DIR'"
-
-# Vérifier que le .env de prod existe côté serveur (secrets — jamais copié d'ici).
-if ! remote_ssh "test -f '$REMOTE_DIR/deploy/.env'"; then
-    echo "❌ $REMOTE_DIR/deploy/.env introuvable sur le serveur."
-    echo "   Créez-le à partir de deploy/.env.example (DOMAIN + secrets DB/JWT/MinIO)"
-    echo "   puis relancez. (Il n'est jamais copié depuis cette machine.)"
-    exit 1
-fi
+# S'assurer que les dossiers distants existent.
+remote_ssh "mkdir -p '$REMOTE_DIR/backend' '$REMOTE_DIR/landing' '$REMOTE_DIR/deploy'"
 
 # --- Synchronisation vers le VPS ---
 # Pour backend/ ET landing/ on EXCLUT node_modules/ et dist/ : ce sont des
 # artefacts buildés (et les binaires natifs Windows, ex. esbuild.exe, seraient
 # inutilisables sur Linux). backend/ est compilé dans son image ; landing/ est
 # buildé dans un conteneur Node sur le VPS (étape suivante).
-# deploy/ : compose + Caddyfile. On EXCLUT .env (secrets) et l'override dev
-#           (docker-compose.override.yml, qui exposerait db/minio sur l'hôte).
+# deploy/ : compose + Caddyfile + .env.example. On EXCLUT .env (secrets) et
+#           l'override dev (docker-compose.override.yml, qui exposerait db/minio).
+# deploy/ est synchronisé EN PREMIER : il amène .env.example, indispensable au
+# bootstrap du .env juste après.
+echo "📦 Synchronisation de deploy/..."
+remote_sync --exclude '.env' --exclude '.deployEnv' \
+    --exclude 'docker-compose.override.yml' --exclude 'deploy.sh' \
+    "$REPO_ROOT/deploy/" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/deploy/" || exit 1
+
+# Vérifier que le .env de prod existe côté serveur (secrets — jamais copié d'ici).
+# S'il manque (1er déploiement), on le crée depuis .env.example et on s'arrête
+# pour que l'humain renseigne DOMAIN + secrets DB/JWT/MinIO.
+if ! remote_ssh "test -f '$REMOTE_DIR/deploy/.env'"; then
+    echo "⚠️  $REMOTE_DIR/deploy/.env introuvable (1er déploiement ?)."
+    if remote_ssh "cp '$REMOTE_DIR/deploy/.env.example' '$REMOTE_DIR/deploy/.env'"; then
+        echo "📝 .env créé sur le serveur depuis .env.example."
+    fi
+    echo "❌ Éditez $REMOTE_DIR/deploy/.env (DOMAIN + secrets DB/JWT/MinIO) sur le"
+    echo "   serveur, puis relancez ce script. (Le .env n'est jamais copié d'ici.)"
+    exit 1
+fi
+
 echo "📦 Synchronisation de backend/..."
-remote_ssh "mkdir -p '$REMOTE_DIR/backend' '$REMOTE_DIR/landing' '$REMOTE_DIR/deploy'"
 remote_sync --exclude 'node_modules/' --exclude 'dist/' \
     "$REPO_ROOT/backend/" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/backend/" || exit 1
 
 echo "📦 Synchronisation de landing/ (sources)..."
 remote_sync --exclude 'node_modules/' --exclude 'dist/' \
     "$REPO_ROOT/landing/" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/landing/" || exit 1
-
-echo "📦 Synchronisation de deploy/..."
-remote_sync --exclude '.env' --exclude '.deployEnv' \
-    --exclude 'docker-compose.override.yml' --exclude 'deploy.sh' \
-    "$REPO_ROOT/deploy/" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/deploy/" || exit 1
 
 # --- Build de la vitrine dans un conteneur Docker (sur le VPS) ---
 # node:22-alpine avec landing/ monté : npm ci + npm run build -> landing/dist

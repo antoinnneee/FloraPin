@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
@@ -14,9 +15,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  */
 @Database(
     entities = [FlowerEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
+@TypeConverters(Converters::class)
 abstract class FloraDatabase : RoomDatabase() {
 
     abstract fun flowerDao(): FlowerDao
@@ -49,6 +51,16 @@ abstract class FloraDatabase : RoomDatabase() {
             }
         }
 
+        /** v3 → v4 : espèce + étiquettes locales (NODE-55). */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE flowers ADD COLUMN species TEXT")
+                db.execSQL(
+                    "ALTER TABLE flowers ADD COLUMN tags TEXT NOT NULL DEFAULT ''",
+                )
+            }
+        }
+
         @Volatile
         private var instance: FloraDatabase? = null
 
@@ -63,6 +75,6 @@ abstract class FloraDatabase : RoomDatabase() {
                 context.applicationContext,
                 FloraDatabase::class.java,
                 DB_NAME,
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
     }
 }

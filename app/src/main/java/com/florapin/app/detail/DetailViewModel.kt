@@ -40,6 +40,14 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch { repository.updateNotes(current, notes) }
     }
 
+    /** Enregistre l'espèce et les étiquettes éditées. */
+    fun saveClassification(species: String, tags: List<String>) {
+        val current = flower.value ?: return
+        viewModelScope.launch {
+            repository.updateClassification(current, species, tags)
+        }
+    }
+
     fun delete(onDeleted: () -> Unit) {
         val current = flower.value ?: return
         viewModelScope.launch {

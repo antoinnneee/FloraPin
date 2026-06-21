@@ -82,6 +82,7 @@ fun DetailScreen(
             DetailContent(
                 flower = current,
                 onSaveNotes = viewModel::saveNotes,
+                onSaveClassification = viewModel::saveClassification,
                 modifier = Modifier.padding(innerPadding),
             )
         }
@@ -92,6 +93,7 @@ fun DetailScreen(
 private fun DetailContent(
     flower: FlowerEntity,
     onSaveNotes: (String) -> Unit,
+    onSaveClassification: (String, List<String>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -132,6 +134,13 @@ private fun DetailContent(
                 )
             }
 
+            ClassificationEditor(
+                flowerId = flower.id,
+                initialSpecies = flower.species.orEmpty(),
+                initialTags = flower.tags,
+                onSave = onSaveClassification,
+            )
+
             NotesEditor(
                 flowerId = flower.id,
                 initialNotes = flower.notes,
@@ -140,6 +149,51 @@ private fun DetailContent(
         }
     }
 }
+
+/** Édition de l'espèce et des étiquettes (étiquettes saisies séparées par des virgules). */
+@Composable
+private fun ClassificationEditor(
+    flowerId: Long,
+    initialSpecies: String,
+    initialTags: List<String>,
+    onSave: (String, List<String>) -> Unit,
+) {
+    val initialTagsText = initialTags.joinToString(", ")
+    var species by remember(flowerId) { mutableStateOf(initialSpecies) }
+    var tagsText by remember(flowerId) { mutableStateOf(initialTagsText) }
+
+    val changed = species != initialSpecies || tagsText != initialTagsText
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = species,
+            onValueChange = { species = it },
+            label = { Text("Espèce") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = tagsText,
+            onValueChange = { tagsText = it },
+            label = { Text("Étiquettes (séparées par des virgules)") },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Button(
+            onClick = { onSave(species, parseTags(tagsText)) },
+            enabled = changed,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Enregistrer espèce & étiquettes")
+        }
+    }
+}
+
+/** Découpe une saisie « a, b ,c » en liste nettoyée, sans doublons ni vides. */
+private fun parseTags(raw: String): List<String> =
+    raw.split(",")
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .distinct()
 
 /**
  * Mini-carte (placeholder) : situe la position. Le rendu cartographique

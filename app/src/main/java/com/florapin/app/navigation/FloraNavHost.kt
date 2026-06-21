@@ -19,6 +19,7 @@ import com.florapin.app.auth.LoginScreen
 import com.florapin.app.auth.RegisterScreen
 import com.florapin.app.capture.CaptureFlow
 import com.florapin.app.detail.DetailScreen
+import com.florapin.app.feed.SharedFeedScreen
 import com.florapin.app.friends.FriendsScreen
 import com.florapin.app.gallery.GalleryScreen
 import com.florapin.app.map.MapScreen
@@ -34,6 +35,7 @@ private object Routes {
     const val CAPTURE = "capture"
     const val MAP = "map"
     const val FRIENDS = "friends"
+    const val FEED = "feed"
     const val DETAIL = "detail/{id}"
 
     fun detail(id: Long) = "detail/$id"
@@ -98,7 +100,11 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
                 onFlowerClick = { id -> navController.navigate(Routes.detail(id)) },
                 onOpenMap = { navController.navigate(Routes.MAP) },
                 onOpenFriends = { navController.navigate(Routes.FRIENDS) },
+                onOpenFeed = { navController.navigate(Routes.FEED) },
             )
+        }
+        composable(Routes.FEED) {
+            SharedFeedScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.FRIENDS) {
             val authViewModel: AuthViewModel =

@@ -9,12 +9,17 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CreateFlowerDto, UpdateFlowerDto } from './dto/flower.dto';
+import {
+  CreateFlowerDto,
+  SearchFlowersQueryDto,
+  UpdateFlowerDto,
+} from './dto/flower.dto';
 import { FlowersService } from './flowers.service';
 
 @Controller('flowers')
@@ -28,8 +33,14 @@ export class FlowersController {
   }
 
   @Get()
-  listMine(@CurrentUser() user: AuthenticatedUser) {
-    return this.flowers.listMine(user.userId);
+  listMine(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: SearchFlowersQueryDto,
+  ) {
+    return this.flowers.search(user.userId, {
+      species: query.species,
+      tag: query.tag,
+    });
   }
 
   @Get(':id')

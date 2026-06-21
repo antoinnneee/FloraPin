@@ -14,6 +14,8 @@ function flower(id: string, createdAt: string): FlowerResponse {
     takenAt: new Date(createdAt),
     notes: '',
     visibility: 'friends',
+    species: null,
+    tags: [],
     createdAt: new Date(createdAt),
     updatedAt: new Date(createdAt),
   };

@@ -1,4 +1,6 @@
 import {
+  ArrayMaxSize,
+  IsArray,
   IsIn,
   IsISO8601,
   IsLatitude,
@@ -40,6 +42,18 @@ export class CreateFlowerDto {
   @IsOptional()
   @IsIn(VISIBILITIES)
   visibility?: FlowerVisibility;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  species?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(60, { each: true })
+  tags?: string[];
 }
 
 export class UpdateFlowerDto {
@@ -55,4 +69,29 @@ export class UpdateFlowerDto {
   @IsOptional()
   @IsISO8601()
   takenAt?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  species?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(60, { each: true })
+  tags?: string[];
+}
+
+/** Filtres de recherche des fleurs (par espèce / étiquette). */
+export class SearchFlowersQueryDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  species?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  tag?: string;
 }

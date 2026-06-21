@@ -8,6 +8,7 @@ import { FriendshipsModule } from './friendships/friendships.module';
 import { IdentificationModule } from './identification/identification.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ProposalsModule } from './proposals/proposals.module';
+import { PushModule } from './push/push.module';
 import { SharesModule } from './shares/shares.module';
 import { SyncModule } from './sync/sync.module';
 import { UsersModule } from './users/users.module';
@@ -38,6 +39,7 @@ import { UsersModule } from './users/users.module';
     FeedModule,
     IdentificationModule,
     ProposalsModule,
+    PushModule,
     SyncModule,
   ],
 })

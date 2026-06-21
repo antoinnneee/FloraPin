@@ -1,23 +1,47 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
+import { DeviceTokensService } from '../push/device-tokens.service';
+import { PushSender } from '../push/push.sender';
 import { Notification, NotificationType } from './notification.entity';
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
     @InjectRepository(Notification)
     private readonly notifications: Repository<Notification>,
+    private readonly push: PushSender,
+    private readonly devices: DeviceTokensService,
   ) {}
 
-  create(
+  async create(
     userId: string,
     type: NotificationType,
     data: Record<string, unknown> = {},
   ): Promise<Notification> {
-    return this.notifications.save(
+    const saved = await this.notifications.save(
       this.notifications.create({ userId, type, data, readAt: null }),
     );
+    await this.dispatchPush(userId, type, data);
+    return saved;
+  }
+
+  /** Envoie un push best-effort vers les appareils de l'utilisateur. */
+  private async dispatchPush(
+    userId: string,
+    type: NotificationType,
+    data: Record<string, unknown>,
+  ): Promise<void> {
+    const tokens = await this.devices.tokensFor(userId);
+    if (tokens.length === 0) return;
+    try {
+      await this.push.send(tokens, { type, data });
+    } catch (error) {
+      // Le push ne doit jamais faire échouer la notification in-app.
+      this.logger.warn(`Échec d'envoi du push « ${type} » : ${String(error)}`);
+    }
   }
 
   list(userId: string): Promise<Notification[]> {

@@ -5,18 +5,19 @@
 # de la stack docker compose.
 #
 # Ce que fait le script, de bout en bout :
-#   1. Build de la VITRINE (Astro) EN LOCAL  -> landing/dist (artefact statique).
-#   2. Synchronisation via rsync :
-#        - backend/      : contexte de build Docker (l'image installe + compile).
-#        - landing/dist/ : artefact de la vitrine (monté tel quel dans Caddy).
-#        - deploy/       : docker-compose.yml + Caddyfile.
-#   3. Côté VPS : `docker compose up -d --build`
+#   1. Synchronisation via rsync (sources, PAS de node_modules/dist locaux) :
+#        - backend/  : contexte de build Docker (l'image installe + compile).
+#        - landing/  : sources Astro de la vitrine.
+#        - deploy/   : docker-compose.yml + Caddyfile.
+#   2. Build de la VITRINE sur le VPS, DANS UN CONTENEUR Docker node:22-alpine
+#      (npm ci + npm run build) -> landing/dist, monté tel quel dans Caddy.
+#   3. `docker compose up -d --build`
 #        -> build de l'image API (npm ci + nest build dans le Dockerfile),
 #           (re)démarrage de db (PostGIS) + minio + api + proxy (Caddy).
 #
-# Conséquence : la SEULE dépendance requise sur le VPS est Docker. La vitrine
-# n'a plus besoin de Node sur le serveur (build fait ici), et les installations
-# du backend se font dans l'image Docker.
+# Conséquence : la SEULE dépendance requise sur le VPS est Docker. RIEN n'est
+# buildé en local (ni Node, ni npm requis sur le poste) — ce qui évite les
+# soucis de build sur un FS Windows monté dans WSL (verrou esbuild.exe, EPERM).
 #
 # Différences avec meowtrack (qui copie des .js + npm install + systemctl) :
 #   - On synchronise des ARBORESCENCES via rsync (au lieu de scp fichier/fichier).
@@ -91,30 +92,6 @@ if ! command -v rsync &>/dev/null; then
     exit 1
 fi
 
-# --- Build de la vitrine EN LOCAL ---
-# Produit landing/dist (artefact statique, indépendant de l'OS) qui sera envoyé
-# tel quel et monté dans Caddy. Fait avant la connexion SSH : on échoue tôt si
-# le build casse, sans laisser de connexion ouverte.
-if ! command -v npm &>/dev/null; then
-    echo "❌ npm est requis en local pour builder la vitrine. Installez Node puis relancez."
-    exit 1
-fi
-echo "🏗️  Build de la vitrine (Astro) en local..."
-# npm ci si un lockfile est présent (build reproductible), sinon npm install.
-if [ -f "$REPO_ROOT/landing/package-lock.json" ]; then
-    LANDING_INSTALL="npm ci"
-else
-    LANDING_INSTALL="npm install"
-fi
-if ! ( cd "$REPO_ROOT/landing" && $LANDING_INSTALL && npm run build ); then
-    echo "❌ Échec du build local de la vitrine. Abandon avant tout envoi."
-    exit 1
-fi
-if [ ! -d "$REPO_ROOT/landing/dist" ]; then
-    echo "❌ landing/dist introuvable après le build. Abandon."
-    exit 1
-fi
-
 export SSHPASS="$REMOTE_PASSWORD"
 # Purge d'un éventuel socket de multiplexing périmé (laissé par un run précédent
 # interrompu). Sa présence fait afficher à ssh « Control socket connect: Connection
@@ -145,24 +122,35 @@ if ! remote_ssh "test -f '$REMOTE_DIR/deploy/.env'"; then
 fi
 
 # --- Synchronisation vers le VPS ---
-# backend/      : contexte du build Docker (le Dockerfile installe + compile dans
-#                 l'image), donc node_modules/ et dist/ locaux sont inutiles.
-# landing/dist/ : artefact statique buildé plus haut (monté tel quel dans Caddy).
-# deploy/       : compose + Caddyfile. On EXCLUT .env (secrets) et l'override dev
-#                 (docker-compose.override.yml, qui exposerait db/minio sur l'hôte).
+# Pour backend/ ET landing/ on EXCLUT node_modules/ et dist/ : ce sont des
+# artefacts buildés (et les binaires natifs Windows, ex. esbuild.exe, seraient
+# inutilisables sur Linux). backend/ est compilé dans son image ; landing/ est
+# buildé dans un conteneur Node sur le VPS (étape suivante).
+# deploy/ : compose + Caddyfile. On EXCLUT .env (secrets) et l'override dev
+#           (docker-compose.override.yml, qui exposerait db/minio sur l'hôte).
 echo "📦 Synchronisation de backend/..."
-remote_ssh "mkdir -p '$REMOTE_DIR/backend' '$REMOTE_DIR/landing/dist' '$REMOTE_DIR/deploy'"
+remote_ssh "mkdir -p '$REMOTE_DIR/backend' '$REMOTE_DIR/landing' '$REMOTE_DIR/deploy'"
 remote_sync --exclude 'node_modules/' --exclude 'dist/' \
     "$REPO_ROOT/backend/" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/backend/" || exit 1
 
-echo "📦 Envoi de la vitrine (landing/dist)..."
-remote_sync \
-    "$REPO_ROOT/landing/dist/" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/landing/dist/" || exit 1
+echo "📦 Synchronisation de landing/ (sources)..."
+remote_sync --exclude 'node_modules/' --exclude 'dist/' \
+    "$REPO_ROOT/landing/" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/landing/" || exit 1
 
 echo "📦 Synchronisation de deploy/..."
 remote_sync --exclude '.env' --exclude '.deployEnv' \
     --exclude 'docker-compose.override.yml' --exclude 'deploy.sh' \
     "$REPO_ROOT/deploy/" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/deploy/" || exit 1
+
+# --- Build de la vitrine dans un conteneur Docker (sur le VPS) ---
+# node:22-alpine avec landing/ monté : npm ci + npm run build -> landing/dist
+# (que Caddy sert via le montage défini dans docker-compose.yml). Aucun Node
+# requis sur l'hôte ; le build tourne sous Linux (binaires natifs corrects).
+echo "🏗️  Build de la vitrine (Astro) dans un conteneur Docker sur le VPS..."
+if ! remote_ssh "cd '$REMOTE_DIR' && echo '$REMOTE_PASSWORD' | sudo -S docker run --rm -v '$REMOTE_DIR/landing':/app -w /app node:22-alpine sh -c 'npm ci && npm run build'"; then
+    echo "❌ Échec du build de la vitrine (conteneur Docker)."
+    exit 1
+fi
 
 # --- (Re)build de l'image API + (re)démarrage de la stack ---
 # `up -d --build` reconstruit l'image API (npm ci + nest build dans le Dockerfile)

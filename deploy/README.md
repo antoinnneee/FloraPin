@@ -35,16 +35,19 @@ cd deploy
 
 Le script, de bout en bout :
 
-1. **build la vitrine en local** (Astro → `landing/dist`) ;
-2. **synchronise** (`rsync`) `backend/`, `landing/dist/` et `deploy/` vers le VPS ;
+1. **synchronise** (`rsync`) les sources `backend/`, `landing/` et `deploy/`
+   vers le VPS (en excluant `node_modules/` et `dist/`) ;
+2. **build la vitrine sur le VPS dans un conteneur** `node:22-alpine`
+   (`npm ci && npm run build` → `landing/dist`, monté dans Caddy) ;
 3. lance `docker compose up -d --build` côté serveur — ce qui **installe et
    compile le backend dans l'image** (npm ci + nest build) puis (re)démarre
    db + minio + api + proxy.
 
-Prérequis : `sshpass`, `rsync` et `npm` en local ; **Docker seul** sur le VPS
-(plus besoin de Node sur le serveur) ; et `deploy/.env` déjà présent côté VPS
-(les secrets ne sont jamais copiés). La cible SSH est définie dans
-`deploy/.deployEnv` (gitignoré).
+Prérequis : `sshpass` et `rsync` en local ; **Docker seul** sur le VPS (rien
+n'est buildé en local — ni Node ni npm requis sur le poste, ce qui évite les
+soucis de build sur un FS Windows monté dans WSL) ; et `deploy/.env` déjà
+présent côté VPS (les secrets ne sont jamais copiés). La cible SSH est définie
+dans `deploy/.deployEnv` (gitignoré).
 - Le bucket MinIO est créé automatiquement par l'API au démarrage.
 
 ## Bootstrap serveur (`install-service.sh`)

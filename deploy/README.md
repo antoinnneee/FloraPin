@@ -1,7 +1,13 @@
 # Déploiement FloraPin (POC auto-hébergé)
 
 Stack de déploiement sur un VPS via Docker Compose : **API NestJS** +
-**PostgreSQL/PostGIS** + **MinIO** + **Caddy** (reverse-proxy, HTTPS automatique).
+**PostgreSQL/PostGIS** + **MinIO** + **Caddy** (reverse-proxy, sert vitrine + API).
+
+> **TLS** : sur le déploiement de référence (`florapin.pattounecorp.ovh`), le HTTPS
+> public est terminé par le **nginx de l'hôte** qui proxifie vers Caddy en HTTP — voir
+> [`DEPLOYMENT.md`](DEPLOYMENT.md). Caddy peut aussi gérer l'auto-HTTPS lui-même
+> (Let's Encrypt) si les ports 80/443 publics atteignent directement la machine ;
+> il faut alors rétablir le bloc `{$DOMAIN}` dans le `Caddyfile` et publier le 443.
 
 ## Prérequis
 
@@ -18,11 +24,12 @@ cp .env.example .env        # renseigner DOMAIN + secrets (DB, JWT, MinIO) + por
 docker compose up -d --build
 ```
 
-- L'API est exposée en HTTPS sur `https://<DOMAIN>` (base `/api/v1`,
-  doc Swagger sur `/api/docs`).
+- L'API est servie sous `/api` (base `/api/v1`, doc Swagger sur `/api/docs`) et la
+  vitrine à la racine, derrière Caddy.
 - **Ports** (configurables dans `.env`, défauts entre parenthèses) :
-  `HTTP_PORT` (80) et `HTTPS_PORT` (443) pour Caddy en prod ; `API_PORT` (3000)
-  port interne de l'API ; et `DB_HOST_PORT`/`MINIO_HOST_PORT`/
+  `HTTP_PORT` (80) publie Caddy sur l'hôte — **mettre une valeur non privilégiée
+  (ex. `8088`) quand un reverse-proxy hôte est devant**, cf. `DEPLOYMENT.md` ;
+  `API_PORT` (3000) port interne de l'API ; et `DB_HOST_PORT`/`MINIO_HOST_PORT`/
   `MINIO_CONSOLE_HOST_PORT` (5432/9000/9001) publiés sur l'hôte **en dev seulement**.
 - Le schéma SQL (`backend/db/schema.sql`) est appliqué **au premier démarrage**
   d'une base vide (volume `db-data`).
@@ -132,6 +139,7 @@ restauration) **reportée à la prod** — détaillée dans la note du nœud NOD
 ## Sécurité
 
 - Secrets uniquement via `deploy/.env` (jamais commité).
-- HTTPS forcé par Caddy ; l'API n'est pas exposée en direct (seul le proxy
-  publie 80/443).
+- HTTPS assuré en façade (nginx hôte sur le déploiement de référence, ou Caddy en
+  auto-HTTPS en standalone) ; l'API n'est jamais exposée en direct, tout passe par
+  le proxy.
 - Images servies via URLs MinIO présignées (jamais publiques).

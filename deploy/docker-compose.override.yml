@@ -1,0 +1,17 @@
+# Surcharge DEV LOCAL (chargée automatiquement par docker compose).
+# Publie les ports de l'infra (db, minio) vers l'hôte pour pouvoir lancer
+# l'API en local avec `npm run start:dev` (scénario B.2 de docs/RUNNING.md).
+#
+# En PRODUCTION (tout dockerisé), lancer SANS cet override :
+#   docker compose -f docker-compose.yml up -d
+# afin de ne PAS exposer la base/MinIO sur l'hôte.
+
+services:
+  db:
+    ports:
+      - "5432:5432"
+
+  minio:
+    ports:
+      - "9000:9000"   # API S3
+      - "9001:9001"   # console web

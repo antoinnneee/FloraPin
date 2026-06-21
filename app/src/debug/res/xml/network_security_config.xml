@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Config réseau DEBUG uniquement (src/debug) : autorise le HTTP en clair pour
+  joindre un backend local (émulateur 10.0.2.2, localhost, ou un PC sur le LAN
+  ex. 192.168.x.x). La build RELEASE n'inclut pas ce fichier et reste donc en
+  HTTPS strict (cleartext interdit par défaut depuis Android 9 / API 28).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

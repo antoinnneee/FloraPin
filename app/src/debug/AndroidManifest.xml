@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Manifest DEBUG : branche la config réseau autorisant le HTTP en clair sur les
+  builds de développement. Fusionné par-dessus le manifest principal uniquement
+  pour la variante debug ; la release n'est pas affectée.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:networkSecurityConfig="@xml/network_security_config" />
+
+</manifest>

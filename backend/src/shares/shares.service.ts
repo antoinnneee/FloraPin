@@ -9,6 +9,7 @@ import { IsNull, Repository } from 'typeorm';
 import { Flower } from '../flowers/flower.entity';
 import { FlowerResponse, FlowersService } from '../flowers/flowers.service';
 import { FriendshipsService } from '../friendships/friendships.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateShareDto } from './dto/share.dto';
 import { Share } from './share.entity';
 
@@ -21,6 +22,7 @@ export class SharesService {
     private readonly flowers: Repository<Flower>,
     private readonly friendships: FriendshipsService,
     private readonly flowersService: FlowersService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** Crée un partage configurable vers un ami accepté. */
@@ -55,7 +57,7 @@ export class SharesService {
       throw new ConflictException('Ce partage existe déjà.');
     }
 
-    return this.shares.save(
+    const share = await this.shares.save(
       this.shares.create({
         ownerId,
         sharedWith: dto.friendId,
@@ -64,6 +66,16 @@ export class SharesService {
         includeGps: dto.includeGps ?? true,
       }),
     );
+
+    // Notifie le destinataire du partage (NODE-56).
+    await this.notifications.create(dto.friendId, 'flower_shared', {
+      shareId: share.id,
+      fromUserId: ownerId,
+      scope: share.scope,
+      flowerId: share.flowerId,
+    });
+
+    return share;
   }
 
   listMine(ownerId: string): Promise<Share[]> {

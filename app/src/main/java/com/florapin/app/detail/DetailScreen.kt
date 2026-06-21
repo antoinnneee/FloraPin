@@ -34,6 +34,7 @@ import coil.compose.AsyncImage
 import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.imageModel
 import com.florapin.app.location.GeoPoint
+import com.florapin.app.share.ShareFlowerSheet
 import com.florapin.app.util.formatCaptureDate
 
 /**
@@ -50,6 +51,7 @@ fun DetailScreen(
 ) {
     viewModel.setFlowerId(flowerId)
     val flower by viewModel.flower.collectAsStateWithLifecycle()
+    var showShare by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
@@ -60,6 +62,10 @@ fun DetailScreen(
                     IconButton(onClick = onBack) { Text("←") }
                 },
                 actions = {
+                    val current = flower
+                    if (current != null) {
+                        IconButton(onClick = { showShare = true }) { Text("📤") }
+                    }
                     IconButton(
                         onClick = { viewModel.delete(onDeleted = onBack) },
                     ) { Text("🗑️") }
@@ -86,6 +92,13 @@ fun DetailScreen(
                 modifier = Modifier.padding(innerPadding),
             )
         }
+    }
+
+    if (showShare && flower != null) {
+        ShareFlowerSheet(
+            flowerServerId = flower?.serverId,
+            onDismiss = { showShare = false },
+        )
     }
 }
 

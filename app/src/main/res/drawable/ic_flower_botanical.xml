@@ -1,0 +1,29 @@
+<!-- Glyphe fleur botanique FloraPin (NODE-86). Monochrome : teinté au niveau
+     Compose (Icon tint). 5 pétales + cœur. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+    <!-- Pétales (5 cercles répartis autour du centre) -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M12,3.5 m-3.3,0 a3.3,3.3 0 1,0 6.6,0 a3.3,3.3 0 1,0 -6.6,0 Z" />
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M20.08,9.37 m-3.3,0 a3.3,3.3 0 1,0 6.6,0 a3.3,3.3 0 1,0 -6.6,0 Z" />
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M17,18.86 m-3.3,0 a3.3,3.3 0 1,0 6.6,0 a3.3,3.3 0 1,0 -6.6,0 Z" />
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M7,18.86 m-3.3,0 a3.3,3.3 0 1,0 6.6,0 a3.3,3.3 0 1,0 -6.6,0 Z" />
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M3.92,9.37 m-3.3,0 a3.3,3.3 0 1,0 6.6,0 a3.3,3.3 0 1,0 -6.6,0 Z" />
+    <!-- Cœur -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M12,12 m-2.6,0 a2.6,2.6 0 1,0 5.2,0 a2.6,2.6 0 1,0 -5.2,0 Z" />
+</vector>

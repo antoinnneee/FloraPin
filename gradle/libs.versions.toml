@@ -31,6 +31,10 @@ moshi = "1.15.1"
 securityCrypto = "1.1.0-alpha06"
 workManager = "2.10.0"
 
+# Push (Firebase Cloud Messaging)
+googleServices = "4.4.2"
+firebaseBom = "33.7.0"
+
 # Test
 junit = "4.13.2"
 androidxJunit = "1.2.1"
@@ -63,6 +67,10 @@ androidx-camera-view = { group = "androidx.camera", name = "camera-view", versio
 
 # Coil — chargement d'images dans Compose
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+
+# Firebase Cloud Messaging (push) — versions alignées par le BOM.
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
 
 # FusedLocationProvider (GPS)
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
@@ -100,3 +108,5 @@ kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 # KSP : génération du code Room.
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+# Firebase / Google Services (traite google-services.json).
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }

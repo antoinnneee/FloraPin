@@ -29,6 +29,33 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # google-services.json est gitignoré (propre au projet Firebase). On écrit
+      # un placeholder structurellement valide pour que le plugin google-services
+      # laisse compiler en CI (aucune valeur réelle requise pour le build).
+      - name: Provision placeholder google-services.json
+        run: |
+          cat > app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "florapin-ci",
+              "storage_bucket": "florapin-ci.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+                  "android_client_info": { "package_name": "com.florapin.app" }
+                },
+                "oauth_client": [],
+                "api_key": [{ "current_key": "AIzaSyDUMMYDUMMYDUMMYDUMMYDUMMYDUMMY000" }],
+                "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
+
       - name: Lint
         run: ./gradlew lint --stacktrace
 

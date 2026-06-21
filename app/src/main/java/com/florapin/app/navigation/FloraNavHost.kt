@@ -22,6 +22,7 @@ import com.florapin.app.detail.DetailScreen
 import com.florapin.app.gallery.GalleryScreen
 import com.florapin.app.map.MapScreen
 import com.florapin.app.network.auth.EncryptedTokenStore
+import com.florapin.app.push.PushTokenRegistrar
 import com.florapin.app.sync.SyncScheduler
 
 /** Destinations de l'application. */
@@ -97,6 +98,9 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
                 onFlowerClick = { id -> navController.navigate(Routes.detail(id)) },
                 onOpenMap = { navController.navigate(Routes.MAP) },
                 onLogout = {
+                    // Désenregistre le push tant que les jetons sont valides,
+                    // puis déconnecte.
+                    PushTokenRegistrar.unregister(context)
                     authViewModel.logout {
                         SyncScheduler.cancelAll(context)
                         navController.goToLogin()
@@ -134,10 +138,11 @@ private fun OnAuthSuccess(state: AuthUiState, onSuccess: () -> Unit) {
     }
 }
 
-/** Amorce la synchronisation après une authentification réussie. */
+/** Amorce la synchronisation et enregistre le push après authentification. */
 private fun startSync(context: android.content.Context) {
     SyncScheduler.schedulePeriodic(context)
     SyncScheduler.syncNow(context)
+    PushTokenRegistrar.register(context)
 }
 
 /** Va à la galerie en vidant toute la back-stack (sortie du flux d'auth). */

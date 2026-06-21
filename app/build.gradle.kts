@@ -67,7 +67,7 @@ android {
             buildConfigField(
                 "String",
                 "API_BASE_URL",
-                "\"${apiBaseUrlOverride ?: "https://florapin.example.com/api/v1/"}\"",
+                "\"${apiBaseUrlOverride ?: "https://florapin.pattounecorp.ovh/api/v1/"}\"",
             )
         }
     }

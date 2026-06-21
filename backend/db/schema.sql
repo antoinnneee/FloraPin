@@ -46,6 +46,8 @@ CREATE TABLE flowers (
     accuracy_m  REAL,                              -- précision horizontale (mètres)
     taken_at    TIMESTAMPTZ NOT NULL,             -- date de la prise
     notes       TEXT NOT NULL DEFAULT '',
+    species     TEXT,                              -- nom scientifique (NODE-26)
+    tags        TEXT[] NOT NULL DEFAULT '{}',      -- étiquettes libres
     visibility  TEXT NOT NULL DEFAULT 'private'    -- 'private' | 'friends'
                 CHECK (visibility IN ('private', 'friends')),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -57,6 +59,9 @@ CREATE INDEX idx_flowers_location ON flowers USING GIST (location);
 -- Listing par propriétaire + sync incrémentale.
 CREATE INDEX idx_flowers_owner       ON flowers(owner_id);
 CREATE INDEX idx_flowers_updated_at  ON flowers(updated_at);
+-- Recherche par espèce / étiquette (NODE-26).
+CREATE INDEX idx_flowers_species     ON flowers(species);
+CREATE INDEX idx_flowers_tags        ON flowers USING GIN (tags);
 
 -- =====================================================================
 -- Amitiés (NODE-20)

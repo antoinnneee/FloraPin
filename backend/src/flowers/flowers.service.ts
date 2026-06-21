@@ -19,6 +19,8 @@ export interface FlowerResponse {
   takenAt: Date;
   notes: string;
   visibility: string;
+  species: string | null;
+  tags: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -64,6 +66,8 @@ export class FlowersService {
       takenAt: new Date(dto.takenAt),
       notes: dto.notes ?? '',
       visibility: dto.visibility ?? 'private',
+      species: dto.species ?? null,
+      tags: dto.tags ?? [],
     });
 
     const saved = await this.flowers.save(entity);
@@ -87,12 +91,24 @@ export class FlowersService {
     return { imageUrl: await this.storage.presignDownload(flower.imageKey) };
   }
 
-  async listMine(ownerId: string): Promise<FlowerResponse[]> {
+  /** Liste les fleurs de l'utilisateur, filtrables par espèce et/ou étiquette. */
+  async search(
+    ownerId: string,
+    filters: { species?: string; tag?: string } = {},
+  ): Promise<FlowerResponse[]> {
     const flowers = await this.flowers.find({
       where: { ownerId },
       order: { takenAt: 'DESC' },
     });
-    return Promise.all(flowers.map((f) => this.toResponse(f)));
+
+    const species = filters.species?.toLowerCase();
+    const filtered = flowers.filter((f) => {
+      const speciesOk =
+        !species || (f.species?.toLowerCase().includes(species) ?? false);
+      const tagOk = !filters.tag || (f.tags?.includes(filters.tag) ?? false);
+      return speciesOk && tagOk;
+    });
+    return Promise.all(filtered.map((f) => this.toResponse(f)));
   }
 
   async update(
@@ -107,6 +123,8 @@ export class FlowersService {
     if (dto.notes !== undefined) flower.notes = dto.notes;
     if (dto.visibility !== undefined) flower.visibility = dto.visibility;
     if (dto.takenAt !== undefined) flower.takenAt = new Date(dto.takenAt);
+    if (dto.species !== undefined) flower.species = dto.species;
+    if (dto.tags !== undefined) flower.tags = dto.tags;
     const saved = await this.flowers.save(flower);
     return this.toResponse(saved);
   }
@@ -132,6 +150,8 @@ export class FlowersService {
       takenAt: flower.takenAt,
       notes: flower.notes,
       visibility: flower.visibility,
+      species: flower.species ?? null,
+      tags: flower.tags ?? [],
       createdAt: flower.createdAt,
       updatedAt: flower.updatedAt,
     };

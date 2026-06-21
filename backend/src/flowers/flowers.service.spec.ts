@@ -108,4 +108,34 @@ describe('FlowersService', () => {
       service.getById('autre', result.flower.id),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it('recherche par espèce', async () => {
+    await service.create(OWNER, {
+      takenAt: '2026-06-21T09:00:00Z',
+      species: 'Rosa canina',
+    });
+    await service.create(OWNER, {
+      takenAt: '2026-06-21T09:01:00Z',
+      species: 'Bellis perennis',
+    });
+
+    const result = await service.search(OWNER, { species: 'rosa' });
+    expect(result).toHaveLength(1);
+    expect(result[0].species).toBe('Rosa canina');
+  });
+
+  it('recherche par étiquette', async () => {
+    await service.create(OWNER, {
+      takenAt: '2026-06-21T09:00:00Z',
+      tags: ['jardin', 'rouge'],
+    });
+    await service.create(OWNER, {
+      takenAt: '2026-06-21T09:01:00Z',
+      tags: ['foret'],
+    });
+
+    const result = await service.search(OWNER, { tag: 'jardin' });
+    expect(result).toHaveLength(1);
+    expect(result[0].tags).toContain('jardin');
+  });
 });

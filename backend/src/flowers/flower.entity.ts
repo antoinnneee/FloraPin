@@ -49,6 +49,14 @@ export class Flower {
   @Column({ type: 'text', default: '' })
   notes: string;
 
+  /** Espèce (nom scientifique), renseignée via identification ou manuellement. */
+  @Column({ type: 'text', nullable: true })
+  species: string | null;
+
+  /** Étiquettes libres. */
+  @Column({ type: 'text', array: true, default: () => "'{}'" })
+  tags: string[];
+
   @Column({ type: 'text', default: 'private' })
   visibility: FlowerVisibility;
 

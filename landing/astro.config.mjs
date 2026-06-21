@@ -2,7 +2,7 @@ import { defineConfig } from 'astro/config';
 
 export default defineConfig({
   output: 'static',
-  site: 'https://florapin.fr',
+  site: 'http://pattounecorp.ovh:8975',
   build: {
     assets: '_assets',
   },

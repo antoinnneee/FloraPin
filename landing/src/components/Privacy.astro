@@ -1,0 +1,137 @@
+---
+---
+
+<section class="privacy">
+  <div class="container">
+    <div class="card">
+      <div class="card-deco" aria-hidden="true">🔒</div>
+      <div class="card-body">
+        <h2>Vos spots restent secrets</h2>
+        <p>
+          Un coin rare que vous voulez garder pour vous ? À chaque partage, un simple bouton décide
+          si les coordonnées GPS sont incluses ou non. Vos lieux ne quittent votre téléphone
+          que si vous le décidez.
+        </p>
+        <div class="demo" aria-label="Exemple de contrôle de partage GPS">
+          <div class="demo-row">
+            <span class="demo-label">📍 Partager la localisation</span>
+            <div class="toggle" role="switch" aria-checked="false" aria-label="Localisation désactivée">
+              <div class="thumb"></div>
+            </div>
+          </div>
+          <p class="demo-hint">✓ La photo est partagée, pas l'endroit</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .privacy {
+    padding: var(--section-py) 0;
+    background: var(--white);
+  }
+
+  .card {
+    background: linear-gradient(135deg, var(--green-900) 0%, #0e3b20 100%);
+    border-radius: 24px;
+    padding: clamp(40px, 6vw, 72px);
+    display: flex;
+    gap: 40px;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .card::after {
+    content: '';
+    position: absolute;
+    top: -80px;
+    right: -80px;
+    width: 360px;
+    height: 360px;
+    background: radial-gradient(circle, rgba(236, 72, 153, 0.1) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  .card-deco {
+    font-size: 4rem;
+    flex-shrink: 0;
+    filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.3));
+  }
+
+  .card-body {
+    color: var(--white);
+    position: relative;
+    z-index: 1;
+  }
+
+  h2 {
+    font-size: clamp(1.3rem, 2.5vw, 2rem);
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+
+  p {
+    font-size: 0.98rem;
+    line-height: 1.75;
+    opacity: 0.82;
+    max-width: 520px;
+    margin-bottom: 28px;
+  }
+
+  /* Démo toggle */
+  .demo {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 16px 20px;
+  }
+
+  .demo-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 10px;
+  }
+
+  .demo-label {
+    font-size: 0.88rem;
+    font-weight: 500;
+    opacity: 0.9;
+  }
+
+  .toggle {
+    width: 44px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 100px;
+    padding: 2px;
+    flex-shrink: 0;
+  }
+
+  .thumb {
+    width: 20px;
+    height: 20px;
+    background: var(--white);
+    border-radius: 50%;
+    opacity: 0.7;
+  }
+
+  .demo-hint {
+    font-size: 0.78rem;
+    opacity: 0.65;
+    margin: 0;
+  }
+
+  @media (max-width: 600px) {
+    .card {
+      flex-direction: column;
+      gap: 24px;
+      text-align: center;
+    }
+
+    .demo { text-align: left; }
+  }
+</style>

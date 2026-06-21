@@ -1,0 +1,105 @@
+---
+const features = [
+  {
+    icon: '📷',
+    title: 'Capture géolocalisée',
+    desc: "Une photo, et la fleur est automatiquement épinglée à l'endroit exact où vous l'avez trouvée.",
+  },
+  {
+    icon: '🗺️',
+    title: 'Carte des fleurs',
+    desc: 'Toutes vos trouvailles réunies sur une carte interactive, regroupées intelligemment et filtrables.',
+  },
+  {
+    icon: '🖼️',
+    title: 'Galerie & détail',
+    desc: 'Retrouvez chaque fleur avec sa photo, ses notes et sa mini-carte.',
+  },
+  {
+    icon: '👥',
+    title: 'Partage entre amis',
+    desc: 'Choisissez ce que vous partagez : une fleur ou toute votre collection, avec ou sans localisation.',
+  },
+  {
+    icon: '🌿',
+    title: 'Identification',
+    desc: "Vous ne connaissez pas l'espèce ? Laissez-la « à identifier » : un ami ou Pl@ntNet vous aide.",
+  },
+  {
+    icon: '📴',
+    title: 'Fonctionne hors-ligne',
+    desc: 'Capture, galerie et carte marchent sans réseau ni compte. Vos données restent chez vous.',
+  },
+];
+---
+
+<section id="fonctionnalites" class="features">
+  <div class="container">
+    <div class="section-header">
+      <span class="eyebrow">Fonctionnalités</span>
+      <h2>Tout ce dont vous avez besoin pour cataloguer la nature</h2>
+    </div>
+    <div class="grid">
+      {features.map(f => (
+        <div class="card">
+          <div class="card-icon">{f.icon}</div>
+          <h3>{f.title}</h3>
+          <p>{f.desc}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .features {
+    padding: var(--section-py) 0;
+    background: var(--white);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  .card {
+    background: var(--green-50);
+    border: 1px solid var(--green-100);
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.07);
+  }
+
+  .card-icon {
+    font-size: 2rem;
+    margin-bottom: 16px;
+    line-height: 1;
+  }
+
+  h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--green-900);
+    margin-bottom: 8px;
+  }
+
+  p {
+    font-size: 0.88rem;
+    color: var(--gray-600);
+    line-height: 1.7;
+  }
+
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 540px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>

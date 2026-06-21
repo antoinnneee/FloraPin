@@ -1,5 +1,7 @@
 dist/
 node_modules/
+# Cache de build Astro (généré).
+.astro/
 .env
 .env.*
 !.env.example

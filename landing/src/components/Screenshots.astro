@@ -1,0 +1,98 @@
+---
+const screens = [
+  { label: 'Galerie',       icon: '🖼️' },
+  { label: 'Carte',         icon: '🗺️' },
+  { label: 'Détail fleur',  icon: '🌸' },
+  { label: 'Partage',       icon: '👥' },
+];
+---
+
+<section class="screenshots">
+  <div class="container">
+    <div class="section-header">
+      <span class="eyebrow">Aperçu</span>
+      <h2>L'app en images</h2>
+      <p class="note">
+        Captures d'écran à venir avant le lancement de la bêta.
+      </p>
+    </div>
+    <div class="gallery">
+      {screens.map(s => (
+        <div class="screen-frame">
+          <div class="notch"></div>
+          <div class="screen-inner">
+            <span class="screen-icon">{s.icon}</span>
+            <span class="screen-label">{s.label}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .screenshots {
+    padding: var(--section-py) 0;
+    background: var(--gray-50);
+  }
+
+  .section-header .note {
+    margin-top: 10px;
+    font-size: 0.88rem;
+    color: var(--gray-600);
+  }
+
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+
+  .screen-frame {
+    background: var(--green-900);
+    border-radius: 24px;
+    padding: 8px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.16);
+    aspect-ratio: 9 / 18;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .notch {
+    width: 40px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    margin: 0 auto 6px;
+  }
+
+  .screen-inner {
+    flex: 1;
+    background: var(--green-100);
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: 2px dashed var(--green-200);
+  }
+
+  .screen-icon {
+    font-size: 2.4rem;
+    line-height: 1;
+  }
+
+  .screen-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--green-700);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  @media (max-width: 720px) {
+    .gallery { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>

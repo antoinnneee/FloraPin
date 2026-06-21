@@ -1,0 +1,78 @@
+---
+const year = new Date().getFullYear();
+---
+
+<footer class="footer">
+  <div class="container">
+    <div class="top">
+      <div class="brand">
+        <span class="logo">🌸 FloraPin</span>
+        <p>Photographiez la nature, épinglez vos trouvailles.</p>
+      </div>
+      <nav class="links" aria-label="Liens du pied de page">
+        <a href="mailto:contact@florapin.fr">Contact</a>
+        <a href="/politique-de-confidentialite">Politique de confidentialité</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a
+          href="https://github.com/antoinnneee/FloraPin"
+          target="_blank"
+          rel="noopener noreferrer"
+        >GitHub ↗</a>
+      </nav>
+    </div>
+    <div class="bottom">
+      <p>© {year} FloraPin — Tous droits réservés.</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    background: var(--green-900);
+    color: var(--white);
+    padding: 52px 0 28px;
+  }
+
+  .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 32px;
+    flex-wrap: wrap;
+    padding-bottom: 40px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 24px;
+  }
+
+  .logo {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .brand p {
+    font-size: 0.83rem;
+    opacity: 0.55;
+  }
+
+  .links {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .links a {
+    font-size: 0.83rem;
+    opacity: 0.65;
+    transition: opacity 0.15s;
+  }
+
+  .links a:hover { opacity: 1; }
+
+  .bottom p {
+    font-size: 0.77rem;
+    opacity: 0.38;
+  }
+</style>

@@ -1,0 +1,144 @@
+---
+---
+
+<section id="beta" class="beta-cta">
+  <div class="container">
+    <div class="inner">
+      <span class="hero-emoji" aria-hidden="true">🌸</span>
+      <h2>Prêt à cataloguer vos fleurs ?</h2>
+      <p>Rejoignez la bêta et soyez parmi les premiers à essayer FloraPin.</p>
+
+      <!--
+        Remplacez l'attribut action par votre URL Formspree :
+        https://formspree.io/f/<VOTRE_ID>
+        Ou pointez vers un endpoint backend dédié.
+      -->
+      <form
+        class="form"
+        action="https://formspree.io/f/VOTRE_ID"
+        method="POST"
+        novalidate
+      >
+        <div class="form-row">
+          <label for="beta-email" class="sr-only">Adresse e-mail</label>
+          <input
+            id="beta-email"
+            type="email"
+            name="email"
+            placeholder="votre@email.com"
+            required
+            autocomplete="email"
+          />
+          <button type="submit">Je veux tester FloraPin →</button>
+        </div>
+        <p class="legal">
+          Votre adresse e-mail sera utilisée uniquement pour la bêta FloraPin.
+          <a href="/politique-de-confidentialite">Politique de confidentialité</a>.
+        </p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<style>
+  .beta-cta {
+    padding: var(--section-py) 0;
+    background: linear-gradient(140deg, var(--green-50) 0%, #fff3fa 100%);
+  }
+
+  .inner {
+    text-align: center;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  .hero-emoji {
+    font-size: 3.2rem;
+    display: block;
+    margin-bottom: 20px;
+    line-height: 1;
+  }
+
+  h2 {
+    font-size: clamp(1.6rem, 3vw, 2.4rem);
+    font-weight: 700;
+    color: var(--green-900);
+    margin-bottom: 12px;
+  }
+
+  p {
+    font-size: 1rem;
+    color: var(--gray-600);
+    margin-bottom: 32px;
+  }
+
+  .form-row {
+    display: flex;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+    margin-bottom: 12px;
+  }
+
+  input[type="email"] {
+    flex: 1;
+    padding: 16px 20px;
+    font-family: var(--font);
+    font-size: 1rem;
+    border: none;
+    outline: none;
+    background: var(--white);
+    color: var(--gray-900);
+    min-width: 0;
+  }
+
+  input[type="email"]::placeholder { color: #9ca3af; }
+
+  button[type="submit"] {
+    background: var(--green-700);
+    color: var(--white);
+    font-family: var(--font);
+    font-size: 0.88rem;
+    font-weight: 700;
+    padding: 16px 22px;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+  }
+
+  button[type="submit"]:hover { background: var(--green-800); }
+
+  .legal {
+    font-size: 0.76rem;
+    color: #9ca3af;
+    margin-bottom: 0;
+  }
+
+  .legal a {
+    color: var(--green-700);
+    text-decoration: underline;
+  }
+
+  /* Accessibilité */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  @media (max-width: 500px) {
+    .form-row { flex-direction: column; }
+
+    button[type="submit"] {
+      border-radius: 0;
+      padding: 16px;
+    }
+  }
+</style>

@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
-import com.florapin.app.capture.CaptureFlow
+import com.florapin.app.navigation.FloraNavHost
 import com.florapin.app.ui.theme.FloraPinTheme
 
 class MainActivity : ComponentActivity() {
@@ -18,7 +18,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             FloraPinTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    CaptureFlow(modifier = Modifier.padding(innerPadding))
+                    FloraNavHost(modifier = Modifier.padding(innerPadding))
                 }
             }
         }

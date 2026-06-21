@@ -21,6 +21,17 @@ val maptilerApiKey: String = run {
         ?: ""
 }
 
+// URL de base de l'API. Surchargée par local.properties / env si fournie ;
+// sinon valeur par défaut adaptée au type de build (voir buildTypes).
+val apiBaseUrlOverride: String? = run {
+    val props = Properties()
+    val localFile = rootProject.file("local.properties")
+    if (localFile.exists()) {
+        localFile.inputStream().use { props.load(it) }
+    }
+    props.getProperty("API_BASE_URL") ?: System.getenv("API_BASE_URL")
+}
+
 android {
     namespace = "com.florapin.app"
     compileSdk = 35
@@ -38,11 +49,24 @@ android {
     }
 
     buildTypes {
+        debug {
+            // 10.0.2.2 = hôte depuis l'émulateur Android.
+            buildConfigField(
+                "String",
+                "API_BASE_URL",
+                "\"${apiBaseUrlOverride ?: "http://10.0.2.2:3000/api/v1/"}\"",
+            )
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
+            )
+            buildConfigField(
+                "String",
+                "API_BASE_URL",
+                "\"${apiBaseUrlOverride ?: "https://florapin.example.com/api/v1/"}\"",
             )
         }
     }
@@ -90,6 +114,13 @@ dependencies {
 
     // Carte (MapLibre GL)
     implementation(libs.maplibre.android)
+
+    // Réseau (Retrofit + OkHttp + Moshi)
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.moshi)
+    implementation(libs.okhttp.logging)
+    implementation(libs.moshi)
+    ksp(libs.moshi.kotlin.codegen)
 
     // Room (persistance locale)
     implementation(libs.androidx.room.runtime)

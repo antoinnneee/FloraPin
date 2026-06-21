@@ -31,8 +31,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.florapin.app.data.FlowerEntity
+import com.florapin.app.data.imageModel
 import com.florapin.app.util.formatCaptureDate
-import java.io.File
 
 /**
  * Galerie des fleurs capturées (NODE-9) : grille de vignettes, ou message si
@@ -120,7 +120,7 @@ private fun FlowerThumbnail(
     ) {
         Column {
             AsyncImage(
-                model = File(flower.imagePath),
+                model = flower.imageModel(),
                 contentDescription = "Fleur du ${formatCaptureDate(flower.createdAt)}",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier

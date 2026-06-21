@@ -69,6 +69,9 @@ class FlowerRepository(private val dao: FlowerDao) {
     suspend fun findByServerId(serverId: String): FlowerEntity? =
         dao.findByServerId(serverId)
 
+    /** Insère une fleur distante reçue par sync (autre appareil). */
+    suspend fun insert(flower: FlowerEntity): Long = dao.insert(flower)
+
     /** Réécrit une ligne existante (réconciliation depuis le serveur). */
     suspend fun update(flower: FlowerEntity) = dao.update(flower)
 

@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
@@ -23,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -65,6 +68,9 @@ fun MapScreen(
     val apiKey = BuildConfig.MAPTILER_API_KEY
     val markers by viewModel.markers.collectAsStateWithLifecycle()
     val dateFilter by viewModel.dateFilter.collectAsStateWithLifecycle()
+    val speciesFilter by viewModel.speciesFilter.collectAsStateWithLifecycle()
+    val friendsOnly by viewModel.friendsOnly.collectAsStateWithLifecycle()
+    val availableSpecies by viewModel.availableSpecies.collectAsStateWithLifecycle()
     val currentOnFlowerClick by rememberUpdatedState(onFlowerClick)
 
     Scaffold(
@@ -108,6 +114,11 @@ fun MapScreen(
             FilterBar(
                 selected = dateFilter,
                 onSelect = viewModel::setDateFilter,
+                species = availableSpecies,
+                selectedSpecies = speciesFilter,
+                onSelectSpecies = viewModel::setSpeciesFilter,
+                friendsOnly = friendsOnly,
+                onToggleFriends = viewModel::toggleFriendsOnly,
             )
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
@@ -118,15 +129,20 @@ fun MapScreen(
 }
 
 /**
- * Barre de filtres : chips de période (fonctionnels) + chips « Ami » / « Espèce »
- * désactivés tant que les données correspondantes n'existent pas (backend social
- * NODE-15, identification NODE-24).
+ * Barre de filtres : période, appartenance (« Ami ») et espèce. Le chip espèce
+ * ouvre un menu déroulant alimenté par les espèces présentes ; il est désactivé
+ * tant qu'aucune fleur ne porte d'espèce.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FilterBar(
     selected: DateFilter,
     onSelect: (DateFilter) -> Unit,
+    species: List<String>,
+    selectedSpecies: String?,
+    onSelectSpecies: (String?) -> Unit,
+    friendsOnly: Boolean,
+    onToggleFriends: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -143,9 +159,56 @@ private fun FilterBar(
                 label = { Text(filter.label) },
             )
         }
-        // Dimensions prévues mais pas encore alimentées.
-        FilterChip(selected = false, enabled = false, onClick = {}, label = { Text("Ami") })
-        FilterChip(selected = false, enabled = false, onClick = {}, label = { Text("Espèce") })
+
+        FilterChip(
+            selected = friendsOnly,
+            onClick = onToggleFriends,
+            label = { Text("Ami") },
+        )
+
+        SpeciesFilterChip(
+            species = species,
+            selectedSpecies = selectedSpecies,
+            onSelectSpecies = onSelectSpecies,
+        )
+    }
+}
+
+/** Chip « Espèce » avec menu déroulant des espèces disponibles. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SpeciesFilterChip(
+    species: List<String>,
+    selectedSpecies: String?,
+    onSelectSpecies: (String?) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+        FilterChip(
+            selected = selectedSpecies != null,
+            enabled = species.isNotEmpty(),
+            onClick = { expanded = true },
+            label = { Text(selectedSpecies ?: "Espèce") },
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text("Toutes") },
+                onClick = {
+                    onSelectSpecies(null)
+                    expanded = false
+                },
+            )
+            species.forEach { name ->
+                DropdownMenuItem(
+                    text = { Text(name) },
+                    onClick = {
+                        onSelectSpecies(name)
+                        expanded = false
+                    },
+                )
+            }
+        }
     }
 }
 

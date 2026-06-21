@@ -1,5 +1,6 @@
 package com.florapin.app.map
 
+import com.florapin.app.data.FlowerEntity
 import java.util.Calendar
 
 /**
@@ -44,4 +45,42 @@ enum class DateFilter(val label: String) {
     companion object {
         private const val DAY_MS = 24L * 60 * 60 * 1000
     }
+}
+
+/** Espèces distinctes présentes dans la collection, triées (pour le filtre). */
+fun List<FlowerEntity>.availableSpecies(): List<String> =
+    mapNotNull { it.species?.takeIf(String::isNotBlank) }
+        .distinct()
+        .sorted()
+
+/**
+ * Applique les filtres carte et projette en marqueurs géolocalisés.
+ *
+ * @param species espèce exacte à conserver, ou null pour toutes.
+ * @param friendsOnly ne garder que les fleurs d'autrui (ownerId ≠ utilisateur).
+ * @param currentUserId id de l'utilisateur connecté (ses fleurs sont exclues du
+ *   filtre « ami »), ou null si inconnu.
+ */
+fun List<FlowerEntity>.toFilteredMarkers(
+    dateFilter: DateFilter,
+    species: String?,
+    friendsOnly: Boolean,
+    currentUserId: String?,
+    now: Long,
+): List<FlowerMarker> {
+    val threshold = dateFilter.minTimestamp(now)
+    return asSequence()
+        .filter { threshold == null || it.createdAt >= threshold }
+        .filter { species == null || it.species == species }
+        .filter { !friendsOnly || (it.ownerId != null && it.ownerId != currentUserId) }
+        .mapNotNull { flower ->
+            val lat = flower.latitude
+            val lng = flower.longitude
+            if (lat != null && lng != null) {
+                FlowerMarker(flower.id, lat, lng)
+            } else {
+                null
+            }
+        }
+        .toList()
 }

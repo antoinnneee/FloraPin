@@ -45,6 +45,9 @@ data class FlowerEntity(
     /** Identifiant serveur (UUID) une fois synchronisée ; null si locale seule. */
     val serverId: String? = null,
 
+    /** Propriétaire serveur (UUID) ; null pour une capture locale non synchronisée. */
+    val ownerId: String? = null,
+
     /** État de sync : voir [SyncState] (stocké par nom). */
     val syncState: String = SyncState.PENDING.name,
 

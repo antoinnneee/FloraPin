@@ -48,13 +48,13 @@ class FriendsViewModel(private val api: FriendshipsApi) : ViewModel() {
         }
     }
 
-    /** Envoie une demande d'ami à un utilisateur (par son identifiant). */
-    fun invite(userId: String) {
-        val id = userId.trim()
-        if (id.isEmpty()) return
+    /** Envoie une demande d'ami à un utilisateur (par son email). */
+    fun invite(email: String) {
+        val cleaned = email.trim()
+        if (cleaned.isEmpty()) return
         viewModelScope.launch {
             try {
-                api.request(CreateFriendshipRequest(id))
+                api.request(CreateFriendshipRequest(cleaned))
                 refresh()
             } catch (e: Exception) {
                 _state.update { it.copy(error = messageOf(e)) }

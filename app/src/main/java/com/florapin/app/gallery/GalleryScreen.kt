@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -43,6 +44,7 @@ import java.io.File
 fun GalleryScreen(
     onCapture: () -> Unit,
     onFlowerClick: (Long) -> Unit,
+    onOpenMap: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: GalleryViewModel = viewModel(),
 ) {
@@ -50,7 +52,16 @@ fun GalleryScreen(
 
     Scaffold(
         modifier = modifier,
-        topBar = { TopAppBar(title = { Text("Mes fleurs") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Mes fleurs") },
+                actions = {
+                    IconButton(onClick = onOpenMap) {
+                        Text("🗺️", style = MaterialTheme.typography.titleLarge)
+                    }
+                },
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = onCapture) {
                 Text("📷", style = MaterialTheme.typography.titleLarge)

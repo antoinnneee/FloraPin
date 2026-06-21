@@ -1,8 +1,24 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+}
+
+// Clé MapTiler lue depuis local.properties (non commité) ou une variable
+// d'environnement (utile en CI). Vide par défaut : la carte affiche alors un
+// message expliquant qu'il faut configurer la clé.
+val maptilerApiKey: String = run {
+    val props = Properties()
+    val localFile = rootProject.file("local.properties")
+    if (localFile.exists()) {
+        localFile.inputStream().use { props.load(it) }
+    }
+    props.getProperty("MAPTILER_API_KEY")
+        ?: System.getenv("MAPTILER_API_KEY")
+        ?: ""
 }
 
 android {
@@ -17,6 +33,8 @@ android {
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "MAPTILER_API_KEY", "\"$maptilerApiKey\"")
     }
 
     buildTypes {
@@ -40,6 +58,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -68,6 +87,9 @@ dependencies {
 
     // Localisation (FusedLocationProvider)
     implementation(libs.play.services.location)
+
+    // Carte (MapLibre GL)
+    implementation(libs.maplibre.android)
 
     // Room (persistance locale)
     implementation(libs.androidx.room.runtime)

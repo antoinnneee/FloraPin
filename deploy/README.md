@@ -47,6 +47,24 @@ Prérequis : `sshpass`, `rsync` et `npm` en local ; **Docker seul** sur le VPS
 `deploy/.deployEnv` (gitignoré).
 - Le bucket MinIO est créé automatiquement par l'API au démarrage.
 
+## Bootstrap serveur (`install-service.sh`)
+
+À lancer **une seule fois** sur le VPS (dans `deploy/`) pour préparer l'hôte :
+
+```bash
+cd deploy
+./install-service.sh
+```
+
+Il (1) installe Docker + le plugin compose si absents, (2) crée `.env` depuis
+`.env.example` (à éditer puis relancer), et (3) installe une **unité systemd
+`florapin`** qui pilote la stack (`docker compose`) : démarrage automatique au
+boot et contrôle via `systemctl start|stop|restart florapin`.
+
+Ensuite, les mises à jour se font depuis le poste de dev avec `deploy.sh`
+(`docker compose up -d --build` ne recrée que les conteneurs modifiés — downtime
+minimal, sans couper la base).
+
 ## Services & volumes
 
 | Service | Rôle | Volume persistant |

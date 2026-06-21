@@ -19,6 +19,7 @@ import com.florapin.app.auth.LoginScreen
 import com.florapin.app.auth.RegisterScreen
 import com.florapin.app.capture.CaptureFlow
 import com.florapin.app.detail.DetailScreen
+import com.florapin.app.friends.FriendsScreen
 import com.florapin.app.gallery.GalleryScreen
 import com.florapin.app.map.MapScreen
 import com.florapin.app.network.auth.EncryptedTokenStore
@@ -32,6 +33,7 @@ private object Routes {
     const val GALLERY = "gallery"
     const val CAPTURE = "capture"
     const val MAP = "map"
+    const val FRIENDS = "friends"
     const val DETAIL = "detail/{id}"
 
     fun detail(id: Long) = "detail/$id"
@@ -91,12 +93,18 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
         }
 
         composable(Routes.GALLERY) {
-            val authViewModel: AuthViewModel =
-                viewModel(factory = AuthViewModel.factory(context))
             GalleryScreen(
                 onCapture = { navController.navigate(Routes.CAPTURE) },
                 onFlowerClick = { id -> navController.navigate(Routes.detail(id)) },
                 onOpenMap = { navController.navigate(Routes.MAP) },
+                onOpenFriends = { navController.navigate(Routes.FRIENDS) },
+            )
+        }
+        composable(Routes.FRIENDS) {
+            val authViewModel: AuthViewModel =
+                viewModel(factory = AuthViewModel.factory(context))
+            FriendsScreen(
+                onBack = { navController.popBackStack() },
                 onLogout = {
                     // Désenregistre le push tant que les jetons sont valides,
                     // puis déconnecte.

@@ -1,0 +1,208 @@
+package com.florapin.app.friends
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.florapin.app.network.dto.FriendshipDto
+
+/**
+ * Écran de gestion des amis (NODE-70) : demandes reçues/envoyées, liste d'amis,
+ * invitation par identifiant utilisateur. Le bouton de déconnexion (NODE-52)
+ * est accessible depuis la barre du haut.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FriendsScreen(
+    onBack: () -> Unit,
+    onLogout: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: FriendsViewModel = viewModel(
+        factory = FriendsViewModel.factory(androidx.compose.ui.platform.LocalContext.current),
+    ),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    var invitee by remember { mutableStateOf("") }
+
+    Scaffold(
+        modifier = modifier,
+        topBar = {
+            TopAppBar(
+                title = { Text("Amis") },
+                navigationIcon = { IconButton(onClick = onBack) { Text("←") } },
+                actions = {
+                    IconButton(onClick = onLogout) {
+                        Text("🚪", style = MaterialTheme.typography.titleLarge)
+                    }
+                },
+            )
+        },
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            item {
+                InviteField(
+                    value = invitee,
+                    onValueChange = { invitee = it },
+                    onInvite = {
+                        viewModel.invite(invitee)
+                        invitee = ""
+                    },
+                )
+            }
+
+            state.error?.let { error ->
+                item {
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+
+            section("Demandes reçues", state.incoming) { friendship ->
+                FriendRow(
+                    friendship = friendship,
+                    primaryLabel = "Accepter",
+                    onPrimary = { viewModel.accept(friendship.id) },
+                    secondaryLabel = "Refuser",
+                    onSecondary = { viewModel.remove(friendship.id) },
+                )
+            }
+
+            section("Demandes envoyées", state.outgoing) { friendship ->
+                FriendRow(
+                    friendship = friendship,
+                    secondaryLabel = "Annuler",
+                    onSecondary = { viewModel.remove(friendship.id) },
+                )
+            }
+
+            section("Mes amis", state.friends) { friendship ->
+                FriendRow(
+                    friendship = friendship,
+                    secondaryLabel = "Retirer",
+                    onSecondary = { viewModel.remove(friendship.id) },
+                )
+            }
+
+            if (!state.loading &&
+                state.incoming.isEmpty() &&
+                state.outgoing.isEmpty() &&
+                state.friends.isEmpty()
+            ) {
+                item {
+                    Text(
+                        "Aucun ami pour l'instant. Invitez quelqu'un avec son identifiant.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Ajoute un titre de section + ses lignes, seulement si la liste est non vide. */
+private fun androidx.compose.foundation.lazy.LazyListScope.section(
+    title: String,
+    items: List<FriendshipDto>,
+    row: @Composable (FriendshipDto) -> Unit,
+) {
+    if (items.isEmpty()) return
+    item {
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+    items(items, key = { it.id }) { row(it) }
+}
+
+@Composable
+private fun InviteField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onInvite: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text("Identifiant de l'utilisateur à inviter") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Button(
+            onClick = onInvite,
+            enabled = value.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Inviter")
+        }
+    }
+}
+
+@Composable
+private fun FriendRow(
+    friendship: FriendshipDto,
+    secondaryLabel: String,
+    onSecondary: () -> Unit,
+    primaryLabel: String? = null,
+    onPrimary: () -> Unit = {},
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    friendship.user.displayName.ifBlank { friendship.user.email },
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    friendship.user.email,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            if (primaryLabel != null) {
+                Button(onClick = onPrimary) { Text(primaryLabel) }
+            }
+            OutlinedButton(onClick = onSecondary) { Text(secondaryLabel) }
+        }
+    }
+}

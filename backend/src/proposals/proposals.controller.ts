@@ -9,12 +9,15 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ProposeSpeciesDto } from './dto/proposal.dto';
 import { ProposalsService } from './proposals.service';
 
+@ApiTags('proposals')
+@ApiBearerAuth('access-token')
 @Controller('flowers/:id/proposals')
 @UseGuards(JwtAuthGuard)
 export class ProposalsController {

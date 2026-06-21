@@ -1,10 +1,13 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SyncPullQueryDto, SyncPushDto } from './dto/sync.dto';
 import { SyncService } from './sync.service';
 
+@ApiTags('sync')
+@ApiBearerAuth('access-token')
 @Controller('sync')
 @UseGuards(JwtAuthGuard)
 export class SyncController {

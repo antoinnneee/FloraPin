@@ -14,12 +14,16 @@ Stack de déploiement sur un VPS via Docker Compose : **API NestJS** +
 
 ```bash
 cd deploy
-cp .env.example .env        # renseigner DOMAIN + secrets (DB, JWT, MinIO)
+cp .env.example .env        # renseigner DOMAIN + secrets (DB, JWT, MinIO) + ports
 docker compose up -d --build
 ```
 
 - L'API est exposée en HTTPS sur `https://<DOMAIN>` (base `/api/v1`,
   doc Swagger sur `/api/docs`).
+- **Ports** (configurables dans `.env`, défauts entre parenthèses) :
+  `HTTP_PORT` (80) et `HTTPS_PORT` (443) pour Caddy en prod ; `API_PORT` (3000)
+  port interne de l'API ; et `DB_HOST_PORT`/`MINIO_HOST_PORT`/
+  `MINIO_CONSOLE_HOST_PORT` (5432/9000/9001) publiés sur l'hôte **en dev seulement**.
 - Le schéma SQL (`backend/db/schema.sql`) est appliqué **au premier démarrage**
   d'une base vide (volume `db-data`).
 

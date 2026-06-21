@@ -9,9 +9,9 @@
 services:
   db:
     ports:
-      - "5432:5432"
+      - "${DB_HOST_PORT:-5432}:5432"
 
   minio:
     ports:
-      - "9000:9000"   # API S3
-      - "9001:9001"   # console web
+      - "${MINIO_HOST_PORT:-9000}:9000"           # API S3
+      - "${MINIO_CONSOLE_HOST_PORT:-9001}:9001"   # console web

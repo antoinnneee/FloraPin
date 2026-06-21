@@ -9,8 +9,9 @@
 	encode gzip
 
 	# API FloraPin (toutes les routes sont sous /api).
+	# API_PORT est injecté depuis l'environnement (défaut 3000).
 	handle /api/* {
-		reverse_proxy api:3000
+		reverse_proxy api:{$API_PORT:3000}
 	}
 
 	# Vitrine statique (build Astro) servie à la racine.

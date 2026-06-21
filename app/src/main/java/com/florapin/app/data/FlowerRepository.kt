@@ -15,6 +15,9 @@ class FlowerRepository(private val dao: FlowerDao) {
 
     suspend fun getById(id: Long): FlowerEntity? = dao.getById(id)
 
+    /** Observe une fleur en continu (null si supprimée/inexistante). */
+    fun observeById(id: Long): Flow<FlowerEntity?> = dao.observeById(id)
+
     /**
      * Persiste une capture : image + position (optionnelle) + horodatage.
      * @return l'identifiant de la fleur créée.

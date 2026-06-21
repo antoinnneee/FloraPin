@@ -11,15 +11,18 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface FlowerDao {
 
-    /** Flux de toutes les fleurs, des plus récentes aux plus anciennes. */
-    @Query("SELECT * FROM flowers ORDER BY createdAt DESC")
+    /** Flux des fleurs non supprimées, des plus récentes aux plus anciennes. */
+    @Query("SELECT * FROM flowers WHERE deletedAt IS NULL ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<FlowerEntity>>
 
     @Query("SELECT * FROM flowers WHERE id = :id")
     suspend fun getById(id: Long): FlowerEntity?
 
-    /** Flux d'une fleur (émet null si elle est supprimée). */
-    @Query("SELECT * FROM flowers WHERE id = :id")
+    @Query("SELECT * FROM flowers WHERE serverId = :serverId LIMIT 1")
+    suspend fun findByServerId(serverId: String): FlowerEntity?
+
+    /** Flux d'une fleur non supprimée (émet null si supprimée/inexistante). */
+    @Query("SELECT * FROM flowers WHERE id = :id AND deletedAt IS NULL")
     fun observeById(id: Long): Flow<FlowerEntity?>
 
     /** Insère une fleur et renvoie son identifiant généré. */
@@ -46,4 +49,11 @@ interface FlowerDao {
 
     @Query("UPDATE flowers SET syncState = 'FAILED' WHERE id = :id")
     suspend fun markFailed(id: Long)
+
+    /** Suppression logique d'une fleur identifiée par son id serveur (pull). */
+    @Query(
+        "UPDATE flowers SET deletedAt = :deletedAt, updatedAt = :deletedAt, " +
+            "syncState = 'SYNCED' WHERE serverId = :serverId",
+    )
+    suspend fun softDeleteByServerId(serverId: String, deletedAt: Long)
 }

@@ -1,0 +1,9 @@
+# Caddy : HTTPS automatique (Let's Encrypt) + proxy vers l'API.
+# DOMAIN est injecté depuis l'environnement (docker-compose).
+
+{$DOMAIN} {
+	encode gzip
+
+	# API FloraPin
+	reverse_proxy api:3000
+}

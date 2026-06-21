@@ -1,2 +1,4 @@
 # Secrets de déploiement — jamais commités.
 .env
+# Configuration de la cible SSH (hôte / utilisateur / mot de passe distant).
+.deployEnv

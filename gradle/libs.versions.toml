@@ -21,6 +21,9 @@ playServicesLocation = "21.3.0"
 room = "2.6.1"
 ksp = "2.1.0-1.0.29"
 
+# Carte
+maplibre = "11.5.2"
+
 # Test
 junit = "4.13.2"
 androidxJunit = "1.2.1"
@@ -60,6 +63,9 @@ play-services-location = { group = "com.google.android.gms", name = "play-servic
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+
+# MapLibre GL Android
+maplibre-android = { group = "org.maplibre.gl", name = "android-sdk", version.ref = "maplibre" }
 
 # Test
 junit = { group = "junit", name = "junit", version.ref = "junit" }

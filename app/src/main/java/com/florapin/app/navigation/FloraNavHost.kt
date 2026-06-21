@@ -10,11 +10,13 @@ import androidx.navigation.navArgument
 import com.florapin.app.capture.CaptureFlow
 import com.florapin.app.detail.DetailScreen
 import com.florapin.app.gallery.GalleryScreen
+import com.florapin.app.map.MapScreen
 
 /** Destinations de l'application. */
 private object Routes {
     const val GALLERY = "gallery"
     const val CAPTURE = "capture"
+    const val MAP = "map"
     const val DETAIL = "detail/{id}"
 
     fun detail(id: Long) = "detail/$id"
@@ -37,12 +39,16 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
             GalleryScreen(
                 onCapture = { navController.navigate(Routes.CAPTURE) },
                 onFlowerClick = { id -> navController.navigate(Routes.detail(id)) },
+                onOpenMap = { navController.navigate(Routes.MAP) },
             )
         }
         composable(Routes.CAPTURE) {
             CaptureFlow(
                 onFinished = { navController.popBackStack() },
             )
+        }
+        composable(Routes.MAP) {
+            MapScreen(onBack = { navController.popBackStack() })
         }
         composable(
             route = Routes.DETAIL,

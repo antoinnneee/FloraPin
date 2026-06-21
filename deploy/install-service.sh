@@ -61,12 +61,23 @@ fi
 # que la stack tourne. up/down/restart mappent sur docker compose. On utilise
 # -f docker-compose.yml SEUL (pas d'override dev en prod).
 DOCKER_BIN="$(command -v docker)"
+
+# Détecte l'unité systemd du démon Docker : « docker.service » (paquet officiel
+# docker.io / docker-ce) ou « snap.docker.dockerd.service » (Docker installé via
+# snap). On ajoute la bonne dépendance pour que la stack ne démarre qu'après le
+# démon, sinon florapin.service échoue avec « Unit docker.service does not exist ».
+DOCKER_SVC=""
+for _svc in docker.service snap.docker.dockerd.service; do
+    if systemctl cat "$_svc" &>/dev/null; then DOCKER_SVC="$_svc"; break; fi
+done
+DOCKER_SVC="${DOCKER_SVC:-docker.service}"
+echo "   Démon      : $DOCKER_SVC"
 echo "📝 Écriture de l'unité systemd..."
 sudo tee "/etc/systemd/system/$SERVICE_NAME.service" > /dev/null <<EOF
 [Unit]
 Description=FloraPin (API NestJS + PostGIS + MinIO + Caddy, via docker compose)
-Requires=docker.service
-After=docker.service network-online.target
+Requires=$DOCKER_SVC
+After=$DOCKER_SVC network-online.target
 Wants=network-online.target
 
 [Service]

@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.google.services)
 }
 
 // Clé MapTiler lue depuis local.properties (non commité) ou une variable
@@ -127,6 +128,10 @@ dependencies {
 
     // Synchronisation en arrière-plan
     implementation(libs.androidx.work.runtime.ktx)
+
+    // Push (Firebase Cloud Messaging) — versions alignées par le BOM.
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 
     // Room (persistance locale)
     implementation(libs.androidx.room.runtime)

@@ -4,6 +4,7 @@ import com.florapin.app.BuildConfig
 import com.florapin.app.network.api.AuthApi
 import com.florapin.app.network.api.FlowersApi
 import com.florapin.app.network.api.FriendshipsApi
+import com.florapin.app.network.api.PushApi
 import com.florapin.app.network.api.SharesApi
 import com.florapin.app.network.api.SyncApi
 import com.florapin.app.network.auth.AuthInterceptor
@@ -24,6 +25,7 @@ class FloraApis(
     val sync: SyncApi,
     val friendships: FriendshipsApi,
     val shares: SharesApi,
+    val push: PushApi,
 )
 
 /**
@@ -59,6 +61,7 @@ object NetworkModule {
         sync = retrofit.create(SyncApi::class.java),
         friendships = retrofit.create(FriendshipsApi::class.java),
         shares = retrofit.create(SharesApi::class.java),
+        push = retrofit.create(PushApi::class.java),
     )
 
     /**

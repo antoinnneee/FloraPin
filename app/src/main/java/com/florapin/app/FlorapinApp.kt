@@ -2,6 +2,7 @@ package com.florapin.app
 
 import android.app.Application
 import com.florapin.app.network.auth.EncryptedTokenStore
+import com.florapin.app.push.PushTokenRegistrar
 import com.florapin.app.sync.ConnectivityObserver
 import com.florapin.app.sync.SyncScheduler
 
@@ -23,10 +24,12 @@ class FlorapinApp : Application() {
         connectivityObserver = ConnectivityObserver(this)
         connectivityObserver.start { SyncScheduler.syncNow(this) }
 
-        // Si déjà connecté au démarrage : planifie la sync périodique + une passe immédiate.
+        // Si déjà connecté au démarrage : planifie la sync périodique + une passe
+        // immédiate, et (ré)enregistre le jeton push.
         if (EncryptedTokenStore(this).refreshToken() != null) {
             SyncScheduler.schedulePeriodic(this)
             SyncScheduler.syncNow(this)
+            PushTokenRegistrar.register(this)
         }
     }
 }

@@ -98,4 +98,18 @@ class AuthViewModelTest {
         advanceUntilIdle()
         assertTrue(vm.state.value is AuthUiState.Success)
     }
+
+    @Test
+    fun logout_clearsTokens_andInvokesCallback() = runTest {
+        val store = MemTokenStore().apply { save("acc", "ref") }
+        val vm = AuthViewModel(SessionManager(FakeAuthApi(), store))
+
+        var done = false
+        vm.logout { done = true }
+        advanceUntilIdle()
+
+        assertTrue(done)
+        assertEquals(null, store.refreshToken())
+        assertEquals(AuthUiState.Idle, vm.state.value)
+    }
 }

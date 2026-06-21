@@ -45,6 +45,7 @@ fun GalleryScreen(
     onCapture: () -> Unit,
     onFlowerClick: (Long) -> Unit,
     onOpenMap: () -> Unit,
+    onLogout: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: GalleryViewModel = viewModel(),
 ) {
@@ -58,6 +59,9 @@ fun GalleryScreen(
                 actions = {
                     IconButton(onClick = onOpenMap) {
                         Text("🗺️", style = MaterialTheme.typography.titleLarge)
+                    }
+                    IconButton(onClick = onLogout) {
+                        Text("🚪", style = MaterialTheme.typography.titleLarge)
                     }
                 },
             )

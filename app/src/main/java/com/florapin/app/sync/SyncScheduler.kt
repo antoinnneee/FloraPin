@@ -34,6 +34,13 @@ object SyncScheduler {
         )
     }
 
+    /** Annule toute synchronisation planifiée (ex. à la déconnexion). */
+    fun cancelAll(context: Context) {
+        val wm = WorkManager.getInstance(context)
+        wm.cancelUniqueWork(PERIODIC)
+        wm.cancelUniqueWork(ONESHOT)
+    }
+
     /** Sync immédiate (ex. au login ou au retour réseau). */
     fun syncNow(context: Context) {
         val request = OneTimeWorkRequestBuilder<SyncWorker>()

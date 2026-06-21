@@ -1,0 +1,12 @@
+# Dépendances & build
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Env / secrets
+.env
+.env.local
+
+# Logs
+*.log

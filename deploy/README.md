@@ -22,6 +22,29 @@ docker compose up -d --build
   doc Swagger sur `/api/docs`).
 - Le schéma SQL (`backend/db/schema.sql`) est appliqué **au premier démarrage**
   d'une base vide (volume `db-data`).
+
+## Déploiement automatisé (`deploy.sh`)
+
+Depuis une machine de dev, `deploy/deploy.sh` pousse tout sur le VPS via SSH
+(un seul prompt de mot de passe, multiplexing `sshpass`) :
+
+```bash
+cd deploy
+./deploy.sh        # 1er lancement : crée .deployEnv (à remplir) puis s'arrête
+```
+
+Le script, de bout en bout :
+
+1. **build la vitrine en local** (Astro → `landing/dist`) ;
+2. **synchronise** (`rsync`) `backend/`, `landing/dist/` et `deploy/` vers le VPS ;
+3. lance `docker compose up -d --build` côté serveur — ce qui **installe et
+   compile le backend dans l'image** (npm ci + nest build) puis (re)démarre
+   db + minio + api + proxy.
+
+Prérequis : `sshpass`, `rsync` et `npm` en local ; **Docker seul** sur le VPS
+(plus besoin de Node sur le serveur) ; et `deploy/.env` déjà présent côté VPS
+(les secrets ne sont jamais copiés). La cible SSH est définie dans
+`deploy/.deployEnv` (gitignoré).
 - Le bucket MinIO est créé automatiquement par l'API au démarrage.
 
 ## Services & volumes

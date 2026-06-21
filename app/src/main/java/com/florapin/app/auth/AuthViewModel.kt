@@ -36,6 +36,20 @@ class AuthViewModel(private val session: SessionManager) : ViewModel() {
         run { session.register(email, password, displayName) }
     }
 
+    /**
+     * Déconnecte l'utilisateur : révoque le refresh côté serveur (best-effort) et
+     * purge les tokens locaux, puis invoque [onComplete] (sur le main dispatcher)
+     * pour laisser l'appelant naviguer vers Login. La purge locale est garantie
+     * même si l'appel réseau échoue.
+     */
+    fun logout(onComplete: () -> Unit) {
+        viewModelScope.launch {
+            session.logout()
+            _state.value = AuthUiState.Idle
+            onComplete()
+        }
+    }
+
     /** Réinitialise un état d'erreur (ex. quand l'utilisateur modifie un champ). */
     fun clearError() {
         if (_state.value is AuthUiState.Error) _state.value = AuthUiState.Idle

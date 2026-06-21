@@ -90,10 +90,18 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
         }
 
         composable(Routes.GALLERY) {
+            val authViewModel: AuthViewModel =
+                viewModel(factory = AuthViewModel.factory(context))
             GalleryScreen(
                 onCapture = { navController.navigate(Routes.CAPTURE) },
                 onFlowerClick = { id -> navController.navigate(Routes.detail(id)) },
                 onOpenMap = { navController.navigate(Routes.MAP) },
+                onLogout = {
+                    authViewModel.logout {
+                        SyncScheduler.cancelAll(context)
+                        navController.goToLogin()
+                    }
+                },
             )
         }
         composable(Routes.CAPTURE) {
@@ -135,6 +143,14 @@ private fun startSync(context: android.content.Context) {
 /** Va à la galerie en vidant toute la back-stack (sortie du flux d'auth). */
 private fun NavHostController.goToGallery() {
     navigate(Routes.GALLERY) {
+        popUpTo(0) { inclusive = true }
+        launchSingleTop = true
+    }
+}
+
+/** Retour à Login en vidant toute la back-stack (déconnexion). */
+private fun NavHostController.goToLogin() {
+    navigate(Routes.LOGIN) {
         popUpTo(0) { inclusive = true }
         launchSingleTop = true
     }

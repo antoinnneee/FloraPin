@@ -1,7 +1,7 @@
-import { IsUUID } from 'class-validator';
+import { IsEmail } from 'class-validator';
 
 export class CreateFriendshipDto {
-  /** Utilisateur à inviter. */
-  @IsUUID()
-  addresseeId: string;
+  /** Email de l'utilisateur à inviter. */
+  @IsEmail()
+  email: string;
 }

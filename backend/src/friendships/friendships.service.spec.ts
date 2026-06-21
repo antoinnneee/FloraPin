@@ -63,6 +63,12 @@ class FakeUsersService {
     if (!this.known.has(id)) return null;
     return { id, displayName: `User ${id}`, email: `${id}@test` };
   }
+  async findByEmail(email: string) {
+    const id = [...this.known].find(
+      (k) => `${k}@test` === email.trim().toLowerCase(),
+    );
+    return id ? this.findById(id) : null;
+  }
 }
 
 const ALICE = 'alice';
@@ -98,6 +104,18 @@ describe('FriendshipsService', () => {
     expect(res.status).toBe('pending');
     expect(res.direction).toBe('outgoing');
     expect(res.user.id).toBe(BOB);
+  });
+
+  it('invite par email (résout l’utilisateur)', async () => {
+    const res = await service.requestByEmail(ALICE, 'BOB@test');
+    expect(res.status).toBe('pending');
+    expect(res.user.id).toBe(BOB);
+  });
+
+  it('invite par email : email inconnu → NotFound', async () => {
+    await expect(
+      service.requestByEmail(ALICE, 'ghost@test'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('refuse l’auto-ajout', async () => {

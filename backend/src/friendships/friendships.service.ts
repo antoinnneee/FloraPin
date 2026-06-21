@@ -28,6 +28,18 @@ export class FriendshipsService {
     private readonly notifications: NotificationsService,
   ) {}
 
+  /** Invite par email : résout l'utilisateur puis délègue à request(). */
+  async requestByEmail(
+    requesterId: string,
+    email: string,
+  ): Promise<FriendshipResponse> {
+    const addressee = await this.users.findByEmail(email);
+    if (!addressee) {
+      throw new NotFoundException('Utilisateur introuvable.');
+    }
+    return this.request(requesterId, addressee.id);
+  }
+
   /** Crée une demande d'amitié (statut pending). */
   async request(
     requesterId: string,

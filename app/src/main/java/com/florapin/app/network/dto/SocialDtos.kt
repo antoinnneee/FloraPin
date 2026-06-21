@@ -5,7 +5,7 @@ import com.squareup.moshi.JsonClass
 /** DTOs amis & partages. */
 @JsonClass(generateAdapter = true)
 data class CreateFriendshipRequest(
-    val addresseeId: String,
+    val email: String,
 )
 
 @JsonClass(generateAdapter = true)

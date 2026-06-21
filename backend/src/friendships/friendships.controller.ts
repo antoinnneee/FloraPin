@@ -34,7 +34,7 @@ export class FriendshipsController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateFriendshipDto,
   ) {
-    return this.friendships.request(user.userId, dto.addresseeId);
+    return this.friendships.requestByEmail(user.userId, dto.email);
   }
 
   @Post(':id/accept')

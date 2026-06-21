@@ -1,0 +1,95 @@
+-- Schéma de données FloraPin (NODE-27)
+-- PostgreSQL + PostGIS. DDL de référence pour le POC ; en production, géré via
+-- les migrations TypeORM (cf. backend/ARCHITECTURE.md).
+
+-- Extension géospatiale (positions des fleurs).
+CREATE EXTENSION IF NOT EXISTS postgis;
+-- gen_random_uuid()
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- email insensible à la casse (colonne users.email)
+CREATE EXTENSION IF NOT EXISTS citext;
+
+-- =====================================================================
+-- Utilisateurs
+-- =====================================================================
+CREATE TABLE users (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email         CITEXT UNIQUE NOT NULL,          -- insensible à la casse
+    password_hash TEXT        NOT NULL,            -- bcrypt/argon2 (cf. NODE-17)
+    display_name  TEXT        NOT NULL,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- =====================================================================
+-- Refresh tokens (rotation — NODE-17)
+-- =====================================================================
+CREATE TABLE refresh_tokens (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash  TEXT NOT NULL,                     -- on ne stocke jamais le token en clair
+    expires_at  TIMESTAMPTZ NOT NULL,
+    revoked_at  TIMESTAMPTZ,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
+
+-- =====================================================================
+-- Fleurs
+-- =====================================================================
+CREATE TABLE flowers (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    image_key   TEXT NOT NULL,                     -- clé de l'objet dans MinIO
+    -- Position WGS84 (SRID 4326). Nullable : la capture peut être sans GPS.
+    location    geography(Point, 4326),
+    accuracy_m  REAL,                              -- précision horizontale (mètres)
+    taken_at    TIMESTAMPTZ NOT NULL,             -- date de la prise
+    notes       TEXT NOT NULL DEFAULT '',
+    visibility  TEXT NOT NULL DEFAULT 'private'    -- 'private' | 'friends'
+                CHECK (visibility IN ('private', 'friends')),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at  TIMESTAMPTZ                        -- soft-delete (sync — NODE-19)
+);
+-- Requêtes géo (ST_DWithin, bbox) : index GiST sur la position.
+CREATE INDEX idx_flowers_location ON flowers USING GIST (location);
+-- Listing par propriétaire + sync incrémentale.
+CREATE INDEX idx_flowers_owner       ON flowers(owner_id);
+CREATE INDEX idx_flowers_updated_at  ON flowers(updated_at);
+
+-- =====================================================================
+-- Amitiés (NODE-20)
+-- =====================================================================
+CREATE TABLE friendships (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    requester_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    addressee_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status      TEXT NOT NULL DEFAULT 'pending'    -- 'pending'|'accepted'|'blocked'
+                CHECK (status IN ('pending', 'accepted', 'blocked')),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (requester_id <> addressee_id),
+    UNIQUE (requester_id, addressee_id)
+);
+CREATE INDEX idx_friendships_addressee ON friendships(addressee_id);
+
+-- =====================================================================
+-- Partages explicites d'une fleur à un ami (en plus de visibility='friends')
+-- =====================================================================
+CREATE TABLE flower_shares (
+    flower_id   UUID NOT NULL REFERENCES flowers(id) ON DELETE CASCADE,
+    shared_with UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (flower_id, shared_with)
+);
+CREATE INDEX idx_flower_shares_user ON flower_shares(shared_with);
+
+-- =====================================================================
+-- Notes
+-- =====================================================================
+-- * Visibilité d'une fleur pour l'utilisateur U :
+--     - owner_id = U, OU
+--     - visibility = 'friends' ET amitié 'accepted' entre U et owner, OU
+--     - existe flower_shares(flower_id, U).
+--   (les requêtes effectives sont décrites dans backend/docs/API.md)

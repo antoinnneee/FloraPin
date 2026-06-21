@@ -22,6 +22,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.florapin.app.data.FlowerRepository
 import com.florapin.app.location.GeoPoint
 import com.florapin.app.location.LocationProvider
 import com.florapin.app.permission.AppPermission
@@ -52,11 +53,12 @@ fun CaptureFlow(modifier: Modifier = Modifier) {
     val cameraGranted = permissions.statuses[AppPermission.CAMERA]?.isGranted == true
 
     val locationProvider = remember(context) { LocationProvider(context) }
+    val repository = remember(context) { FlowerRepository.from(context) }
 
     var capturedUri: Uri? by remember { mutableStateOf(null) }
     var locationState: LocationState by remember { mutableStateOf(LocationState.Loading) }
 
-    // Récupère la position dès qu'une photo est prise.
+    // Récupère la position puis persiste la fleur dès qu'une photo est prise.
     LaunchedEffect(capturedUri) {
         val uri = capturedUri ?: return@LaunchedEffect
         locationState = LocationState.Loading
@@ -65,6 +67,9 @@ fun CaptureFlow(modifier: Modifier = Modifier) {
             LocationState.Available(point)
         } else {
             LocationState.Unavailable
+        }
+        uri.path?.let { path ->
+            runCatching { repository.saveCapture(imagePath = path, location = point) }
         }
     }
 
@@ -128,7 +133,7 @@ private fun CapturedPhotoScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "Photo enregistrée ✅",
+                text = "Photo enregistrée dans la galerie ✅",
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(

@@ -16,6 +16,10 @@ coil = "2.7.0"
 # Localisation
 playServicesLocation = "21.3.0"
 
+# Persistance
+room = "2.6.1"
+ksp = "2.1.0-1.0.29"
+
 # Test
 junit = "4.13.2"
 androidxJunit = "1.2.1"
@@ -49,6 +53,11 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 # FusedLocationProvider (GPS)
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 
+# Room (base de données locale)
+androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+
 # Test
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunit" }
@@ -59,3 +68,5 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 # Plugin Compose intégré à Kotlin 2.x (remplace composeOptions/kotlinCompilerExtensionVersion).
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+# KSP : génération du code Room.
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

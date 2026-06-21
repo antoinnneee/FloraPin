@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { FlowersModule } from './flowers/flowers.module';
+import { FriendshipsModule } from './friendships/friendships.module';
 import { SyncModule } from './sync/sync.module';
 import { UsersModule } from './users/users.module';
 
@@ -26,6 +27,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     UsersModule,
     FlowersModule,
+    FriendshipsModule,
     SyncModule,
   ],
 })

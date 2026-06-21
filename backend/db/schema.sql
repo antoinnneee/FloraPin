@@ -97,6 +97,21 @@ CREATE INDEX idx_shares_owner ON shares(owner_id);
 CREATE INDEX idx_shares_user  ON shares(shared_with);
 
 -- =====================================================================
+-- Notifications in-app (NODE-23)
+-- =====================================================================
+CREATE TABLE notifications (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type        TEXT NOT NULL,             -- friend_request | friend_accepted | flower_shared
+    data        JSONB NOT NULL DEFAULT '{}',
+    read_at     TIMESTAMPTZ,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_notifications_user ON notifications(user_id);
+CREATE INDEX idx_notifications_unread
+    ON notifications(user_id) WHERE read_at IS NULL;
+
+-- =====================================================================
 -- Notes
 -- =====================================================================
 -- * Visibilité d'une fleur pour l'utilisateur U :

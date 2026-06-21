@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
 import { Friendship } from './friendship.entity';
 
@@ -24,6 +25,7 @@ export class FriendshipsService {
     @InjectRepository(Friendship)
     private readonly friendships: Repository<Friendship>,
     private readonly users: UsersService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** Crée une demande d'amitié (statut pending). */
@@ -46,6 +48,10 @@ export class FriendshipsService {
     const saved = await this.friendships.save(
       this.friendships.create({ requesterId, addresseeId, status: 'pending' }),
     );
+    await this.notifications.create(addresseeId, 'friend_request', {
+      friendshipId: saved.id,
+      fromUserId: requesterId,
+    });
     return this.toResponse(saved, requesterId);
   }
 
@@ -63,6 +69,10 @@ export class FriendshipsService {
     }
     friendship.status = 'accepted';
     const saved = await this.friendships.save(friendship);
+    await this.notifications.create(friendship.requesterId, 'friend_accepted', {
+      friendshipId: saved.id,
+      byUserId: userId,
+    });
     return this.toResponse(saved, userId);
   }
 

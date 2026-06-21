@@ -7,6 +7,7 @@ import {
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
+import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
 import { Friendship } from './friendship.entity';
 import { FriendshipsService } from './friendships.service';
@@ -83,6 +84,10 @@ describe('FriendshipsService', () => {
         FriendshipsService,
         { provide: getRepositoryToken(Friendship), useValue: repo },
         { provide: UsersService, useValue: users },
+        {
+          provide: NotificationsService,
+          useValue: { create: async () => undefined },
+        },
       ],
     }).compile();
     service = moduleRef.get(FriendshipsService);

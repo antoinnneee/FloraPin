@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Thème de base utilisé avant le rendu Compose (splash/fenêtre).
+         L'UI réelle est stylée par FloraPinTheme côté Compose. -->
+    <style name="Theme.FloraPin" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

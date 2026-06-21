@@ -119,7 +119,8 @@ export class FlowersService {
     await this.flowers.softRemove(flower);
   }
 
-  private async toResponse(flower: Flower): Promise<FlowerResponse> {
+  /** Construit la réponse API d'une fleur (URL image présignée incluse). */
+  async toResponse(flower: Flower): Promise<FlowerResponse> {
     const [longitude, latitude] = flower.location?.coordinates ?? [null, null];
     return {
       id: flower.id,

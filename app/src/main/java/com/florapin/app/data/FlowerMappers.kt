@@ -49,6 +49,7 @@ fun FlowerDto.applyTo(local: FlowerEntity): FlowerEntity = local.copy(
     remoteImageUrl = imageUrl,
     species = species ?: local.species,
     tags = tags.ifEmpty { local.tags },
+    ownerId = ownerId,
 )
 
 /**
@@ -69,4 +70,5 @@ fun FlowerDto.toEntity(imagePath: String = ""): FlowerEntity = FlowerEntity(
     remoteImageUrl = imageUrl,
     species = species,
     tags = tags,
+    ownerId = ownerId,
 )

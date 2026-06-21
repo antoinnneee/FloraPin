@@ -16,6 +16,7 @@ class SessionManager(
     suspend fun login(email: String, password: String): UserDto {
         val res = authApi.login(LoginRequest(email, password))
         tokenStore.save(res.accessToken, res.refreshToken)
+        tokenStore.saveUserId(res.user.id)
         return res.user
     }
 
@@ -26,6 +27,7 @@ class SessionManager(
     ): UserDto {
         val res = authApi.register(RegisterRequest(email, password, displayName))
         tokenStore.save(res.accessToken, res.refreshToken)
+        tokenStore.saveUserId(res.user.id)
         return res.user
     }
 

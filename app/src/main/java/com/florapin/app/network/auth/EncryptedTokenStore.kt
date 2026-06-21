@@ -34,6 +34,12 @@ class EncryptedTokenStore(context: Context) : TokenStore {
             .apply()
     }
 
+    override fun userId(): String? = prefs.getString(KEY_USER_ID, null)
+
+    override fun saveUserId(userId: String) {
+        prefs.edit().putString(KEY_USER_ID, userId).apply()
+    }
+
     override fun clear() {
         prefs.edit().clear().apply()
     }
@@ -41,5 +47,6 @@ class EncryptedTokenStore(context: Context) : TokenStore {
     private companion object {
         const val KEY_ACCESS = "access_token"
         const val KEY_REFRESH = "refresh_token"
+        const val KEY_USER_ID = "user_id"
     }
 }

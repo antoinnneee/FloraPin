@@ -15,7 +15,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  */
 @Database(
     entities = [FlowerEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -61,6 +61,13 @@ abstract class FloraDatabase : RoomDatabase() {
             }
         }
 
+        /** v4 → v5 : propriétaire serveur, pour le filtre « ami » (NODE-54). */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE flowers ADD COLUMN ownerId TEXT")
+            }
+        }
+
         @Volatile
         private var instance: FloraDatabase? = null
 
@@ -75,6 +82,11 @@ abstract class FloraDatabase : RoomDatabase() {
                 context.applicationContext,
                 FloraDatabase::class.java,
                 DB_NAME,
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
+            ).addMigrations(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+            ).build()
     }
 }

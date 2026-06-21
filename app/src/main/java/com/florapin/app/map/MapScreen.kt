@@ -1,10 +1,17 @@
 package com.florapin.app.map
 
 import android.graphics.RectF
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -57,6 +64,7 @@ fun MapScreen(
 ) {
     val apiKey = BuildConfig.MAPTILER_API_KEY
     val markers by viewModel.markers.collectAsStateWithLifecycle()
+    val dateFilter by viewModel.dateFilter.collectAsStateWithLifecycle()
     val currentOnFlowerClick by rememberUpdatedState(onFlowerClick)
 
     Scaffold(
@@ -96,12 +104,48 @@ fun MapScreen(
             style.value?.updateFlowerMarkers(markers)
         }
 
-        AndroidView(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            factory = { mapView },
-        )
+        Column(modifier = Modifier.padding(innerPadding)) {
+            FilterBar(
+                selected = dateFilter,
+                onSelect = viewModel::setDateFilter,
+            )
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { mapView },
+            )
+        }
+    }
+}
+
+/**
+ * Barre de filtres : chips de période (fonctionnels) + chips « Ami » / « Espèce »
+ * désactivés tant que les données correspondantes n'existent pas (backend social
+ * NODE-15, identification NODE-24).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FilterBar(
+    selected: DateFilter,
+    onSelect: (DateFilter) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        DateFilter.entries.forEach { filter ->
+            FilterChip(
+                selected = filter == selected,
+                onClick = { onSelect(filter) },
+                label = { Text(filter.label) },
+            )
+        }
+        // Dimensions prévues mais pas encore alimentées.
+        FilterChip(selected = false, enabled = false, onClick = {}, label = { Text("Ami") })
+        FilterChip(selected = false, enabled = false, onClick = {}, label = { Text("Espèce") })
     }
 }
 

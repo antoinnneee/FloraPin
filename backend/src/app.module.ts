@@ -7,6 +7,7 @@ import { FlowersModule } from './flowers/flowers.module';
 import { FriendshipsModule } from './friendships/friendships.module';
 import { IdentificationModule } from './identification/identification.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ProposalsModule } from './proposals/proposals.module';
 import { SharesModule } from './shares/shares.module';
 import { SyncModule } from './sync/sync.module';
 import { UsersModule } from './users/users.module';
@@ -36,6 +37,7 @@ import { UsersModule } from './users/users.module';
     SharesModule,
     FeedModule,
     IdentificationModule,
+    ProposalsModule,
     SyncModule,
   ],
 })

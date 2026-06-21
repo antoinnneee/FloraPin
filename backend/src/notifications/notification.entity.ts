@@ -9,7 +9,9 @@ import {
 export type NotificationType =
   | 'friend_request'
   | 'friend_accepted'
-  | 'flower_shared';
+  | 'flower_shared'
+  | 'species_proposed'
+  | 'species_confirmed';
 
 /** Notification in-app destinée à un utilisateur. */
 @Entity('notifications')

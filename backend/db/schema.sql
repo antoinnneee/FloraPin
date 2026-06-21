@@ -102,6 +102,20 @@ CREATE INDEX idx_shares_owner ON shares(owner_id);
 CREATE INDEX idx_shares_user  ON shares(shared_with);
 
 -- =====================================================================
+-- Propositions d'espèce collaboratives (NODE-31)
+-- =====================================================================
+CREATE TABLE species_proposals (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    flower_id   UUID NOT NULL REFERENCES flowers(id) ON DELETE CASCADE,
+    proposed_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    species     TEXT NOT NULL,
+    status      TEXT NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending', 'accepted')),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_species_proposals_flower ON species_proposals(flower_id);
+
+-- =====================================================================
 -- Notifications in-app (NODE-23)
 -- =====================================================================
 CREATE TABLE notifications (

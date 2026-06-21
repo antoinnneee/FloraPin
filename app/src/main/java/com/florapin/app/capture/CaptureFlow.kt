@@ -11,6 +11,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -18,31 +19,60 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.florapin.app.location.GeoPoint
+import com.florapin.app.location.LocationProvider
 import com.florapin.app.permission.AppPermission
 import com.florapin.app.permission.PermissionsScreen
+import com.florapin.app.permission.isGranted
 import com.florapin.app.permission.rememberMultiplePermissionsState
 
+/** État de la récupération GPS pour la capture courante. */
+private sealed interface LocationState {
+    data object Loading : LocationState
+    data class Available(val point: GeoPoint) : LocationState
+    data object Unavailable : LocationState
+}
+
 /**
- * Flux complet de capture (NODE-6) :
- * 1. s'assure que la permission caméra est accordée (sinon écran de demande) ;
+ * Flux complet de capture (NODE-6 + NODE-7) :
+ * 1. s'assure que la permission caméra est accordée (la localisation est
+ *    demandée en même temps mais reste optionnelle) ;
  * 2. affiche l'aperçu caméra ;
- * 3. après la prise, montre la photo enregistrée avec une option « Reprendre ».
+ * 3. après la prise, récupère la position et montre la photo + ses coordonnées.
  */
 @Composable
 fun CaptureFlow(modifier: Modifier = Modifier) {
-    val (cameraPermission, requestCamera) = rememberMultiplePermissionsState(
-        permissions = listOf(AppPermission.CAMERA),
+    val context = LocalContext.current
+    val (permissions, requestPermissions) = rememberMultiplePermissionsState(
+        permissions = listOf(AppPermission.CAMERA, AppPermission.LOCATION),
     )
+    val cameraGranted = permissions.statuses[AppPermission.CAMERA]?.isGranted == true
+
+    val locationProvider = remember(context) { LocationProvider(context) }
 
     var capturedUri: Uri? by remember { mutableStateOf(null) }
+    var locationState: LocationState by remember { mutableStateOf(LocationState.Loading) }
+
+    // Récupère la position dès qu'une photo est prise.
+    LaunchedEffect(capturedUri) {
+        val uri = capturedUri ?: return@LaunchedEffect
+        locationState = LocationState.Loading
+        val point = runCatching { locationProvider.currentLocation() }.getOrNull()
+        locationState = if (point != null) {
+            LocationState.Available(point)
+        } else {
+            LocationState.Unavailable
+        }
+    }
 
     when {
-        !cameraPermission.allGranted -> {
+        !cameraGranted -> {
             PermissionsScreen(
-                state = cameraPermission,
-                onRequest = requestCamera,
+                state = permissions,
+                onRequest = requestPermissions,
                 modifier = modifier,
             )
         }
@@ -57,6 +87,7 @@ fun CaptureFlow(modifier: Modifier = Modifier) {
         else -> {
             CapturedPhotoScreen(
                 uri = capturedUri!!,
+                locationState = locationState,
                 onRetake = { capturedUri = null },
                 modifier = modifier,
             )
@@ -64,10 +95,11 @@ fun CaptureFlow(modifier: Modifier = Modifier) {
     }
 }
 
-/** Aperçu de la photo qui vient d'être enregistrée. */
+/** Aperçu de la photo enregistrée + coordonnées GPS associées. */
 @Composable
 private fun CapturedPhotoScreen(
     uri: Uri,
+    locationState: LocationState,
     onRetake: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -103,6 +135,7 @@ private fun CapturedPhotoScreen(
                 text = uri.lastPathSegment ?: uri.toString(),
                 style = MaterialTheme.typography.bodySmall,
             )
+            LocationLine(locationState)
             Button(
                 onClick = onRetake,
                 modifier = Modifier.fillMaxWidth(),
@@ -111,4 +144,14 @@ private fun CapturedPhotoScreen(
             }
         }
     }
+}
+
+@Composable
+private fun LocationLine(state: LocationState) {
+    val text = when (state) {
+        LocationState.Loading -> "📍 Localisation en cours…"
+        is LocationState.Available -> "📍 ${state.point.format()}"
+        LocationState.Unavailable -> "📍 Localisation indisponible"
+    }
+    Text(text = text, style = MaterialTheme.typography.bodyMedium)
 }

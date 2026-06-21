@@ -63,6 +63,9 @@ dependencies {
     // Coil (affichage de la photo capturée)
     implementation(libs.coil.compose)
 
+    // Localisation (FusedLocationProvider)
+    implementation(libs.play.services.location)
+
     testImplementation(libs.junit)
 
     androidTestImplementation(libs.androidx.junit)

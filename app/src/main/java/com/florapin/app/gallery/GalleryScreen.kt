@@ -2,7 +2,6 @@ package com.florapin.app.gallery
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
@@ -22,7 +21,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,6 +30,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.imageModel
+import com.florapin.app.ui.components.EmptyState
 import com.florapin.app.util.formatCaptureDate
 
 /**
@@ -101,15 +100,11 @@ fun GalleryScreen(
 
 @Composable
 private fun EmptyGallery(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "Aucune fleur pour l'instant.\nAppuyez sur 📷 pour en capturer une.",
-            style = MaterialTheme.typography.bodyLarge,
-        )
-    }
+    EmptyState(
+        title = "Aucune fleur pour l'instant",
+        message = "Appuyez sur 📷 pour capturer votre première fleur.",
+        modifier = modifier,
+    )
 }
 
 @Composable

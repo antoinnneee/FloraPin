@@ -1,7 +1,6 @@
 package com.florapin.app.feed
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
@@ -19,13 +18,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.florapin.app.ui.components.EmptyState
 
 /**
  * Feed des fleurs partagées avec moi (NODE-72) : photo (URL présignée via Coil),
@@ -52,17 +51,12 @@ fun SharedFeedScreen(
         },
     ) { innerPadding ->
         if (!state.loading && state.items.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    state.error ?: "Aucune fleur partagée avec vous pour l'instant.",
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            }
+            EmptyState(
+                title = state.error?.let { "Oups" } ?: "Rien de partagé",
+                message = state.error
+                    ?: "Aucune fleur partagée avec vous pour l'instant.",
+                modifier = Modifier.padding(innerPadding),
+            )
             return@Scaffold
         }
 

@@ -86,4 +86,45 @@ class FlowerMappersTest {
         val entity = FlowerEntity(id = 12, imagePath = "/p.jpg", createdAt = epoch)
         assertEquals("12", entity.toPushItem().localId)
     }
+
+    @Test
+    fun toCreateRequest_carriesSpeciesAndTags() {
+        val entity = FlowerEntity(
+            id = 1,
+            imagePath = "/p.jpg",
+            createdAt = epoch,
+            species = "Rosa",
+            tags = listOf("rouge", "jardin"),
+        )
+
+        val request = entity.toCreateRequest()
+        assertEquals("Rosa", request.species)
+        assertEquals(listOf("rouge", "jardin"), request.tags)
+    }
+
+    @Test
+    fun toCreateRequest_emptyTagsBecomeNull() {
+        val entity = FlowerEntity(id = 1, imagePath = "/p.jpg", createdAt = epoch)
+        assertEquals(null, entity.toCreateRequest().tags)
+    }
+
+    @Test
+    fun toEntity_carriesSpeciesAndTags() {
+        val dto = FlowerDto(
+            id = "srv-3",
+            ownerId = "o",
+            imageUrl = "https://x/y.jpg",
+            takenAt = "2026-06-21T09:00:00Z",
+            notes = "",
+            visibility = "private",
+            species = "Tulipa",
+            tags = listOf("printemps"),
+            createdAt = "2026-06-21T09:00:00Z",
+            updatedAt = "2026-06-21T10:00:00Z",
+        )
+
+        val entity = dto.toEntity()
+        assertEquals("Tulipa", entity.species)
+        assertEquals(listOf("printemps"), entity.tags)
+    }
 }

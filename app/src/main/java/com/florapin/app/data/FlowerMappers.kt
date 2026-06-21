@@ -18,6 +18,8 @@ fun FlowerEntity.toCreateRequest(): CreateFlowerRequest = CreateFlowerRequest(
     longitude = longitude,
     accuracyM = accuracyMeters?.toDouble(),
     notes = notes,
+    species = species,
+    tags = tags.ifEmpty { null },
 )
 
 /** Élément de push (sync par lot), identifié par l'id local. */
@@ -28,6 +30,8 @@ fun FlowerEntity.toPushItem(): PushItem = PushItem(
     longitude = longitude,
     accuracyM = accuracyMeters?.toDouble(),
     notes = notes,
+    species = species,
+    tags = tags.ifEmpty { null },
 )
 
 /**
@@ -43,6 +47,8 @@ fun FlowerDto.applyTo(local: FlowerEntity): FlowerEntity = local.copy(
     updatedAt = updatedAt.isoToEpochMillis(),
     syncState = SyncState.SYNCED.name,
     remoteImageUrl = imageUrl,
+    species = species ?: local.species,
+    tags = tags.ifEmpty { local.tags },
 )
 
 /**
@@ -61,4 +67,6 @@ fun FlowerDto.toEntity(imagePath: String = ""): FlowerEntity = FlowerEntity(
     syncState = SyncState.SYNCED.name,
     updatedAt = updatedAt.isoToEpochMillis(),
     remoteImageUrl = imageUrl,
+    species = species,
+    tags = tags,
 )

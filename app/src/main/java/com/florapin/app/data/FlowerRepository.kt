@@ -50,6 +50,20 @@ class FlowerRepository(private val dao: FlowerDao) {
             ),
         )
 
+    /** Met à jour l'espèce et les étiquettes (les remet en attente de sync). */
+    suspend fun updateClassification(
+        flower: FlowerEntity,
+        species: String?,
+        tags: List<String>,
+    ) = dao.update(
+        flower.copy(
+            species = species?.ifBlank { null },
+            tags = tags,
+            syncState = SyncState.PENDING.name,
+            updatedAt = System.currentTimeMillis(),
+        ),
+    )
+
     suspend fun delete(flower: FlowerEntity) = dao.delete(flower)
 
     // --- Synchronisation (NODE-43) ---

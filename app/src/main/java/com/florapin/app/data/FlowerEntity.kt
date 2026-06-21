@@ -34,6 +34,12 @@ data class FlowerEntity(
     /** Notes saisies par l'utilisateur (vide par défaut). */
     val notes: String = "",
 
+    /** Espèce (nom) renseignée/identifiée, ou null. */
+    val species: String? = null,
+
+    /** Étiquettes libres (converties en chaîne pour Room, voir [Converters]). */
+    val tags: List<String> = emptyList(),
+
     // --- Champs de synchronisation (NODE-43) ---
 
     /** Identifiant serveur (UUID) une fois synchronisée ; null si locale seule. */

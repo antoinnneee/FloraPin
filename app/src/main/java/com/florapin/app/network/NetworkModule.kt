@@ -6,6 +6,11 @@ import com.florapin.app.network.api.FlowersApi
 import com.florapin.app.network.api.FriendshipsApi
 import com.florapin.app.network.api.SharesApi
 import com.florapin.app.network.api.SyncApi
+import com.florapin.app.network.auth.AuthInterceptor
+import com.florapin.app.network.auth.RetrofitTokenRefresher
+import com.florapin.app.network.auth.SessionManager
+import com.florapin.app.network.auth.TokenAuthenticator
+import com.florapin.app.network.auth.TokenStore
 import com.squareup.moshi.Moshi
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -33,19 +38,10 @@ object NetworkModule {
 
     fun okHttpClient(
         extraInterceptors: List<okhttp3.Interceptor> = emptyList(),
-    ): OkHttpClient {
-        val logging = HttpLoggingInterceptor().apply {
-            level = if (BuildConfig.DEBUG) {
-                HttpLoggingInterceptor.Level.BODY
-            } else {
-                HttpLoggingInterceptor.Level.NONE
-            }
-        }
-        return OkHttpClient.Builder()
-            .apply { extraInterceptors.forEach { addInterceptor(it) } }
-            .addInterceptor(logging)
-            .build()
-    }
+    ): OkHttpClient = OkHttpClient.Builder()
+        .apply { extraInterceptors.forEach { addInterceptor(it) } }
+        .addInterceptor(loggingInterceptor())
+        .build()
 
     fun retrofit(
         baseUrl: String = BuildConfig.API_BASE_URL,
@@ -64,4 +60,37 @@ object NetworkModule {
         friendships = retrofit.create(FriendshipsApi::class.java),
         shares = retrofit.create(SharesApi::class.java),
     )
+
+    /**
+     * Services authentifiés : ajoute l'en-tête Bearer et le refresh automatique
+     * sur 401. Le refresh utilise un AuthApi « nu » (sans authenticator) pour
+     * éviter toute récursion.
+     */
+    fun createAuthenticated(
+        tokenStore: TokenStore,
+        baseUrl: String = BuildConfig.API_BASE_URL,
+    ): FloraApis {
+        val moshi = moshi()
+        val bareAuthApi = retrofit(baseUrl, okHttpClient(), moshi)
+            .create(AuthApi::class.java)
+        val refresher = RetrofitTokenRefresher(bareAuthApi)
+        val client = OkHttpClient.Builder()
+            .addInterceptor(AuthInterceptor(tokenStore))
+            .authenticator(TokenAuthenticator(tokenStore, refresher))
+            .addInterceptor(loggingInterceptor())
+            .build()
+        return create(retrofit(baseUrl, client, moshi))
+    }
+
+    fun sessionManager(apis: FloraApis, tokenStore: TokenStore): SessionManager =
+        SessionManager(apis.auth, tokenStore)
+
+    private fun loggingInterceptor(): HttpLoggingInterceptor =
+        HttpLoggingInterceptor().apply {
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
+        }
 }

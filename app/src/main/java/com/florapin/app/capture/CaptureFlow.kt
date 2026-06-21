@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,7 +46,10 @@ private sealed interface LocationState {
  * 3. après la prise, récupère la position et montre la photo + ses coordonnées.
  */
 @Composable
-fun CaptureFlow(modifier: Modifier = Modifier) {
+fun CaptureFlow(
+    modifier: Modifier = Modifier,
+    onFinished: () -> Unit = {},
+) {
     val context = LocalContext.current
     val (permissions, requestPermissions) = rememberMultiplePermissionsState(
         permissions = listOf(AppPermission.CAMERA, AppPermission.LOCATION),
@@ -94,6 +98,7 @@ fun CaptureFlow(modifier: Modifier = Modifier) {
                 uri = capturedUri!!,
                 locationState = locationState,
                 onRetake = { capturedUri = null },
+                onFinished = onFinished,
                 modifier = modifier,
             )
         }
@@ -106,6 +111,7 @@ private fun CapturedPhotoScreen(
     uri: Uri,
     locationState: LocationState,
     onRetake: () -> Unit,
+    onFinished: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -146,6 +152,12 @@ private fun CapturedPhotoScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Reprendre une photo")
+            }
+            OutlinedButton(
+                onClick = onFinished,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Terminer")
             }
         }
     }

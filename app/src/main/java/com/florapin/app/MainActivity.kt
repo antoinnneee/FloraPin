@@ -7,10 +7,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import com.florapin.app.permission.PermissionsScreen
+import com.florapin.app.permission.rememberMultiplePermissionsState
 import com.florapin.app.ui.theme.FloraPinTheme
 
 class MainActivity : ComponentActivity() {
@@ -20,10 +20,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             FloraPinTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "FloraPin",
-                        modifier = Modifier.padding(innerPadding),
-                    )
+                    PermissionsGate(modifier = Modifier.padding(innerPadding))
                 }
             }
         }
@@ -31,14 +28,11 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(text = "Bonjour $name 🌸", modifier = modifier)
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    FloraPinTheme {
-        Greeting("FloraPin")
-    }
+private fun PermissionsGate(modifier: Modifier = Modifier) {
+    val (permissionsState, requestPermissions) = rememberMultiplePermissionsState()
+    PermissionsScreen(
+        state = permissionsState,
+        onRequest = requestPermissions,
+        modifier = modifier,
+    )
 }

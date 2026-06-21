@@ -28,6 +28,7 @@ maplibre = "11.5.2"
 retrofit = "2.11.0"
 okhttp = "4.12.0"
 moshi = "1.15.1"
+securityCrypto = "1.1.0-alpha06"
 
 # Test
 junit = "4.13.2"
@@ -78,6 +79,8 @@ retrofit-converter-moshi = { group = "com.squareup.retrofit2", name = "converter
 okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
 moshi = { group = "com.squareup.moshi", name = "moshi", version.ref = "moshi" }
 moshi-kotlin-codegen = { group = "com.squareup.moshi", name = "moshi-kotlin-codegen", version.ref = "moshi" }
+okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "okhttp" }
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 
 # Test
 junit = { group = "junit", name = "junit", version.ref = "junit" }

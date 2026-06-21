@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "349181298568",
+    "project_id": "florapin",
+    "storage_bucket": "florapin.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:349181298568:android:861d8c3115c7f911831c3d",
+        "android_client_info": {
+          "package_name": "com.florapin.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAB7i-jmPbMymewiYT15Ra0pIJF1Lh_PQM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

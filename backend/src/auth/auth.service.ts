@@ -8,7 +8,11 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomUUID } from 'crypto';
+import type { SignOptions } from 'jsonwebtoken';
 import { IsNull, Repository } from 'typeorm';
+
+/** Durée de validité d'un JWT, typée comme l'attend jsonwebtoken (ms StringValue). */
+type ExpiresIn = SignOptions['expiresIn'];
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
 import { RefreshToken } from './refresh-token.entity';
@@ -131,7 +135,7 @@ export class AuthService {
       { sub: user.id, email: user.email },
       {
         secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
-        expiresIn: this.config.get<string>('JWT_ACCESS_TTL', '900s'),
+        expiresIn: this.config.get<string>('JWT_ACCESS_TTL', '900s') as ExpiresIn,
       },
     );
 
@@ -140,7 +144,7 @@ export class AuthService {
       { sub: user.id, jti },
       {
         secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
-        expiresIn: this.config.get<string>('JWT_REFRESH_TTL', '30d'),
+        expiresIn: this.config.get<string>('JWT_REFRESH_TTL', '30d') as ExpiresIn,
       },
     );
 

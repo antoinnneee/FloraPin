@@ -42,6 +42,7 @@ fun FlowerDto.applyTo(local: FlowerEntity): FlowerEntity = local.copy(
     accuracyMeters = accuracyM?.toFloat() ?: local.accuracyMeters,
     updatedAt = updatedAt.isoToEpochMillis(),
     syncState = SyncState.SYNCED.name,
+    remoteImageUrl = imageUrl,
 )
 
 /**
@@ -59,4 +60,5 @@ fun FlowerDto.toEntity(imagePath: String = ""): FlowerEntity = FlowerEntity(
     serverId = id,
     syncState = SyncState.SYNCED.name,
     updatedAt = updatedAt.isoToEpochMillis(),
+    remoteImageUrl = imageUrl,
 )

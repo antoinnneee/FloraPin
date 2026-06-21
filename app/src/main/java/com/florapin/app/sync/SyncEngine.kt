@@ -2,6 +2,7 @@ package com.florapin.app.sync
 
 import com.florapin.app.data.FlowerRepository
 import com.florapin.app.data.applyTo
+import com.florapin.app.data.toEntity
 import com.florapin.app.data.toPushItem
 import com.florapin.app.network.api.FlowersApi
 import com.florapin.app.network.api.SyncApi
@@ -100,9 +101,11 @@ class SyncEngine(
             val existing = repository.findByServerId(dto.id)
             if (existing != null) {
                 repository.update(dto.applyTo(existing))
+            } else {
+                // Fleur distante inconnue (autre appareil) : insérée avec son URL
+                // image distante ; Coil charge l'URL présignée à l'affichage.
+                repository.insert(dto.toEntity())
             }
-            // Fleurs distantes inconnues : non insérées ici (l'image n'est pas
-            // téléchargée localement) — à compléter ultérieurement.
         }
         response.deletedIds.forEach { serverId ->
             repository.softDeleteByServerId(serverId, now())

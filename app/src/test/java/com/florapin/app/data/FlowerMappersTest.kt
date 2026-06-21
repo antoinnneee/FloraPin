@@ -54,10 +54,31 @@ class FlowerMappersTest {
         assertEquals("srv-1", merged.serverId)
         assertEquals(SyncState.SYNCED.name, merged.syncState)
         assertEquals("maj", merged.notes)
+        assertEquals("https://x/y.jpg", merged.remoteImageUrl)
         assertEquals(
             Instant.parse("2026-06-21T10:00:00Z").toEpochMilli(),
             merged.updatedAt,
         )
+    }
+
+    @Test
+    fun toEntity_remoteFlowerHasUrlAndNoLocalPath() {
+        val dto = FlowerDto(
+            id = "srv-2",
+            ownerId = "o",
+            imageUrl = "https://x/remote.jpg",
+            takenAt = "2026-06-21T09:00:00Z",
+            notes = "distante",
+            visibility = "private",
+            createdAt = "2026-06-21T09:00:00Z",
+            updatedAt = "2026-06-21T10:00:00Z",
+        )
+
+        val entity = dto.toEntity()
+        assertEquals("", entity.imagePath)
+        assertEquals("https://x/remote.jpg", entity.remoteImageUrl)
+        assertEquals("srv-2", entity.serverId)
+        assertEquals(SyncState.SYNCED.name, entity.syncState)
     }
 
     @Test

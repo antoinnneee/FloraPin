@@ -187,6 +187,32 @@ class SyncEngineTest {
     }
 
     @Test
+    fun pull_insertsUnknownRemoteFlower() = runBlocking {
+        val dao = FakeDao()
+        val repo = FlowerRepository(dao)
+        val engine = SyncEngine(
+            repository = repo,
+            syncApi = FakeSyncApi(
+                pullResponse = SyncPullResponse(
+                    serverTime = "2026-06-21T12:00:00Z",
+                    flowers = listOf(dto("srv-remote", "2026-06-21T11:00:00Z")),
+                    deletedIds = emptyList(),
+                ),
+            ),
+            flowersApi = FakeFlowersApi(),
+            uploadImage = { _, _ -> },
+            lastSyncStore = FakeLastSync(),
+        )
+
+        engine.pull()
+
+        val inserted = dao.store.values.single { it.serverId == "srv-remote" }
+        assertEquals("", inserted.imagePath)
+        assertEquals("https://x/srv-remote.jpg", inserted.remoteImageUrl)
+        assertEquals(SyncState.SYNCED.name, inserted.syncState)
+    }
+
+    @Test
     fun pull_reconcilesKnownFlower() = runBlocking {
         val dao = FakeDao()
         val repo = FlowerRepository(dao)

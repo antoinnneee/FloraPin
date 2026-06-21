@@ -14,7 +14,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  */
 @Database(
     entities = [FlowerEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class FloraDatabase : RoomDatabase() {
@@ -42,6 +42,13 @@ abstract class FloraDatabase : RoomDatabase() {
             }
         }
 
+        /** v2 → v3 : URL image distante pour les fleurs multi-appareils (NODE-53). */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE flowers ADD COLUMN remoteImageUrl TEXT")
+            }
+        }
+
         @Volatile
         private var instance: FloraDatabase? = null
 
@@ -56,6 +63,6 @@ abstract class FloraDatabase : RoomDatabase() {
                 context.applicationContext,
                 FloraDatabase::class.java,
                 DB_NAME,
-            ).addMigrations(MIGRATION_1_2).build()
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
     }
 }

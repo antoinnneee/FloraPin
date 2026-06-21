@@ -2,6 +2,7 @@ package com.florapin.app.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import java.io.File
 
 /**
  * Une fleur capturée : chemin de l'image (fichier local), position GPS
@@ -46,6 +47,13 @@ data class FlowerEntity(
 
     /** Suppression logique locale (epoch millis), ou null. */
     val deletedAt: Long? = null,
+
+    /**
+     * URL (présignée) de l'image côté serveur, pour les fleurs distantes dont
+     * le fichier n'est pas téléchargé localement (NODE-53). Null pour une fleur
+     * capturée localement (l'image vit alors dans [imagePath]).
+     */
+    val remoteImageUrl: String? = null,
 )
 
 /** État de synchronisation d'une fleur locale. */
@@ -54,3 +62,10 @@ enum class SyncState {
     SYNCED,
     FAILED,
 }
+
+/**
+ * Source d'image à fournir à Coil : le fichier local s'il existe, sinon l'URL
+ * distante (fleur d'un autre appareil). Null si aucune image disponible.
+ */
+fun FlowerEntity.imageModel(): Any? =
+    if (imagePath.isNotEmpty()) File(imagePath) else remoteImageUrl

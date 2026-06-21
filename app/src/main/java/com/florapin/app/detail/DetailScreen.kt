@@ -32,9 +32,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.florapin.app.data.FlowerEntity
+import com.florapin.app.data.imageModel
 import com.florapin.app.location.GeoPoint
 import com.florapin.app.util.formatCaptureDate
-import java.io.File
 
 /**
  * Détail d'une fleur (NODE-10) : photo, coordonnées, mini-carte, notes éditables
@@ -101,7 +101,7 @@ private fun DetailContent(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         AsyncImage(
-            model = File(flower.imagePath),
+            model = flower.imageModel(),
             contentDescription = "Photo de la fleur",
             contentScale = ContentScale.Fit,
             modifier = Modifier

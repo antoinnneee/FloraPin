@@ -79,8 +79,11 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun FloraPinTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Material You (couleurs dynamiques) disponible à partir d'Android 12.
-    dynamicColor: Boolean = true,
+    // Material You (couleurs dynamiques, Android 12+) désactivé par défaut :
+    // sinon il écrase la palette botanique FloraPin par les couleurs du fond
+    // d'écran, rendant la DA quasi invisible (décision NODE-83). Le paramètre
+    // reste exposé — réactivable via un futur réglage utilisateur.
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val colorScheme = when {

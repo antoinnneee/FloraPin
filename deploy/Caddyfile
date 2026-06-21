@@ -1,11 +1,14 @@
-# Caddy : HTTPS automatique (Let's Encrypt).
-# DOMAIN est injecté depuis l'environnement (docker-compose).
+# Caddy en HTTP simple (port 80) — le TLS public est assuré par le nginx de
+# l'hôte qui termine HTTPS et proxifie vers ce conteneur.
 #
-# Même domaine pour la vitrine et l'API :
+# (Sur ce déploiement, le port 80 public est filtré en amont et Let's Encrypt
+#  passe par DNS-01 côté hôte ; Caddy ne fait donc PAS d'auto-HTTPS ici.)
+#
+# Même origine pour la vitrine et l'API :
 #   - /api/*  -> API NestJS (préfixe global api/v1, Swagger sur /api/docs)
 #   - reste   -> site statique (landing, build Astro monté dans le conteneur)
 
-{$DOMAIN} {
+:80 {
 	encode gzip
 
 	# API FloraPin (toutes les routes sont sous /api).

@@ -10,12 +10,15 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateFriendshipDto } from './dto/friendship.dto';
 import { FriendshipsService } from './friendships.service';
 
+@ApiTags('friendships')
+@ApiBearerAuth('access-token')
 @Controller('friendships')
 @UseGuards(JwtAuthGuard)
 export class FriendshipsController {

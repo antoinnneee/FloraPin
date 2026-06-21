@@ -7,11 +7,14 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IdentificationService } from './identification.service';
 
+@ApiTags('identification')
+@ApiBearerAuth('access-token')
 @Controller('flowers')
 @UseGuards(JwtAuthGuard)
 export class IdentificationController {

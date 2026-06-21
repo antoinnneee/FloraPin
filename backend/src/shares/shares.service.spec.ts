@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 import { Flower } from '../flowers/flower.entity';
 import { FlowersService } from '../flowers/flowers.service';
 import { FriendshipsService } from '../friendships/friendships.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { StorageService } from '../storage/storage.service';
 import { StubStorageService } from '../storage/stub-storage.service';
 import { Share } from './share.entity';
@@ -90,10 +91,12 @@ describe('SharesService', () => {
   let service: SharesService;
   let flowerRepo: FakeFlowerRepo;
   let acceptedFriends: string[];
+  let notify: jest.Mock;
 
   beforeEach(async () => {
     flowerRepo = new FakeFlowerRepo();
     acceptedFriends = [VIEWER];
+    notify = jest.fn();
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -106,6 +109,7 @@ describe('SharesService', () => {
           provide: FriendshipsService,
           useValue: { acceptedFriendIds: async () => acceptedFriends },
         },
+        { provide: NotificationsService, useValue: { create: notify } },
       ],
     }).compile();
     service = moduleRef.get(SharesService);
@@ -146,6 +150,20 @@ describe('SharesService', () => {
     expect(visible).toHaveLength(1);
     expect(visible[0].latitude).toBeNull();
     expect(visible[0].longitude).toBeNull();
+  });
+
+  it('notifie le destinataire à la création du partage', async () => {
+    await service.create(OWNER, {
+      friendId: VIEWER,
+      scope: 'all',
+    });
+
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledWith(
+      VIEWER,
+      'flower_shared',
+      expect.objectContaining({ fromUserId: OWNER, scope: 'all' }),
+    );
   });
 
   it('partage une fleur avec GPS', async () => {

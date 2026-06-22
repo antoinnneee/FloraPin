@@ -28,12 +28,18 @@ import retrofit2.Response
 private class MemTokenStore : TokenStore {
     private var a: String? = null
     private var r: String? = null
+    private var uid: String? = null
+    private var name: String? = null
     override fun accessToken() = a
     override fun refreshToken() = r
+    override fun userId() = uid
+    override fun saveUserId(userId: String) { uid = userId }
+    override fun displayName() = name
+    override fun saveDisplayName(displayName: String) { name = displayName }
     override fun save(accessToken: String, refreshToken: String) {
         a = accessToken; r = refreshToken
     }
-    override fun clear() { a = null; r = null }
+    override fun clear() { a = null; r = null; uid = null; name = null }
 }
 
 private val USER = UserDto("u1", "a@b.c", "Alice", "2026-06-21T09:00:00Z")
@@ -97,6 +103,35 @@ class AuthViewModelTest {
         vm.register("a@b.c", "password", "Alice")
         advanceUntilIdle()
         assertTrue(vm.state.value is AuthUiState.Success)
+    }
+
+    @Test
+    fun login_persistsUserIdAndDisplayName() = runTest {
+        val store = MemTokenStore()
+        val session = SessionManager(FakeAuthApi(), store)
+        session.login("a@b.c", "password")
+
+        assertEquals("u1", store.userId())
+        assertEquals("Alice", store.displayName())
+    }
+
+    @Test
+    fun register_persistsDisplayName() = runTest {
+        val store = MemTokenStore()
+        val session = SessionManager(FakeAuthApi(), store)
+        session.register("a@b.c", "password", "Alice")
+
+        assertEquals("Alice", store.displayName())
+    }
+
+    @Test
+    fun logout_clearsDisplayName() = runTest {
+        val store = MemTokenStore()
+        SessionManager(FakeAuthApi(), store).login("a@b.c", "password")
+        assertEquals("Alice", store.displayName())
+
+        SessionManager(FakeAuthApi(), store).logout()
+        assertEquals(null, store.displayName())
     }
 
     @Test

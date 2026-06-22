@@ -17,6 +17,7 @@ class SessionManager(
         val res = authApi.login(LoginRequest(email, password))
         tokenStore.save(res.accessToken, res.refreshToken)
         tokenStore.saveUserId(res.user.id)
+        tokenStore.saveDisplayName(res.user.displayName)
         return res.user
     }
 
@@ -28,6 +29,7 @@ class SessionManager(
         val res = authApi.register(RegisterRequest(email, password, displayName))
         tokenStore.save(res.accessToken, res.refreshToken)
         tokenStore.saveUserId(res.user.id)
+        tokenStore.saveDisplayName(res.user.displayName)
         return res.user
     }
 

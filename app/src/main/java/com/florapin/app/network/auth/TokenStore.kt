@@ -12,4 +12,10 @@ interface TokenStore {
 
     /** Mémorise l'id de l'utilisateur connecté. */
     fun saveUserId(userId: String) {}
+
+    /** Nom affiché de l'utilisateur connecté. */
+    fun displayName(): String? = null
+
+    /** Mémorise le nom affiché de l'utilisateur connecté. */
+    fun saveDisplayName(displayName: String) {}
 }

@@ -56,6 +56,7 @@ private class FakeAuthApi(private val failLogin: Boolean = false) : AuthApi {
     override suspend fun refresh(body: RefreshRequest): TokenPair = TokenPair("a", "r")
     override suspend fun logout(body: RefreshRequest): Response<Unit> =
         Response.success(null)
+    override suspend fun me(): UserDto = USER
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -121,6 +122,18 @@ class AuthViewModelTest {
         val session = SessionManager(FakeAuthApi(), store)
         session.register("a@b.c", "password", "Alice")
 
+        assertEquals("Alice", store.displayName())
+    }
+
+    @Test
+    fun fetchCurrentUser_refreshesPersistedProfile() = runTest {
+        val store = MemTokenStore()
+        val session = SessionManager(FakeAuthApi(), store)
+
+        val user = session.fetchCurrentUser()
+
+        assertEquals("Alice", user.displayName)
+        assertEquals("u1", store.userId())
         assertEquals("Alice", store.displayName())
     }
 

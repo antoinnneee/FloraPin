@@ -46,6 +46,7 @@ fun GalleryScreen(
     onOpenMap: () -> Unit,
     onOpenFriends: () -> Unit,
     onOpenFeed: () -> Unit,
+    onOpenProfile: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: GalleryViewModel = viewModel(),
 ) {
@@ -65,6 +66,9 @@ fun GalleryScreen(
                     }
                     IconButton(onClick = onOpenFriends) {
                         Text("🤝", style = MaterialTheme.typography.titleLarge)
+                    }
+                    IconButton(onClick = onOpenProfile) {
+                        Text("👤", style = MaterialTheme.typography.titleLarge)
                     }
                 },
             )

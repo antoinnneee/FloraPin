@@ -64,6 +64,26 @@ CREATE INDEX idx_flowers_species     ON flowers(species);
 CREATE INDEX idx_flowers_tags        ON flowers USING GIN (tags);
 
 -- =====================================================================
+-- Albums de fleurs (NODE-98)
+--   Regroupement nommé de fleurs appartenant à un utilisateur.
+-- =====================================================================
+CREATE TABLE albums (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_albums_owner ON albums(owner_id);
+
+-- Appartenance fleur ↔ album (n..n).
+CREATE TABLE flower_albums (
+    album_id    UUID NOT NULL REFERENCES albums(id)  ON DELETE CASCADE,
+    flower_id   UUID NOT NULL REFERENCES flowers(id) ON DELETE CASCADE,
+    PRIMARY KEY (album_id, flower_id)
+);
+CREATE INDEX idx_flower_albums_flower ON flower_albums(flower_id);
+
+-- =====================================================================
 -- Amitiés (NODE-20)
 -- =====================================================================
 CREATE TABLE friendships (

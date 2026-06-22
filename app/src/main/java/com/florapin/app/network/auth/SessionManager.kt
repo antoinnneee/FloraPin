@@ -33,6 +33,18 @@ class SessionManager(
         return res.user
     }
 
+    /**
+     * Récupère le profil courant depuis le serveur (GET /users/me) et rafraîchit
+     * l'id + le nom affiché persistés. Utile pour les sessions restaurées dont le
+     * displayName n'aurait pas été capté (anciennes sessions).
+     */
+    suspend fun fetchCurrentUser(): UserDto {
+        val user = authApi.me()
+        tokenStore.saveUserId(user.id)
+        tokenStore.saveDisplayName(user.displayName)
+        return user
+    }
+
     /** Révoque le refresh côté serveur (best-effort) puis purge le stockage. */
     suspend fun logout() {
         val refresh = tokenStore.refreshToken()

@@ -40,6 +40,12 @@ class EncryptedTokenStore(context: Context) : TokenStore {
         prefs.edit().putString(KEY_USER_ID, userId).apply()
     }
 
+    override fun displayName(): String? = prefs.getString(KEY_DISPLAY_NAME, null)
+
+    override fun saveDisplayName(displayName: String) {
+        prefs.edit().putString(KEY_DISPLAY_NAME, displayName).apply()
+    }
+
     override fun clear() {
         prefs.edit().clear().apply()
     }
@@ -48,5 +54,6 @@ class EncryptedTokenStore(context: Context) : TokenStore {
         const val KEY_ACCESS = "access_token"
         const val KEY_REFRESH = "refresh_token"
         const val KEY_USER_ID = "user_id"
+        const val KEY_DISPLAY_NAME = "display_name"
     }
 }

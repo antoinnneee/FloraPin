@@ -38,7 +38,7 @@ private class FakeFriendshipsApi(
 
     override suspend fun list(): List<FriendshipDto> = data
     override suspend fun request(body: CreateFriendshipRequest): FriendshipDto {
-        requested = body.addresseeId
+        requested = body.email
         return friendship("new", "pending", "outgoing")
     }
     override suspend fun accept(id: String): FriendshipDto {
@@ -89,15 +89,15 @@ class FriendsViewModelTest {
     }
 
     @Test
-    fun invite_sendsRequestWithUserId() = runTest {
+    fun invite_sendsRequestWithEmail() = runTest {
         val api = FakeFriendshipsApi()
         val vm = FriendsViewModel(api)
         advanceUntilIdle()
 
-        vm.invite("  u-42  ")
+        vm.invite("  ami@florapin.fr  ")
         advanceUntilIdle()
 
-        assertEquals("u-42", api.requested)
+        assertEquals("ami@florapin.fr", api.requested)
     }
 
     @Test

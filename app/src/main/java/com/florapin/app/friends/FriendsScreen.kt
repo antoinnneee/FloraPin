@@ -34,14 +34,13 @@ import com.florapin.app.network.dto.FriendshipDto
 
 /**
  * Écran de gestion des amis (NODE-70) : demandes reçues/envoyées, liste d'amis,
- * invitation par identifiant utilisateur. Le bouton de déconnexion (NODE-52)
- * est accessible depuis la barre du haut.
+ * invitation par identifiant utilisateur. La déconnexion a été déplacée vers
+ * l'écran Profil (NODE-97).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FriendsScreen(
     onBack: () -> Unit,
-    onLogout: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: FriendsViewModel = viewModel(
         factory = FriendsViewModel.factory(androidx.compose.ui.platform.LocalContext.current),
@@ -56,11 +55,6 @@ fun FriendsScreen(
             TopAppBar(
                 title = { Text("Amis") },
                 navigationIcon = { IconButton(onClick = onBack) { Text("←") } },
-                actions = {
-                    IconButton(onClick = onLogout) {
-                        Text("🚪", style = MaterialTheme.typography.titleLarge)
-                    }
-                },
             )
         },
     ) { innerPadding ->

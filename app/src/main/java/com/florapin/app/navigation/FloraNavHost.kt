@@ -24,6 +24,7 @@ import com.florapin.app.friends.FriendsScreen
 import com.florapin.app.gallery.GalleryScreen
 import com.florapin.app.map.MapScreen
 import com.florapin.app.network.auth.EncryptedTokenStore
+import com.florapin.app.profile.ProfileScreen
 import com.florapin.app.push.PushTokenRegistrar
 import com.florapin.app.sync.SyncScheduler
 
@@ -36,6 +37,7 @@ private object Routes {
     const val MAP = "map"
     const val FRIENDS = "friends"
     const val FEED = "feed"
+    const val PROFILE = "profile"
     const val DETAIL = "detail/{id}"
 
     fun detail(id: Long) = "detail/$id"
@@ -101,15 +103,19 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
                 onOpenMap = { navController.navigate(Routes.MAP) },
                 onOpenFriends = { navController.navigate(Routes.FRIENDS) },
                 onOpenFeed = { navController.navigate(Routes.FEED) },
+                onOpenProfile = { navController.navigate(Routes.PROFILE) },
             )
         }
         composable(Routes.FEED) {
             SharedFeedScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.FRIENDS) {
+            FriendsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.PROFILE) {
             val authViewModel: AuthViewModel =
                 viewModel(factory = AuthViewModel.factory(context))
-            FriendsScreen(
+            ProfileScreen(
                 onBack = { navController.popBackStack() },
                 onLogout = {
                     // Désenregistre le push tant que les jetons sont valides,

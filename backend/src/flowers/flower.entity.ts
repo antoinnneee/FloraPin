@@ -4,9 +4,12 @@ import {
   DeleteDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Species } from '../species/species.entity';
 
 /** Point GeoJSON (longitude, latitude) tel que stocké/lu par PostGIS. */
 export interface GeoJsonPoint {
@@ -52,6 +55,20 @@ export class Flower {
   /** Espèce (nom scientifique), renseignée via identification ou manuellement. */
   @Column({ type: 'text', nullable: true })
   species: string | null;
+
+  /**
+   * Référence (best-effort) vers le référentiel d'espèces (NODE-124). Nullable :
+   * le texte libre `species` ci-dessus reste la source tant qu'aucune
+   * correspondance n'est établie. ON DELETE SET NULL : retirer une espèce du
+   * référentiel ne supprime pas les fleurs.
+   */
+  @Index()
+  @Column({ name: 'species_id', type: 'uuid', nullable: true })
+  speciesId: string | null;
+
+  @ManyToOne(() => Species, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'species_id' })
+  speciesRef: Species | null;
 
   /** Étiquettes libres. */
   @Column({ type: 'text', array: true, default: () => "'{}'" })

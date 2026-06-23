@@ -13,6 +13,7 @@ import { ObservabilityModule } from './observability/observability.module';
 import { ProposalsModule } from './proposals/proposals.module';
 import { PushModule } from './push/push.module';
 import { SharesModule } from './shares/shares.module';
+import { SpeciesModule } from './species/species.module';
 import { SyncModule } from './sync/sync.module';
 import { UsersModule } from './users/users.module';
 
@@ -38,6 +39,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     UsersModule,
     FlowersModule,
+    SpeciesModule,
     AlbumsModule,
     FriendshipsModule,
     NotificationsModule,

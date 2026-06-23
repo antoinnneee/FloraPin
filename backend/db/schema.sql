@@ -66,6 +66,25 @@ CREATE TABLE email_verification_tokens (
 CREATE INDEX idx_email_verif_user ON email_verification_tokens(user_id);
 
 -- =====================================================================
+-- Référentiel d'espèces (NODE-124)
+--   Source structurée vers laquelle pointe flowers.species_id. Le texte libre
+--   flowers.species est conservé : le rapprochement est best-effort, sans perte.
+-- =====================================================================
+CREATE TABLE species (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    scientific_name TEXT NOT NULL UNIQUE,          -- binôme latin (clé naturelle)
+    common_name     TEXT NOT NULL,                 -- nom commun FR
+    family          TEXT NOT NULL,                 -- famille botanique (Rosaceae…)
+    description     TEXT NOT NULL DEFAULT '',
+    emoji           TEXT,                           -- repli visuel (optionnel)
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- Recherche / autocomplétion par nom scientifique (en complément de l'UNIQUE).
+CREATE INDEX IF NOT EXISTS idx_species_scientific_name
+    ON species(scientific_name);
+
+-- =====================================================================
 -- Fleurs
 -- =====================================================================
 CREATE TABLE flowers (
@@ -77,7 +96,10 @@ CREATE TABLE flowers (
     accuracy_m  REAL,                              -- précision horizontale (mètres)
     taken_at    TIMESTAMPTZ NOT NULL,             -- date de la prise
     notes       TEXT NOT NULL DEFAULT '',
-    species     TEXT,                              -- nom scientifique (NODE-26)
+    species     TEXT,                              -- nom scientifique libre (NODE-26)
+    -- Lien best-effort vers le référentiel (NODE-124). SET NULL : retirer une
+    -- espèce du référentiel n'efface pas la fleur.
+    species_id  UUID REFERENCES species(id) ON DELETE SET NULL,
     tags        TEXT[] NOT NULL DEFAULT '{}',      -- étiquettes libres
     visibility  TEXT NOT NULL DEFAULT 'private'    -- 'private' | 'friends'
                 CHECK (visibility IN ('private', 'friends')),
@@ -92,7 +114,20 @@ CREATE INDEX idx_flowers_owner       ON flowers(owner_id);
 CREATE INDEX idx_flowers_updated_at  ON flowers(updated_at);
 -- Recherche par espèce / étiquette (NODE-26).
 CREATE INDEX idx_flowers_species     ON flowers(species);
+CREATE INDEX idx_flowers_species_id  ON flowers(species_id);   -- jointure référentiel (NODE-124)
 CREATE INDEX idx_flowers_tags        ON flowers USING GIN (tags);
+
+-- Migration des bases existantes (NODE-124) : ajout de la colonne si absente
+-- puis rapprochement best-effort du texte libre vers le référentiel. Sans
+-- perte : la colonne `species` (texte) reste la source quand aucun match.
+ALTER TABLE flowers ADD COLUMN IF NOT EXISTS species_id UUID
+    REFERENCES species(id) ON DELETE SET NULL;
+UPDATE flowers f
+   SET species_id = s.id
+  FROM species s
+ WHERE f.species_id IS NULL
+   AND f.species IS NOT NULL
+   AND lower(btrim(f.species)) = lower(s.scientific_name);
 
 -- =====================================================================
 -- Photos d'une fleur (NODE-104 : plusieurs photos par fleur)

@@ -51,5 +51,13 @@
 -keep class com.google.firebase.** { *; }
 -dontwarn com.google.firebase.**
 
+# --- Crashlytics (NODE-148) ---
+# Conserver fichier source + numéros de ligne pour désobfusquer les crashs.
+# Le mapping R8 est uploadé par le plugin ; ces attributs rendent les
+# stacktraces lisibles dans la console Firebase.
+-keepattributes SourceFile, LineNumberTable
+# Ne pas renommer les exceptions custom (lisibilité des rapports).
+-keep public class * extends java.lang.Exception
+
 # --- Modèles applicatifs sérialisés / persistés (réflexion Moshi + Room) ---
 -keep class com.florapin.app.data.** { *; }

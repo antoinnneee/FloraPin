@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
 }
 
 // Clé MapTiler lue depuis local.properties (non commité) ou une variable
@@ -95,6 +96,13 @@ android {
                 "API_BASE_URL",
                 "\"${apiBaseUrlOverride ?: "http://10.0.2.2:3000/api/v1/"}\"",
             )
+            // Crashlytics désactivé en debug : pas de collecte runtime, et on
+            // n'upload pas le mapping (build plus rapide). Voir la meta-data
+            // `firebase_crashlytics_collection_enabled` du manifeste.
+            resValue("bool", "crashlytics_collection_enabled", "false")
+            configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
+                mappingFileUploadEnabled = false
+            }
         }
         release {
             isMinifyEnabled = true
@@ -103,6 +111,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Crashlytics actif en release : collecte runtime + upload du mapping
+            // R8 pour désobfusquer les stacktraces.
+            resValue("bool", "crashlytics_collection_enabled", "true")
             // Signé seulement si un keystore est fourni (sinon build non signé).
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
@@ -176,6 +187,8 @@ dependencies {
     // Push (Firebase Cloud Messaging) — versions alignées par le BOM.
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+    // Crashlytics (reporting de crashs) — version alignée par le BOM.
+    implementation(libs.firebase.crashlytics)
 
     // Room (persistance locale)
     implementation(libs.androidx.room.runtime)

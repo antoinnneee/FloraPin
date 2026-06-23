@@ -34,6 +34,8 @@ workManager = "2.10.0"
 # Push (Firebase Cloud Messaging)
 googleServices = "4.4.2"
 firebaseBom = "33.7.0"
+# Crashlytics (reporting de crashs) — plugin Gradle (le SDK suit le BOM).
+firebaseCrashlyticsPlugin = "3.0.2"
 
 # Test
 junit = "4.13.2"
@@ -73,6 +75,7 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 # Firebase Cloud Messaging (push) — versions alignées par le BOM.
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
+firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
 
 # FusedLocationProvider (GPS)
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
@@ -112,3 +115,5 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 # Firebase / Google Services (traite google-services.json).
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+# Crashlytics : upload des mappings R8 pour désobfusquer les stacktraces.
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlyticsPlugin" }

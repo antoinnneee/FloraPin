@@ -12,15 +12,21 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
@@ -49,6 +55,8 @@ fun GalleryScreen(
     viewModel: GalleryViewModel = viewModel(),
 ) {
     val flowers by viewModel.flowers.collectAsStateWithLifecycle()
+    val query by viewModel.query.collectAsStateWithLifecycle()
+    val sort by viewModel.sort.collectAsStateWithLifecycle()
 
     Scaffold(
         modifier = modifier,
@@ -56,6 +64,7 @@ fun GalleryScreen(
             TopAppBar(
                 title = { Text("🌸 FloraPin") },
                 actions = {
+                    SortMenu(selected = sort, onSelect = viewModel::setSort)
                     IconButton(onClick = onOpenAlbums) {
                         Text("📁", style = MaterialTheme.typography.titleLarge)
                     }
@@ -71,25 +80,83 @@ fun GalleryScreen(
             }
         },
     ) { innerPadding ->
-        if (flowers.isEmpty()) {
-            EmptyGallery(modifier = Modifier.padding(innerPadding))
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 120.dp),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentPadding = PaddingValues(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(flowers, key = { it.id }) { flower ->
-                    FlowerThumbnail(
-                        flower = flower,
-                        onClick = { onFlowerClick(flower.id) },
-                    )
+        Column(modifier = Modifier.padding(innerPadding)) {
+            SearchBar(
+                query = query,
+                onQueryChange = viewModel::setQuery,
+            )
+            when {
+                flowers.isNotEmpty() -> LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 120.dp),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(flowers, key = { it.id }) { flower ->
+                        FlowerThumbnail(
+                            flower = flower,
+                            onClick = { onFlowerClick(flower.id) },
+                        )
+                    }
                 }
+
+                query.isNotBlank() -> EmptyState(
+                    title = "Aucun résultat",
+                    message = "Aucune fleur ne correspond à « $query ».",
+                )
+
+                else -> EmptyGallery()
             }
+        }
+    }
+}
+
+/** Barre de recherche par espèce, notes ou étiquette (NODE-120). */
+@Composable
+private fun SearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        singleLine = true,
+        leadingIcon = { Text("🔍") },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) { Text("✕") }
+            }
+        },
+        placeholder = { Text("Rechercher (espèce, notes, étiquette)") },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    )
+}
+
+/** Menu déroulant de choix du tri. */
+@Composable
+private fun SortMenu(
+    selected: GallerySort,
+    onSelect: (GallerySort) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    IconButton(onClick = { expanded = true }) {
+        Text("↕️", style = MaterialTheme.typography.titleLarge)
+    }
+    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        GallerySort.entries.forEach { order ->
+            DropdownMenuItem(
+                text = {
+                    val mark = if (order == selected) "✓ " else ""
+                    Text("$mark${order.label}")
+                },
+                onClick = {
+                    onSelect(order)
+                    expanded = false
+                },
+            )
         }
     }
 }

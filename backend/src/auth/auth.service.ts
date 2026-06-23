@@ -14,9 +14,10 @@ import { IsNull, Repository } from 'typeorm';
 /** Durée de validité d'un JWT, typée comme l'attend jsonwebtoken (ms StringValue). */
 type ExpiresIn = SignOptions['expiresIn'];
 import { MailSender } from '../mail/mail.sender';
-import { resetPasswordEmail } from '../mail/mail-templates';
+import { resetPasswordEmail, verifyEmail } from '../mail/mail-templates';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
+import { EmailVerificationToken } from './email-verification-token.entity';
 import { PasswordResetToken } from './password-reset-token.entity';
 import { RefreshToken } from './refresh-token.entity';
 
@@ -26,6 +27,7 @@ export interface PublicUser {
   id: string;
   email: string;
   displayName: string;
+  emailVerified: boolean;
   createdAt: Date;
 }
 
@@ -55,6 +57,8 @@ export class AuthService {
     private readonly refreshTokens: Repository<RefreshToken>,
     @InjectRepository(PasswordResetToken)
     private readonly resetTokens: Repository<PasswordResetToken>,
+    @InjectRepository(EmailVerificationToken)
+    private readonly emailTokens: Repository<EmailVerificationToken>,
     private readonly mail: MailSender,
   ) {}
 
@@ -163,6 +167,49 @@ export class AuthService {
     );
   }
 
+  /**
+   * Envoie (ou renvoie) un email de vérification d'adresse (NODE-117). Opt-in :
+   * sans effet si l'email est déjà vérifié (idempotent). Protégé par JWT côté
+   * contrôleur, donc [userId] est connu.
+   */
+  async requestEmailVerification(userId: string): Promise<void> {
+    const user = await this.users.findById(userId);
+    if (!user || user.emailVerified) return;
+
+    const ttlMinutes = Number(
+      this.config.get<string>('EMAIL_VERIFY_TTL_MIN', '1440'),
+    );
+    const rawToken = randomBytes(32).toString('hex');
+    await this.emailTokens.save(
+      this.emailTokens.create({
+        userId: user.id,
+        tokenHash: hashToken(rawToken),
+        expiresAt: new Date(Date.now() + ttlMinutes * 60_000),
+        usedAt: null,
+      }),
+    );
+
+    const baseUrl = this.config.get<string>('APP_BASE_URL', 'https://florapin.fr');
+    const verifyUrl = `${baseUrl}/verify?token=${rawToken}`;
+    await this.mail.send(verifyEmail(user.email, verifyUrl));
+  }
+
+  /**
+   * Valide un token de vérification d'email (NODE-117) → marque l'adresse
+   * vérifiée. Token invalide/expiré/déjà utilisé ⇒ 401.
+   */
+  async verifyEmailToken(token: string): Promise<void> {
+    const record = await this.emailTokens.findOne({
+      where: { tokenHash: hashToken(token), usedAt: IsNull() },
+    });
+    if (!record || record.expiresAt.getTime() < Date.now()) {
+      throw new UnauthorizedException('Lien de vérification invalide ou expiré.');
+    }
+    await this.users.setEmailVerified(record.userId);
+    record.usedAt = new Date();
+    await this.emailTokens.save(record);
+  }
+
   /** Révoque le refresh fourni (déconnexion). */
   async logout(refreshToken: string): Promise<void> {
     let payload: RefreshPayload;
@@ -234,6 +281,7 @@ function toPublicUser(user: User): PublicUser {
     id: user.id,
     email: user.email,
     displayName: user.displayName,
+    emailVerified: user.emailVerified ?? false,
     createdAt: user.createdAt,
   };
 }

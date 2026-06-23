@@ -1,5 +1,15 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from './current-user.decorator';
+import { AuthenticatedUser } from './jwt.strategy';
+import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuthService } from './auth.service';
 import {
   ForgotPasswordDto,
@@ -7,6 +17,7 @@ import {
   RefreshDto,
   RegisterDto,
   ResetPasswordDto,
+  VerifyEmailDto,
 } from './dto/auth.dto';
 
 @ApiTags('auth')
@@ -61,5 +72,30 @@ export class AuthController {
   ): Promise<{ message: string }> {
     await this.auth.resetPassword(dto.token, dto.newPassword);
     return { message: 'Mot de passe réinitialisé.' };
+  }
+
+  /**
+   * Demande/renvoie un email de vérification d'adresse (NODE-117, opt-in).
+   * Sans effet si l'adresse est déjà vérifiée.
+   */
+  @Post('email/verification')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  async requestEmailVerification(
+    @CurrentUser() current: AuthenticatedUser,
+  ): Promise<{ message: string }> {
+    await this.auth.requestEmailVerification(current.userId);
+    return {
+      message: "Si nécessaire, un email de vérification a été envoyé.",
+    };
+  }
+
+  /** Valide l'adresse via le token reçu par email (NODE-117). */
+  @Post('email/verify')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Body() dto: VerifyEmailDto): Promise<{ message: string }> {
+    await this.auth.verifyEmailToken(dto.token);
+    return { message: 'Adresse email vérifiée.' };
   }
 }

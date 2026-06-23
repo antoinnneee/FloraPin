@@ -20,10 +20,18 @@ import retrofit2.HttpException
 data class ProfileUiState(
     val displayName: String = "",
     val email: String = "",
+    val emailVerified: Boolean = false,
     val loading: Boolean = false,
     val error: String? = null,
     val deleting: Boolean = false,
     val deleteError: String? = null,
+    /** Email de vérification en cours d'envoi (NODE-117). */
+    val verificationSending: Boolean = false,
+    /** Message retour de la demande de vérification (succès ou erreur). */
+    val verificationMessage: String? = null,
+    /** Changement d'adresse en cours (NODE-117). */
+    val emailSaving: Boolean = false,
+    val emailError: String? = null,
 )
 
 /**
@@ -54,6 +62,7 @@ class ProfileViewModel(
                 _state.value.copy(
                     displayName = user.displayName,
                     email = user.email,
+                    emailVerified = user.emailVerified,
                     loading = false,
                 )
             } catch (e: Exception) {
@@ -89,6 +98,53 @@ class ProfileViewModel(
     private fun deleteMessageOf(error: Throwable): String = when {
         error is HttpException && error.code() == 401 -> "Mot de passe incorrect."
         else -> "Suppression impossible. Réessayez."
+    }
+
+    /** Demande l'envoi d'un email de vérification d'adresse (NODE-117). */
+    fun requestEmailVerification() {
+        _state.update { it.copy(verificationSending = true, verificationMessage = null) }
+        viewModelScope.launch {
+            _state.value = try {
+                session.requestEmailVerification()
+                _state.value.copy(
+                    verificationSending = false,
+                    verificationMessage = "Email de vérification envoyé. Consultez votre boîte.",
+                )
+            } catch (e: Exception) {
+                _state.value.copy(
+                    verificationSending = false,
+                    verificationMessage = "Envoi impossible. Réessayez.",
+                )
+            }
+        }
+    }
+
+    /**
+     * Change l'adresse email (NODE-117), autorisé tant qu'elle n'est pas
+     * vérifiée. Met à jour l'état avec la nouvelle adresse (non vérifiée).
+     */
+    fun changeEmail(newEmail: String) {
+        _state.update { it.copy(emailSaving = true, emailError = null) }
+        viewModelScope.launch {
+            _state.value = try {
+                val user = session.changeEmail(newEmail)
+                _state.value.copy(
+                    email = user.email,
+                    emailVerified = user.emailVerified,
+                    emailSaving = false,
+                )
+            } catch (e: Exception) {
+                _state.value.copy(emailSaving = false, emailError = changeEmailMessageOf(e))
+            }
+        }
+    }
+
+    private fun changeEmailMessageOf(error: Throwable): String = when {
+        error is HttpException && error.code() == 409 -> "Cet email est déjà utilisé."
+        error is HttpException && error.code() == 403 ->
+            "Adresse déjà vérifiée : changement impossible ici."
+        error is HttpException && error.code() == 400 -> "Format d'email invalide."
+        else -> "Modification impossible. Réessayez."
     }
 
     companion object {

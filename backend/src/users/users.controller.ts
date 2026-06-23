@@ -5,10 +5,12 @@ import {
   Get,
   HttpCode,
   NotFoundException,
+  Patch,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { ChangeEmailDto } from '../auth/dto/auth.dto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DeleteAccountDto } from './dto/delete-account.dto';
@@ -31,6 +33,27 @@ export class UsersController {
       id: user.id,
       email: user.email,
       displayName: user.displayName,
+      emailVerified: user.emailVerified,
+      createdAt: user.createdAt,
+    };
+  }
+
+  /**
+   * Change l'adresse email du compte courant (NODE-117). Autorisé uniquement
+   * tant que l'adresse n'est pas vérifiée.
+   */
+  @Patch('me/email')
+  @UseGuards(JwtAuthGuard)
+  async changeEmail(
+    @CurrentUser() current: AuthenticatedUser,
+    @Body() dto: ChangeEmailDto,
+  ) {
+    const user = await this.users.changeEmail(current.userId, dto.email);
+    return {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      emailVerified: user.emailVerified,
       createdAt: user.createdAt,
     };
   }

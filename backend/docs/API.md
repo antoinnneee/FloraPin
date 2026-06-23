@@ -34,6 +34,8 @@ en `geography(Point,4326)` ; restitués sous forme lat/long + `accuracyM`.
 | POST    | `/auth/logout`    | `{ refreshToken }`                       | `204` (révoque le refresh) |
 | POST    | `/auth/forgot-password` | `{ email }`                        | `200 { message }` **systématique** (anti-énumération) ; envoie un lien si le compte existe |
 | POST    | `/auth/reset-password`  | `{ token, newPassword }`           | `200 { message }` ; `401` si token invalide/expiré/déjà utilisé |
+| POST    | `/auth/email/verification` | — (JWT)                         | `200 { message }` ; envoie/renvoie un lien de vérification (sans effet si déjà vérifié) |
+| POST    | `/auth/email/verify`    | `{ token }`                        | `200 { message }` ; `401` si token invalide/expiré/déjà utilisé |
 
 - `accessToken` : JWT court (~15 min). `refreshToken` : opaque, long, **rotaté**
   à chaque refresh (l'ancien est révoqué). Détails en NODE-17.
@@ -49,10 +51,11 @@ en `geography(Point,4326)` ; restitués sous forme lat/long + `accuracyM`.
 |---------|---------------|-------------|
 | GET     | `/users/me`   | Profil courant |
 | PATCH   | `/users/me`   | `{ displayName? }` |
+| PATCH   | `/users/me/email` | `{ email }` → user. **Autorisé uniquement tant que `emailVerified=false`** (NODE-117) ; `403` sinon, `409` si l'email est déjà pris. Réinitialise les tokens de vérification en cours. |
 | DELETE  | `/users/me`   | `{ password }` → **204**. Effacement RGPD : supprime le compte et **toutes** ses données (fleurs, photos, albums, amitiés, partages, propositions, notifications, jetons d'appareil) ; purge aussi les objets image (MinIO). Re-authentification par mot de passe ; `401` si incorrect. Irréversible. |
 | GET     | `/users?query=` | Recherche par email/nom (pour ajouter un ami) — résultats limités |
 
-`User` = `{ id, email, displayName, createdAt }` (jamais le `passwordHash`).
+`User` = `{ id, email, displayName, emailVerified, createdAt }` (jamais le `passwordHash`).
 
 ## Fleurs (`/flowers`)
 

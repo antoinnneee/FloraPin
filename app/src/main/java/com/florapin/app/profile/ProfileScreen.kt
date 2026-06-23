@@ -99,7 +99,28 @@ fun ProfileScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Text(
+                        text = if (state.emailVerified) "✓ Email vérifié" else "⚠ Email non vérifié",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (state.emailVerified) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        },
+                    )
                 }
+            }
+
+            if (!state.emailVerified && state.email.isNotBlank()) {
+                EmailVerificationSection(
+                    currentEmail = state.email,
+                    sending = state.verificationSending,
+                    verificationMessage = state.verificationMessage,
+                    emailSaving = state.emailSaving,
+                    emailError = state.emailError,
+                    onVerify = viewModel::requestEmailVerification,
+                    onChangeEmail = viewModel::changeEmail,
+                )
             }
 
             if (state.loading) {
@@ -128,6 +149,69 @@ fun ProfileScreen(
             PrivacyPolicyLink()
 
             DangerZone(onDeleteAccount = { showDeleteDialog = true })
+        }
+    }
+}
+
+/**
+ * Section de vérification d'email (NODE-117), affichée tant que l'adresse n'est
+ * pas vérifiée : bouton d'envoi du lien + champ pour corriger/changer l'adresse
+ * avant de la vérifier.
+ */
+@Composable
+private fun EmailVerificationSection(
+    currentEmail: String,
+    sending: Boolean,
+    verificationMessage: String?,
+    emailSaving: Boolean,
+    emailError: String?,
+    onVerify: () -> Unit,
+    onChangeEmail: (String) -> Unit,
+) {
+    var email by remember(currentEmail) { mutableStateOf(currentEmail) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Vérifier votre adresse", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "Vous pouvez corriger votre adresse avant de la vérifier ; " +
+                    "le changement n'est plus possible une fois vérifiée.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("Email") },
+                singleLine = true,
+                enabled = !emailSaving,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            emailError?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+            OutlinedButton(
+                onClick = { onChangeEmail(email.trim()) },
+                enabled = email.trim() != currentEmail && email.isNotBlank() && !emailSaving,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Enregistrer la nouvelle adresse")
+            }
+
+            Button(
+                onClick = onVerify,
+                enabled = !sending,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(if (sending) "Envoi…" else "Vérifier mon email")
+            }
+            verificationMessage?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+            }
         }
     }
 }

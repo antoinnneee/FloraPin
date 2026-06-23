@@ -43,3 +43,13 @@ export class ResetPasswordDto {
   @MaxLength(72) // limite bcrypt
   newPassword: string;
 }
+
+export class VerifyEmailDto {
+  @IsString()
+  token: string;
+}
+
+export class ChangeEmailDto {
+  @IsEmail()
+  email: string;
+}

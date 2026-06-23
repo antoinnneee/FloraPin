@@ -43,12 +43,25 @@ data class ResetPasswordRequest(
     val newPassword: String,
 )
 
+/** Corps de POST /auth/email/verify (NODE-117). */
+@JsonClass(generateAdapter = true)
+data class VerifyEmailRequest(
+    val token: String,
+)
+
+/** Corps de PATCH /users/me/email (NODE-117). */
+@JsonClass(generateAdapter = true)
+data class ChangeEmailRequest(
+    val email: String,
+)
+
 @JsonClass(generateAdapter = true)
 data class UserDto(
     val id: String,
     val email: String,
     val displayName: String,
     val createdAt: String,
+    val emailVerified: Boolean = false,
 )
 
 @JsonClass(generateAdapter = true)

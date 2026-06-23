@@ -2,6 +2,7 @@ package com.florapin.app.network
 
 import com.florapin.app.network.dto.CreateFlowerRequest
 import com.florapin.app.network.dto.FlowerDto
+import com.florapin.app.network.dto.SpeciesDto
 import com.squareup.moshi.Moshi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -39,6 +40,33 @@ class ApiSerializationTest {
         assertTrue(json.contains("\"takenAt\""))
         // Champs nuls non émis par défaut.
         assertTrue(!json.contains("latitude"))
+    }
+
+    @Test
+    fun parsesFlowerDtoWithResolvedSpecies() {
+        val json = """
+            {"id":"f1","ownerId":"o1","imageUrl":"u",
+             "takenAt":"t","notes":"","visibility":"private",
+             "species":"Rosa canina","speciesId":"sp-1",
+             "speciesRef":{"id":"sp-1","scientificName":"Rosa canina",
+             "commonName":"Églantier"},
+             "createdAt":"t","updatedAt":"t"}
+        """.trimIndent()
+
+        val flower = moshi.adapter(FlowerDto::class.java).fromJson(json)!!
+        assertEquals("sp-1", flower.speciesId)
+        assertEquals("Églantier", flower.speciesRef!!.commonName)
+    }
+
+    @Test
+    fun parsesSpeciesDto_emojiOptional() {
+        val json = """
+            {"id":"sp-1","scientificName":"Rosa canina","commonName":"Églantier",
+             "family":"Rosaceae","description":""}
+        """.trimIndent()
+        val species = moshi.adapter(SpeciesDto::class.java).fromJson(json)!!
+        assertEquals("Rosaceae", species.family)
+        assertNull(species.emoji)
     }
 
     @Test

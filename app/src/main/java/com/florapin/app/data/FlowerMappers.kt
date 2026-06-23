@@ -48,6 +48,9 @@ fun FlowerDto.applyTo(local: FlowerEntity): FlowerEntity = local.copy(
     syncState = SyncState.SYNCED.name,
     remoteImageUrl = imageUrl,
     species = species ?: local.species,
+    speciesId = speciesId ?: local.speciesId,
+    speciesScientificName = speciesRef?.scientificName ?: local.speciesScientificName,
+    speciesCommonName = speciesRef?.commonName ?: local.speciesCommonName,
     tags = tags.ifEmpty { local.tags },
     ownerId = ownerId,
 )
@@ -69,6 +72,9 @@ fun FlowerDto.toEntity(imagePath: String = ""): FlowerEntity = FlowerEntity(
     updatedAt = updatedAt.isoToEpochMillis(),
     remoteImageUrl = imageUrl,
     species = species,
+    speciesId = speciesId,
+    speciesScientificName = speciesRef?.scientificName,
+    speciesCommonName = speciesRef?.commonName,
     tags = tags,
     ownerId = ownerId,
 )

@@ -1,8 +1,10 @@
 package com.florapin.app.data
 
 import com.florapin.app.network.dto.FlowerDto
+import com.florapin.app.network.dto.SpeciesRefDto
 import java.time.Instant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class FlowerMappersTest {
@@ -126,5 +128,89 @@ class FlowerMappersTest {
         val entity = dto.toEntity()
         assertEquals("Tulipa", entity.species)
         assertEquals(listOf("printemps"), entity.tags)
+    }
+
+    @Test
+    fun toEntity_carriesResolvedSpeciesReference() {
+        val dto = FlowerDto(
+            id = "srv-4",
+            ownerId = "o",
+            imageUrl = "https://x/y.jpg",
+            takenAt = "2026-06-21T09:00:00Z",
+            notes = "",
+            visibility = "private",
+            species = "Rosa canina",
+            speciesId = "sp-1",
+            speciesRef = SpeciesRefDto(
+                id = "sp-1",
+                scientificName = "Rosa canina",
+                commonName = "Églantier",
+            ),
+            createdAt = "2026-06-21T09:00:00Z",
+            updatedAt = "2026-06-21T10:00:00Z",
+        )
+
+        val entity = dto.toEntity()
+        assertEquals("sp-1", entity.speciesId)
+        assertEquals("Rosa canina", entity.speciesScientificName)
+        assertEquals("Églantier", entity.speciesCommonName)
+    }
+
+    @Test
+    fun applyTo_updatesResolvedSpeciesAndKeepsCacheWhenAbsent() {
+        val local = FlowerEntity(
+            id = 9,
+            imagePath = "/p.jpg",
+            createdAt = epoch,
+            speciesId = "old",
+            speciesScientificName = "Old name",
+            speciesCommonName = "Ancien",
+        )
+        // DTO sans speciesRef ni speciesId : le cache local est conservé.
+        val withoutRef = FlowerDto(
+            id = "srv-5",
+            ownerId = "o",
+            imageUrl = "u",
+            takenAt = "2026-06-21T09:00:00Z",
+            notes = "",
+            visibility = "private",
+            createdAt = "2026-06-21T09:00:00Z",
+            updatedAt = "2026-06-21T10:00:00Z",
+        ).applyTo(local)
+        assertEquals("old", withoutRef.speciesId)
+        assertEquals("Old name", withoutRef.speciesScientificName)
+
+        // DTO avec speciesRef : remplace le cache.
+        val withRef = FlowerDto(
+            id = "srv-5",
+            ownerId = "o",
+            imageUrl = "u",
+            takenAt = "2026-06-21T09:00:00Z",
+            notes = "",
+            visibility = "private",
+            speciesId = "new",
+            speciesRef = SpeciesRefDto("new", "Bellis perennis", "Pâquerette"),
+            createdAt = "2026-06-21T09:00:00Z",
+            updatedAt = "2026-06-21T10:00:00Z",
+        ).applyTo(local)
+        assertEquals("new", withRef.speciesId)
+        assertEquals("Bellis perennis", withRef.speciesScientificName)
+        assertEquals("Pâquerette", withRef.speciesCommonName)
+    }
+
+    @Test
+    fun toEntity_withoutSpeciesReferenceLeavesCacheNull() {
+        val entity = FlowerDto(
+            id = "srv-6",
+            ownerId = "o",
+            imageUrl = "u",
+            takenAt = "2026-06-21T09:00:00Z",
+            notes = "",
+            visibility = "private",
+            createdAt = "2026-06-21T09:00:00Z",
+            updatedAt = "2026-06-21T10:00:00Z",
+        ).toEntity()
+        assertNull(entity.speciesId)
+        assertNull(entity.speciesScientificName)
     }
 }

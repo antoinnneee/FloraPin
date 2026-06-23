@@ -20,7 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FlowerAlbumCrossRef::class,
         PhotoEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -119,6 +119,17 @@ abstract class FloraDatabase : RoomDatabase() {
             }
         }
 
+        /** v7 → v8 : rattachement au référentiel d'espèces (NODE-128). */
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE flowers ADD COLUMN speciesId TEXT")
+                db.execSQL(
+                    "ALTER TABLE flowers ADD COLUMN speciesScientificName TEXT",
+                )
+                db.execSQL("ALTER TABLE flowers ADD COLUMN speciesCommonName TEXT")
+            }
+        }
+
         @Volatile
         private var instance: FloraDatabase? = null
 
@@ -140,6 +151,7 @@ abstract class FloraDatabase : RoomDatabase() {
                 MIGRATION_4_5,
                 MIGRATION_5_6,
                 MIGRATION_6_7,
+                MIGRATION_7_8,
             ).build()
     }
 }

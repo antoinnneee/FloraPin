@@ -21,6 +21,8 @@ data class UpdateFlowerRequest(
     val visibility: String? = null,
     val takenAt: String? = null,
     val species: String? = null,
+    /** FK référentiel (NODE-128) : rattache la fleur à une fiche espèce. */
+    val speciesId: String? = null,
     val tags: List<String>? = null,
 )
 
@@ -51,6 +53,10 @@ data class FlowerDto(
     val notes: String,
     val visibility: String,
     val species: String? = null,
+    /** FK référentiel (NODE-124), null si non rapprochée. */
+    val speciesId: String? = null,
+    /** Espèce résolue depuis le référentiel (NODE-125), null si non rapprochée. */
+    val speciesRef: SpeciesRefDto? = null,
     val tags: List<String> = emptyList(),
     val photos: List<PhotoDto> = emptyList(),
     val createdAt: String,

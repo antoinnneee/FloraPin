@@ -27,6 +27,7 @@ Thumbs.db
 # Keystore (ne jamais committer de secrets de signature)
 *.jks
 *.keystore
+keystore.properties
 
 # Config Firebase Android (propre à chaque projet — ne pas committer)
 google-services.json

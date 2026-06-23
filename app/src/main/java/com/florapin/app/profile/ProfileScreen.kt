@@ -1,5 +1,7 @@
 package com.florapin.app.profile
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,11 +28,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.florapin.app.BuildConfig
 
 /**
  * Écran Profil (NODE-97) : nom + email de l'utilisateur courant et bouton de
@@ -121,8 +125,27 @@ fun ProfileScreen(
                 Text("Se déconnecter")
             }
 
+            PrivacyPolicyLink()
+
             DangerZone(onDeleteAccount = { showDeleteDialog = true })
         }
+    }
+}
+
+/**
+ * Lien vers la politique de confidentialité (exigence Play Store, NODE-119).
+ * Ouvre l'URL configurée ([BuildConfig.PRIVACY_POLICY_URL]) dans le navigateur.
+ */
+@Composable
+private fun PrivacyPolicyLink() {
+    val context = LocalContext.current
+    TextButton(
+        onClick = {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.PRIVACY_POLICY_URL))
+            context.startActivity(intent)
+        },
+    ) {
+        Text("Politique de confidentialité")
     }
 }
 

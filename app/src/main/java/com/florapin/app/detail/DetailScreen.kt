@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -30,9 +31,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import coil.compose.AsyncImage
 import com.florapin.app.albums.AddToAlbumSheet
+import com.florapin.app.capture.CameraScreen
 import com.florapin.app.data.FlowerEntity
+import com.florapin.app.data.PhotoEntity
 import com.florapin.app.data.imageModel
 import com.florapin.app.location.GeoPoint
 import com.florapin.app.share.ShareFlowerSheet
@@ -49,11 +57,26 @@ fun DetailScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DetailViewModel = viewModel(),
+    photosViewModel: PhotosViewModel = viewModel(),
 ) {
     viewModel.setFlowerId(flowerId)
+    photosViewModel.setFlowerId(flowerId)
     val flower by viewModel.flower.collectAsStateWithLifecycle()
+    val photos by photosViewModel.photos.collectAsStateWithLifecycle()
     var showShare by remember { mutableStateOf(false) }
     var showAddToAlbum by remember { mutableStateOf(false) }
+    var showCamera by remember { mutableStateOf(false) }
+
+    if (showCamera) {
+        CameraScreen(
+            onPhotoSaved = { uri ->
+                uri.path?.let(photosViewModel::addPhoto)
+                showCamera = false
+            },
+            modifier = modifier,
+        )
+        return
+    }
 
     Scaffold(
         modifier = modifier,
@@ -90,8 +113,12 @@ fun DetailScreen(
         } else {
             DetailContent(
                 flower = current,
+                photos = photos,
                 onSaveNotes = viewModel::saveNotes,
                 onSaveClassification = viewModel::saveClassification,
+                onAddPhoto = { showCamera = true },
+                onDeletePhoto = photosViewModel::deletePhoto,
+                onMakeCover = photosViewModel::makeCover,
                 modifier = Modifier.padding(innerPadding),
             )
         }
@@ -115,8 +142,12 @@ fun DetailScreen(
 @Composable
 private fun DetailContent(
     flower: FlowerEntity,
+    photos: List<PhotoEntity>,
     onSaveNotes: (String) -> Unit,
     onSaveClassification: (String, List<String>) -> Unit,
+    onAddPhoto: () -> Unit,
+    onDeletePhoto: (PhotoEntity) -> Unit,
+    onMakeCover: (PhotoEntity) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -138,6 +169,13 @@ private fun DetailContent(
             modifier = Modifier.padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            PhotoGallery(
+                photos = photos,
+                onAddPhoto = onAddPhoto,
+                onDeletePhoto = onDeletePhoto,
+                onMakeCover = onMakeCover,
+            )
+
             Text(
                 text = formatCaptureDate(flower.createdAt),
                 style = MaterialTheme.typography.titleMedium,
@@ -169,6 +207,72 @@ private fun DetailContent(
                 initialNotes = flower.notes,
                 onSave = onSaveNotes,
             )
+        }
+    }
+}
+
+/**
+ * Galerie des photos additionnelles d'une fleur (NODE-108) : carrousel
+ * horizontal, ajout, suppression et choix de la couverture.
+ */
+@Composable
+private fun PhotoGallery(
+    photos: List<PhotoEntity>,
+    onAddPhoto: () -> Unit,
+    onDeletePhoto: (PhotoEntity) -> Unit,
+    onMakeCover: (PhotoEntity) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Photos (${photos.size + 1})",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Button(onClick = onAddPhoto) { Text("➕ Ajouter une photo") }
+        }
+        if (photos.isNotEmpty()) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(photos, key = { it.id }) { photo ->
+                    PhotoThumbnail(
+                        photo = photo,
+                        onDelete = { onDeletePhoto(photo) },
+                        onMakeCover = { onMakeCover(photo) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PhotoThumbnail(
+    photo: PhotoEntity,
+    onDelete: () -> Unit,
+    onMakeCover: () -> Unit,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        AsyncImage(
+            model = photo.imageModel(),
+            contentDescription = "Photo supplémentaire",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(100.dp)
+                .clip(RoundedCornerShape(8.dp)),
+        )
+        Row {
+            // « Définir comme couverture » seulement si la photo a un fichier local.
+            if (photo.imagePath.isNotEmpty()) {
+                IconButton(onClick = onMakeCover, modifier = Modifier.size(36.dp)) {
+                    Text("⭐")
+                }
+            }
+            IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                Text("🗑️")
+            }
         }
     }
 }

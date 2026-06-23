@@ -31,6 +31,7 @@ import com.florapin.app.auth.ResetPasswordScreen
 import com.florapin.app.auth.VerifyEmailScreen
 import com.florapin.app.capture.CaptureFlow
 import com.florapin.app.detail.DetailScreen
+import com.florapin.app.detail.SpeciesDetailScreen
 import com.florapin.app.feed.SharedFeedScreen
 import com.florapin.app.friends.FriendsScreen
 import com.florapin.app.gallery.GalleryScreen
@@ -56,9 +57,11 @@ private object Routes {
     const val ALBUMS = "albums"
     const val ALBUM_DETAIL = "album/{id}"
     const val DETAIL = "detail/{id}"
+    const val SPECIES_DETAIL = "species/{id}"
 
     fun detail(id: Long) = "detail/$id"
     fun album(id: Long) = "album/$id"
+    fun speciesDetail(id: String) = "species/$id"
 }
 
 /**
@@ -263,6 +266,20 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
             DetailScreen(
                 flowerId = id,
                 onBack = { navController.popBackStack() },
+                onOpenSpecies = { sid ->
+                    navController.navigate(Routes.speciesDetail(sid))
+                },
+            )
+        }
+        composable(
+            route = Routes.SPECIES_DETAIL,
+            arguments = listOf(navArgument("id") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("id") ?: return@composable
+            SpeciesDetailScreen(
+                speciesId = id,
+                onBack = { navController.popBackStack() },
+                onFlowerClick = { fid -> navController.navigate(Routes.detail(fid)) },
             )
         }
         }

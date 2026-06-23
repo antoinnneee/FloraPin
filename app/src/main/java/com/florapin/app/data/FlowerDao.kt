@@ -18,6 +18,21 @@ interface FlowerDao {
     @Query("SELECT * FROM flowers WHERE id = :id")
     suspend fun getById(id: Long): FlowerEntity?
 
+    /**
+     * Flux des fleurs (non supprimées) d'une espèce donnée (NODE-151) : celles
+     * rattachées au référentiel ([speciesId]) ou dont le texte libre correspond
+     * au nom scientifique ([scientificName]).
+     */
+    @Query(
+        "SELECT * FROM flowers WHERE deletedAt IS NULL AND " +
+            "(speciesId = :speciesId OR species = :scientificName) " +
+            "ORDER BY createdAt DESC",
+    )
+    fun observeBySpecies(
+        speciesId: String?,
+        scientificName: String?,
+    ): Flow<List<FlowerEntity>>
+
     @Query("SELECT * FROM flowers WHERE serverId = :serverId LIMIT 1")
     suspend fun findByServerId(serverId: String): FlowerEntity?
 

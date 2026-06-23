@@ -94,8 +94,19 @@ Périmètre de visibilité par défaut : **mes fleurs + celles visibles via amis
 `Flower` =
 ```json
 { "id", "ownerId", "imageUrl", "latitude", "longitude", "accuracyM",
-  "takenAt", "notes", "visibility", "createdAt", "updatedAt" }
+  "takenAt", "notes", "visibility", "photos", "createdAt", "updatedAt" }
 ```
+`imageUrl` = URL présignée de la photo de couverture. `photos` = liste
+`[{ id, url, position, isCover }]` (NODE-104).
+
+### Photos d'une fleur (NODE-104)
+
+| Méthode | Chemin                              | Description |
+|---------|-------------------------------------|-------------|
+| POST    | `/flowers/:id/photos`               | Ajoute une photo → `{ photo, upload }` (PUT présigné) |
+| DELETE  | `/flowers/:id/photos/:photoId`      | Retire une photo (promeut une couverture si besoin) |
+| PATCH   | `/flowers/:id/photos/order`         | `{ photoIds: [...] }` → réordonne |
+| PATCH   | `/flowers/:id/photos/:photoId/cover`| Définit la photo de couverture |
 
 ## Albums (`/albums`)
 

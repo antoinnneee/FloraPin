@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 import { StorageService } from '../storage/storage.service';
 import { StubStorageService } from '../storage/stub-storage.service';
 import { Flower } from './flower.entity';
+import { FlowerPhoto } from './flower-photo.entity';
 import { FlowersService } from './flowers.service';
 
 class FakeFlowerRepo {
@@ -42,6 +43,23 @@ class FakeFlowerRepo {
   }
 }
 
+class FakePhotoRepo {
+  store = new Map<string, FlowerPhoto>();
+  create(obj: Partial<FlowerPhoto>): FlowerPhoto {
+    return { ...obj } as FlowerPhoto;
+  }
+  async save(obj: FlowerPhoto): Promise<FlowerPhoto> {
+    if (!obj.id) obj.id = randomUUID();
+    this.store.set(obj.id, { ...obj });
+    return obj;
+  }
+  async find(opts: { where: { flowerId: string } }): Promise<FlowerPhoto[]> {
+    return [...this.store.values()]
+      .filter((p) => p.flowerId === opts.where.flowerId)
+      .sort((a, b) => a.position - b.position);
+  }
+}
+
 const OWNER = 'owner-1';
 
 describe('FlowersService', () => {
@@ -54,6 +72,7 @@ describe('FlowersService', () => {
       providers: [
         FlowersService,
         { provide: getRepositoryToken(Flower), useValue: repo },
+        { provide: getRepositoryToken(FlowerPhoto), useClass: FakePhotoRepo },
         { provide: StorageService, useClass: StubStorageService },
       ],
     }).compile();

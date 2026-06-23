@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { Flower } from '../flowers/flower.entity';
+import { FlowerPhoto } from '../flowers/flower-photo.entity';
 import { FlowersService } from '../flowers/flowers.service';
 import { StorageService } from '../storage/storage.service';
 import { StubStorageService } from '../storage/stub-storage.service';
@@ -34,6 +35,23 @@ class FakeFlowerRepo {
   }
 }
 
+class FakePhotoRepo {
+  store = new Map<string, FlowerPhoto>();
+  create(obj: Partial<FlowerPhoto>): FlowerPhoto {
+    return { ...obj } as FlowerPhoto;
+  }
+  async save(obj: FlowerPhoto): Promise<FlowerPhoto> {
+    if (!obj.id) obj.id = randomUUID();
+    this.store.set(obj.id, { ...obj });
+    return obj;
+  }
+  async find(opts: { where: { flowerId: string } }): Promise<FlowerPhoto[]> {
+    return [...this.store.values()].filter(
+      (p) => p.flowerId === opts.where.flowerId,
+    );
+  }
+}
+
 const OWNER = 'owner-1';
 
 describe('SyncService', () => {
@@ -47,6 +65,7 @@ describe('SyncService', () => {
         SyncService,
         FlowersService,
         { provide: getRepositoryToken(Flower), useValue: repo },
+        { provide: getRepositoryToken(FlowerPhoto), useClass: FakePhotoRepo },
         { provide: StorageService, useClass: StubStorageService },
       ],
     }).compile();

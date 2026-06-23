@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AlbumsModule } from './albums/albums.module';
 import { AuthModule } from './auth/auth.module';
 import { FeedModule } from './feed/feed.module';
 import { FlowersModule } from './flowers/flowers.module';
@@ -33,6 +34,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     UsersModule,
     FlowersModule,
+    AlbumsModule,
     FriendshipsModule,
     NotificationsModule,
     SharesModule,

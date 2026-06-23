@@ -97,6 +97,23 @@ Périmètre de visibilité par défaut : **mes fleurs + celles visibles via amis
   "takenAt", "notes", "visibility", "createdAt", "updatedAt" }
 ```
 
+## Albums (`/albums`)
+
+Regroupement nommé de fleurs (NODE-98). Toutes les routes sont protégées (JWT)
+et limitées aux albums du propriétaire.
+
+| Méthode | Chemin                       | Corps / Description |
+|---------|------------------------------|---------------------|
+| POST    | `/albums`                    | `{ name }` → crée un album |
+| GET     | `/albums`                    | Liste mes albums (plus récents d'abord) |
+| GET     | `/albums/:id`                | Un album |
+| PATCH   | `/albums/:id`                | `{ name }` → renomme |
+| DELETE  | `/albums/:id`                | `204` (supprime l'album, pas les fleurs) |
+| POST    | `/albums/:id/flowers`        | `{ flowerId }` → rattache une fleur (idempotent) |
+| DELETE  | `/albums/:id/flowers/:flowerId` | Retire une fleur de l'album |
+
+`Album` = `{ id, ownerId, name, flowerIds, createdAt }`.
+
 ## Amis (`/friendships`)
 
 | Méthode | Chemin                     | Description |

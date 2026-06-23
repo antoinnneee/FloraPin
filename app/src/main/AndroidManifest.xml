@@ -33,6 +33,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.FloraPin">
 
+        <!-- Crashlytics actif uniquement en release : la valeur de la ressource
+             est fournie par build type (resValue dans build.gradle.kts). -->
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="@bool/crashlytics_collection_enabled" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

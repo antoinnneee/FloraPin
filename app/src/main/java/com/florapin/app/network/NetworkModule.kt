@@ -10,6 +10,7 @@ import com.florapin.app.network.api.SharesApi
 import com.florapin.app.network.api.SyncApi
 import com.florapin.app.network.auth.AuthInterceptor
 import com.florapin.app.network.auth.RetrofitTokenRefresher
+import com.florapin.app.network.auth.SessionDataCleaner
 import com.florapin.app.network.auth.SessionManager
 import com.florapin.app.network.auth.TokenAuthenticator
 import com.florapin.app.network.auth.TokenStore
@@ -88,8 +89,11 @@ object NetworkModule {
         return create(retrofit(baseUrl, client, moshi))
     }
 
-    fun sessionManager(apis: FloraApis, tokenStore: TokenStore): SessionManager =
-        SessionManager(apis.auth, tokenStore)
+    fun sessionManager(
+        apis: FloraApis,
+        tokenStore: TokenStore,
+        localData: SessionDataCleaner? = null,
+    ): SessionManager = SessionManager(apis.auth, tokenStore, localData)
 
     private fun loggingInterceptor(): HttpLoggingInterceptor =
         HttpLoggingInterceptor().apply {

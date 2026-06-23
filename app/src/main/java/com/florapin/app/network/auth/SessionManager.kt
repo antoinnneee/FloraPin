@@ -10,6 +10,7 @@ import com.florapin.app.network.dto.UserDto
 class SessionManager(
     private val authApi: AuthApi,
     private val tokenStore: TokenStore,
+    private val localData: SessionDataCleaner? = null,
 ) {
     fun isLoggedIn(): Boolean = tokenStore.refreshToken() != null
 
@@ -45,7 +46,11 @@ class SessionManager(
         return user
     }
 
-    /** Révoque le refresh côté serveur (best-effort) puis purge le stockage. */
+    /**
+     * Révoque le refresh côté serveur (best-effort) puis purge le stockage local :
+     * tokens, et données de session (fleurs, images, curseur de sync) pour éviter
+     * qu'un compte hérite des données d'un autre au login suivant (NODE-93).
+     */
     suspend fun logout() {
         val refresh = tokenStore.refreshToken()
         try {
@@ -54,6 +59,7 @@ class SessionManager(
             // déconnexion locale garantie quoi qu'il arrive
         } finally {
             tokenStore.clear()
+            localData?.clearLocalData()
         }
     }
 }

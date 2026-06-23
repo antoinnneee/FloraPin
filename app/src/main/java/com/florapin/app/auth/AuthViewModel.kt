@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.florapin.app.data.LocalSessionDataCleaner
 import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.network.auth.SessionManager
@@ -82,7 +83,9 @@ class AuthViewModel(private val session: SessionManager) : ViewModel() {
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     val tokenStore = EncryptedTokenStore(context.applicationContext)
                     val apis = NetworkModule.createAuthenticated(tokenStore)
-                    val session = NetworkModule.sessionManager(apis, tokenStore)
+                    val cleaner = LocalSessionDataCleaner.from(context)
+                    val session =
+                        NetworkModule.sessionManager(apis, tokenStore, cleaner)
                     return AuthViewModel(session) as T
                 }
             }

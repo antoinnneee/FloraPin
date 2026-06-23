@@ -35,6 +35,10 @@ interface FlowerDao {
     @Delete
     suspend fun delete(flower: FlowerEntity)
 
+    /** Purge toutes les fleurs (changement de compte — NODE-93). */
+    @Query("DELETE FROM flowers")
+    suspend fun deleteAll()
+
     // --- Synchronisation (NODE-43) ---
 
     /** Fleurs en attente d'envoi (créées/maj hors-ligne). */

@@ -18,6 +18,7 @@ data class FlowerMarker(
     val id: Long,
     val latitude: Double,
     val longitude: Double,
+    val emoji: String = FlowerEmoji.DEFAULT,
 )
 
 /**

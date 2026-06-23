@@ -77,7 +77,7 @@ fun List<FlowerEntity>.toFilteredMarkers(
             val lat = flower.latitude
             val lng = flower.longitude
             if (lat != null && lng != null) {
-                FlowerMarker(flower.id, lat, lng)
+                FlowerMarker(flower.id, lat, lng, FlowerEmoji.forSpecies(flower.species))
             } else {
                 null
             }

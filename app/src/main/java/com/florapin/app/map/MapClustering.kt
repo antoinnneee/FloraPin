@@ -8,6 +8,10 @@ import org.maplibre.android.style.layers.PropertyFactory.circleColor
 import org.maplibre.android.style.layers.PropertyFactory.circleRadius
 import org.maplibre.android.style.layers.PropertyFactory.circleStrokeColor
 import org.maplibre.android.style.layers.PropertyFactory.circleStrokeWidth
+import org.maplibre.android.style.layers.PropertyFactory.iconAllowOverlap
+import org.maplibre.android.style.layers.PropertyFactory.iconIgnorePlacement
+import org.maplibre.android.style.layers.PropertyFactory.iconImage
+import org.maplibre.android.style.layers.PropertyFactory.iconSize
 import org.maplibre.android.style.layers.PropertyFactory.textAllowOverlap
 import org.maplibre.android.style.layers.PropertyFactory.textColor
 import org.maplibre.android.style.layers.PropertyFactory.textField
@@ -29,6 +33,9 @@ object MapLayers {
 
     /** Propriété de feature portant l'id de la fleur. */
     const val PROP_ID = "id"
+
+    /** Propriété de feature portant le nom de l'image emoji à afficher. */
+    const val PROP_EMOJI = "emoji"
 }
 
 /**
@@ -38,6 +45,12 @@ object MapLayers {
  */
 fun Style.setupFlowerClustering() {
     if (getSource(MapLayers.SOURCE) != null) return
+
+    // Pré-enregistre une image par emoji de fleur ; les features individuelles
+    // référencent leur image par nom (cf. PROP_EMOJI).
+    FlowerEmoji.all.forEach { emoji ->
+        addImage(emoji, emojiToBitmap(emoji))
+    }
 
     addSource(
         GeoJsonSource(
@@ -86,13 +99,13 @@ fun Style.setupFlowerClustering() {
         ).withFilter(Expression.has("point_count")),
     )
 
-    // Fleurs individuelles (hors cluster).
+    // Fleurs individuelles (hors cluster) : emoji d'espèce rendu en bitmap.
     addLayer(
-        CircleLayer(MapLayers.UNCLUSTERED, MapLayers.SOURCE).withProperties(
-            circleColor(Expression.color(Color.parseColor("#7D5260"))),
-            circleRadius(8f),
-            circleStrokeWidth(2f),
-            circleStrokeColor(Color.WHITE),
+        SymbolLayer(MapLayers.UNCLUSTERED, MapLayers.SOURCE).withProperties(
+            iconImage(Expression.get(MapLayers.PROP_EMOJI)),
+            iconSize(0.6f),
+            iconAllowOverlap(true),
+            iconIgnorePlacement(true),
         ).withFilter(Expression.not(Expression.has("point_count"))),
     )
 }
@@ -103,7 +116,10 @@ fun Style.updateFlowerMarkers(markers: List<FlowerMarker>) {
     val features = markers.map { marker ->
         Feature.fromGeometry(
             Point.fromLngLat(marker.longitude, marker.latitude),
-        ).apply { addNumberProperty(MapLayers.PROP_ID, marker.id) }
+        ).apply {
+            addNumberProperty(MapLayers.PROP_ID, marker.id)
+            addStringProperty(MapLayers.PROP_EMOJI, marker.emoji)
+        }
     }
     source.setGeoJson(FeatureCollection.fromFeatures(features))
 }

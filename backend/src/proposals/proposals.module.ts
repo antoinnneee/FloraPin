@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Flower } from '../flowers/flower.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SharesModule } from '../shares/shares.module';
+import { SpeciesModule } from '../species/species.module';
 import { ProposalsController } from './proposals.controller';
 import { ProposalsService } from './proposals.service';
 import { SpeciesProposal } from './species-proposal.entity';
@@ -12,6 +13,7 @@ import { SpeciesProposal } from './species-proposal.entity';
     TypeOrmModule.forFeature([SpeciesProposal, Flower]),
     SharesModule,
     NotificationsModule,
+    SpeciesModule,
   ],
   controllers: [ProposalsController],
   providers: [ProposalsService],

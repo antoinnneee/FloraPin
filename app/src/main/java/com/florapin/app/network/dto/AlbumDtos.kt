@@ -11,3 +11,18 @@ data class AlbumDto(
     val flowerIds: List<String> = emptyList(),
     val createdAt: String,
 )
+
+@JsonClass(generateAdapter = true)
+data class CreateAlbumRequest(
+    val name: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class UpdateAlbumRequest(
+    val name: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class AddFlowerToAlbumRequest(
+    val flowerId: String,
+)

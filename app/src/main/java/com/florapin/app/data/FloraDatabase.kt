@@ -14,14 +14,16 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * `exportSchema = false` : pas de suivi de schéma versionné pour le POC.
  */
 @Database(
-    entities = [FlowerEntity::class],
-    version = 5,
+    entities = [FlowerEntity::class, AlbumEntity::class, FlowerAlbumCrossRef::class],
+    version = 6,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
 abstract class FloraDatabase : RoomDatabase() {
 
     abstract fun flowerDao(): FlowerDao
+
+    abstract fun albumDao(): AlbumDao
 
     companion object {
         private const val DB_NAME = "florapin.db"
@@ -68,6 +70,29 @@ abstract class FloraDatabase : RoomDatabase() {
             }
         }
 
+        /** v5 → v6 : albums locaux + appartenances (NODE-102). */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS albums (" +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "serverId TEXT, name TEXT NOT NULL, ownerId TEXT, " +
+                        "createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, " +
+                        "syncState TEXT NOT NULL DEFAULT 'PENDING', deletedAt INTEGER)",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS flower_album_cross_ref (" +
+                        "albumId INTEGER NOT NULL, flowerId INTEGER NOT NULL, " +
+                        "PRIMARY KEY(albumId, flowerId))",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS " +
+                        "index_flower_album_cross_ref_flowerId " +
+                        "ON flower_album_cross_ref(flowerId)",
+                )
+            }
+        }
+
         @Volatile
         private var instance: FloraDatabase? = null
 
@@ -87,6 +112,7 @@ abstract class FloraDatabase : RoomDatabase() {
                 MIGRATION_2_3,
                 MIGRATION_3_4,
                 MIGRATION_4_5,
+                MIGRATION_5_6,
             ).build()
     }
 }

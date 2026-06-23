@@ -26,10 +26,15 @@ class SyncEngine(
     private val uploadImage: suspend (url: String, file: File) -> Unit,
     private val lastSyncStore: LastSyncStore,
     private val now: () -> Long = { System.currentTimeMillis() },
+    /** Sync des albums (NODE-102) ; optionnel pour rester rétrocompatible. */
+    private val albumSync: AlbumSyncEngine? = null,
 ) {
     suspend fun sync() {
         push()
         pull()
+        // Les albums se synchronisent après les fleurs : l'appartenance se
+        // résout sur des fleurs déjà dotées de leur serverId.
+        albumSync?.sync()
     }
 
     /** Envoie créations, mises à jour et suppressions locales en attente. */

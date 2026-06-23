@@ -3,6 +3,7 @@ package com.florapin.app.sync
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.florapin.app.data.AlbumRepository
 import com.florapin.app.data.FlowerRepository
 import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.auth.EncryptedTokenStore
@@ -26,12 +27,18 @@ class SyncWorker(
 
         return try {
             val apis = NetworkModule.createAuthenticated(tokenStore)
+            val flowerRepo = FlowerRepository.from(applicationContext)
             val engine = SyncEngine(
-                repository = FlowerRepository.from(applicationContext),
+                repository = flowerRepo,
                 syncApi = apis.sync,
                 flowersApi = apis.flowers,
                 uploadImage = ImageUploader(OkHttpClient())::upload,
                 lastSyncStore = PrefsLastSyncStore(applicationContext),
+                albumSync = AlbumSyncEngine(
+                    albums = AlbumRepository.from(applicationContext),
+                    flowers = flowerRepo,
+                    albumsApi = apis.albums,
+                ),
             )
             engine.sync()
             Result.success()

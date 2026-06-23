@@ -58,6 +58,20 @@ private class FakeSharesApi : SharesApi {
 
 private class FakeAlbumsApi(private val data: List<AlbumDto> = emptyList()) : AlbumsApi {
     override suspend fun list() = data
+    override suspend fun get(id: String) = data.first { it.id == id }
+    override suspend fun create(body: com.florapin.app.network.dto.CreateAlbumRequest) =
+        throw UnsupportedOperationException()
+    override suspend fun rename(
+        id: String,
+        body: com.florapin.app.network.dto.UpdateAlbumRequest,
+    ) = throw UnsupportedOperationException()
+    override suspend fun delete(id: String) = Response.success<Unit>(null)
+    override suspend fun addFlower(
+        id: String,
+        body: com.florapin.app.network.dto.AddFlowerToAlbumRequest,
+    ) = throw UnsupportedOperationException()
+    override suspend fun removeFlower(id: String, flowerId: String) =
+        throw UnsupportedOperationException()
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

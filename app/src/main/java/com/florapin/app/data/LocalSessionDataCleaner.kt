@@ -14,12 +14,14 @@ class LocalSessionDataCleaner(
     private val context: Context,
     private val flowers: FlowerRepository,
     private val albums: AlbumRepository,
+    private val photos: PhotoRepository,
     private val lastSync: LastSyncStore,
 ) : SessionDataCleaner {
 
     override suspend fun clearLocalData() {
         flowers.deleteAll()
         albums.deleteAll()
+        photos.deleteAll()
         PhotoStorage.clearAll(context)
         lastSync.clear()
     }
@@ -32,6 +34,7 @@ class LocalSessionDataCleaner(
                 context = app,
                 flowers = FlowerRepository.from(app),
                 albums = AlbumRepository.from(app),
+                photos = PhotoRepository.from(app),
                 lastSync = PrefsLastSyncStore(app),
             )
         }

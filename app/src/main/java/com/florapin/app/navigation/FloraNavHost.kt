@@ -15,6 +15,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.florapin.app.auth.AuthUiState
 import com.florapin.app.auth.AuthViewModel
+import com.florapin.app.albums.AlbumDetailScreen
+import com.florapin.app.albums.AlbumsScreen
 import com.florapin.app.auth.LoginScreen
 import com.florapin.app.auth.RegisterScreen
 import com.florapin.app.capture.CaptureFlow
@@ -38,9 +40,12 @@ private object Routes {
     const val FRIENDS = "friends"
     const val FEED = "feed"
     const val PROFILE = "profile"
+    const val ALBUMS = "albums"
+    const val ALBUM_DETAIL = "album/{id}"
     const val DETAIL = "detail/{id}"
 
     fun detail(id: Long) = "detail/$id"
+    fun album(id: Long) = "album/$id"
 }
 
 /**
@@ -104,6 +109,24 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
                 onOpenFriends = { navController.navigate(Routes.FRIENDS) },
                 onOpenFeed = { navController.navigate(Routes.FEED) },
                 onOpenProfile = { navController.navigate(Routes.PROFILE) },
+                onOpenAlbums = { navController.navigate(Routes.ALBUMS) },
+            )
+        }
+        composable(Routes.ALBUMS) {
+            AlbumsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenAlbum = { id -> navController.navigate(Routes.album(id)) },
+            )
+        }
+        composable(
+            route = Routes.ALBUM_DETAIL,
+            arguments = listOf(navArgument("id") { type = NavType.LongType }),
+        ) { backStackEntry ->
+            val id = backStackEntry.arguments?.getLong("id") ?: return@composable
+            AlbumDetailScreen(
+                albumId = id,
+                onBack = { navController.popBackStack() },
+                onFlowerClick = { fid -> navController.navigate(Routes.detail(fid)) },
             )
         }
         composable(Routes.FEED) {

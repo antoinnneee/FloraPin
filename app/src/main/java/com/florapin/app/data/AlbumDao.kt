@@ -17,6 +17,18 @@ interface AlbumDao {
     @Query("SELECT * FROM albums WHERE id = :id")
     suspend fun getById(id: Long): AlbumEntity?
 
+    @Query("SELECT * FROM albums WHERE id = :id AND deletedAt IS NULL")
+    fun observeById(id: Long): Flow<AlbumEntity?>
+
+    /** Fleurs d'un album (non supprimées), des plus récentes aux plus anciennes. */
+    @Query(
+        "SELECT f.* FROM flowers f " +
+            "INNER JOIN flower_album_cross_ref x ON x.flowerId = f.id " +
+            "WHERE x.albumId = :albumId AND f.deletedAt IS NULL " +
+            "ORDER BY f.createdAt DESC",
+    )
+    fun observeFlowersInAlbum(albumId: Long): Flow<List<FlowerEntity>>
+
     @Query("SELECT * FROM albums WHERE serverId = :serverId LIMIT 1")
     suspend fun findByServerId(serverId: String): AlbumEntity?
 

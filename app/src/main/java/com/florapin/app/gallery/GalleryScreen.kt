@@ -43,10 +43,7 @@ import com.florapin.app.util.formatCaptureDate
 fun GalleryScreen(
     onCapture: () -> Unit,
     onFlowerClick: (Long) -> Unit,
-    onOpenMap: () -> Unit,
     onOpenFriends: () -> Unit,
-    onOpenFeed: () -> Unit,
-    onOpenProfile: () -> Unit,
     onOpenAlbums: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: GalleryViewModel = viewModel(),
@@ -59,20 +56,11 @@ fun GalleryScreen(
             TopAppBar(
                 title = { Text("Mes fleurs") },
                 actions = {
-                    IconButton(onClick = onOpenMap) {
-                        Text("🗺️", style = MaterialTheme.typography.titleLarge)
-                    }
-                    IconButton(onClick = onOpenFeed) {
-                        Text("🌸", style = MaterialTheme.typography.titleLarge)
-                    }
                     IconButton(onClick = onOpenAlbums) {
                         Text("📁", style = MaterialTheme.typography.titleLarge)
                     }
                     IconButton(onClick = onOpenFriends) {
                         Text("🤝", style = MaterialTheme.typography.titleLarge)
-                    }
-                    IconButton(onClick = onOpenProfile) {
-                        Text("👤", style = MaterialTheme.typography.titleLarge)
                     }
                 },
             )

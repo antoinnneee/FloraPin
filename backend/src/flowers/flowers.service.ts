@@ -8,6 +8,15 @@ import { Repository } from 'typeorm';
 import { StorageService, PresignedUpload } from '../storage/storage.service';
 import { CreateFlowerDto, UpdateFlowerDto } from './dto/flower.dto';
 import { Flower } from './flower.entity';
+import { FlowerPhoto } from './flower-photo.entity';
+
+/** Photo d'une fleur, telle qu'exposée par l'API (URL présignée). */
+export interface PhotoResponse {
+  id: string;
+  url: string;
+  position: number;
+  isCover: boolean;
+}
 
 export interface FlowerResponse {
   id: string;
@@ -21,6 +30,7 @@ export interface FlowerResponse {
   visibility: string;
   species: string | null;
   tags: string[];
+  photos: PhotoResponse[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +45,8 @@ export class FlowersService {
   constructor(
     @InjectRepository(Flower)
     private readonly flowers: Repository<Flower>,
+    @InjectRepository(FlowerPhoto)
+    private readonly photos: Repository<FlowerPhoto>,
     private readonly storage: StorageService,
   ) {}
 
@@ -71,6 +83,15 @@ export class FlowersService {
     });
 
     const saved = await this.flowers.save(entity);
+    // Photo de couverture initiale (NODE-104) : même clé que l'image principale.
+    await this.photos.save(
+      this.photos.create({
+        flowerId: saved.id,
+        imageKey,
+        position: 0,
+        isCover: true,
+      }),
+    );
     const upload = await this.storage.presignUpload(imageKey);
     return { flower: await this.toResponse(saved), upload };
   }
@@ -137,13 +158,26 @@ export class FlowersService {
     await this.flowers.softRemove(flower);
   }
 
-  /** Construit la réponse API d'une fleur (URL image présignée incluse). */
+  /** Construit la réponse API d'une fleur (photos + URL couverture présignées). */
   async toResponse(flower: Flower): Promise<FlowerResponse> {
     const [longitude, latitude] = flower.location?.coordinates ?? [null, null];
+    const photos = await this.photos.find({
+      where: { flowerId: flower.id },
+      order: { position: 'ASC' },
+    });
+    const photoResponses: PhotoResponse[] = await Promise.all(
+      photos.map(async (p) => ({
+        id: p.id,
+        url: await this.storage.presignDownload(p.imageKey),
+        position: p.position,
+        isCover: p.isCover,
+      })),
+    );
+    const cover = photoResponses.find((p) => p.isCover) ?? photoResponses[0];
     return {
       id: flower.id,
       ownerId: flower.ownerId,
-      imageUrl: await this.storage.presignDownload(flower.imageKey),
+      imageUrl: cover?.url ?? (await this.storage.presignDownload(flower.imageKey)),
       latitude,
       longitude,
       accuracyM: flower.accuracyM,
@@ -152,6 +186,7 @@ export class FlowersService {
       visibility: flower.visibility,
       species: flower.species ?? null,
       tags: flower.tags ?? [],
+      photos: photoResponses,
       createdAt: flower.createdAt,
       updatedAt: flower.updatedAt,
     };

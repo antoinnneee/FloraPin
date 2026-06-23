@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { Album } from '../albums/album.entity';
 import { Flower } from '../flowers/flower.entity';
+import { FlowerPhoto } from '../flowers/flower-photo.entity';
 import { FlowersService } from '../flowers/flowers.service';
 import { FriendshipsService } from '../friendships/friendships.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -127,6 +128,10 @@ describe('SharesService', () => {
         { provide: getRepositoryToken(Share), useClass: FakeShareRepo },
         { provide: getRepositoryToken(Flower), useValue: flowerRepo },
         { provide: getRepositoryToken(Album), useValue: albumRepo },
+        {
+          provide: getRepositoryToken(FlowerPhoto),
+          useValue: { find: async () => [] },
+        },
         { provide: StorageService, useClass: StubStorageService },
         {
           provide: FriendshipsService,

@@ -160,4 +160,17 @@ class AuthViewModelTest {
         assertEquals(null, store.refreshToken())
         assertEquals(AuthUiState.Idle, vm.state.value)
     }
+
+    @Test
+    fun logout_purgesLocalData() = runTest {
+        val store = MemTokenStore().apply { save("acc", "ref") }
+        var cleared = false
+        val cleaner = com.florapin.app.network.auth.SessionDataCleaner { cleared = true }
+        val session = SessionManager(FakeAuthApi(), store, cleaner)
+
+        AuthViewModel(session).logout { }
+        advanceUntilIdle()
+
+        assertTrue(cleared)
+    }
 }

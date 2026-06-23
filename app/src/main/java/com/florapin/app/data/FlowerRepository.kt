@@ -66,6 +66,9 @@ class FlowerRepository(private val dao: FlowerDao) {
 
     suspend fun delete(flower: FlowerEntity) = dao.delete(flower)
 
+    /** Purge toutes les fleurs locales (déconnexion / changement de compte). */
+    suspend fun deleteAll() = dao.deleteAll()
+
     // --- Synchronisation (NODE-43) ---
 
     /** Fleurs locales restant à synchroniser. */

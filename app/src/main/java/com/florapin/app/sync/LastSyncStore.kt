@@ -6,6 +6,9 @@ import android.content.Context
 interface LastSyncStore {
     fun get(): String?
     fun set(value: String)
+
+    /** Réinitialise le curseur (force un full-pull au prochain login). */
+    fun clear() {}
 }
 
 class PrefsLastSyncStore(context: Context) : LastSyncStore {
@@ -16,6 +19,10 @@ class PrefsLastSyncStore(context: Context) : LastSyncStore {
 
     override fun set(value: String) {
         prefs.edit().putString(KEY, value).apply()
+    }
+
+    override fun clear() {
+        prefs.edit().remove(KEY).apply()
     }
 
     private companion object {

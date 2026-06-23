@@ -36,6 +36,7 @@ private class MemDao : FlowerDao {
     }
     override suspend fun update(flower: FlowerEntity) { store[flower.id] = flower }
     override suspend fun delete(flower: FlowerEntity) { store.remove(flower.id) }
+    override suspend fun deleteAll() { store.clear() }
     override suspend fun pendingSync() =
         store.values.filter { it.syncState != SyncState.SYNCED.name }
     override suspend fun markSynced(id: Long, serverId: String, updatedAt: Long) {

@@ -28,6 +28,11 @@ object PhotoStorage {
         return File(photosDir(context), "$FILE_PREFIX$timestamp$FILE_EXTENSION")
     }
 
+    /** Supprime toutes les photos stockées (purge au changement de compte). */
+    fun clearAll(context: Context) {
+        photosDir(context).listFiles()?.forEach { it.delete() }
+    }
+
     /** Liste des photos existantes, des plus récentes aux plus anciennes. */
     fun listPhotos(context: Context): List<File> =
         photosDir(context)

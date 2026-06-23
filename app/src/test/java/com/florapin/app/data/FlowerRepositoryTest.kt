@@ -27,6 +27,7 @@ class FlowerRepositoryTest {
 
         override suspend fun update(flower: FlowerEntity) = Unit
         override suspend fun delete(flower: FlowerEntity) = Unit
+        override suspend fun deleteAll() = Unit
         override suspend fun pendingSync(): List<FlowerEntity> = emptyList()
         override suspend fun markSynced(id: Long, serverId: String, updatedAt: Long) =
             Unit

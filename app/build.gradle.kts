@@ -33,6 +33,32 @@ val apiBaseUrlOverride: String? = run {
     props.getProperty("API_BASE_URL") ?: System.getenv("API_BASE_URL")
 }
 
+// URL de la politique de confidentialité (lien in-app, exigence Play Store).
+// Surchargeable, sinon la page de la vitrine FloraPin (NODE-77).
+val privacyPolicyUrl: String = run {
+    val props = Properties()
+    val localFile = rootProject.file("local.properties")
+    if (localFile.exists()) {
+        localFile.inputStream().use { props.load(it) }
+    }
+    props.getProperty("PRIVACY_POLICY_URL")
+        ?: System.getenv("PRIVACY_POLICY_URL")
+        ?: "https://florapin.fr/politique-de-confidentialite"
+}
+
+// Secrets de signature release, lus depuis keystore.properties (gitignoré) ou
+// des variables d'environnement (CI). Absents en dev/POC : le build release
+// reste alors non signé (la config de signature n'est tout simplement pas posée).
+val keystoreProps: Properties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+fun keystoreProp(key: String): String? =
+    keystoreProps.getProperty(key) ?: System.getenv(key)
+val releaseStoreFile: String? = keystoreProp("RELEASE_STORE_FILE")
+val hasReleaseSigning: Boolean =
+    releaseStoreFile != null && rootProject.file(releaseStoreFile).exists()
+
 android {
     namespace = "com.florapin.app"
     compileSdk = 35
@@ -47,6 +73,18 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "MAPTILER_API_KEY", "\"$maptilerApiKey\"")
+        buildConfigField("String", "PRIVACY_POLICY_URL", "\"$privacyPolicyUrl\"")
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFile!!)
+                storePassword = keystoreProp("RELEASE_STORE_PASSWORD")
+                keyAlias = keystoreProp("RELEASE_KEY_ALIAS")
+                keyPassword = keystoreProp("RELEASE_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -59,11 +97,16 @@ android {
             )
         }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Signé seulement si un keystore est fourni (sinon build non signé).
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             buildConfigField(
                 "String",
                 "API_BASE_URL",

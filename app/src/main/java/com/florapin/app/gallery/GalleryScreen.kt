@@ -54,7 +54,7 @@ fun GalleryScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Mes fleurs") },
+                title = { Text("🌸 FloraPin") },
                 actions = {
                     IconButton(onClick = onOpenAlbums) {
                         Text("📁", style = MaterialTheme.typography.titleLarge)

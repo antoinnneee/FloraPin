@@ -7,7 +7,7 @@ import {
 } from 'class-validator';
 import { ShareScope } from '../share.entity';
 
-const SCOPES: ShareScope[] = ['all', 'flower'];
+const SCOPES: ShareScope[] = ['all', 'flower', 'album'];
 
 export class CreateShareDto {
   /** Ami (relation acceptée) avec qui partager. */
@@ -21,6 +21,11 @@ export class CreateShareDto {
   @ValidateIf((dto: CreateShareDto) => dto.scope === 'flower')
   @IsUUID()
   flowerId?: string;
+
+  /** Requis si scope='album'. */
+  @ValidateIf((dto: CreateShareDto) => dto.scope === 'album')
+  @IsUUID()
+  albumId?: string;
 
   /** Inclure les coordonnées GPS (défaut true). */
   @IsOptional()

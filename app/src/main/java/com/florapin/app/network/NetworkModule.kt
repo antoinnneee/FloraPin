@@ -1,6 +1,7 @@
 package com.florapin.app.network
 
 import com.florapin.app.BuildConfig
+import com.florapin.app.network.api.AlbumsApi
 import com.florapin.app.network.api.AuthApi
 import com.florapin.app.network.api.FlowersApi
 import com.florapin.app.network.api.FriendshipsApi
@@ -26,6 +27,7 @@ class FloraApis(
     val friendships: FriendshipsApi,
     val shares: SharesApi,
     val push: PushApi,
+    val albums: AlbumsApi,
 )
 
 /**
@@ -62,6 +64,7 @@ object NetworkModule {
         friendships = retrofit.create(FriendshipsApi::class.java),
         shares = retrofit.create(SharesApi::class.java),
         push = retrofit.create(PushApi::class.java),
+        albums = retrofit.create(AlbumsApi::class.java),
     )
 
     /**

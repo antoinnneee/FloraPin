@@ -10,11 +10,9 @@ import {
  * Périmètre d'un partage.
  * - `all`    : toutes les fleurs du propriétaire.
  * - `flower` : une fleur précise (`flowerId`).
- *
- * `album` est prévu (note NODE-22) mais nécessite une entité Album non encore
- * modélisée : à ajouter quand les albums existeront.
+ * - `album`  : les fleurs d'un album précis (`albumId`) — NODE-101.
  */
-export type ShareScope = 'all' | 'flower';
+export type ShareScope = 'all' | 'flower' | 'album';
 
 /** Partage paramétrable d'un propriétaire vers un ami. */
 @Entity('shares')
@@ -36,6 +34,10 @@ export class Share {
   /** Renseigné uniquement pour scope='flower'. */
   @Column({ name: 'flower_id', type: 'uuid', nullable: true })
   flowerId: string | null;
+
+  /** Renseigné uniquement pour scope='album'. */
+  @Column({ name: 'album_id', type: 'uuid', nullable: true })
+  albumId: string | null;
 
   /** Si false, les coordonnées GPS sont masquées (protection des spots). */
   @Column({ name: 'include_gps', type: 'boolean', default: true })

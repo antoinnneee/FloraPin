@@ -1,7 +1,9 @@
 package com.florapin.app.share
 
+import com.florapin.app.network.api.AlbumsApi
 import com.florapin.app.network.api.FriendshipsApi
 import com.florapin.app.network.api.SharesApi
+import com.florapin.app.network.dto.AlbumDto
 import com.florapin.app.network.dto.CreateFriendshipRequest
 import com.florapin.app.network.dto.CreateShareRequest
 import com.florapin.app.network.dto.FriendUserDto
@@ -43,8 +45,8 @@ private class FakeSharesApi : SharesApi {
 
     override suspend fun create(body: CreateShareRequest): ShareDto {
         created = body
-        return ShareDto("s1", "owner", body.friendId, body.scope, body.flowerId, true,
-            "2026-06-21T09:00:00Z")
+        return ShareDto("s1", "owner", body.friendId, body.scope, body.flowerId,
+            body.albumId, true, "2026-06-21T09:00:00Z")
     }
     override suspend fun listMine() = shares
     override suspend fun revoke(id: String): Response<Unit> {
@@ -52,6 +54,10 @@ private class FakeSharesApi : SharesApi {
         return Response.success(null)
     }
     override suspend fun sharedWithMe() = emptyList<com.florapin.app.network.dto.FlowerDto>()
+}
+
+private class FakeAlbumsApi(private val data: List<AlbumDto> = emptyList()) : AlbumsApi {
+    override suspend fun list() = data
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -72,6 +78,7 @@ class ShareViewModelTest {
                 listOf(friendship("1", "accepted"), friendship("2", "pending")),
             ),
             FakeSharesApi(),
+            FakeAlbumsApi(),
         )
         advanceUntilIdle()
 
@@ -79,9 +86,24 @@ class ShareViewModelTest {
     }
 
     @Test
+    fun load_exposesAlbums() = runTest {
+        val albums = listOf(
+            AlbumDto("a1", "owner", "Printemps", emptyList(), "2026-06-21T09:00:00Z"),
+        )
+        val vm = ShareViewModel(
+            FakeFriendshipsApi(emptyList()),
+            FakeSharesApi(),
+            FakeAlbumsApi(albums),
+        )
+        advanceUntilIdle()
+
+        assertEquals(listOf("a1"), vm.state.value.albums.map { it.id })
+    }
+
+    @Test
     fun createShare_flowerScope_includesFlowerId() = runTest {
         val sharesApi = FakeSharesApi()
-        val vm = ShareViewModel(FakeFriendshipsApi(emptyList()), sharesApi)
+        val vm = ShareViewModel(FakeFriendshipsApi(emptyList()), sharesApi, FakeAlbumsApi())
         advanceUntilIdle()
 
         vm.createShare("u-9", "flower", includeGps = false, flowerId = "srv-1")
@@ -95,7 +117,7 @@ class ShareViewModelTest {
     @Test
     fun createShare_allScope_dropsFlowerId() = runTest {
         val sharesApi = FakeSharesApi()
-        val vm = ShareViewModel(FakeFriendshipsApi(emptyList()), sharesApi)
+        val vm = ShareViewModel(FakeFriendshipsApi(emptyList()), sharesApi, FakeAlbumsApi())
         advanceUntilIdle()
 
         vm.createShare("u-9", "all", includeGps = true, flowerId = "srv-1")
@@ -106,9 +128,23 @@ class ShareViewModelTest {
     }
 
     @Test
+    fun createShare_albumScope_includesAlbumIdOnly() = runTest {
+        val sharesApi = FakeSharesApi()
+        val vm = ShareViewModel(FakeFriendshipsApi(emptyList()), sharesApi, FakeAlbumsApi())
+        advanceUntilIdle()
+
+        vm.createShare("u-9", "album", includeGps = true, flowerId = "srv-1", albumId = "a1")
+        advanceUntilIdle()
+
+        assertEquals("album", sharesApi.created?.scope)
+        assertEquals("a1", sharesApi.created?.albumId)
+        assertNull(sharesApi.created?.flowerId)
+    }
+
+    @Test
     fun revoke_callsApi() = runTest {
         val sharesApi = FakeSharesApi()
-        val vm = ShareViewModel(FakeFriendshipsApi(emptyList()), sharesApi)
+        val vm = ShareViewModel(FakeFriendshipsApi(emptyList()), sharesApi, FakeAlbumsApi())
         advanceUntilIdle()
 
         vm.revoke("s1")

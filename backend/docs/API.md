@@ -133,9 +133,13 @@ Deux mécanismes complémentaires :
 
 | Méthode | Chemin                          | Description |
 |---------|---------------------------------|-------------|
-| POST    | `/flowers/:id/share`            | `{ friendId }` (propriétaire ; l'ami doit être `accepted`) |
-| DELETE  | `/flowers/:id/share/:friendId`  | Retire le partage |
+| POST    | `/shares`                       | `{ friendId, scope, flowerId?, albumId?, includeGps? }` — `scope` ∈ `all`/`flower`/`album` |
+| GET     | `/shares`                       | Mes partages émis |
+| DELETE  | `/shares/:id`                   | Révoque un partage |
 | GET     | `/shared`                       | Fleurs partagées avec moi |
+
+`scope='flower'` requiert `flowerId` ; `scope='album'` requiert `albumId`
+(les fleurs de l'album sont alors résolues, NODE-101).
 
 ### Règle de visibilité (côté serveur)
 

@@ -5,9 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.florapin.app.network.NetworkModule
+import com.florapin.app.network.api.AlbumsApi
 import com.florapin.app.network.api.FriendshipsApi
 import com.florapin.app.network.api.SharesApi
 import com.florapin.app.network.auth.EncryptedTokenStore
+import com.florapin.app.network.dto.AlbumDto
 import com.florapin.app.network.dto.CreateShareRequest
 import com.florapin.app.network.dto.FriendUserDto
 import com.florapin.app.network.dto.ShareDto
@@ -17,10 +19,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** État de la feuille de partage : amis disponibles, partages existants. */
+/** État de la feuille de partage : amis disponibles, albums, partages existants. */
 data class ShareUiState(
     val loading: Boolean = false,
     val friends: List<FriendUserDto> = emptyList(),
+    val albums: List<AlbumDto> = emptyList(),
     val shares: List<ShareDto> = emptyList(),
     val error: String? = null,
 )
@@ -32,6 +35,7 @@ data class ShareUiState(
 class ShareViewModel(
     private val friendshipsApi: FriendshipsApi,
     private val sharesApi: SharesApi,
+    private val albumsApi: AlbumsApi,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ShareUiState(loading = true))
@@ -48,8 +52,14 @@ class ShareViewModel(
                 val friends = friendshipsApi.list()
                     .filter { it.status == "accepted" }
                     .map { it.user }
+                val albums = albumsApi.list()
                 val shares = sharesApi.listMine()
-                _state.value = ShareUiState(loading = false, friends = friends, shares = shares)
+                _state.value = ShareUiState(
+                    loading = false,
+                    friends = friends,
+                    albums = albums,
+                    shares = shares,
+                )
             } catch (e: Exception) {
                 _state.update { it.copy(loading = false, error = messageOf(e)) }
             }
@@ -57,14 +67,15 @@ class ShareViewModel(
     }
 
     /**
-     * Crée un partage. [flowerId] est requis pour le périmètre 'flower' ; ignoré
-     * (null) pour 'all'.
+     * Crée un partage. [flowerId] est requis pour le périmètre 'flower',
+     * [albumId] pour 'album' ; tous deux ignorés (null) pour 'all'.
      */
     fun createShare(
         friendId: String,
         scope: String,
         includeGps: Boolean,
         flowerId: String?,
+        albumId: String? = null,
     ) {
         viewModelScope.launch {
             try {
@@ -73,6 +84,7 @@ class ShareViewModel(
                         friendId = friendId,
                         scope = scope,
                         flowerId = if (scope == "flower") flowerId else null,
+                        albumId = if (scope == "album") albumId else null,
                         includeGps = includeGps,
                     ),
                 )
@@ -104,7 +116,7 @@ class ShareViewModel(
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     val tokenStore = EncryptedTokenStore(context.applicationContext)
                     val apis = NetworkModule.createAuthenticated(tokenStore)
-                    return ShareViewModel(apis.friendships, apis.shares) as T
+                    return ShareViewModel(apis.friendships, apis.shares, apis.albums) as T
                 }
             }
     }

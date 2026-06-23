@@ -29,6 +29,7 @@ data class CreateShareRequest(
     val friendId: String,
     val scope: String,
     val flowerId: String? = null,
+    val albumId: String? = null,
     val includeGps: Boolean? = null,
 )
 
@@ -39,6 +40,7 @@ data class ShareDto(
     val sharedWith: String,
     val scope: String,
     val flowerId: String? = null,
+    val albumId: String? = null,
     val includeGps: Boolean,
     val createdAt: String,
 )

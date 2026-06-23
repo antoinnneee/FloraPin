@@ -19,7 +19,10 @@ function makeSpecies(over: Partial<Species> = {}): Species {
 
 describe('SpeciesService', () => {
   let repo: jest.Mocked<
-    Pick<Repository<Species>, 'find' | 'findAndCount' | 'findOne'>
+    Pick<
+      Repository<Species>,
+      'find' | 'findAndCount' | 'findOne' | 'create' | 'save'
+    >
   >;
   let service: SpeciesService;
 
@@ -28,6 +31,8 @@ describe('SpeciesService', () => {
       find: jest.fn(),
       findAndCount: jest.fn(),
       findOne: jest.fn(),
+      create: jest.fn((o) => o),
+      save: jest.fn(),
     } as never;
     service = new SpeciesService(repo as never);
   });
@@ -97,6 +102,46 @@ describe('SpeciesService', () => {
       repo.find.mockResolvedValue([]);
       await service.search('ros', 9999);
       expect(repo.find.mock.calls[0][0]!.take).toBe(50);
+    });
+  });
+
+  describe('resolveOrCreateByName', () => {
+    it('renvoie null pour un texte vide (sans toucher la base)', async () => {
+      expect(await service.resolveOrCreateByName('  ')).toBeNull();
+      expect(repo.findOne).not.toHaveBeenCalled();
+    });
+
+    it('rapproche par nom scientifique si trouvé', async () => {
+      const sp = makeSpecies({ id: 'sp-sci' });
+      repo.findOne.mockResolvedValueOnce(sp);
+      const res = await service.resolveOrCreateByName('rosa canina');
+      expect(res).toBe(sp);
+      // Une seule lecture : le rapprochement scientifique a suffi.
+      expect(repo.findOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('rapproche par nom commun si le nom scientifique ne matche pas', async () => {
+      const sp = makeSpecies({ id: 'sp-com' });
+      repo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(sp);
+      const res = await service.resolveOrCreateByName('Églantier');
+      expect(res).toBe(sp);
+      expect(repo.findOne).toHaveBeenCalledTimes(2);
+    });
+
+    it('crée une fiche minimale si aucun rapprochement', async () => {
+      repo.findOne.mockResolvedValue(null);
+      const created = makeSpecies({ id: 'sp-new', scientificName: 'Inconnue x' });
+      repo.save.mockResolvedValue(created);
+
+      const res = await service.resolveOrCreateByName('Inconnue x');
+      expect(res).toBe(created);
+      expect(repo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scientificName: 'Inconnue x',
+          commonName: '',
+          family: '',
+        }),
+      );
     });
   });
 

@@ -10,6 +10,7 @@ import { Repository } from 'typeorm';
 import { Flower } from '../flowers/flower.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SharesService } from '../shares/shares.service';
+import { SpeciesService } from '../species/species.service';
 import { SpeciesProposal } from './species-proposal.entity';
 
 @Injectable()
@@ -21,6 +22,7 @@ export class ProposalsService {
     private readonly flowers: Repository<Flower>,
     private readonly shares: SharesService,
     private readonly notifications: NotificationsService,
+    private readonly species: SpeciesService,
   ) {}
 
   /** Un ami propose une espèce pour une fleur non identifiée qui lui est partagée. */
@@ -89,7 +91,15 @@ export class ProposalsService {
       throw new NotFoundException('Proposition introuvable.');
     }
 
-    flower.species = proposal.species;
+    // Normalisation vers le référentiel (NODE-127) : la fleur reçoit species_id
+    // et son texte libre adopte le nom scientifique canonique de la fiche.
+    const resolved = await this.species.resolveOrCreateByName(proposal.species);
+    if (resolved) {
+      flower.species = resolved.scientificName;
+      flower.speciesId = resolved.id;
+    } else {
+      flower.species = proposal.species;
+    }
     await this.flowers.save(flower);
 
     proposal.status = 'accepted';

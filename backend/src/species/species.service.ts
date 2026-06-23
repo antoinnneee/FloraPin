@@ -72,6 +72,41 @@ export class SpeciesService {
     return this.species.findOne({ where: { id } });
   }
 
+  /**
+   * Rattache un texte d'identification au référentiel (NODE-127).
+   *
+   * Rapprochement exact insensible à la casse : d'abord par nom scientifique
+   * (upsert si fourni), sinon par nom commun. À défaut de correspondance, crée
+   * une fiche minimale où le texte devient le nom scientifique (le reste reste
+   * à compléter). Renvoie null si le texte est vide.
+   */
+  async resolveOrCreateByName(name: string): Promise<Species | null> {
+    const term = name.trim();
+    if (!term) return null;
+
+    const existing =
+      (await this.species.findOne({
+        where: { scientificName: ILike(term) },
+      })) ??
+      (await this.species.findOne({ where: { commonName: ILike(term) } }));
+    if (existing) return existing;
+
+    try {
+      return await this.species.save(
+        this.species.create({
+          scientificName: term,
+          commonName: '',
+          family: '',
+          description: '',
+          emoji: null,
+        }),
+      );
+    } catch {
+      // Course possible sur l'unicité de scientific_name : on relit.
+      return this.species.findOne({ where: { scientificName: ILike(term) } });
+    }
+  }
+
   static toResponse(species: Species): SpeciesResponse {
     return {
       id: species.id,

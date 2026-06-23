@@ -10,6 +10,8 @@ import { Flower } from '../flowers/flower.entity';
 import { FlowerResponse } from '../flowers/flowers.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SharesService } from '../shares/shares.service';
+import { Species } from '../species/species.entity';
+import { SpeciesService } from '../species/species.service';
 import { SpeciesProposal } from './species-proposal.entity';
 import { ProposalsService } from './proposals.service';
 
@@ -92,6 +94,22 @@ describe('ProposalsService', () => {
             },
           },
         },
+        {
+          provide: SpeciesService,
+          useValue: {
+            // Rattachement simulé : le texte devient une fiche au nom
+            // scientifique identique (NODE-127).
+            resolveOrCreateByName: async (name: string): Promise<Species> =>
+              ({
+                id: `sp-${name}`,
+                scientificName: name,
+                commonName: '',
+                family: '',
+                description: '',
+                emoji: null,
+              }) as Species,
+          },
+        },
       ],
     }).compile();
     service = moduleRef.get(ProposalsService);
@@ -135,7 +153,10 @@ describe('ProposalsService', () => {
 
     await service.accept(OWNER, FLOWER, proposal.id);
 
-    expect(flowerRepo.store.get(FLOWER)!.species).toBe('Rosa canina');
+    const updated = flowerRepo.store.get(FLOWER)!;
+    expect(updated.species).toBe('Rosa canina');
+    // Normalisation vers le référentiel (NODE-127) : species_id renseigné.
+    expect(updated.speciesId).toBe('sp-Rosa canina');
     expect(notified).toContainEqual({
       userId: FRIEND,
       type: 'species_confirmed',

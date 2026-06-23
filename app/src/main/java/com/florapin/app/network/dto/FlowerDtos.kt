@@ -32,6 +32,14 @@ data class PresignedUpload(
 )
 
 @JsonClass(generateAdapter = true)
+data class PhotoDto(
+    val id: String,
+    val url: String,
+    val position: Int,
+    val isCover: Boolean,
+)
+
+@JsonClass(generateAdapter = true)
 data class FlowerDto(
     val id: String,
     val ownerId: String,
@@ -44,8 +52,20 @@ data class FlowerDto(
     val visibility: String,
     val species: String? = null,
     val tags: List<String> = emptyList(),
+    val photos: List<PhotoDto> = emptyList(),
     val createdAt: String,
     val updatedAt: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class AddPhotoResponse(
+    val photo: PhotoDto,
+    val upload: PresignedUpload,
+)
+
+@JsonClass(generateAdapter = true)
+data class ReorderPhotosRequest(
+    val photoIds: List<String>,
 )
 
 @JsonClass(generateAdapter = true)

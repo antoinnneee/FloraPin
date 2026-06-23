@@ -5,6 +5,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.florapin.app.data.AlbumRepository
 import com.florapin.app.data.FlowerRepository
+import com.florapin.app.data.PhotoRepository
 import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.network.upload.ImageUploader
@@ -38,6 +39,11 @@ class SyncWorker(
                     albums = AlbumRepository.from(applicationContext),
                     flowers = flowerRepo,
                     albumsApi = apis.albums,
+                ),
+                photoSync = PhotoSyncEngine(
+                    photos = PhotoRepository.from(applicationContext),
+                    photosApi = apis.photos,
+                    uploadImage = ImageUploader(OkHttpClient())::upload,
                 ),
             )
             engine.sync()

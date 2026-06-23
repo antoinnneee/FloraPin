@@ -28,10 +28,14 @@ class SyncEngine(
     private val now: () -> Long = { System.currentTimeMillis() },
     /** Sync des albums (NODE-102) ; optionnel pour rester rétrocompatible. */
     private val albumSync: AlbumSyncEngine? = null,
+    /** Sync des photos additionnelles (NODE-107) ; optionnel. */
+    private val photoSync: PhotoSyncEngine? = null,
 ) {
     suspend fun sync() {
         push()
         pull()
+        // Les photos additionnelles se poussent après les fleurs (id serveur connu).
+        photoSync?.push { localId -> repository.getById(localId)?.serverId }
         // Les albums se synchronisent après les fleurs : l'appartenance se
         // résout sur des fleurs déjà dotées de leur serverId.
         albumSync?.sync()
@@ -104,13 +108,16 @@ class SyncEngine(
         val response = syncApi.pull(lastSyncStore.get())
         response.flowers.forEach { dto ->
             val existing = repository.findByServerId(dto.id)
-            if (existing != null) {
+            val localId = if (existing != null) {
                 repository.update(dto.applyTo(existing))
+                existing.id
             } else {
                 // Fleur distante inconnue (autre appareil) : insérée avec son URL
                 // image distante ; Coil charge l'URL présignée à l'affichage.
                 repository.insert(dto.toEntity())
             }
+            // Réconcilie les photos additionnelles de la fleur (NODE-107).
+            photoSync?.reconcile(localId, dto.photos)
         }
         response.deletedIds.forEach { serverId ->
             repository.softDeleteByServerId(serverId, now())

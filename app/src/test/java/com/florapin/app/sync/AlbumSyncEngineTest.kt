@@ -55,6 +55,12 @@ private class MemAlbumDao(private val flowers: MemFlowerDao) : AlbumDao {
 
     override fun observeAll(): Flow<List<AlbumEntity>> = flowOf(albums.values.toList())
     override suspend fun getById(id: Long) = albums[id]
+    override fun observeById(id: Long): Flow<AlbumEntity?> = flowOf(albums[id])
+    override fun observeFlowersInAlbum(albumId: Long): Flow<List<FlowerEntity>> =
+        flowOf(
+            refs.filter { it.first == albumId }
+                .mapNotNull { flowers.store[it.second] },
+        )
     override suspend fun findByServerId(serverId: String) =
         albums.values.find { it.serverId == serverId }
     override suspend fun allActive() = albums.values.filter { it.deletedAt == null }

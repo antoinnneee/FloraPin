@@ -1,6 +1,7 @@
-package com.florapin.app.gallery
+package com.florapin.app.albums
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,16 +12,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,105 +40,107 @@ import com.florapin.app.ui.components.EmptyState
 import com.florapin.app.util.formatCaptureDate
 
 /**
- * Galerie des fleurs capturées (NODE-9) : grille de vignettes, ou message si
- * vide. Le bouton flottant lance une nouvelle capture ; un appui sur une
- * vignette ouvre le détail.
+ * Écran d'un album (NODE-103) : grille de ses fleurs, renommage, retrait d'une
+ * fleur par appui long. Un appui ouvre le détail de la fleur.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GalleryScreen(
-    onCapture: () -> Unit,
+fun AlbumDetailScreen(
+    albumId: Long,
+    onBack: () -> Unit,
     onFlowerClick: (Long) -> Unit,
-    onOpenMap: () -> Unit,
-    onOpenFriends: () -> Unit,
-    onOpenFeed: () -> Unit,
-    onOpenProfile: () -> Unit,
-    onOpenAlbums: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: GalleryViewModel = viewModel(),
+    viewModel: AlbumDetailViewModel = viewModel(),
 ) {
+    viewModel.setAlbumId(albumId)
+    val album by viewModel.album.collectAsStateWithLifecycle()
     val flowers by viewModel.flowers.collectAsStateWithLifecycle()
+    var renaming by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Mes fleurs") },
+                title = { Text(album?.name ?: "Album") },
+                navigationIcon = { IconButton(onClick = onBack) { Text("←") } },
                 actions = {
-                    IconButton(onClick = onOpenMap) {
-                        Text("🗺️", style = MaterialTheme.typography.titleLarge)
-                    }
-                    IconButton(onClick = onOpenFeed) {
-                        Text("🌸", style = MaterialTheme.typography.titleLarge)
-                    }
-                    IconButton(onClick = onOpenAlbums) {
-                        Text("📁", style = MaterialTheme.typography.titleLarge)
-                    }
-                    IconButton(onClick = onOpenFriends) {
-                        Text("🤝", style = MaterialTheme.typography.titleLarge)
-                    }
-                    IconButton(onClick = onOpenProfile) {
-                        Text("👤", style = MaterialTheme.typography.titleLarge)
+                    if (album != null) {
+                        IconButton(onClick = { renaming = true }) { Text("✏️") }
                     }
                 },
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(onClick = onCapture) {
-                Text("📷", style = MaterialTheme.typography.titleLarge)
-            }
-        },
     ) { innerPadding ->
         if (flowers.isEmpty()) {
-            EmptyGallery(modifier = Modifier.padding(innerPadding))
+            EmptyState(
+                title = "Album vide",
+                message = "Ajoutez des fleurs depuis leur écran de détail.",
+                modifier = Modifier.padding(innerPadding),
+            )
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 120.dp),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
+                modifier = Modifier.fillMaxSize().padding(innerPadding),
                 contentPadding = PaddingValues(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(flowers, key = { it.id }) { flower ->
-                    FlowerThumbnail(
+                    AlbumFlowerThumbnail(
                         flower = flower,
                         onClick = { onFlowerClick(flower.id) },
+                        onLongClick = { viewModel.removeFlower(flower.id) },
                     )
                 }
             }
         }
     }
+
+    if (renaming) {
+        val current = album
+        var name by remember { mutableStateOf(current?.name.orEmpty()) }
+        AlertDialog(
+            onDismissRequest = { renaming = false },
+            title = { Text("Renommer l'album") },
+            text = {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nom de l'album") },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.rename(name); renaming = false },
+                    enabled = name.isNotBlank(),
+                ) { Text("Valider") }
+            },
+            dismissButton = {
+                TextButton(onClick = { renaming = false }) { Text("Annuler") }
+            },
+        )
+    }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun EmptyGallery(modifier: Modifier = Modifier) {
-    EmptyState(
-        title = "Aucune fleur pour l'instant",
-        message = "Appuyez sur 📷 pour capturer votre première fleur.",
-        modifier = modifier,
-    )
-}
-
-@Composable
-private fun FlowerThumbnail(
+private fun AlbumFlowerThumbnail(
     flower: FlowerEntity,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         Column {
             AsyncImage(
                 model = flower.imageModel(),
                 contentDescription = "Fleur du ${formatCaptureDate(flower.createdAt)}",
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f),
+                modifier = Modifier.fillMaxWidth().aspectRatio(1f),
             )
             Text(
                 text = formatCaptureDate(flower.createdAt),

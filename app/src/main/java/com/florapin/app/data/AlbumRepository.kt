@@ -18,6 +18,11 @@ class AlbumRepository(
 
     suspend fun getById(id: Long): AlbumEntity? = dao.getById(id)
 
+    fun observeById(id: Long): Flow<AlbumEntity?> = dao.observeById(id)
+
+    fun flowersIn(albumId: Long): Flow<List<FlowerEntity>> =
+        dao.observeFlowersInAlbum(albumId)
+
     suspend fun memberFlowerIds(albumId: Long): List<Long> =
         dao.memberFlowerIds(albumId)
 

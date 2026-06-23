@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.florapin.app.albums.AddToAlbumSheet
 import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.imageModel
 import com.florapin.app.location.GeoPoint
@@ -52,6 +53,7 @@ fun DetailScreen(
     viewModel.setFlowerId(flowerId)
     val flower by viewModel.flower.collectAsStateWithLifecycle()
     var showShare by remember { mutableStateOf(false) }
+    var showAddToAlbum by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
@@ -64,6 +66,7 @@ fun DetailScreen(
                 actions = {
                     val current = flower
                     if (current != null) {
+                        IconButton(onClick = { showAddToAlbum = true }) { Text("📁") }
                         IconButton(onClick = { showShare = true }) { Text("📤") }
                     }
                     IconButton(
@@ -98,6 +101,13 @@ fun DetailScreen(
         ShareFlowerSheet(
             flowerServerId = flower?.serverId,
             onDismiss = { showShare = false },
+        )
+    }
+
+    if (showAddToAlbum && flower != null) {
+        AddToAlbumSheet(
+            flowerLocalId = flowerId,
+            onDismiss = { showAddToAlbum = false },
         )
     }
 }

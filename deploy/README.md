@@ -32,7 +32,8 @@ docker compose up -d --build
   `API_PORT` (3000) port interne de l'API ; et `DB_HOST_PORT`/`MINIO_HOST_PORT`/
   `MINIO_CONSOLE_HOST_PORT` (5432/9000/9001) publiés sur l'hôte **en dev seulement**.
 - Le schéma SQL (`backend/db/schema.sql`) est appliqué **au premier démarrage**
-  d'une base vide (volume `db-data`).
+  d'une base vide (volume `db-data`), suivi du seed du catalogue d'espèces
+  (`backend/db/seed-species.sql`, idempotent) qui alimente l'autocomplétion.
 
 ## Déploiement automatisé (`deploy.sh`)
 

@@ -11,8 +11,10 @@ services:
       POSTGRES_DB: ${DATABASE_NAME}
     volumes:
       - db-data:/var/lib/postgresql/data
-      # Schéma appliqué au premier démarrage (base vide uniquement).
+      # Schéma puis seed appliqués au premier démarrage (base vide uniquement).
+      # Ordre alphabétique : 01 schéma, puis 02 catalogue d'espèces (idempotent).
       - ../backend/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../backend/db/seed-species.sql:/docker-entrypoint-initdb.d/02-seed-species.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
       interval: 10s

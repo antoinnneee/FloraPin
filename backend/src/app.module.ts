@@ -7,6 +7,7 @@ import { FeedModule } from './feed/feed.module';
 import { FlowersModule } from './flowers/flowers.module';
 import { FriendshipsModule } from './friendships/friendships.module';
 import { IdentificationModule } from './identification/identification.module';
+import { MailModule } from './mail/mail.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { ProposalsModule } from './proposals/proposals.module';
@@ -33,6 +34,7 @@ import { UsersModule } from './users/users.module';
         synchronize: false,
       }),
     }),
+    MailModule,
     AuthModule,
     UsersModule,
     FlowersModule,

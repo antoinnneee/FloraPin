@@ -156,8 +156,21 @@ export class FlowersService {
     if (dto.visibility !== undefined) flower.visibility = dto.visibility;
     if (dto.takenAt !== undefined) flower.takenAt = new Date(dto.takenAt);
     if (dto.species !== undefined) flower.species = dto.species;
+    // Rattachement au référentiel (NODE-128) : le propriétaire pose species_id
+    // via le sélecteur. On recharge la relation pour exposer l'espèce résolue.
+    if (dto.speciesId !== undefined) {
+      flower.speciesId = dto.speciesId;
+      flower.speciesRef = null;
+    }
     if (dto.tags !== undefined) flower.tags = dto.tags;
     const saved = await this.flowers.save(flower);
+    if (dto.speciesId !== undefined) {
+      const reloaded = await this.flowers.findOne({
+        where: { id: saved.id, ownerId },
+        relations: { speciesRef: true },
+      });
+      return this.toResponse(reloaded ?? saved);
+    }
     return this.toResponse(saved);
   }
 

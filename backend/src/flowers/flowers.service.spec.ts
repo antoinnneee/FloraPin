@@ -143,6 +143,19 @@ describe('FlowersService', () => {
     expect(result[0].species).toBe('Rosa canina');
   });
 
+  it('rattache la fleur au référentiel via species_id (NODE-128)', async () => {
+    const created = await service.create(OWNER, {
+      takenAt: '2026-06-21T09:00:00Z',
+    });
+    const id = created.flower.id;
+
+    const speciesId = '11111111-1111-1111-1111-111111111111';
+    const updated = await service.update(OWNER, id, { speciesId });
+
+    expect(updated.speciesId).toBe(speciesId);
+    expect(repo.store.get(id)!.speciesId).toBe(speciesId);
+  });
+
   it('recherche par étiquette', async () => {
     await service.create(OWNER, {
       takenAt: '2026-06-21T09:00:00Z',

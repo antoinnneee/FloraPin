@@ -8,6 +8,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -74,6 +75,11 @@ export class UpdateFlowerDto {
   @IsString()
   @MaxLength(200)
   species?: string;
+
+  /** Rattachement au référentiel d'espèces (NODE-128). */
+  @IsOptional()
+  @IsUUID()
+  speciesId?: string;
 
   @IsOptional()
   @IsArray()

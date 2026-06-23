@@ -37,6 +37,15 @@ data class FlowerEntity(
     /** Espèce (nom) renseignée/identifiée, ou null. */
     val species: String? = null,
 
+    /** FK vers le référentiel d'espèces (NODE-128), null si non rapprochée. */
+    val speciesId: String? = null,
+
+    /** Nom scientifique résolu (cache léger pour l'affichage hors-ligne). */
+    val speciesScientificName: String? = null,
+
+    /** Nom commun résolu (cache léger). */
+    val speciesCommonName: String? = null,
+
     /** Étiquettes libres (converties en chaîne pour Room, voir [Converters]). */
     val tags: List<String> = emptyList(),
 

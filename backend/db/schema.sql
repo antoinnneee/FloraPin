@@ -64,6 +64,29 @@ CREATE INDEX idx_flowers_species     ON flowers(species);
 CREATE INDEX idx_flowers_tags        ON flowers USING GIN (tags);
 
 -- =====================================================================
+-- Photos d'une fleur (NODE-104 : plusieurs photos par fleur)
+--   Une fleur a 1..n photos ordonnées ; exactement une est la couverture.
+--   `flowers.image_key` est conservé le temps de la transition (= couverture).
+-- =====================================================================
+CREATE TABLE flower_photos (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    flower_id   UUID NOT NULL REFERENCES flowers(id) ON DELETE CASCADE,
+    image_key   TEXT NOT NULL,                     -- clé de l'objet dans MinIO
+    position    INTEGER NOT NULL DEFAULT 0,        -- ordre d'affichage
+    is_cover    BOOLEAN NOT NULL DEFAULT false,    -- photo de couverture
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_flower_photos_flower ON flower_photos(flower_id);
+-- Au plus une couverture par fleur.
+CREATE UNIQUE INDEX idx_flower_photos_cover
+    ON flower_photos(flower_id) WHERE is_cover;
+
+-- Backfill : chaque fleur existante devient sa propre photo de couverture.
+INSERT INTO flower_photos (flower_id, image_key, position, is_cover)
+SELECT id, image_key, 0, true FROM flowers
+ON CONFLICT DO NOTHING;
+
+-- =====================================================================
 -- Albums de fleurs (NODE-98)
 --   Regroupement nommé de fleurs appartenant à un utilisateur.
 -- =====================================================================

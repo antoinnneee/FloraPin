@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -33,7 +32,6 @@ import com.florapin.app.ui.components.EmptyState
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SharedFeedScreen(
-    onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SharedFeedViewModel = viewModel(
         factory = SharedFeedViewModel.factory(androidx.compose.ui.platform.LocalContext.current),
@@ -46,7 +44,6 @@ fun SharedFeedScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Partagées avec moi") },
-                navigationIcon = { IconButton(onClick = onBack) { Text("←") } },
             )
         },
     ) { innerPadding ->

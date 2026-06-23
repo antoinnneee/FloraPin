@@ -1,5 +1,7 @@
 package com.florapin.app.navigation
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -7,10 +9,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.florapin.app.auth.AuthUiState
@@ -62,11 +66,25 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
     }
     val startDestination = if (loggedIn) Routes.GALLERY else Routes.LOGIN
 
-    NavHost(
-        navController = navController,
-        startDestination = startDestination,
+    val currentRoute by navController.currentBackStackEntryAsState()
+    val showBottomBar = currentRoute?.destination?.route in topLevelRoutes
+
+    Scaffold(
         modifier = modifier,
-    ) {
+        bottomBar = {
+            if (showBottomBar) {
+                FloraBottomBar(
+                    currentRoute = currentRoute?.destination?.route,
+                    onSelect = { destination -> navController.navigateToTab(destination.route) },
+                )
+            }
+        },
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = startDestination,
+            modifier = Modifier.padding(innerPadding),
+        ) {
         composable(Routes.LOGIN) {
             val authViewModel: AuthViewModel =
                 viewModel(factory = AuthViewModel.factory(context))
@@ -105,10 +123,7 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
             GalleryScreen(
                 onCapture = { navController.navigate(Routes.CAPTURE) },
                 onFlowerClick = { id -> navController.navigate(Routes.detail(id)) },
-                onOpenMap = { navController.navigate(Routes.MAP) },
                 onOpenFriends = { navController.navigate(Routes.FRIENDS) },
-                onOpenFeed = { navController.navigate(Routes.FEED) },
-                onOpenProfile = { navController.navigate(Routes.PROFILE) },
                 onOpenAlbums = { navController.navigate(Routes.ALBUMS) },
             )
         }
@@ -130,7 +145,7 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
             )
         }
         composable(Routes.FEED) {
-            SharedFeedScreen(onBack = { navController.popBackStack() })
+            SharedFeedScreen()
         }
         composable(Routes.FRIENDS) {
             FriendsScreen(onBack = { navController.popBackStack() })
@@ -139,7 +154,6 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
             val authViewModel: AuthViewModel =
                 viewModel(factory = AuthViewModel.factory(context))
             ProfileScreen(
-                onBack = { navController.popBackStack() },
                 onLogout = {
                     // Désenregistre le push tant que les jetons sont valides,
                     // puis déconnecte.
@@ -156,7 +170,6 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
         }
         composable(Routes.MAP) {
             MapScreen(
-                onBack = { navController.popBackStack() },
                 onFlowerClick = { id -> navController.navigate(Routes.detail(id)) },
             )
         }
@@ -169,6 +182,7 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
                 flowerId = id,
                 onBack = { navController.popBackStack() },
             )
+        }
         }
     }
 }
@@ -186,6 +200,19 @@ private fun startSync(context: android.content.Context) {
     SyncScheduler.schedulePeriodic(context)
     SyncScheduler.syncNow(context)
     PushTokenRegistrar.register(context)
+}
+
+/**
+ * Navigue vers un onglet racine façon bottom navigation : remonte jusqu'au point
+ * de départ du graphe en sauvegardant l'état, évite d'empiler le même onglet et
+ * restaure son état précédent (position de scroll, etc.).
+ */
+private fun NavHostController.navigateToTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
 }
 
 /** Va à la galerie en vidant toute la back-stack (sortie du flux d'auth). */

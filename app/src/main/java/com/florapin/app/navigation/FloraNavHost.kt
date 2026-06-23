@@ -22,11 +22,13 @@ import com.florapin.app.auth.AuthUiState
 import com.florapin.app.auth.AuthViewModel
 import com.florapin.app.albums.AlbumDetailScreen
 import com.florapin.app.albums.AlbumsScreen
+import com.florapin.app.auth.EmailVerifyViewModel
 import com.florapin.app.auth.ForgotPasswordScreen
 import com.florapin.app.auth.LoginScreen
 import com.florapin.app.auth.PasswordResetViewModel
 import com.florapin.app.auth.RegisterScreen
 import com.florapin.app.auth.ResetPasswordScreen
+import com.florapin.app.auth.VerifyEmailScreen
 import com.florapin.app.capture.CaptureFlow
 import com.florapin.app.detail.DetailScreen
 import com.florapin.app.feed.SharedFeedScreen
@@ -44,6 +46,7 @@ private object Routes {
     const val REGISTER = "register"
     const val FORGOT_PASSWORD = "forgot-password"
     const val RESET_PASSWORD = "reset-password?token={token}"
+    const val VERIFY_EMAIL = "verify-email?token={token}"
     const val GALLERY = "gallery"
     const val CAPTURE = "capture"
     const val MAP = "map"
@@ -146,6 +149,32 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
                 onSubmit = resetViewModel::resetPassword,
                 onResetDone = { navController.goToLogin() },
                 onBackToLogin = { navController.goToLogin() },
+            )
+        }
+
+        composable(
+            route = Routes.VERIFY_EMAIL,
+            arguments = listOf(
+                navArgument("token") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+            ),
+            deepLinks = listOf(
+                navDeepLink { uriPattern = "https://florapin.fr/verify?token={token}" },
+            ),
+        ) { backStackEntry ->
+            val token = backStackEntry.arguments?.getString("token").orEmpty()
+            val verifyViewModel: EmailVerifyViewModel =
+                viewModel(factory = EmailVerifyViewModel.factory(context))
+            val state by verifyViewModel.state.collectAsStateWithLifecycle()
+            VerifyEmailScreen(
+                token = token,
+                state = state,
+                onVerify = verifyViewModel::verify,
+                onContinue = {
+                    if (loggedIn) navController.goToGallery() else navController.goToLogin()
+                },
             )
         }
 

@@ -65,6 +65,10 @@ private class ResetFakeAuthApi(
         if (forgotStatus == 200) Response.success(null) else errorResponse(forgotStatus)
     override suspend fun resetPassword(body: ResetPasswordRequest): Response<Unit> =
         if (resetStatus == 200) Response.success(null) else errorResponse(resetStatus)
+    override suspend fun requestEmailVerification(): Response<Unit> = Response.success(null)
+    override suspend fun verifyEmail(body: com.florapin.app.network.dto.VerifyEmailRequest): Response<Unit> =
+        Response.success(null)
+    override suspend fun changeEmail(body: com.florapin.app.network.dto.ChangeEmailRequest): UserDto = RESET_USER
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

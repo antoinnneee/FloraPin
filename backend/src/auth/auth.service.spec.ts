@@ -8,6 +8,7 @@ import { MailMessage, MailSender } from '../mail/mail.sender';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
+import { EmailVerificationToken } from './email-verification-token.entity';
 import { PasswordResetToken } from './password-reset-token.entity';
 import { RefreshToken } from './refresh-token.entity';
 
@@ -31,6 +32,14 @@ class FakeUsersService {
     if (user) user.passwordHash = passwordHash;
   }
 
+  async setEmailVerified(userId: string): Promise<void> {
+    const user = this.byId.get(userId);
+    if (user) {
+      user.emailVerified = true;
+      user.emailVerifiedAt = new Date();
+    }
+  }
+
   async create(params: {
     email: string;
     passwordHash: string;
@@ -41,6 +50,8 @@ class FakeUsersService {
       email: UsersService.normalizeEmail(params.email),
       passwordHash: params.passwordHash,
       displayName: params.displayName,
+      emailVerified: false,
+      emailVerifiedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -66,6 +77,30 @@ class FakeResetRepo {
   async findOne(opts: {
     where: { tokenHash: string; usedAt: unknown };
   }): Promise<PasswordResetToken | null> {
+    return (
+      this.store.find(
+        (t) => t.tokenHash === opts.where.tokenHash && t.usedAt == null,
+      ) ?? null
+    );
+  }
+}
+
+/** Repository EmailVerificationToken factice. */
+class FakeEmailRepo {
+  store: EmailVerificationToken[] = [];
+
+  create(obj: Partial<EmailVerificationToken>): EmailVerificationToken {
+    return { ...obj } as EmailVerificationToken;
+  }
+
+  async save(obj: EmailVerificationToken): Promise<EmailVerificationToken> {
+    if (!this.store.includes(obj)) this.store.push(obj);
+    return obj;
+  }
+
+  async findOne(opts: {
+    where: { tokenHash: string; usedAt: unknown };
+  }): Promise<EmailVerificationToken | null> {
     return (
       this.store.find(
         (t) => t.tokenHash === opts.where.tokenHash && t.usedAt == null,
@@ -122,6 +157,7 @@ const CONFIG: Record<string, string> = {
   JWT_REFRESH_SECRET: 'test-refresh-secret',
   JWT_REFRESH_TTL: '30d',
   PASSWORD_RESET_TTL_MIN: '60',
+  EMAIL_VERIFY_TTL_MIN: '1440',
   APP_BASE_URL: 'https://florapin.fr',
 };
 
@@ -139,11 +175,13 @@ describe('AuthService', () => {
   let auth: AuthService;
   let repo: FakeRefreshRepo;
   let resetRepo: FakeResetRepo;
+  let emailRepo: FakeEmailRepo;
   let mail: FakeMailSender;
 
   beforeEach(async () => {
     repo = new FakeRefreshRepo();
     resetRepo = new FakeResetRepo();
+    emailRepo = new FakeEmailRepo();
     mail = new FakeMailSender();
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -153,6 +191,7 @@ describe('AuthService', () => {
         { provide: ConfigService, useClass: FakeConfigService },
         { provide: getRepositoryToken(RefreshToken), useValue: repo },
         { provide: getRepositoryToken(PasswordResetToken), useValue: resetRepo },
+        { provide: getRepositoryToken(EmailVerificationToken), useValue: emailRepo },
         { provide: MailSender, useValue: mail },
       ],
     }).compile();
@@ -257,6 +296,33 @@ describe('AuthService', () => {
 
   it('resetPassword : token inconnu est rejeté', async () => {
     await expect(auth.resetPassword('deadbeef', 'nouveauPass1')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it('requestEmailVerification : envoie un lien de vérification', async () => {
+    const reg = await auth.register('a@example.com', 'password123', 'Alice');
+    await auth.requestEmailVerification(reg.user.id);
+
+    expect(emailRepo.store).toHaveLength(1);
+    expect(mail.sent).toHaveLength(1);
+    expect(mail.sent[0].text).toContain('/verify?token=');
+  });
+
+  it('verifyEmailToken : marque l’adresse vérifiée puis rejette la réutilisation', async () => {
+    const reg = await auth.register('a@example.com', 'password123', 'Alice');
+    expect(reg.user.emailVerified).toBe(false);
+
+    await auth.requestEmailVerification(reg.user.id);
+    const token = mail.sent[0].text?.match(/token=([0-9a-f]+)/)?.[1] as string;
+    await auth.verifyEmailToken(token);
+
+    // Idempotence : déjà vérifié → plus d'envoi.
+    await auth.requestEmailVerification(reg.user.id);
+    expect(mail.sent).toHaveLength(1);
+
+    // Token déjà utilisé.
+    await expect(auth.verifyEmailToken(token)).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
   });

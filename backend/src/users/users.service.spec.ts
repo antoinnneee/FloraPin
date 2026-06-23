@@ -39,11 +39,13 @@ describe('UsersService.deleteAccount', () => {
       ]),
     } as never;
     storage = { delete: jest.fn(async () => undefined) } as never;
+    const emailTokens = { delete: jest.fn(async () => undefined) } as never;
 
     service = new UsersService(
       users as never,
       flowers as never,
       photos as never,
+      emailTokens,
       storage as never,
     );
   });

@@ -4,15 +4,18 @@ import com.florapin.app.network.dto.AuthResponse
 import com.florapin.app.network.dto.DeleteAccountRequest
 import com.florapin.app.network.dto.ForgotPasswordRequest
 import com.florapin.app.network.dto.LoginRequest
+import com.florapin.app.network.dto.ChangeEmailRequest
 import com.florapin.app.network.dto.RefreshRequest
 import com.florapin.app.network.dto.RegisterRequest
 import com.florapin.app.network.dto.ResetPasswordRequest
 import com.florapin.app.network.dto.TokenPair
 import com.florapin.app.network.dto.UserDto
+import com.florapin.app.network.dto.VerifyEmailRequest
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.HTTP
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 
 interface AuthApi {
@@ -35,6 +38,18 @@ interface AuthApi {
     /** Termine la réinitialisation avec le token reçu par email. */
     @POST("auth/reset-password")
     suspend fun resetPassword(@Body body: ResetPasswordRequest): Response<Unit>
+
+    /** Demande/renvoie l'email de vérification d'adresse (JWT requis). */
+    @POST("auth/email/verification")
+    suspend fun requestEmailVerification(): Response<Unit>
+
+    /** Valide l'adresse via le token reçu par email. */
+    @POST("auth/email/verify")
+    suspend fun verifyEmail(@Body body: VerifyEmailRequest): Response<Unit>
+
+    /** Change l'adresse email (autorisé tant qu'elle n'est pas vérifiée). */
+    @PATCH("users/me/email")
+    suspend fun changeEmail(@Body body: ChangeEmailRequest): UserDto
 
     /**
      * Profil de l'utilisateur courant (session restaurée sans relogin).

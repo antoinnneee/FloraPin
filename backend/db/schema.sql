@@ -17,6 +17,9 @@ CREATE TABLE users (
     email         CITEXT UNIQUE NOT NULL,          -- insensible à la casse
     password_hash TEXT        NOT NULL,            -- bcrypt/argon2 (cf. NODE-17)
     display_name  TEXT        NOT NULL,
+    -- Vérification d'email opt-in, jamais bloquante (NODE-117).
+    email_verified    BOOLEAN     NOT NULL DEFAULT false,
+    email_verified_at TIMESTAMPTZ,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -48,6 +51,19 @@ CREATE TABLE password_reset_tokens (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_pwd_reset_user ON password_reset_tokens(user_id);
+
+-- =====================================================================
+-- Tokens de vérification d'email (NODE-117) — opt-in, jamais bloquant.
+-- =====================================================================
+CREATE TABLE email_verification_tokens (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash  TEXT NOT NULL,
+    expires_at  TIMESTAMPTZ NOT NULL,
+    used_at     TIMESTAMPTZ,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_email_verif_user ON email_verification_tokens(user_id);
 
 -- =====================================================================
 -- Fleurs

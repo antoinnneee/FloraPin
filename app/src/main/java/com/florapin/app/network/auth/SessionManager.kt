@@ -1,6 +1,7 @@
 package com.florapin.app.network.auth
 
 import com.florapin.app.network.api.AuthApi
+import com.florapin.app.network.dto.ChangeEmailRequest
 import com.florapin.app.network.dto.DeleteAccountRequest
 import com.florapin.app.network.dto.ForgotPasswordRequest
 import com.florapin.app.network.dto.LoginRequest
@@ -8,6 +9,7 @@ import com.florapin.app.network.dto.RefreshRequest
 import com.florapin.app.network.dto.RegisterRequest
 import com.florapin.app.network.dto.ResetPasswordRequest
 import com.florapin.app.network.dto.UserDto
+import com.florapin.app.network.dto.VerifyEmailRequest
 import retrofit2.HttpException
 
 /** Orchestration de la session : connexion, inscription, déconnexion. */
@@ -95,5 +97,27 @@ class SessionManager(
     suspend fun resetPassword(token: String, newPassword: String) {
         val response = authApi.resetPassword(ResetPasswordRequest(token, newPassword))
         if (!response.isSuccessful) throw HttpException(response)
+    }
+
+    /** Demande/renvoie l'email de vérification d'adresse (NODE-117, JWT). */
+    suspend fun requestEmailVerification() {
+        val response = authApi.requestEmailVerification()
+        if (!response.isSuccessful) throw HttpException(response)
+    }
+
+    /** Valide l'adresse via le token reçu par email (NODE-117). */
+    suspend fun verifyEmail(token: String) {
+        val response = authApi.verifyEmail(VerifyEmailRequest(token))
+        if (!response.isSuccessful) throw HttpException(response)
+    }
+
+    /**
+     * Change l'adresse email tant qu'elle n'est pas vérifiée (NODE-117) et
+     * met à jour le profil persisté. Renvoie l'utilisateur mis à jour.
+     */
+    suspend fun changeEmail(email: String): UserDto {
+        val user = authApi.changeEmail(ChangeEmailRequest(email))
+        tokenStore.saveDisplayName(user.displayName)
+        return user
     }
 }

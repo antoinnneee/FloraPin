@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { EmailVerificationToken } from '../auth/email-verification-token.entity';
 import { FlowerPhoto } from '../flowers/flower-photo.entity';
 import { Flower } from '../flowers/flower.entity';
 import { StorageModule } from '../storage/storage.module';
@@ -9,7 +10,12 @@ import { UsersService } from './users.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Flower, FlowerPhoto]),
+    TypeOrmModule.forFeature([
+      User,
+      Flower,
+      FlowerPhoto,
+      EmailVerificationToken,
+    ]),
     StorageModule,
   ],
   controllers: [UsersController],

@@ -1,4 +1,6 @@
 import {
+  ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -7,6 +9,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { In, Repository } from 'typeorm';
+import { EmailVerificationToken } from '../auth/email-verification-token.entity';
 import { FlowerPhoto } from '../flowers/flower-photo.entity';
 import { Flower } from '../flowers/flower.entity';
 import { StorageService } from '../storage/storage.service';
@@ -24,6 +27,8 @@ export class UsersService {
     private readonly flowers: Repository<Flower>,
     @InjectRepository(FlowerPhoto)
     private readonly photos: Repository<FlowerPhoto>,
+    @InjectRepository(EmailVerificationToken)
+    private readonly emailTokens: Repository<EmailVerificationToken>,
     private readonly storage: StorageService,
   ) {}
 
@@ -45,6 +50,49 @@ export class UsersService {
   /** Met à jour le hash du mot de passe d'un utilisateur (reset — NODE-116). */
   async setPasswordHash(userId: string, passwordHash: string): Promise<void> {
     await this.users.update({ id: userId }, { passwordHash });
+  }
+
+  /** Marque l'email d'un utilisateur comme vérifié (NODE-117). */
+  async setEmailVerified(userId: string): Promise<void> {
+    await this.users.update(
+      { id: userId },
+      { emailVerified: true, emailVerifiedAt: new Date() },
+    );
+  }
+
+  /**
+   * Change l'adresse email (NODE-117). Autorisé UNIQUEMENT tant que l'email
+   * n'est pas vérifié. Vérifie l'unicité, applique la nouvelle adresse (non
+   * vérifiée) et invalide les tokens de vérification en cours. Renvoie le user.
+   */
+  async changeEmail(userId: string, newEmail: string): Promise<User> {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('Utilisateur introuvable.');
+    }
+    if (user.emailVerified) {
+      throw new ForbiddenException(
+        'Adresse déjà vérifiée : changement non autorisé ici.',
+      );
+    }
+
+    const normalized = UsersService.normalizeEmail(newEmail);
+    if (normalized !== user.email) {
+      const existing = await this.users.findOne({
+        where: { email: normalized },
+      });
+      if (existing) {
+        throw new ConflictException('Un compte existe déjà avec cet email.');
+      }
+    }
+
+    user.email = normalized;
+    user.emailVerified = false;
+    user.emailVerifiedAt = null;
+    await this.users.save(user);
+    // Les éventuels liens de vérification pointaient sur l'ancienne adresse.
+    await this.emailTokens.delete({ userId });
+    return user;
   }
 
   create(params: {

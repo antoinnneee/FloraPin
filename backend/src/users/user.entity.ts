@@ -22,6 +22,13 @@ export class User {
   @Column({ name: 'display_name' })
   displayName: string;
 
+  /** Vérification d'email opt-in (NODE-117) : jamais bloquant. */
+  @Column({ name: 'email_verified', type: 'boolean', default: false })
+  emailVerified: boolean;
+
+  @Column({ name: 'email_verified_at', type: 'timestamptz', nullable: true })
+  emailVerifiedAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

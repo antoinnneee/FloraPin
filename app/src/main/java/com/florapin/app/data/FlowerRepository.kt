@@ -50,14 +50,26 @@ class FlowerRepository(private val dao: FlowerDao) {
             ),
         )
 
-    /** Met à jour l'espèce et les étiquettes (les remet en attente de sync). */
+    /**
+     * Met à jour l'espèce et les étiquettes (les remet en attente de sync).
+     *
+     * Quand l'espèce provient du référentiel (NODE-128), [speciesId] et le cache
+     * d'affichage ([speciesScientificName]/[speciesCommonName]) sont renseignés ;
+     * pour une saisie libre, ils valent null et seul le texte [species] subsiste.
+     */
     suspend fun updateClassification(
         flower: FlowerEntity,
         species: String?,
         tags: List<String>,
+        speciesId: String? = null,
+        speciesScientificName: String? = null,
+        speciesCommonName: String? = null,
     ) = dao.update(
         flower.copy(
             species = species?.ifBlank { null },
+            speciesId = speciesId,
+            speciesScientificName = speciesScientificName,
+            speciesCommonName = speciesCommonName,
             tags = tags,
             syncState = SyncState.PENDING.name,
             updatedAt = System.currentTimeMillis(),

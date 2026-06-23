@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.FlowerRepository
+import com.florapin.app.network.dto.SpeciesDto
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -40,11 +41,26 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch { repository.updateNotes(current, notes) }
     }
 
-    /** Enregistre l'espèce et les étiquettes éditées. */
-    fun saveClassification(species: String, tags: List<String>) {
+    /**
+     * Enregistre l'espèce et les étiquettes éditées. [selected] est la fiche du
+     * référentiel choisie via l'autocomplétion (NODE-150), ou null pour une
+     * saisie libre (le species_id et le cache sont alors effacés).
+     */
+    fun saveClassification(
+        species: String,
+        tags: List<String>,
+        selected: SpeciesDto?,
+    ) {
         val current = flower.value ?: return
         viewModelScope.launch {
-            repository.updateClassification(current, species, tags)
+            repository.updateClassification(
+                flower = current,
+                species = species,
+                tags = tags,
+                speciesId = selected?.id,
+                speciesScientificName = selected?.scientificName,
+                speciesCommonName = selected?.commonName,
+            )
         }
     }
 

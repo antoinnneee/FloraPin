@@ -31,11 +31,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import com.florapin.app.albums.AddToAlbumSheet
 import com.florapin.app.capture.CameraScreen
@@ -43,6 +47,7 @@ import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.PhotoEntity
 import com.florapin.app.data.imageModel
 import com.florapin.app.location.GeoPoint
+import com.florapin.app.network.dto.SpeciesDto
 import com.florapin.app.share.ShareFlowerSheet
 import com.florapin.app.util.formatCaptureDate
 
@@ -58,6 +63,9 @@ fun DetailScreen(
     modifier: Modifier = Modifier,
     viewModel: DetailViewModel = viewModel(),
     photosViewModel: PhotosViewModel = viewModel(),
+    speciesPicker: SpeciesPickerViewModel = viewModel(
+        factory = SpeciesPickerViewModel.factory(LocalContext.current),
+    ),
 ) {
     viewModel.setFlowerId(flowerId)
     photosViewModel.setFlowerId(flowerId)
@@ -114,6 +122,7 @@ fun DetailScreen(
             DetailContent(
                 flower = current,
                 photos = photos,
+                speciesPicker = speciesPicker,
                 onSaveNotes = viewModel::saveNotes,
                 onSaveClassification = viewModel::saveClassification,
                 onAddPhoto = { showCamera = true },
@@ -143,8 +152,9 @@ fun DetailScreen(
 private fun DetailContent(
     flower: FlowerEntity,
     photos: List<PhotoEntity>,
+    speciesPicker: SpeciesPickerViewModel,
     onSaveNotes: (String) -> Unit,
-    onSaveClassification: (String, List<String>) -> Unit,
+    onSaveClassification: (String, List<String>, SpeciesDto?) -> Unit,
     onAddPhoto: () -> Unit,
     onDeletePhoto: (PhotoEntity) -> Unit,
     onMakeCover: (PhotoEntity) -> Unit,
@@ -199,6 +209,7 @@ private fun DetailContent(
                 flowerId = flower.id,
                 initialSpecies = flower.species.orEmpty(),
                 initialTags = flower.tags,
+                speciesPicker = speciesPicker,
                 onSave = onSaveClassification,
             )
 
@@ -277,28 +288,58 @@ private fun PhotoThumbnail(
     }
 }
 
-/** Édition de l'espèce et des étiquettes (étiquettes saisies séparées par des virgules). */
+/**
+ * Édition de l'espèce (autocomplétée sur le référentiel, NODE-150) et des
+ * étiquettes (saisies séparées par des virgules).
+ *
+ * Le champ espèce interroge /species/search ; sélectionner une suggestion fixe
+ * le nom scientifique et rattache la fleur (species_id). Une saisie libre reste
+ * possible : aucune fiche n'est alors associée.
+ */
 @Composable
 private fun ClassificationEditor(
     flowerId: Long,
     initialSpecies: String,
     initialTags: List<String>,
-    onSave: (String, List<String>) -> Unit,
+    speciesPicker: SpeciesPickerViewModel,
+    onSave: (String, List<String>, SpeciesDto?) -> Unit,
 ) {
     val initialTagsText = initialTags.joinToString(", ")
     var species by remember(flowerId) { mutableStateOf(initialSpecies) }
     var tagsText by remember(flowerId) { mutableStateOf(initialTagsText) }
+    // Fiche du référentiel sélectionnée ; null tant que l'utilisateur tape librement.
+    var selected by remember(flowerId) { mutableStateOf<SpeciesDto?>(null) }
+    val suggestions by speciesPicker.suggestions.collectAsStateWithLifecycle()
 
-    val changed = species != initialSpecies || tagsText != initialTagsText
+    val changed = species != initialSpecies ||
+        tagsText != initialTagsText ||
+        selected != null
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
             value = species,
-            onValueChange = { species = it },
+            onValueChange = {
+                species = it
+                selected = null // toute frappe invalide la fiche choisie
+                speciesPicker.onQueryChange(it)
+            },
             label = { Text("Espèce") },
             singleLine = true,
+            supportingText = {
+                selected?.let { Text("Rattachée à « ${it.commonName} »") }
+            },
             modifier = Modifier.fillMaxWidth(),
         )
+        if (suggestions.isNotEmpty() && selected == null) {
+            SpeciesSuggestions(
+                suggestions = suggestions,
+                onPick = { picked ->
+                    species = picked.scientificName
+                    selected = picked
+                    speciesPicker.clear()
+                },
+            )
+        }
         OutlinedTextField(
             value = tagsText,
             onValueChange = { tagsText = it },
@@ -306,11 +347,45 @@ private fun ClassificationEditor(
             modifier = Modifier.fillMaxWidth(),
         )
         Button(
-            onClick = { onSave(species, parseTags(tagsText)) },
+            onClick = { onSave(species, parseTags(tagsText), selected) },
             enabled = changed,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Enregistrer espèce & étiquettes")
+        }
+    }
+}
+
+/** Liste déroulante des suggestions d'espèces (référentiel). */
+@Composable
+private fun SpeciesSuggestions(
+    suggestions: List<SpeciesDto>,
+    onPick: (SpeciesDto) -> Unit,
+) {
+    Surface(
+        tonalElevation = 2.dp,
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column {
+            suggestions.forEachIndexed { index, species ->
+                if (index > 0) HorizontalDivider()
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onPick(species) }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                ) {
+                    Text(
+                        text = "${species.emoji ?: "🌸"} ${species.scientificName}",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = "${species.commonName} · ${species.family}",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
         }
     }
 }

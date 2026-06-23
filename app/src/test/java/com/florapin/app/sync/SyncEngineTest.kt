@@ -82,13 +82,16 @@ private class FakeSyncApi(
 }
 
 private class FakeFlowersApi : FlowersApi {
+    var lastUpdateBody: UpdateFlowerRequest? = null
     override suspend fun create(body: CreateFlowerRequest) =
         throw UnsupportedOperationException()
     override suspend fun list(species: String?, tag: String?) = emptyList<FlowerDto>()
     override suspend fun get(id: String) = throw UnsupportedOperationException()
     override suspend fun imageUrl(id: String) = ImageUrlResponse("u")
-    override suspend fun update(id: String, body: UpdateFlowerRequest) =
-        throw UnsupportedOperationException()
+    override suspend fun update(id: String, body: UpdateFlowerRequest): FlowerDto {
+        lastUpdateBody = body
+        return dto(id, "2026-06-21T10:00:00Z")
+    }
     override suspend fun delete(id: String) = retrofit2.Response.success<Unit>(null)
 }
 
@@ -246,5 +249,39 @@ class SyncEngineTest {
 
         assertEquals("neuf", dao.store[id]!!.notes)
         assertNull(dao.store[id]!!.deletedAt)
+    }
+
+    @Test
+    fun push_updateCarriesSpeciesAndSpeciesId() = runBlocking {
+        val dao = FakeDao()
+        val repo = FlowerRepository(dao)
+        dao.insert(
+            FlowerEntity(
+                imagePath = "/p.jpg",
+                createdAt = 1_000L,
+                serverId = "srv-up",
+                species = "Rosa canina",
+                speciesId = "sp-1",
+                tags = listOf("jardin"),
+                syncState = SyncState.PENDING.name,
+                updatedAt = 1_000L,
+            ),
+        )
+        val flowersApi = FakeFlowersApi()
+        val engine = SyncEngine(
+            repository = repo,
+            syncApi = FakeSyncApi(),
+            flowersApi = flowersApi,
+            uploadImage = { _, _ -> },
+            lastSyncStore = FakeLastSync(),
+            now = { 5_000L },
+        )
+
+        engine.push()
+
+        val body = flowersApi.lastUpdateBody!!
+        assertEquals("Rosa canina", body.species)
+        assertEquals("sp-1", body.speciesId)
+        assertEquals(listOf("jardin"), body.tags)
     }
 }

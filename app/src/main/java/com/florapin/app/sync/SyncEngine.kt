@@ -68,7 +68,12 @@ class SyncEngine(
             try {
                 flowersApi.update(
                     flower.serverId!!,
-                    UpdateFlowerRequest(notes = flower.notes),
+                    UpdateFlowerRequest(
+                        notes = flower.notes,
+                        species = flower.species,
+                        speciesId = flower.speciesId,
+                        tags = flower.tags,
+                    ),
                 )
                 repository.markSynced(flower.id, flower.serverId, now())
             } catch (e: Exception) {

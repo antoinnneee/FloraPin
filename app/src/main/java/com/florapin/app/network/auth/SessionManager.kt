@@ -1,10 +1,12 @@
 package com.florapin.app.network.auth
 
 import com.florapin.app.network.api.AuthApi
+import com.florapin.app.network.dto.DeleteAccountRequest
 import com.florapin.app.network.dto.LoginRequest
 import com.florapin.app.network.dto.RefreshRequest
 import com.florapin.app.network.dto.RegisterRequest
 import com.florapin.app.network.dto.UserDto
+import retrofit2.HttpException
 
 /** Orchestration de la session : connexion, inscription, déconnexion. */
 class SessionManager(
@@ -61,5 +63,20 @@ class SessionManager(
             tokenStore.clear()
             localData?.clearLocalData()
         }
+    }
+
+    /**
+     * Supprime définitivement le compte courant côté serveur (DELETE /users/me,
+     * re-authentification par [password]) puis purge le stockage local (tokens +
+     * données de session). En cas d'échec serveur (ex. mot de passe incorrect),
+     * lève [HttpException] et ne touche pas au stockage local.
+     */
+    suspend fun deleteAccount(password: String) {
+        val response = authApi.deleteAccount(DeleteAccountRequest(password))
+        if (!response.isSuccessful) {
+            throw HttpException(response)
+        }
+        tokenStore.clear()
+        localData?.clearLocalData()
     }
 }

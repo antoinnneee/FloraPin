@@ -4,6 +4,7 @@ import com.florapin.app.network.api.AuthApi
 import com.florapin.app.network.auth.SessionManager
 import com.florapin.app.network.auth.TokenStore
 import com.florapin.app.network.dto.AuthResponse
+import com.florapin.app.network.dto.DeleteAccountRequest
 import com.florapin.app.network.dto.LoginRequest
 import com.florapin.app.network.dto.RefreshRequest
 import com.florapin.app.network.dto.RegisterRequest
@@ -57,6 +58,8 @@ private class FakeAuthApi(private val failLogin: Boolean = false) : AuthApi {
     override suspend fun logout(body: RefreshRequest): Response<Unit> =
         Response.success(null)
     override suspend fun me(): UserDto = USER
+    override suspend fun deleteAccount(body: DeleteAccountRequest): Response<Unit> =
+        Response.success(null)
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

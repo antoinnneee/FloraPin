@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.florapin.app.data.LocalSessionDataCleaner
 import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.network.auth.SessionManager
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 
 /** État du profil de l'utilisateur courant. */
 data class ProfileUiState(
@@ -20,6 +22,8 @@ data class ProfileUiState(
     val email: String = "",
     val loading: Boolean = false,
     val error: String? = null,
+    val deleting: Boolean = false,
+    val deleteError: String? = null,
 )
 
 /**
@@ -62,6 +66,31 @@ class ProfileViewModel(
         }
     }
 
+    /**
+     * Supprime définitivement le compte (NODE-118). [password] re-authentifie
+     * l'utilisateur. En cas de succès, la session locale est purgée et [onDeleted]
+     * est invoqué pour naviguer vers Login ; sinon [ProfileUiState.deleteError]
+     * est renseigné.
+     */
+    fun deleteAccount(password: String, onDeleted: () -> Unit) {
+        _state.update { it.copy(deleting = true, deleteError = null) }
+        viewModelScope.launch {
+            try {
+                session.deleteAccount(password)
+                onDeleted()
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(deleting = false, deleteError = deleteMessageOf(e))
+                }
+            }
+        }
+    }
+
+    private fun deleteMessageOf(error: Throwable): String = when {
+        error is HttpException && error.code() == 401 -> "Mot de passe incorrect."
+        else -> "Suppression impossible. Réessayez."
+    }
+
     companion object {
         /** Factory câblant le stockage chiffré + les services authentifiés. */
         fun factory(context: Context): ViewModelProvider.Factory =
@@ -70,7 +99,9 @@ class ProfileViewModel(
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     val tokenStore = EncryptedTokenStore(context.applicationContext)
                     val apis = NetworkModule.createAuthenticated(tokenStore)
-                    val session = NetworkModule.sessionManager(apis, tokenStore)
+                    val cleaner = LocalSessionDataCleaner.from(context)
+                    val session =
+                        NetworkModule.sessionManager(apis, tokenStore, cleaner)
                     return ProfileViewModel(tokenStore, session) as T
                 }
             }

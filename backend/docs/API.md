@@ -42,6 +42,7 @@ en `geography(Point,4326)` ; restitués sous forme lat/long + `accuracyM`.
 |---------|---------------|-------------|
 | GET     | `/users/me`   | Profil courant |
 | PATCH   | `/users/me`   | `{ displayName? }` |
+| DELETE  | `/users/me`   | `{ password }` → **204**. Effacement RGPD : supprime le compte et **toutes** ses données (fleurs, photos, albums, amitiés, partages, propositions, notifications, jetons d'appareil) ; purge aussi les objets image (MinIO). Re-authentification par mot de passe ; `401` si incorrect. Irréversible. |
 | GET     | `/users?query=` | Recherche par email/nom (pour ajouter un ami) — résultats limités |
 
 `User` = `{ id, email, displayName, createdAt }` (jamais le `passwordHash`).

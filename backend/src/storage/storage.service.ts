@@ -19,4 +19,10 @@ export abstract class StorageService {
 
   /** URL présignée de lecture (GET), à durée limitée. */
   abstract presignDownload(key: string): Promise<string>;
+
+  /**
+   * Supprime définitivement l'objet [key] du stockage (effacement RGPD —
+   * NODE-118). Idempotent : ne lève pas si l'objet est déjà absent.
+   */
+  abstract delete(key: string): Promise<void>;
 }

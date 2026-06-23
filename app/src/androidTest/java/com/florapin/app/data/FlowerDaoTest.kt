@@ -87,6 +87,39 @@ class FlowerDaoTest {
     }
 
     @Test
+    fun observeBySpecies_matchesBySpeciesIdOrScientificName() = runBlocking {
+        // Rattachée par species_id.
+        dao.insert(
+            FlowerEntity(
+                imagePath = "/a.jpg",
+                createdAt = 1_000L,
+                speciesId = "sp-1",
+            ),
+        )
+        // Rattachée par texte libre = nom scientifique.
+        dao.insert(
+            FlowerEntity(
+                imagePath = "/b.jpg",
+                createdAt = 2_000L,
+                species = "Rosa canina",
+            ),
+        )
+        // Une autre espèce : exclue.
+        dao.insert(
+            FlowerEntity(
+                imagePath = "/c.jpg",
+                createdAt = 3_000L,
+                species = "Bellis perennis",
+            ),
+        )
+
+        val mine = dao.observeBySpecies("sp-1", "Rosa canina").first()
+        assertEquals(2, mine.size)
+        // Triées par date décroissante : la fleur texte (2_000) avant l'id (1_000).
+        assertEquals(listOf("/b.jpg", "/a.jpg"), mine.map { it.imagePath })
+    }
+
+    @Test
     fun observeById_emitsNullWhenDeleted() = runBlocking {
         val id = dao.insert(FlowerEntity(imagePath = "/p.jpg", createdAt = 1_000L))
         assertNotNull(dao.observeById(id).first())

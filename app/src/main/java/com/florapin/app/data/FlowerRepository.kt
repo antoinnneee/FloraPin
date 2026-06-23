@@ -76,6 +76,10 @@ class FlowerRepository(private val dao: FlowerDao) {
         ),
     )
 
+    /** Flux des fleurs d'une espèce (rattachées ou texte = nom scientifique). */
+    fun observeBySpecies(speciesId: String?, scientificName: String?) =
+        dao.observeBySpecies(speciesId, scientificName)
+
     suspend fun delete(flower: FlowerEntity) = dao.delete(flower)
 
     /** Purge toutes les fleurs locales (déconnexion / changement de compte). */

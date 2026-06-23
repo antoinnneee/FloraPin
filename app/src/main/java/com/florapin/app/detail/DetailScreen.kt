@@ -61,6 +61,7 @@ fun DetailScreen(
     flowerId: Long,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenSpecies: (String) -> Unit = {},
     viewModel: DetailViewModel = viewModel(),
     photosViewModel: PhotosViewModel = viewModel(),
     speciesPicker: SpeciesPickerViewModel = viewModel(
@@ -125,6 +126,7 @@ fun DetailScreen(
                 speciesPicker = speciesPicker,
                 onSaveNotes = viewModel::saveNotes,
                 onSaveClassification = viewModel::saveClassification,
+                onOpenSpecies = onOpenSpecies,
                 onAddPhoto = { showCamera = true },
                 onDeletePhoto = photosViewModel::deletePhoto,
                 onMakeCover = photosViewModel::makeCover,
@@ -155,6 +157,7 @@ private fun DetailContent(
     speciesPicker: SpeciesPickerViewModel,
     onSaveNotes: (String) -> Unit,
     onSaveClassification: (String, List<String>, SpeciesDto?) -> Unit,
+    onOpenSpecies: (String) -> Unit,
     onAddPhoto: () -> Unit,
     onDeletePhoto: (PhotoEntity) -> Unit,
     onMakeCover: (PhotoEntity) -> Unit,
@@ -212,6 +215,23 @@ private fun DetailContent(
                 speciesPicker = speciesPicker,
                 onSave = onSaveClassification,
             )
+
+            // Lien vers la fiche d'espèce quand la fleur est rattachée (NODE-151).
+            flower.speciesId?.let { speciesId ->
+                val label = flower.speciesCommonName
+                    ?: flower.speciesScientificName
+                    ?: flower.species
+                    ?: "cette espèce"
+                Text(
+                    text = "🌿 Voir la fiche : $label",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpenSpecies(speciesId) }
+                        .padding(vertical = 4.dp),
+                )
+            }
 
             NotesEditor(
                 flowerId = flower.id,

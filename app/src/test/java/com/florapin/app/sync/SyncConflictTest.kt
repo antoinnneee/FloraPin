@@ -31,6 +31,10 @@ private class MemDao : FlowerDao {
     override suspend fun findByServerId(serverId: String) =
         store.values.find { it.serverId == serverId }
     override fun observeById(id: Long): Flow<FlowerEntity?> = flowOf(store[id])
+    override fun observeBySpecies(
+        speciesId: String?,
+        scientificName: String?,
+    ): Flow<List<FlowerEntity>> = flowOf(emptyList())
     override suspend fun insert(flower: FlowerEntity): Long {
         val id = ++seq; store[id] = flower.copy(id = id); return id
     }

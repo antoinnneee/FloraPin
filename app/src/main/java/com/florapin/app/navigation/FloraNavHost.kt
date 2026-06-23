@@ -163,6 +163,12 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
                         navController.goToLogin()
                     }
                 },
+                onAccountDeleted = {
+                    // Le compte (et ses device tokens) est déjà purgé côté serveur :
+                    // on annule la sync locale et on retourne à Login.
+                    SyncScheduler.cancelAll(context)
+                    navController.goToLogin()
+                },
             )
         }
         composable(Routes.CAPTURE) {

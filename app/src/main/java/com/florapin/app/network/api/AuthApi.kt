@@ -1,6 +1,7 @@
 package com.florapin.app.network.api
 
 import com.florapin.app.network.dto.AuthResponse
+import com.florapin.app.network.dto.DeleteAccountRequest
 import com.florapin.app.network.dto.LoginRequest
 import com.florapin.app.network.dto.RefreshRequest
 import com.florapin.app.network.dto.RegisterRequest
@@ -9,6 +10,7 @@ import com.florapin.app.network.dto.UserDto
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.POST
 
 interface AuthApi {
@@ -30,4 +32,12 @@ interface AuthApi {
      */
     @GET("users/me")
     suspend fun me(): UserDto
+
+    /**
+     * Supprime définitivement le compte courant et toutes ses données (NODE-118).
+     * DELETE avec corps (mot de passe) : `@HTTP(hasBody = true)` car `@DELETE`
+     * ne permet pas de `@Body`.
+     */
+    @HTTP(method = "DELETE", path = "users/me", hasBody = true)
+    suspend fun deleteAccount(@Body body: DeleteAccountRequest): Response<Unit>
 }

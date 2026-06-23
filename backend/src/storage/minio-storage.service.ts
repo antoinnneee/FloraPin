@@ -11,6 +11,7 @@ export interface ObjectStorageClient {
   presignedGetObject(bucket: string, key: string, expiry: number): Promise<string>;
   bucketExists(bucket: string): Promise<boolean>;
   makeBucket(bucket: string, region?: string): Promise<void>;
+  removeObject(bucket: string, key: string): Promise<void>;
 }
 
 /**
@@ -65,5 +66,9 @@ export class MinioStorageService
 
   async presignDownload(key: string): Promise<string> {
     return this.client.presignedGetObject(this.bucket, key, this.expiresIn);
+  }
+
+  async delete(key: string): Promise<void> {
+    await this.client.removeObject(this.bucket, key);
   }
 }

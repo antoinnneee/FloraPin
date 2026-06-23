@@ -28,4 +28,8 @@ export class StubStorageService extends StorageService {
   async presignDownload(key: string): Promise<string> {
     return `https://storage.invalid/${key}?download=stub`;
   }
+
+  async delete(_key: string): Promise<void> {
+    // Aucun objet réel à supprimer (placeholder).
+  }
 }

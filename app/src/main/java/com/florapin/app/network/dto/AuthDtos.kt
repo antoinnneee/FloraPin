@@ -24,6 +24,12 @@ data class RefreshRequest(
     val refreshToken: String,
 )
 
+/** Corps de DELETE /users/me : re-authentification (effacement RGPD, NODE-118). */
+@JsonClass(generateAdapter = true)
+data class DeleteAccountRequest(
+    val password: String,
+)
+
 @JsonClass(generateAdapter = true)
 data class UserDto(
     val id: String,

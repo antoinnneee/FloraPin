@@ -6,6 +6,11 @@ import {
 class FakeClient implements ObjectStorageClient {
   buckets = new Set<string>();
   putCalls: Array<{ bucket: string; key: string; expiry: number }> = [];
+  removed: Array<{ bucket: string; key: string }> = [];
+
+  async removeObject(bucket: string, key: string): Promise<void> {
+    this.removed.push({ bucket, key });
+  }
 
   async presignedPutObject(
     bucket: string,
@@ -70,5 +75,10 @@ describe('MinioStorageService', () => {
     expect(client.buckets.has(BUCKET)).toBe(false);
     await service.onModuleInit();
     expect(client.buckets.has(BUCKET)).toBe(true);
+  });
+
+  it('supprime un objet sur le bon bucket', async () => {
+    await service.delete('flowers/o/x.jpg');
+    expect(client.removed).toEqual([{ bucket: BUCKET, key: 'flowers/o/x.jpg' }]);
   });
 });

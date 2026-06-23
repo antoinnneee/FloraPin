@@ -4,6 +4,7 @@ import com.florapin.app.network.api.AuthApi
 import com.florapin.app.network.auth.SessionManager
 import com.florapin.app.network.auth.TokenStore
 import com.florapin.app.network.dto.AuthResponse
+import com.florapin.app.network.dto.DeleteAccountRequest
 import com.florapin.app.network.dto.LoginRequest
 import com.florapin.app.network.dto.RefreshRequest
 import com.florapin.app.network.dto.RegisterRequest
@@ -16,8 +17,11 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Response
@@ -28,15 +32,20 @@ private class MemTokenStore(displayName: String? = null) : TokenStore {
     private var a: String? = null
     private var r: String? = null
     private var name: String? = displayName
+    var cleared = false
+        private set
     override fun accessToken() = a
     override fun refreshToken() = r
     override fun displayName() = name
     override fun saveDisplayName(displayName: String) { name = displayName }
     override fun save(accessToken: String, refreshToken: String) { a = accessToken; r = refreshToken }
-    override fun clear() { a = null; r = null; name = null }
+    override fun clear() { a = null; r = null; name = null; cleared = true }
 }
 
-private class FakeAuthApi(private val failMe: Boolean = false) : AuthApi {
+private class FakeAuthApi(
+    private val failMe: Boolean = false,
+    private val deleteStatus: Int = 204,
+) : AuthApi {
     override suspend fun register(body: RegisterRequest): AuthResponse = AuthResponse(USER, "acc", "ref")
     override suspend fun login(body: LoginRequest): AuthResponse = AuthResponse(USER, "acc", "ref")
     override suspend fun refresh(body: RefreshRequest): TokenPair = TokenPair("a", "r")
@@ -45,6 +54,14 @@ private class FakeAuthApi(private val failMe: Boolean = false) : AuthApi {
         if (failMe) throw RuntimeException("offline")
         return USER
     }
+    override suspend fun deleteAccount(body: DeleteAccountRequest): Response<Unit> =
+        if (deleteStatus in 200..299) Response.success(null)
+        else Response.error("".toResponseBody(), okhttp3.Response.Builder()
+            .code(deleteStatus)
+            .message("err")
+            .protocol(okhttp3.Protocol.HTTP_1_1)
+            .request(okhttp3.Request.Builder().url("http://localhost/users/me").build())
+            .build())
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -90,5 +107,38 @@ class ProfileViewModelTest {
         assertEquals("Alice", vm.state.value.displayName)
         assertEquals("", vm.state.value.email)
         assertEquals("Impossible de rafraîchir le profil.", vm.state.value.error)
+    }
+
+    @Test
+    fun deleteAccount_success_clearsSessionAndCallsOnDeleted() = runTest {
+        val store = MemTokenStore(displayName = "Alice")
+        val vm = ProfileViewModel(store, SessionManager(FakeAuthApi(), store))
+        advanceUntilIdle()
+
+        var deleted = false
+        vm.deleteAccount("pw") { deleted = true }
+        advanceUntilIdle()
+
+        assertTrue(deleted)
+        assertTrue(store.cleared)
+        assertEquals(null, vm.state.value.deleteError)
+    }
+
+    @Test
+    fun deleteAccount_wrongPassword_setsErrorAndKeepsSession() = runTest {
+        val store = MemTokenStore(displayName = "Alice")
+        val vm = ProfileViewModel(store, SessionManager(FakeAuthApi(deleteStatus = 401), store))
+        advanceUntilIdle()
+        // Le refresh initial appelle clear() ? non : seul deleteAccount le fait.
+        val clearedBefore = store.cleared
+
+        var deleted = false
+        vm.deleteAccount("pw") { deleted = true }
+        advanceUntilIdle()
+
+        assertFalse(deleted)
+        assertEquals(clearedBefore, store.cleared)
+        assertEquals("Mot de passe incorrect.", vm.state.value.deleteError)
+        assertFalse(vm.state.value.deleting)
     }
 }

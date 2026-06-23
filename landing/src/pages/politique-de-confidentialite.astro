@@ -1,0 +1,170 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Footer from '../components/Footer.astro';
+
+const lastUpdated = '24 juin 2026';
+const contact = 'contact@florapin.fr';
+---
+
+<Layout
+  title="Politique de confidentialité — FloraPin"
+  description="Comment FloraPin collecte, utilise et protège vos données : photos, localisation et compte. Vous gardez le contrôle et pouvez supprimer votre compte à tout moment."
+>
+  <main class="policy">
+    <div class="container">
+      <a class="back" href="/">← Retour à l'accueil</a>
+      <span class="eyebrow">Vie privée</span>
+      <h1>Politique de confidentialité</h1>
+      <p class="updated">Dernière mise à jour : {lastUpdated}</p>
+
+      <p class="intro">
+        FloraPin (« l'application ») vous permet de photographier des fleurs, de
+        les géolocaliser et de les partager. Cette page explique quelles données
+        sont collectées, pourquoi, et comment vous en gardez le contrôle.
+      </p>
+
+      <section>
+        <h2>Données collectées</h2>
+        <ul>
+          <li>
+            <strong>Photos</strong> (caméra ou galerie) : pour cataloguer et
+            identifier vos fleurs. Elles ne sont jamais transmises à des tiers à
+            des fins publicitaires.
+          </li>
+          <li>
+            <strong>Localisation GPS</strong> : pour situer vos observations sur
+            la carte. La capture sans position reste possible ; vous choisissez,
+            au moment du partage, d'inclure ou non les coordonnées.
+          </li>
+          <li>
+            <strong>Adresse email et compte</strong> : pour l'authentification,
+            la synchronisation entre vos appareils et le partage entre amis.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Finalités</h2>
+        <ul>
+          <li>Identification des plantes et tenue d'un carnet de collecte personnel.</li>
+          <li>Synchronisation de vos fleurs entre vos appareils.</li>
+          <li>Partage choisi de vos observations avec vos amis.</li>
+          <li>Fonctionnement et sécurité de l'application.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Base légale</h2>
+        <p>
+          Le traitement repose sur votre <strong>consentement</strong>
+          (RGPD, art. 6.1.a), donné lors de la création de votre compte et de
+          l'octroi des autorisations (caméra, localisation).
+        </p>
+      </section>
+
+      <section>
+        <h2>Partage des données</h2>
+        <p>
+          Vos données ne sont <strong>pas vendues</strong> ni partagées avec des
+          tiers à des fins publicitaires. Seuls les amis avec qui vous décidez de
+          partager une fleur ou une collection y ont accès, selon vos réglages.
+        </p>
+      </section>
+
+      <section>
+        <h2>Conservation et suppression</h2>
+        <p>
+          Vos données sont conservées tant que votre compte existe. Vous pouvez
+          <strong>supprimer définitivement votre compte</strong> à tout moment
+          depuis l'application (écran Profil → « Supprimer mon compte »). Cette
+          action efface vos fleurs, photos, partages et informations de compte de
+          nos serveurs, de façon irréversible.
+        </p>
+      </section>
+
+      <section>
+        <h2>Vos droits</h2>
+        <p>
+          Conformément au RGPD, vous disposez d'un droit d'accès, de
+          rectification et de suppression de vos données. La suppression est
+          réalisable directement dans l'application ; pour les autres demandes,
+          écrivez à <a href={`mailto:${contact}`}>{contact}</a>.
+        </p>
+      </section>
+
+      <section>
+        <h2>Contact</h2>
+        <p>
+          Pour toute question relative à cette politique ou à vos données :
+          <a href={`mailto:${contact}`}>{contact}</a>.
+        </p>
+      </section>
+    </div>
+  </main>
+  <Footer />
+</Layout>
+
+<style>
+  .policy {
+    padding: clamp(48px, 8vw, 96px) 0 clamp(32px, 6vw, 64px);
+    background: var(--green-50);
+  }
+
+  .back {
+    display: inline-block;
+    color: var(--green-700);
+    font-weight: 600;
+    margin-bottom: 24px;
+  }
+
+  h1 {
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    font-weight: 800;
+    color: var(--green-900);
+    line-height: 1.2;
+  }
+
+  .updated {
+    color: var(--gray-600);
+    font-size: 0.9rem;
+    margin-top: 8px;
+  }
+
+  .intro {
+    margin-top: 24px;
+    font-size: 1.05rem;
+    color: var(--gray-900);
+    max-width: 720px;
+  }
+
+  section {
+    margin-top: 40px;
+    max-width: 720px;
+  }
+
+  section h2 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--green-800);
+    margin-bottom: 12px;
+  }
+
+  section p {
+    color: var(--gray-900);
+  }
+
+  section ul {
+    padding-left: 22px;
+    color: var(--gray-900);
+  }
+
+  section li {
+    margin-bottom: 10px;
+  }
+
+  section a {
+    color: var(--green-700);
+    font-weight: 600;
+    text-decoration: underline;
+  }
+</style>

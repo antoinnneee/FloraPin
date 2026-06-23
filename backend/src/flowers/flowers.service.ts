@@ -29,6 +29,10 @@ export interface FlowerResponse {
   notes: string;
   visibility: string;
   species: string | null;
+  /** FK vers le référentiel d'espèces (NODE-124), null si non rapprochée. */
+  speciesId: string | null;
+  /** Espèce résolue depuis le référentiel (NODE-125), null si non rapprochée. */
+  speciesRef: { id: string; scientificName: string; commonName: string } | null;
   tags: string[];
   photos: PhotoResponse[];
   createdAt: Date;
@@ -97,7 +101,10 @@ export class FlowersService {
   }
 
   async getById(ownerId: string, id: string): Promise<FlowerResponse> {
-    const flower = await this.flowers.findOne({ where: { id, ownerId } });
+    const flower = await this.flowers.findOne({
+      where: { id, ownerId },
+      relations: { speciesRef: true },
+    });
     if (!flower) {
       throw new NotFoundException('Fleur introuvable.');
     }
@@ -120,6 +127,7 @@ export class FlowersService {
     const flowers = await this.flowers.find({
       where: { ownerId },
       order: { takenAt: 'DESC' },
+      relations: { speciesRef: true },
     });
 
     const species = filters.species?.toLowerCase();
@@ -137,7 +145,10 @@ export class FlowersService {
     id: string,
     dto: UpdateFlowerDto,
   ): Promise<FlowerResponse> {
-    const flower = await this.flowers.findOne({ where: { id, ownerId } });
+    const flower = await this.flowers.findOne({
+      where: { id, ownerId },
+      relations: { speciesRef: true },
+    });
     if (!flower) {
       throw new NotFoundException('Fleur introuvable.');
     }
@@ -185,6 +196,14 @@ export class FlowersService {
       notes: flower.notes,
       visibility: flower.visibility,
       species: flower.species ?? null,
+      speciesId: flower.speciesId ?? null,
+      speciesRef: flower.speciesRef
+        ? {
+            id: flower.speciesRef.id,
+            scientificName: flower.speciesRef.scientificName,
+            commonName: flower.speciesRef.commonName,
+          }
+        : null,
       tags: flower.tags ?? [],
       photos: photoResponses,
       createdAt: flower.createdAt,

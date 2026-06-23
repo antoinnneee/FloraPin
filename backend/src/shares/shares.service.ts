@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
+import { Album } from '../albums/album.entity';
 import { Flower } from '../flowers/flower.entity';
 import { FlowerResponse, FlowersService } from '../flowers/flowers.service';
 import { FriendshipsService } from '../friendships/friendships.service';
@@ -20,6 +21,8 @@ export class SharesService {
     private readonly shares: Repository<Share>,
     @InjectRepository(Flower)
     private readonly flowers: Repository<Flower>,
+    @InjectRepository(Album)
+    private readonly albums: Repository<Album>,
     private readonly friendships: FriendshipsService,
     private readonly flowersService: FlowersService,
     private readonly notifications: NotificationsService,
@@ -35,6 +38,7 @@ export class SharesService {
     }
 
     let flowerId: string | null = null;
+    let albumId: string | null = null;
     if (dto.scope === 'flower') {
       const flower = await this.flowers.findOne({
         where: { id: dto.flowerId, ownerId },
@@ -43,6 +47,14 @@ export class SharesService {
         throw new NotFoundException('Fleur introuvable.');
       }
       flowerId = flower.id;
+    } else if (dto.scope === 'album') {
+      const album = await this.albums.findOne({
+        where: { id: dto.albumId, ownerId },
+      });
+      if (!album) {
+        throw new NotFoundException('Album introuvable.');
+      }
+      albumId = album.id;
     }
 
     const existing = await this.shares.findOne({
@@ -51,6 +63,7 @@ export class SharesService {
         sharedWith: dto.friendId,
         scope: dto.scope,
         flowerId: flowerId ?? IsNull(),
+        albumId: albumId ?? IsNull(),
       },
     });
     if (existing) {
@@ -63,6 +76,7 @@ export class SharesService {
         sharedWith: dto.friendId,
         scope: dto.scope,
         flowerId,
+        albumId,
         includeGps: dto.includeGps ?? true,
       }),
     );
@@ -73,6 +87,7 @@ export class SharesService {
       fromUserId: ownerId,
       scope: share.scope,
       flowerId: share.flowerId,
+      albumId: share.albumId,
     });
 
     return share;
@@ -105,10 +120,7 @@ export class SharesService {
 
     const byId = new Map<string, FlowerResponse>();
     for (const share of shares) {
-      const flowers =
-        share.scope === 'all'
-          ? await this.flowers.find({ where: { ownerId: share.ownerId } })
-          : await this.resolveSingle(share.flowerId);
+      const flowers = await this.resolveFlowers(share);
 
       for (const flower of flowers) {
         const response = await this.flowersService.toResponse(flower);
@@ -123,10 +135,31 @@ export class SharesService {
     return [...byId.values()];
   }
 
+  /** Résout les fleurs concrètes couvertes par un partage selon son périmètre. */
+  private async resolveFlowers(share: Share): Promise<Flower[]> {
+    switch (share.scope) {
+      case 'all':
+        return this.flowers.find({ where: { ownerId: share.ownerId } });
+      case 'album':
+        return this.resolveAlbum(share.albumId);
+      default:
+        return this.resolveSingle(share.flowerId);
+    }
+  }
+
   private async resolveSingle(flowerId: string | null): Promise<Flower[]> {
     if (!flowerId) return [];
     const flower = await this.flowers.findOne({ where: { id: flowerId } });
     return flower ? [flower] : [];
+  }
+
+  private async resolveAlbum(albumId: string | null): Promise<Flower[]> {
+    if (!albumId) return [];
+    const album = await this.albums.findOne({
+      where: { id: albumId },
+      relations: { flowers: true },
+    });
+    return album?.flowers ?? [];
   }
 }
 

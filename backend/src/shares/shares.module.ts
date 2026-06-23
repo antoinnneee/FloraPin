@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { Album } from '../albums/album.entity';
 import { Flower } from '../flowers/flower.entity';
 import { FlowersModule } from '../flowers/flowers.module';
 import { FriendshipsModule } from '../friendships/friendships.module';
@@ -10,7 +11,7 @@ import { SharesService } from './shares.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Share, Flower]),
+    TypeOrmModule.forFeature([Share, Flower, Album]),
     FlowersModule,
     FriendshipsModule,
     NotificationsModule,

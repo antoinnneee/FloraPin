@@ -2,6 +2,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
+import { Album } from '../albums/album.entity';
 import { Flower } from '../flowers/flower.entity';
 import { FlowersService } from '../flowers/flowers.service';
 import { FriendshipsService } from '../friendships/friendships.service';
@@ -44,6 +45,25 @@ class FakeFlowerRepo {
             f.ownerId === opts.where.ownerId),
       ) ?? null
     );
+  }
+}
+
+class FakeAlbumRepo {
+  store = new Map<string, Album>();
+  seed(ownerId: string, flowers: Flower[]): Album {
+    const album = { id: randomUUID(), ownerId, name: 'Album', flowers } as Album;
+    this.store.set(album.id, album);
+    return album;
+  }
+  async findOne(opts: {
+    where: { id?: string; ownerId?: string };
+  }): Promise<Album | null> {
+    const found = [...this.store.values()].find(
+      (a) =>
+        (opts.where.id === undefined || a.id === opts.where.id) &&
+        (opts.where.ownerId === undefined || a.ownerId === opts.where.ownerId),
+    );
+    return found ? { ...found, flowers: [...found.flowers] } : null;
   }
 }
 
@@ -90,11 +110,13 @@ const VIEWER = 'viewer';
 describe('SharesService', () => {
   let service: SharesService;
   let flowerRepo: FakeFlowerRepo;
+  let albumRepo: FakeAlbumRepo;
   let acceptedFriends: string[];
   let notify: jest.Mock;
 
   beforeEach(async () => {
     flowerRepo = new FakeFlowerRepo();
+    albumRepo = new FakeAlbumRepo();
     acceptedFriends = [VIEWER];
     notify = jest.fn();
 
@@ -104,6 +126,7 @@ describe('SharesService', () => {
         FlowersService,
         { provide: getRepositoryToken(Share), useClass: FakeShareRepo },
         { provide: getRepositoryToken(Flower), useValue: flowerRepo },
+        { provide: getRepositoryToken(Album), useValue: albumRepo },
         { provide: StorageService, useClass: StubStorageService },
         {
           provide: FriendshipsService,
@@ -164,6 +187,31 @@ describe('SharesService', () => {
       'flower_shared',
       expect.objectContaining({ fromUserId: OWNER, scope: 'all' }),
     );
+  });
+
+  it("refuse le partage d'un album inexistant", async () => {
+    await expect(
+      service.create(OWNER, {
+        friendId: VIEWER,
+        scope: 'album',
+        albumId: randomUUID(),
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("partage les fleurs d'un album", async () => {
+    const f1 = flowerRepo.seed({ ownerId: OWNER, imageKey: 'a1', takenAt: new Date() });
+    const f2 = flowerRepo.seed({ ownerId: OWNER, imageKey: 'a2', takenAt: new Date() });
+    const album = albumRepo.seed(OWNER, [f1, f2]);
+
+    await service.create(OWNER, {
+      friendId: VIEWER,
+      scope: 'album',
+      albumId: album.id,
+    });
+
+    const visible = await service.sharedWithMe(VIEWER);
+    expect(visible.map((f) => f.id).sort()).toEqual([f1.id, f2.id].sort());
   });
 
   it('partage une fleur avec GPS', async () => {

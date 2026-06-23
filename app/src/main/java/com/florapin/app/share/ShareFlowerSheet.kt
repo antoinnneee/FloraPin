@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.florapin.app.network.dto.AlbumDto
 import com.florapin.app.network.dto.FriendUserDto
 
 /**
@@ -50,6 +51,7 @@ fun ShareFlowerSheet(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     var selectedFriend by remember { mutableStateOf<FriendUserDto?>(null) }
+    var selectedAlbum by remember { mutableStateOf<AlbumDto?>(null) }
     var scope by remember { mutableStateOf(if (flowerServerId != null) "flower" else "all") }
     var includeGps by remember { mutableStateOf(true) }
 
@@ -82,9 +84,24 @@ fun ShareFlowerSheet(
                     label = { Text("Cette fleur") },
                 )
                 FilterChip(
+                    selected = scope == "album",
+                    enabled = state.albums.isNotEmpty(),
+                    onClick = { scope = "album" },
+                    label = { Text("Un album") },
+                )
+                FilterChip(
                     selected = scope == "all",
                     onClick = { scope = "all" },
                     label = { Text("Toutes mes fleurs") },
+                )
+            }
+
+            // Sélection de l'album (périmètre 'album').
+            if (scope == "album") {
+                AlbumPicker(
+                    albums = state.albums,
+                    selected = selectedAlbum,
+                    onSelect = { selectedAlbum = it },
                 )
             }
 
@@ -101,11 +118,20 @@ fun ShareFlowerSheet(
             Button(
                 onClick = {
                     selectedFriend?.let { friend ->
-                        viewModel.createShare(friend.id, scope, includeGps, flowerServerId)
+                        viewModel.createShare(
+                            friendId = friend.id,
+                            scope = scope,
+                            includeGps = includeGps,
+                            flowerId = flowerServerId,
+                            albumId = selectedAlbum?.id,
+                        )
                     }
                 },
-                enabled = selectedFriend != null &&
-                    (scope == "all" || flowerServerId != null),
+                enabled = selectedFriend != null && when (scope) {
+                    "flower" -> flowerServerId != null
+                    "album" -> selectedAlbum != null
+                    else -> true
+                },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Partager")
@@ -121,7 +147,7 @@ fun ShareFlowerSheet(
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
-                            text = (if (share.scope == "flower") "Une fleur" else "Toutes") +
+                            text = scopeLabel(share.scope) +
                                 (if (share.includeGps) " · GPS" else " · sans GPS"),
                             style = MaterialTheme.typography.bodyMedium,
                         )
@@ -130,6 +156,43 @@ fun ShareFlowerSheet(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/** Libellé lisible d'un périmètre de partage. */
+private fun scopeLabel(scope: String): String = when (scope) {
+    "flower" -> "Une fleur"
+    "album" -> "Un album"
+    else -> "Toutes"
+}
+
+/** Sélecteur d'album : bouton qui ouvre un menu déroulant des albums. */
+@Composable
+private fun AlbumPicker(
+    albums: List<AlbumDto>,
+    selected: AlbumDto?,
+    onSelect: (AlbumDto) -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(
+            onClick = { open = true },
+            enabled = albums.isNotEmpty(),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(selected?.name ?: "Choisir un album")
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            albums.forEach { album ->
+                DropdownMenuItem(
+                    text = { Text(album.name) },
+                    onClick = {
+                        onSelect(album)
+                        open = false
+                    },
+                )
             }
         }
     }

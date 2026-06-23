@@ -103,20 +103,22 @@ CREATE INDEX idx_friendships_addressee ON friendships(addressee_id);
 -- Partages configurables (NODE-22)
 --   scope = 'all'    : toutes les fleurs du propriétaire
 --   scope = 'flower' : une fleur précise (flower_id)
+--   scope = 'album'  : les fleurs d'un album précis (album_id) — NODE-101
 --   include_gps      : false => coordonnées masquées (protection des spots)
--- ('album' prévu mais nécessite une table albums, non encore modélisée.)
 -- =====================================================================
 CREATE TABLE shares (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     shared_with UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     scope       TEXT NOT NULL DEFAULT 'all'
-                CHECK (scope IN ('all', 'flower')),
+                CHECK (scope IN ('all', 'flower', 'album')),
     flower_id   UUID REFERENCES flowers(id) ON DELETE CASCADE,
+    album_id    UUID REFERENCES albums(id)  ON DELETE CASCADE,
     include_gps BOOLEAN NOT NULL DEFAULT true,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    -- cohérence scope/flower_id
-    CHECK ((scope = 'flower') = (flower_id IS NOT NULL))
+    -- cohérence scope/flower_id et scope/album_id
+    CHECK ((scope = 'flower') = (flower_id IS NOT NULL)),
+    CHECK ((scope = 'album')  = (album_id  IS NOT NULL))
 );
 CREATE INDEX idx_shares_owner ON shares(owner_id);
 CREATE INDEX idx_shares_user  ON shares(shared_with);

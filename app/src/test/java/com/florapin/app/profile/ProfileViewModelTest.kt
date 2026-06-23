@@ -5,9 +5,11 @@ import com.florapin.app.network.auth.SessionManager
 import com.florapin.app.network.auth.TokenStore
 import com.florapin.app.network.dto.AuthResponse
 import com.florapin.app.network.dto.DeleteAccountRequest
+import com.florapin.app.network.dto.ForgotPasswordRequest
 import com.florapin.app.network.dto.LoginRequest
 import com.florapin.app.network.dto.RefreshRequest
 import com.florapin.app.network.dto.RegisterRequest
+import com.florapin.app.network.dto.ResetPasswordRequest
 import com.florapin.app.network.dto.TokenPair
 import com.florapin.app.network.dto.UserDto
 import kotlinx.coroutines.Dispatchers
@@ -62,6 +64,10 @@ private class FakeAuthApi(
             .protocol(okhttp3.Protocol.HTTP_1_1)
             .request(okhttp3.Request.Builder().url("http://localhost/users/me").build())
             .build())
+    override suspend fun forgotPassword(body: ForgotPasswordRequest): Response<Unit> =
+        Response.success(null)
+    override suspend fun resetPassword(body: ResetPasswordRequest): Response<Unit> =
+        Response.success(null)
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

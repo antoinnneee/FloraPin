@@ -4,9 +4,11 @@ import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
+import { MailMessage, MailSender } from '../mail/mail.sender';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
+import { PasswordResetToken } from './password-reset-token.entity';
 import { RefreshToken } from './refresh-token.entity';
 
 /** UsersService factice en mémoire. */
@@ -24,6 +26,11 @@ class FakeUsersService {
     return this.byId.get(id) ?? null;
   }
 
+  async setPasswordHash(userId: string, passwordHash: string): Promise<void> {
+    const user = this.byId.get(userId);
+    if (user) user.passwordHash = passwordHash;
+  }
+
   async create(params: {
     email: string;
     passwordHash: string;
@@ -39,6 +46,39 @@ class FakeUsersService {
     };
     this.byId.set(user.id, user);
     return user;
+  }
+}
+
+/** Repository PasswordResetToken factice. */
+class FakeResetRepo {
+  store: PasswordResetToken[] = [];
+
+  create(obj: Partial<PasswordResetToken>): PasswordResetToken {
+    return { ...obj } as PasswordResetToken;
+  }
+
+  async save(obj: PasswordResetToken): Promise<PasswordResetToken> {
+    const existing = this.store.find((t) => t === obj);
+    if (!existing) this.store.push(obj);
+    return obj;
+  }
+
+  async findOne(opts: {
+    where: { tokenHash: string; usedAt: unknown };
+  }): Promise<PasswordResetToken | null> {
+    return (
+      this.store.find(
+        (t) => t.tokenHash === opts.where.tokenHash && t.usedAt == null,
+      ) ?? null
+    );
+  }
+}
+
+/** MailSender factice : mémorise les emails envoyés. */
+class FakeMailSender extends MailSender {
+  sent: MailMessage[] = [];
+  async send(message: MailMessage): Promise<void> {
+    this.sent.push(message);
   }
 }
 
@@ -60,12 +100,18 @@ class FakeRefreshRepo {
   }
 
   async update(
-    criteria: { id: string; revokedAt: unknown },
+    criteria: { id?: string; userId?: string; revokedAt: unknown },
     partial: Partial<RefreshToken>,
   ): Promise<void> {
-    const found = this.store.get(criteria.id);
-    if (found && found.revokedAt === null) {
-      this.store.set(criteria.id, { ...found, ...partial });
+    // Révocation par id (logout) ou par userId (reset : déconnexion globale),
+    // limitée aux tokens encore actifs (revokedAt null).
+    for (const [key, token] of this.store) {
+      const matches =
+        token.revokedAt === null &&
+        (criteria.id !== undefined
+          ? token.id === criteria.id
+          : token.userId === criteria.userId);
+      if (matches) this.store.set(key, { ...token, ...partial });
     }
   }
 }
@@ -75,6 +121,8 @@ const CONFIG: Record<string, string> = {
   JWT_ACCESS_TTL: '900s',
   JWT_REFRESH_SECRET: 'test-refresh-secret',
   JWT_REFRESH_TTL: '30d',
+  PASSWORD_RESET_TTL_MIN: '60',
+  APP_BASE_URL: 'https://florapin.fr',
 };
 
 class FakeConfigService {
@@ -90,9 +138,13 @@ class FakeConfigService {
 describe('AuthService', () => {
   let auth: AuthService;
   let repo: FakeRefreshRepo;
+  let resetRepo: FakeResetRepo;
+  let mail: FakeMailSender;
 
   beforeEach(async () => {
     repo = new FakeRefreshRepo();
+    resetRepo = new FakeResetRepo();
+    mail = new FakeMailSender();
     const moduleRef = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -100,6 +152,8 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: new JwtService({}) },
         { provide: ConfigService, useClass: FakeConfigService },
         { provide: getRepositoryToken(RefreshToken), useValue: repo },
+        { provide: getRepositoryToken(PasswordResetToken), useValue: resetRepo },
+        { provide: MailSender, useValue: mail },
       ],
     }).compile();
 
@@ -149,6 +203,60 @@ describe('AuthService', () => {
     const reg = await auth.register('a@example.com', 'password123', 'Alice');
     await auth.logout(reg.refreshToken);
     await expect(auth.refresh(reg.refreshToken)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it('forgotPassword : compte inconnu → aucun token, aucun email (anti-énumération)', async () => {
+    await auth.forgotPassword('inconnu@example.com');
+    expect(resetRepo.store).toHaveLength(0);
+    expect(mail.sent).toHaveLength(0);
+  });
+
+  it('forgotPassword : génère un token et envoie le lien par email', async () => {
+    await auth.register('a@example.com', 'password123', 'Alice');
+    await auth.forgotPassword('A@Example.com');
+
+    expect(resetRepo.store).toHaveLength(1);
+    expect(mail.sent).toHaveLength(1);
+    expect(mail.sent[0].to).toBe('a@example.com');
+    // Le lien porte le token en clair ; seul le hash est persisté.
+    const match = mail.sent[0].text?.match(/token=([0-9a-f]+)/);
+    expect(match).toBeTruthy();
+    expect(resetRepo.store[0].tokenHash).not.toBe(match?.[1]);
+  });
+
+  it('resetPassword : applique le nouveau mot de passe et révoque les sessions', async () => {
+    const reg = await auth.register('a@example.com', 'password123', 'Alice');
+    await auth.forgotPassword('a@example.com');
+    const token = mail.sent[0].text?.match(/token=([0-9a-f]+)/)?.[1] as string;
+
+    await auth.resetPassword(token, 'nouveauPass1');
+
+    // Connexion avec le nouveau mot de passe, l'ancien ne marche plus.
+    await expect(auth.login('a@example.com', 'password123')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    expect((await auth.login('a@example.com', 'nouveauPass1')).accessToken).toBeTruthy();
+    // L'ancien refresh est révoqué (déconnexion globale).
+    await expect(auth.refresh(reg.refreshToken)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it('resetPassword : token déjà utilisé est rejeté', async () => {
+    await auth.register('a@example.com', 'password123', 'Alice');
+    await auth.forgotPassword('a@example.com');
+    const token = mail.sent[0].text?.match(/token=([0-9a-f]+)/)?.[1] as string;
+
+    await auth.resetPassword(token, 'nouveauPass1');
+    await expect(auth.resetPassword(token, 'encoreAutre1')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it('resetPassword : token inconnu est rejeté', async () => {
+    await expect(auth.resetPassword('deadbeef', 'nouveauPass1')).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
   });

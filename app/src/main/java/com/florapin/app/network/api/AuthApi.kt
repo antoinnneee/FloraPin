@@ -2,9 +2,11 @@ package com.florapin.app.network.api
 
 import com.florapin.app.network.dto.AuthResponse
 import com.florapin.app.network.dto.DeleteAccountRequest
+import com.florapin.app.network.dto.ForgotPasswordRequest
 import com.florapin.app.network.dto.LoginRequest
 import com.florapin.app.network.dto.RefreshRequest
 import com.florapin.app.network.dto.RegisterRequest
+import com.florapin.app.network.dto.ResetPasswordRequest
 import com.florapin.app.network.dto.TokenPair
 import com.florapin.app.network.dto.UserDto
 import retrofit2.Response
@@ -25,6 +27,14 @@ interface AuthApi {
 
     @POST("auth/logout")
     suspend fun logout(@Body body: RefreshRequest): Response<Unit>
+
+    /** Démarre un « mot de passe oublié » : envoie un lien si le compte existe. */
+    @POST("auth/forgot-password")
+    suspend fun forgotPassword(@Body body: ForgotPasswordRequest): Response<Unit>
+
+    /** Termine la réinitialisation avec le token reçu par email. */
+    @POST("auth/reset-password")
+    suspend fun resetPassword(@Body body: ResetPasswordRequest): Response<Unit>
 
     /**
      * Profil de l'utilisateur courant (session restaurée sans relogin).

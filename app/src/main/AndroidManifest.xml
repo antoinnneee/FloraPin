@@ -42,6 +42,19 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Deep link de réinitialisation de mot de passe (NODE-116) :
+                 https://florapin.fr/reset?token=... ouvre ResetPasswordScreen.
+                 (App Links vérifiés nécessiteraient assetlinks.json hébergé.) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="florapin.fr"
+                    android:pathPrefix="/reset" />
+            </intent-filter>
         </activity>
 
         <!-- Réception des push FCM (NODE-76). -->

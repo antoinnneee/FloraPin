@@ -42,6 +42,11 @@ export class UsersService {
     return this.users.findOne({ where: { id } });
   }
 
+  /** Met à jour le hash du mot de passe d'un utilisateur (reset — NODE-116). */
+  async setPasswordHash(userId: string, passwordHash: string): Promise<void> {
+    await this.users.update({ id: userId }, { passwordHash });
+  }
+
   create(params: {
     email: string;
     passwordHash: string;

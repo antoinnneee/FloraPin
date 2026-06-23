@@ -17,12 +17,16 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.florapin.app.auth.AuthUiState
 import com.florapin.app.auth.AuthViewModel
 import com.florapin.app.albums.AlbumDetailScreen
 import com.florapin.app.albums.AlbumsScreen
+import com.florapin.app.auth.ForgotPasswordScreen
 import com.florapin.app.auth.LoginScreen
+import com.florapin.app.auth.PasswordResetViewModel
 import com.florapin.app.auth.RegisterScreen
+import com.florapin.app.auth.ResetPasswordScreen
 import com.florapin.app.capture.CaptureFlow
 import com.florapin.app.detail.DetailScreen
 import com.florapin.app.feed.SharedFeedScreen
@@ -38,6 +42,8 @@ import com.florapin.app.sync.SyncScheduler
 private object Routes {
     const val LOGIN = "login"
     const val REGISTER = "register"
+    const val FORGOT_PASSWORD = "forgot-password"
+    const val RESET_PASSWORD = "reset-password?token={token}"
     const val GALLERY = "gallery"
     const val CAPTURE = "capture"
     const val MAP = "map"
@@ -99,6 +105,47 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
                 error = (state as? AuthUiState.Error)?.message,
                 onLogin = authViewModel::login,
                 onSwitchToRegister = { navController.navigate(Routes.REGISTER) },
+                onForgotPassword = { navController.navigate(Routes.FORGOT_PASSWORD) },
+            )
+        }
+
+        composable(Routes.FORGOT_PASSWORD) {
+            val resetViewModel: PasswordResetViewModel =
+                viewModel(factory = PasswordResetViewModel.factory(context))
+            val state by resetViewModel.state.collectAsStateWithLifecycle()
+            ForgotPasswordScreen(
+                isLoading = state.loading,
+                requestSent = state.requestSent,
+                error = state.error,
+                onSubmit = resetViewModel::requestReset,
+                onBackToLogin = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = Routes.RESET_PASSWORD,
+            arguments = listOf(
+                navArgument("token") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+            ),
+            deepLinks = listOf(
+                navDeepLink { uriPattern = "https://florapin.fr/reset?token={token}" },
+            ),
+        ) { backStackEntry ->
+            val token = backStackEntry.arguments?.getString("token").orEmpty()
+            val resetViewModel: PasswordResetViewModel =
+                viewModel(factory = PasswordResetViewModel.factory(context))
+            val state by resetViewModel.state.collectAsStateWithLifecycle()
+            ResetPasswordScreen(
+                initialToken = token,
+                isLoading = state.loading,
+                resetDone = state.resetDone,
+                error = state.error,
+                onSubmit = resetViewModel::resetPassword,
+                onResetDone = { navController.goToLogin() },
+                onBackToLogin = { navController.goToLogin() },
             )
         }
 

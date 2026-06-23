@@ -5,9 +5,11 @@ import com.florapin.app.network.auth.SessionManager
 import com.florapin.app.network.auth.TokenStore
 import com.florapin.app.network.dto.AuthResponse
 import com.florapin.app.network.dto.DeleteAccountRequest
+import com.florapin.app.network.dto.ForgotPasswordRequest
 import com.florapin.app.network.dto.LoginRequest
 import com.florapin.app.network.dto.RefreshRequest
 import com.florapin.app.network.dto.RegisterRequest
+import com.florapin.app.network.dto.ResetPasswordRequest
 import com.florapin.app.network.dto.TokenPair
 import com.florapin.app.network.dto.UserDto
 import kotlinx.coroutines.Dispatchers
@@ -59,6 +61,10 @@ private class FakeAuthApi(private val failLogin: Boolean = false) : AuthApi {
         Response.success(null)
     override suspend fun me(): UserDto = USER
     override suspend fun deleteAccount(body: DeleteAccountRequest): Response<Unit> =
+        Response.success(null)
+    override suspend fun forgotPassword(body: ForgotPasswordRequest): Response<Unit> =
+        Response.success(null)
+    override suspend fun resetPassword(body: ResetPasswordRequest): Response<Unit> =
         Response.success(null)
 }
 

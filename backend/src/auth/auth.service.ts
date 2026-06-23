@@ -7,14 +7,17 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
-import { createHash, randomUUID } from 'crypto';
+import { createHash, randomBytes, randomUUID } from 'crypto';
 import type { SignOptions } from 'jsonwebtoken';
 import { IsNull, Repository } from 'typeorm';
 
 /** Durée de validité d'un JWT, typée comme l'attend jsonwebtoken (ms StringValue). */
 type ExpiresIn = SignOptions['expiresIn'];
+import { MailSender } from '../mail/mail.sender';
+import { resetPasswordEmail } from '../mail/mail-templates';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
+import { PasswordResetToken } from './password-reset-token.entity';
 import { RefreshToken } from './refresh-token.entity';
 
 const BCRYPT_ROUNDS = 10;
@@ -50,6 +53,9 @@ export class AuthService {
     private readonly config: ConfigService,
     @InjectRepository(RefreshToken)
     private readonly refreshTokens: Repository<RefreshToken>,
+    @InjectRepository(PasswordResetToken)
+    private readonly resetTokens: Repository<PasswordResetToken>,
+    private readonly mail: MailSender,
   ) {}
 
   async register(
@@ -99,6 +105,62 @@ export class AuthService {
     await this.refreshTokens.save(record);
 
     return this.issueTokens(user);
+  }
+
+  /**
+   * Démarre un « mot de passe oublié » (NODE-116) : si un compte correspond à
+   * [email], génère un token à usage unique et durée limitée, le persiste
+   * (hashé) et envoie le lien par email. Ne révèle JAMAIS si l'email existe
+   * (anti-énumération) : l'appelant répond 200 dans tous les cas.
+   */
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.users.findByEmail(email);
+    if (!user) return;
+
+    const ttlMinutes = Number(
+      this.config.get<string>('PASSWORD_RESET_TTL_MIN', '60'),
+    );
+    const rawToken = randomBytes(32).toString('hex');
+    await this.resetTokens.save(
+      this.resetTokens.create({
+        userId: user.id,
+        tokenHash: hashToken(rawToken),
+        expiresAt: new Date(Date.now() + ttlMinutes * 60_000),
+        usedAt: null,
+      }),
+    );
+
+    const baseUrl = this.config.get<string>('APP_BASE_URL', 'https://florapin.fr');
+    const resetUrl = `${baseUrl}/reset?token=${rawToken}`;
+    await this.mail.send(resetPasswordEmail(user.email, resetUrl, ttlMinutes));
+  }
+
+  /**
+   * Termine un reset (NODE-116) : valide le token (présent, non expiré, non
+   * utilisé), re-hash le nouveau mot de passe, marque le token consommé et
+   * révoque tous les refresh tokens actifs de l'utilisateur (déconnexion
+   * globale). Token invalide/expiré ⇒ 401.
+   */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const record = await this.resetTokens.findOne({
+      where: { tokenHash: hashToken(token), usedAt: IsNull() },
+    });
+    if (!record || record.expiresAt.getTime() < Date.now()) {
+      throw new UnauthorizedException(
+        'Lien de réinitialisation invalide ou expiré.',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    await this.users.setPasswordHash(record.userId, passwordHash);
+
+    record.usedAt = new Date();
+    await this.resetTokens.save(record);
+
+    await this.refreshTokens.update(
+      { userId: record.userId, revokedAt: IsNull() },
+      { revokedAt: new Date() },
+    );
   }
 
   /** Révoque le refresh fourni (déconnexion). */

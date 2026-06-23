@@ -32,9 +32,16 @@ en `geography(Point,4326)` ; restitués sous forme lat/long + `accuracyM`.
 | POST    | `/auth/login`     | `{ email, password }`                   | `200 { user, accessToken, refreshToken }` |
 | POST    | `/auth/refresh`   | `{ refreshToken }`                       | `200 { accessToken, refreshToken }` (rotation) |
 | POST    | `/auth/logout`    | `{ refreshToken }`                       | `204` (révoque le refresh) |
+| POST    | `/auth/forgot-password` | `{ email }`                        | `200 { message }` **systématique** (anti-énumération) ; envoie un lien si le compte existe |
+| POST    | `/auth/reset-password`  | `{ token, newPassword }`           | `200 { message }` ; `401` si token invalide/expiré/déjà utilisé |
 
 - `accessToken` : JWT court (~15 min). `refreshToken` : opaque, long, **rotaté**
   à chaque refresh (l'ancien est révoqué). Détails en NODE-17.
+- **Reset mot de passe** (NODE-116) : `forgot-password` crée un token à usage
+  unique et durée limitée (`PASSWORD_RESET_TTL_MIN`, défaut 60 min), hashé en
+  base, envoyé par email (lien `${APP_BASE_URL}/reset?token=...`). `reset-password`
+  re-hashe le mot de passe et **révoque tous les refresh tokens** (déconnexion
+  globale).
 
 ## Utilisateurs (`/users`)
 

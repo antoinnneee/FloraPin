@@ -30,6 +30,19 @@ data class DeleteAccountRequest(
     val password: String,
 )
 
+/** Corps de POST /auth/forgot-password (NODE-116). */
+@JsonClass(generateAdapter = true)
+data class ForgotPasswordRequest(
+    val email: String,
+)
+
+/** Corps de POST /auth/reset-password (NODE-116). */
+@JsonClass(generateAdapter = true)
+data class ResetPasswordRequest(
+    val token: String,
+    val newPassword: String,
+)
+
 @JsonClass(generateAdapter = true)
 data class UserDto(
     val id: String,

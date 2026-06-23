@@ -21,26 +21,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.florapin.app.ui.theme.FloraPinTheme
 
 /**
- * Écran de connexion (NODE-47). Sans état métier : reçoit l'état d'UI et émet
- * les intentions ; l'AuthViewModel (NODE-48) s'y branche.
+ * Écran « mot de passe oublié » (NODE-116) : saisie de l'email. Réponse
+ * volontairement neutre (anti-énumération) — on n'indique pas si le compte
+ * existe.
  */
 @Composable
-fun LoginScreen(
+fun ForgotPasswordScreen(
     isLoading: Boolean,
+    requestSent: Boolean,
     error: String?,
-    onLogin: (email: String, password: String) -> Unit,
-    onSwitchToRegister: () -> Unit,
-    onForgotPassword: () -> Unit,
+    onSubmit: (email: String) -> Unit,
+    onBackToLogin: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var email by rememberSaveable { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    val canSubmit = email.isNotBlank() && password.isNotBlank() && !isLoading
 
     Column(
         modifier = modifier
@@ -48,23 +45,31 @@ fun LoginScreen(
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
     ) {
-        Text("Connexion", style = MaterialTheme.typography.headlineMedium)
+        Text("Mot de passe oublié", style = MaterialTheme.typography.headlineMedium)
 
+        if (requestSent) {
+            Text(
+                "Si un compte existe pour cette adresse, un lien de " +
+                    "réinitialisation vient d'être envoyé. Vérifiez vos emails.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Button(onClick = onBackToLogin, modifier = Modifier.fillMaxWidth()) {
+                Text("Retour à la connexion")
+            }
+            return@Column
+        }
+
+        Text(
+            "Saisissez l'email de votre compte ; nous vous enverrons un lien " +
+                "pour choisir un nouveau mot de passe.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
             label = { Text("Email") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Mot de passe") },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -77,8 +82,8 @@ fun LoginScreen(
         }
 
         Button(
-            onClick = { onLogin(email.trim(), password) },
-            enabled = canSubmit,
+            onClick = { onSubmit(email.trim()) },
+            enabled = email.isNotBlank() && !isLoading,
             modifier = Modifier.fillMaxWidth(),
         ) {
             if (isLoading) {
@@ -87,37 +92,15 @@ fun LoginScreen(
                     strokeWidth = 2.dp,
                 )
             }
-            Text("Se connecter")
+            Text("Envoyer le lien")
         }
 
         TextButton(
-            onClick = onSwitchToRegister,
+            onClick = onBackToLogin,
             enabled = !isLoading,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Pas de compte ? S'inscrire")
+            Text("Retour à la connexion")
         }
-
-        TextButton(
-            onClick = onForgotPassword,
-            enabled = !isLoading,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Mot de passe oublié ?")
-        }
-    }
-}
-
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
-@Composable
-private fun LoginScreenPreview() {
-    FloraPinTheme {
-        LoginScreen(
-            isLoading = false,
-            error = null,
-            onLogin = { _, _ -> },
-            onSwitchToRegister = {},
-            onForgotPassword = {},
-        )
     }
 }

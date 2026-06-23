@@ -2,9 +2,11 @@ package com.florapin.app.network.auth
 
 import com.florapin.app.network.api.AuthApi
 import com.florapin.app.network.dto.DeleteAccountRequest
+import com.florapin.app.network.dto.ForgotPasswordRequest
 import com.florapin.app.network.dto.LoginRequest
 import com.florapin.app.network.dto.RefreshRequest
 import com.florapin.app.network.dto.RegisterRequest
+import com.florapin.app.network.dto.ResetPasswordRequest
 import com.florapin.app.network.dto.UserDto
 import retrofit2.HttpException
 
@@ -78,5 +80,20 @@ class SessionManager(
         }
         tokenStore.clear()
         localData?.clearLocalData()
+    }
+
+    /**
+     * Demande un email de réinitialisation (NODE-116). Le serveur répond 200
+     * même si l'email est inconnu (anti-énumération) : succès = requête acceptée.
+     */
+    suspend fun forgotPassword(email: String) {
+        val response = authApi.forgotPassword(ForgotPasswordRequest(email))
+        if (!response.isSuccessful) throw HttpException(response)
+    }
+
+    /** Applique un nouveau mot de passe via le token reçu par email (NODE-116). */
+    suspend fun resetPassword(token: String, newPassword: String) {
+        val response = authApi.resetPassword(ResetPasswordRequest(token, newPassword))
+        if (!response.isSuccessful) throw HttpException(response)
     }
 }

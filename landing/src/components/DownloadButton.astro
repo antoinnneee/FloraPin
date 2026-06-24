@@ -1,7 +1,7 @@
 ---
 // Bouton de téléchargement de l'app, réutilisé dans le Hero et le CTA final.
 // L'URL provient de src/config.ts (source de vérité unique, swap Play Store aisé).
-import { DOWNLOAD_URL, DOWNLOAD_NOTE } from '../config';
+import { DOWNLOAD_URL, DOWNLOAD_NOTE, DOWNLOAD_FILENAME } from '../config';
 
 interface Props {
   /** Libellé du bouton. */
@@ -22,7 +22,7 @@ const isExternal = DOWNLOAD_URL.startsWith('http');
     class="btn-download"
     {...(isExternal
       ? { target: '_blank', rel: 'noopener' }
-      : { download: true })}
+      : { download: DOWNLOAD_FILENAME })}
   >
     {label}
   </a>

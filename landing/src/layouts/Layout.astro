@@ -11,7 +11,7 @@ const {
   image = '/og-image.png',
 } = Astro.props;
 
-const siteUrl = Astro.site ?? new URL('https://florapin.fr');
+const siteUrl = Astro.site ?? new URL('https://florapin.pattounecorp.ovh');
 const canonicalURL = new URL(Astro.url.pathname, siteUrl);
 const ogImage = new URL(image, siteUrl);
 ---

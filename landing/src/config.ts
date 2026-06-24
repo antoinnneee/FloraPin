@@ -9,6 +9,10 @@
 // le bouton custom vers le badge Google Play officiel.
 export const DOWNLOAD_URL = '/florapin.apk';
 
+// Nom de fichier suggéré au téléchargement (attribut `download`). Sans ça, le
+// navigateur déduirait le nom de la valeur de l'attribut (« true.apk »).
+export const DOWNLOAD_FILENAME = 'florapin_beta.apk';
+
 // Mention affichée sous le bouton (retirée une fois le Play Store actif).
 export const DOWNLOAD_NOTE =
   'Version bêta — Android 8+ · autoriser les « sources inconnues » à l’installation.';

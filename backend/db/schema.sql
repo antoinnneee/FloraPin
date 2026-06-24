@@ -12,7 +12,7 @@ CREATE EXTENSION IF NOT EXISTS citext;
 -- =====================================================================
 -- Utilisateurs
 -- =====================================================================
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email         CITEXT UNIQUE NOT NULL,          -- insensible à la casse
     password_hash TEXT        NOT NULL,            -- bcrypt/argon2 (cf. NODE-17)
@@ -23,11 +23,17 @@ CREATE TABLE users (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Migration des bases existantes (NODE-117) : ces colonnes vivent dans le
+-- CREATE TABLE ci-dessus. Sur une base créée AVANT NODE-117, le CREATE TABLE
+-- IF NOT EXISTS est ignoré et ne les ajoute pas → ces ALTER les rattrapent.
+-- (Sans ça, tout SELECT sur `users` — dont le login — échoue en 500.)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
 
 -- =====================================================================
 -- Refresh tokens (rotation — NODE-17)
 -- =====================================================================
-CREATE TABLE refresh_tokens (
+CREATE TABLE IF NOT EXISTS refresh_tokens (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash  TEXT NOT NULL,                     -- on ne stocke jamais le token en clair
@@ -35,14 +41,14 @@ CREATE TABLE refresh_tokens (
     revoked_at  TIMESTAMPTZ,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 
 -- =====================================================================
 -- Tokens de réinitialisation de mot de passe (NODE-116)
 --   À usage unique (used_at) et durée limitée (expires_at). Seul le hash
 --   est stocké, jamais le token en clair.
 -- =====================================================================
-CREATE TABLE password_reset_tokens (
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash  TEXT NOT NULL,
@@ -50,12 +56,12 @@ CREATE TABLE password_reset_tokens (
     used_at     TIMESTAMPTZ,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_pwd_reset_user ON password_reset_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_pwd_reset_user ON password_reset_tokens(user_id);
 
 -- =====================================================================
 -- Tokens de vérification d'email (NODE-117) — opt-in, jamais bloquant.
 -- =====================================================================
-CREATE TABLE email_verification_tokens (
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash  TEXT NOT NULL,
@@ -63,14 +69,14 @@ CREATE TABLE email_verification_tokens (
     used_at     TIMESTAMPTZ,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_email_verif_user ON email_verification_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_email_verif_user ON email_verification_tokens(user_id);
 
 -- =====================================================================
 -- Référentiel d'espèces (NODE-124)
 --   Source structurée vers laquelle pointe flowers.species_id. Le texte libre
 --   flowers.species est conservé : le rapprochement est best-effort, sans perte.
 -- =====================================================================
-CREATE TABLE species (
+CREATE TABLE IF NOT EXISTS species (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     scientific_name TEXT NOT NULL UNIQUE,          -- binôme latin (clé naturelle)
     common_name     TEXT NOT NULL,                 -- nom commun FR
@@ -87,7 +93,7 @@ CREATE INDEX IF NOT EXISTS idx_species_scientific_name
 -- =====================================================================
 -- Fleurs
 -- =====================================================================
-CREATE TABLE flowers (
+CREATE TABLE IF NOT EXISTS flowers (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     image_key   TEXT NOT NULL,                     -- clé de l'objet dans MinIO
@@ -112,21 +118,37 @@ CREATE TABLE flowers (
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at  TIMESTAMPTZ                        -- soft-delete (sync — NODE-19)
 );
--- Requêtes géo (ST_DWithin, bbox) : index GiST sur la position.
-CREATE INDEX idx_flowers_location ON flowers USING GIST (location);
--- Listing par propriétaire + sync incrémentale.
-CREATE INDEX idx_flowers_owner       ON flowers(owner_id);
-CREATE INDEX idx_flowers_updated_at  ON flowers(updated_at);
--- Recherche par espèce / étiquette (NODE-26).
-CREATE INDEX idx_flowers_species     ON flowers(species);
-CREATE INDEX idx_flowers_species_id  ON flowers(species_id);   -- jointure référentiel (NODE-124)
-CREATE INDEX idx_flowers_tags        ON flowers USING GIN (tags);
-
--- Migration des bases existantes (NODE-124) : ajout de la colonne si absente
--- puis rapprochement best-effort du texte libre vers le référentiel. Sans
--- perte : la colonne `species` (texte) reste la source quand aucun match.
+-- Migration des bases existantes : colonnes de `flowers` définies dans le
+-- CREATE TABLE ci-dessus mais ajoutées au fil des nœuds. Sur une base déjà
+-- créée, le CREATE TABLE IF NOT EXISTS ne les ajoute pas → ALTER de rattrapage.
+-- IMPORTANT : ces ALTER précèdent les CREATE INDEX qui portent sur ces colonnes
+-- (sinon, sur une vieille base, l'index échouerait « column ... does not exist »).
+ALTER TABLE flowers ADD COLUMN IF NOT EXISTS species TEXT;                         -- NODE-26
+ALTER TABLE flowers ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';    -- NODE-26
+ALTER TABLE flowers ADD COLUMN IF NOT EXISTS visibility TEXT NOT NULL DEFAULT 'private'; -- NODE-22/136
 ALTER TABLE flowers ADD COLUMN IF NOT EXISTS species_id UUID
-    REFERENCES species(id) ON DELETE SET NULL;
+    REFERENCES species(id) ON DELETE SET NULL;                                     -- NODE-124
+ALTER TABLE flowers ADD COLUMN IF NOT EXISTS needs_identification BOOLEAN
+    NOT NULL DEFAULT false;                                                        -- NODE-133
+ALTER TABLE flowers ADD COLUMN IF NOT EXISTS feed_include_gps BOOLEAN
+    NOT NULL DEFAULT true;                                                         -- NODE-136
+
+-- Index (après les ALTER : toutes les colonnes ciblées existent désormais).
+-- Requêtes géo (ST_DWithin, bbox) : index GiST sur la position.
+CREATE INDEX IF NOT EXISTS idx_flowers_location ON flowers USING GIST (location);
+-- Listing par propriétaire + sync incrémentale.
+CREATE INDEX IF NOT EXISTS idx_flowers_owner       ON flowers(owner_id);
+CREATE INDEX IF NOT EXISTS idx_flowers_updated_at  ON flowers(updated_at);
+-- Recherche par espèce / étiquette (NODE-26).
+CREATE INDEX IF NOT EXISTS idx_flowers_species     ON flowers(species);
+CREATE INDEX IF NOT EXISTS idx_flowers_species_id  ON flowers(species_id);   -- jointure référentiel (NODE-124)
+CREATE INDEX IF NOT EXISTS idx_flowers_tags        ON flowers USING GIN (tags);
+-- Résolution du feed broadcast : fleurs des amis visibles 'friends' (NODE-136).
+CREATE INDEX IF NOT EXISTS idx_flowers_feed ON flowers(owner_id)
+    WHERE visibility = 'friends';
+
+-- Rapprochement best-effort du texte libre `species` vers le référentiel
+-- (NODE-124). Sans perte : `species` (texte) reste la source quand aucun match.
 UPDATE flowers f
    SET species_id = s.id
   FROM species s
@@ -134,23 +156,12 @@ UPDATE flowers f
    AND f.species IS NOT NULL
    AND lower(btrim(f.species)) = lower(s.scientific_name);
 
--- Migration des bases existantes (NODE-133) : drapeau de demande d'identification.
-ALTER TABLE flowers ADD COLUMN IF NOT EXISTS needs_identification BOOLEAN
-    NOT NULL DEFAULT false;
-
--- Migration (NODE-136) : option de diffusion GPS au feed des amis.
-ALTER TABLE flowers ADD COLUMN IF NOT EXISTS feed_include_gps BOOLEAN
-    NOT NULL DEFAULT true;
--- Résolution du feed broadcast : fleurs des amis visibles 'friends'.
-CREATE INDEX IF NOT EXISTS idx_flowers_feed ON flowers(owner_id)
-    WHERE visibility = 'friends';
-
 -- =====================================================================
 -- Photos d'une fleur (NODE-104 : plusieurs photos par fleur)
 --   Une fleur a 1..n photos ordonnées ; exactement une est la couverture.
 --   `flowers.image_key` est conservé le temps de la transition (= couverture).
 -- =====================================================================
-CREATE TABLE flower_photos (
+CREATE TABLE IF NOT EXISTS flower_photos (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     flower_id   UUID NOT NULL REFERENCES flowers(id) ON DELETE CASCADE,
     image_key   TEXT NOT NULL,                     -- clé de l'objet dans MinIO
@@ -158,9 +169,9 @@ CREATE TABLE flower_photos (
     is_cover    BOOLEAN NOT NULL DEFAULT false,    -- photo de couverture
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_flower_photos_flower ON flower_photos(flower_id);
+CREATE INDEX IF NOT EXISTS idx_flower_photos_flower ON flower_photos(flower_id);
 -- Au plus une couverture par fleur.
-CREATE UNIQUE INDEX idx_flower_photos_cover
+CREATE UNIQUE INDEX IF NOT EXISTS idx_flower_photos_cover
     ON flower_photos(flower_id) WHERE is_cover;
 
 -- Backfill : chaque fleur existante devient sa propre photo de couverture.
@@ -172,26 +183,26 @@ ON CONFLICT DO NOTHING;
 -- Albums de fleurs (NODE-98)
 --   Regroupement nommé de fleurs appartenant à un utilisateur.
 -- =====================================================================
-CREATE TABLE albums (
+CREATE TABLE IF NOT EXISTS albums (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name        TEXT NOT NULL,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_albums_owner ON albums(owner_id);
+CREATE INDEX IF NOT EXISTS idx_albums_owner ON albums(owner_id);
 
 -- Appartenance fleur ↔ album (n..n).
-CREATE TABLE flower_albums (
+CREATE TABLE IF NOT EXISTS flower_albums (
     album_id    UUID NOT NULL REFERENCES albums(id)  ON DELETE CASCADE,
     flower_id   UUID NOT NULL REFERENCES flowers(id) ON DELETE CASCADE,
     PRIMARY KEY (album_id, flower_id)
 );
-CREATE INDEX idx_flower_albums_flower ON flower_albums(flower_id);
+CREATE INDEX IF NOT EXISTS idx_flower_albums_flower ON flower_albums(flower_id);
 
 -- =====================================================================
 -- Amitiés (NODE-20)
 -- =====================================================================
-CREATE TABLE friendships (
+CREATE TABLE IF NOT EXISTS friendships (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     requester_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     addressee_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -202,7 +213,7 @@ CREATE TABLE friendships (
     CHECK (requester_id <> addressee_id),
     UNIQUE (requester_id, addressee_id)
 );
-CREATE INDEX idx_friendships_addressee ON friendships(addressee_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id);
 
 -- =====================================================================
 -- Partages configurables (NODE-22)
@@ -211,7 +222,7 @@ CREATE INDEX idx_friendships_addressee ON friendships(addressee_id);
 --   scope = 'album'  : les fleurs d'un album précis (album_id) — NODE-101
 --   include_gps      : false => coordonnées masquées (protection des spots)
 -- =====================================================================
-CREATE TABLE shares (
+CREATE TABLE IF NOT EXISTS shares (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     shared_with UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -225,13 +236,13 @@ CREATE TABLE shares (
     CHECK ((scope = 'flower') = (flower_id IS NOT NULL)),
     CHECK ((scope = 'album')  = (album_id  IS NOT NULL))
 );
-CREATE INDEX idx_shares_owner ON shares(owner_id);
-CREATE INDEX idx_shares_user  ON shares(shared_with);
+CREATE INDEX IF NOT EXISTS idx_shares_owner ON shares(owner_id);
+CREATE INDEX IF NOT EXISTS idx_shares_user  ON shares(shared_with);
 
 -- =====================================================================
 -- Propositions d'espèce collaboratives (NODE-31)
 -- =====================================================================
-CREATE TABLE species_proposals (
+CREATE TABLE IF NOT EXISTS species_proposals (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     flower_id   UUID NOT NULL REFERENCES flowers(id) ON DELETE CASCADE,
     proposed_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -240,24 +251,24 @@ CREATE TABLE species_proposals (
                 CHECK (status IN ('pending', 'accepted')),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_species_proposals_flower ON species_proposals(flower_id);
+CREATE INDEX IF NOT EXISTS idx_species_proposals_flower ON species_proposals(flower_id);
 
 -- =====================================================================
 -- Cœurs sur les fleurs (NODE-139)
 -- =====================================================================
-CREATE TABLE flower_likes (
+CREATE TABLE IF NOT EXISTS flower_likes (
     flower_id   UUID NOT NULL REFERENCES flowers(id) ON DELETE CASCADE,
     user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (flower_id, user_id)            -- un cœur par (fleur, utilisateur)
 );
 -- Comptage des cœurs par fleur + « liké par moi » (NODE-139).
-CREATE INDEX idx_flower_likes_flower ON flower_likes(flower_id);
+CREATE INDEX IF NOT EXISTS idx_flower_likes_flower ON flower_likes(flower_id);
 
 -- =====================================================================
 -- Notifications in-app (NODE-23)
 -- =====================================================================
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type        TEXT NOT NULL,             -- friend_request | friend_accepted | flower_shared
@@ -265,14 +276,14 @@ CREATE TABLE notifications (
     read_at     TIMESTAMPTZ,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_notifications_user ON notifications(user_id);
-CREATE INDEX idx_notifications_unread
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_unread
     ON notifications(user_id) WHERE read_at IS NULL;
 
 -- =====================================================================
 -- Jetons d'appareil pour le push FCM/APNs (NODE-57)
 -- =====================================================================
-CREATE TABLE device_tokens (
+CREATE TABLE IF NOT EXISTS device_tokens (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token       TEXT NOT NULL UNIQUE,             -- jeton FCM/APNs
@@ -280,7 +291,7 @@ CREATE TABLE device_tokens (
                 CHECK (platform IN ('android', 'ios', 'web')),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_device_tokens_user ON device_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_device_tokens_user ON device_tokens(user_id);
 
 -- =====================================================================
 -- Notes

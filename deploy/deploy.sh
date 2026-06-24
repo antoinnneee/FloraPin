@@ -134,27 +134,26 @@ remote_sync --exclude 'node_modules/' --exclude 'dist/' \
     "$REPO_ROOT/backend/" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/backend/" || exit 1
 
 # --- APK de téléchargement (bêta) ---
-# La vitrine sert l'APK directement : on (re)génère la DERNIÈRE version debug et
-# on la dépose dans landing/public/ AVANT le rsync. Astro recopie public/ tel
-# quel dans dist/, donc Caddy l'expose à https://<DOMAIN>/florapin.apk.
+# La vitrine sert l'APK directement : on dépose la DERNIÈRE version debug
+# construite dans landing/public/ AVANT le rsync. Astro recopie public/ tel quel
+# dans dist/, donc Caddy l'expose à https://<DOMAIN>/florapin.apk.
 #
-# Exception au principe « rien buildé en local » : un APK ne peut se construire
-# que via le SDK Android (absent du conteneur node:22-alpine du VPS). Ce build
-# tourne donc sur la machine de déploiement. Si gradle / le SDK manquent, on ne
-# bloque PAS tout le déploiement : on réutilise un APK déjà présent s'il existe.
-APK_SRC="$REPO_ROOT/app/build/outputs/apk/debug/app-debug.apk"
-APK_DST="$REPO_ROOT/landing/public/florapin.apk"
-echo "📱 (Re)génération de l'APK debug (assembleDebug)..."
-GRADLEW="$REPO_ROOT/gradlew"
-[ -x "$GRADLEW" ] || GRADLEW="$REPO_ROOT/gradlew.bat"
-if ( cd "$REPO_ROOT" && "$GRADLEW" :app:assembleDebug ); then
-    cp "$APK_SRC" "$APK_DST"
-    echo "✅ APK à jour copié dans landing/public/florapin.apk ($(du -h "$APK_DST" | cut -f1))."
-elif [ -f "$APK_DST" ]; then
-    echo "⚠️  Build APK échoué (SDK Android absent ?) — réutilisation de l'APK existant."
+# On NE build PAS l'APK ici : un APK exige le SDK Android, absent de
+# l'environnement de déploiement (WSL/Docker ; le wrapper gradlew a aussi des
+# fins de ligne CRLF inexploitables sous WSL). L'APK se construit côté Windows
+# (Android Studio, ou `gradlew.bat :app:assembleDebug` en PowerShell). Le script
+# se contente d'expédier le binaire le plus récent disponible.
+APK_BUILT="$REPO_ROOT/app/build/outputs/apk/debug/app-debug.apk"
+APK_PUB="$REPO_ROOT/landing/public/florapin.apk"
+if [ -f "$APK_BUILT" ] && { [ ! -f "$APK_PUB" ] || [ "$APK_BUILT" -nt "$APK_PUB" ]; }; then
+    cp "$APK_BUILT" "$APK_PUB"
+    echo "📱 APK debug mis à jour depuis le build Android ($(du -h "$APK_PUB" | cut -f1))."
+elif [ -f "$APK_PUB" ]; then
+    echo "📱 APK debug : landing/public/florapin.apk déjà à jour ($(du -h "$APK_PUB" | cut -f1))."
 else
-    echo "⚠️  Build APK échoué et aucun APK existant : la vitrine sera déployée SANS"
-    echo "    fichier de téléchargement (le lien renverra 404 tant qu'un APK n'est pas généré)."
+    echo "⚠️  Aucun APK trouvé (ni app/build/outputs/, ni landing/public/)."
+    echo "    Construis-le d'abord côté Windows : gradlew.bat :app:assembleDebug"
+    echo "    La vitrine sera déployée SANS fichier de téléchargement (/florapin.apk → 404)."
 fi
 
 echo "📦 Synchronisation de landing/ (sources + APK)..."
@@ -192,9 +191,33 @@ fi
 # puis (re)démarre db + minio + api + proxy. -f docker-compose.yml SEUL : pas
 # d'override dev en prod.
 echo "🔄 (Re)construction de l'API et démarrage de la stack docker compose..."
-if ! remote_ssh "cd '$REMOTE_DIR/deploy' && echo '$REMOTE_PASSWORD' | sudo -S docker compose -f docker-compose.yml up -d --build"; then
+# --wait : bloque jusqu'à ce que db + minio soient *healthy* (healthchecks), pour
+# que l'application du schéma ci-dessous tape sur une base prête.
+if ! remote_ssh "cd '$REMOTE_DIR/deploy' && echo '$REMOTE_PASSWORD' | sudo -S docker compose -f docker-compose.yml up -d --build --wait"; then
     echo "❌ Erreur lors du build/démarrage de la stack docker compose."
     exit 1
+fi
+
+# --- Application idempotente du schéma (migrations) à CHAQUE déploiement ---
+# docker-entrypoint-initdb.d ne s'exécute QUE sur un volume vierge : sur une base
+# DÉJÀ existante, les changements de schéma ultérieurs (nouvelles colonnes/tables)
+# ne sont jamais appliqués → erreurs 500 (typiquement au login, quand TypeORM
+# SELECT une colonne absente comme users.email_verified).
+# schema.sql est désormais idempotent (CREATE ... IF NOT EXISTS + ALTER ... ADD
+# COLUMN IF NOT EXISTS) : on le REJOUE ici. Le fichier est déjà monté (bind, donc
+# à jour après le rsync) dans le conteneur db ; psql utilise les identifiants
+# internes du conteneur ($POSTGRES_USER/$POSTGRES_DB) — aucun secret côté script.
+echo "🗄️  Application du schéma (migrations idempotentes) à la base..."
+if ! remote_ssh "cd '$REMOTE_DIR/deploy' && echo '$REMOTE_PASSWORD' | sudo -S docker compose -f docker-compose.yml exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -f /docker-entrypoint-initdb.d/01-schema.sql'"; then
+    echo "❌ Échec de l'application du schéma à la base (voir docker compose logs db)."
+    exit 1
+fi
+echo "✅ Schéma à jour (colonnes/tables manquantes ajoutées si besoin)."
+# Recharge le catalogue d'espèces (idempotent) — non bloquant.
+if remote_ssh "cd '$REMOTE_DIR/deploy' && echo '$REMOTE_PASSWORD' | sudo -S docker compose -f docker-compose.yml exec -T db sh -c 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -f /docker-entrypoint-initdb.d/02-seed-species.sql'" >/dev/null 2>&1; then
+    echo "✅ Catalogue d'espèces rechargé (seed idempotent)."
+else
+    echo "ℹ️  Seed d'espèces non rejoué (non bloquant)."
 fi
 
 sleep 3

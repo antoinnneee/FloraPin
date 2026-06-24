@@ -13,6 +13,15 @@ import { StubStorageService } from '../storage/stub-storage.service';
 import { Share } from './share.entity';
 import { SharesService } from './shares.service';
 
+/** Détecte un opérateur TypeORM `In([...])` (porte sa valeur dans `.value`). */
+function isInOperator(value: unknown): value is { value: string[] } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    Array.isArray((value as { value?: unknown }).value)
+  );
+}
+
 class FakeFlowerRepo {
   store = new Map<string, Flower>();
   seed(f: Partial<Flower>): Flower {
@@ -20,6 +29,7 @@ class FakeFlowerRepo {
       id: randomUUID(),
       notes: '',
       visibility: 'private',
+      feedIncludeGps: true,
       accuracyM: null,
       location: null,
       createdAt: new Date(),
@@ -30,10 +40,20 @@ class FakeFlowerRepo {
     this.store.set(flower.id, flower);
     return flower;
   }
-  async find(opts: { where: { ownerId: string } }): Promise<Flower[]> {
-    return [...this.store.values()].filter(
-      (f) => f.ownerId === opts.where.ownerId,
-    );
+  async find(opts: {
+    where: { ownerId?: unknown; visibility?: string };
+  }): Promise<Flower[]> {
+    const { ownerId, visibility } = opts.where;
+    return [...this.store.values()].filter((f) => {
+      const ownerOk =
+        ownerId === undefined
+          ? true
+          : isInOperator(ownerId)
+            ? ownerId.value.includes(f.ownerId)
+            : f.ownerId === ownerId;
+      const visOk = visibility === undefined || f.visibility === visibility;
+      return ownerOk && visOk;
+    });
   }
   async findOne(opts: {
     where: { id?: string; ownerId?: string };
@@ -217,6 +237,55 @@ describe('SharesService', () => {
 
     const visible = await service.sharedWithMe(VIEWER);
     expect(visible.map((f) => f.id).sort()).toEqual([f1.id, f2.id].sort());
+  });
+
+  it('diffuse au feed les fleurs « friends » des amis (broadcast)', async () => {
+    const FRIEND = 'friend';
+    acceptedFriends = [FRIEND];
+    flowerRepo.seed({
+      ownerId: FRIEND,
+      imageKey: 'b1',
+      takenAt: new Date(),
+      visibility: 'friends',
+      location: { type: 'Point', coordinates: [2.29, 48.85] },
+      accuracyM: 5,
+    });
+    // Une fleur privée du même ami n'est pas diffusée.
+    flowerRepo.seed({
+      ownerId: FRIEND,
+      imageKey: 'b2',
+      takenAt: new Date(),
+      visibility: 'private',
+    });
+
+    const feed = await service.broadcastWithMe(VIEWER);
+    expect(feed).toHaveLength(1);
+    expect(feed[0].latitude).toBe(48.85);
+  });
+
+  it('broadcast : masque le GPS si feedIncludeGps=false', async () => {
+    const FRIEND = 'friend';
+    acceptedFriends = [FRIEND];
+    flowerRepo.seed({
+      ownerId: FRIEND,
+      imageKey: 'b3',
+      takenAt: new Date(),
+      visibility: 'friends',
+      location: { type: 'Point', coordinates: [2.29, 48.85] },
+      accuracyM: 5,
+      feedIncludeGps: false,
+    });
+
+    const feed = await service.broadcastWithMe(VIEWER);
+    expect(feed).toHaveLength(1);
+    expect(feed[0].latitude).toBeNull();
+    expect(feed[0].longitude).toBeNull();
+  });
+
+  it('broadcast vide sans amis acceptés', async () => {
+    acceptedFriends = [];
+    const feed = await service.broadcastWithMe(VIEWER);
+    expect(feed).toEqual([]);
   });
 
   it('partage une fleur avec GPS', async () => {

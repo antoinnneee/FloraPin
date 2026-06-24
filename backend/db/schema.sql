@@ -236,6 +236,17 @@ CREATE TABLE IF NOT EXISTS shares (
     CHECK ((scope = 'flower') = (flower_id IS NOT NULL)),
     CHECK ((scope = 'album')  = (album_id  IS NOT NULL))
 );
+-- Migration des bases existantes (NODE-101) : partage par album. `album_id` ne
+-- vit que dans le CREATE TABLE ci-dessus → absent des bases créées avant NODE-101.
+-- Sans ça, toute lecture de `shares` (feed, demandes d'identification) plante en
+-- 500 (« column Share.album_id does not exist »).
+ALTER TABLE shares ADD COLUMN IF NOT EXISTS album_id UUID
+    REFERENCES albums(id) ON DELETE CASCADE;
+-- Élargit la contrainte de périmètre pour autoriser scope='album' (idempotent).
+ALTER TABLE shares DROP CONSTRAINT IF EXISTS shares_scope_check;
+ALTER TABLE shares ADD CONSTRAINT shares_scope_check
+    CHECK (scope IN ('all', 'flower', 'album'));
+
 CREATE INDEX IF NOT EXISTS idx_shares_owner ON shares(owner_id);
 CREATE INDEX IF NOT EXISTS idx_shares_user  ON shares(shared_with);
 

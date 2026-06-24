@@ -11,7 +11,8 @@ export type NotificationType =
   | 'friend_accepted'
   | 'flower_shared'
   | 'species_proposed'
-  | 'species_confirmed';
+  | 'species_confirmed'
+  | 'identification_requested';
 
 /** Notification in-app destinée à un utilisateur. */
 @Entity('notifications')

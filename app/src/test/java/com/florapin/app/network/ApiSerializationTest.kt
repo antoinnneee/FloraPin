@@ -82,6 +82,8 @@ class ApiSerializationTest {
         assertNull(flower.latitude)
         // Absent du JSON → false par défaut (NODE-134).
         assertEquals(false, flower.needsIdentification)
+        // Absent du JSON → true par défaut (NODE-137).
+        assertEquals(true, flower.feedIncludeGps)
     }
 
     @Test

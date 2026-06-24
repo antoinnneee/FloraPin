@@ -19,6 +19,8 @@ data class PushItem(
     val accuracyM: Double? = null,
     val notes: String? = null,
     val visibility: String? = null,
+    /** Diffusion GPS au flux d'amis (NODE-137). */
+    val feedIncludeGps: Boolean? = null,
     val species: String? = null,
     val tags: List<String>? = null,
 )

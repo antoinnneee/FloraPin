@@ -20,7 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FlowerAlbumCrossRef::class,
         PhotoEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -130,6 +130,20 @@ abstract class FloraDatabase : RoomDatabase() {
             }
         }
 
+        /** v8 → v9 : visibilité + diffusion GPS au flux d'amis (NODE-137). */
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE flowers ADD COLUMN visibility TEXT NOT NULL " +
+                        "DEFAULT 'private'",
+                )
+                db.execSQL(
+                    "ALTER TABLE flowers ADD COLUMN feedIncludeGps INTEGER " +
+                        "NOT NULL DEFAULT 1",
+                )
+            }
+        }
+
         @Volatile
         private var instance: FloraDatabase? = null
 
@@ -152,6 +166,7 @@ abstract class FloraDatabase : RoomDatabase() {
                 MIGRATION_5_6,
                 MIGRATION_6_7,
                 MIGRATION_7_8,
+                MIGRATION_8_9,
             ).build()
     }
 }

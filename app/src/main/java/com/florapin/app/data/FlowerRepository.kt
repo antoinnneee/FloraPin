@@ -76,6 +76,24 @@ class FlowerRepository(private val dao: FlowerDao) {
         ),
     )
 
+    /**
+     * Publie ou retire la fleur du flux d'amis (NODE-137) : bascule la visibilité
+     * entre 'friends' et 'private' et règle la diffusion GPS, puis remet la fleur
+     * en attente de synchronisation.
+     */
+    suspend fun updateFeedVisibility(
+        flower: FlowerEntity,
+        published: Boolean,
+        includeGps: Boolean,
+    ) = dao.update(
+        flower.copy(
+            visibility = if (published) "friends" else "private",
+            feedIncludeGps = includeGps,
+            syncState = SyncState.PENDING.name,
+            updatedAt = System.currentTimeMillis(),
+        ),
+    )
+
     /** Flux des fleurs d'une espèce (rattachées ou texte = nom scientifique). */
     fun observeBySpecies(speciesId: String?, scientificName: String?) =
         dao.observeBySpecies(speciesId, scientificName)

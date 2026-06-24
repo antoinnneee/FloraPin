@@ -31,6 +31,20 @@ class FlowerMappersTest {
     }
 
     @Test
+    fun toCreateRequest_carriesVisibilityAndFeedGps() {
+        val entity = FlowerEntity(
+            id = 1,
+            imagePath = "/p.jpg",
+            createdAt = epoch,
+            visibility = "friends",
+            feedIncludeGps = false,
+        )
+        val request = entity.toCreateRequest()
+        assertEquals("friends", request.visibility)
+        assertEquals(false, request.feedIncludeGps)
+    }
+
+    @Test
     fun applyTo_marksSyncedAndKeepsLocalId() {
         val local = FlowerEntity(
             id = 7,
@@ -46,7 +60,8 @@ class FlowerMappersTest {
             accuracyM = 3.0,
             takenAt = "2026-06-21T09:00:00Z",
             notes = "maj",
-            visibility = "private",
+            visibility = "friends",
+            feedIncludeGps = false,
             createdAt = "2026-06-21T09:00:00Z",
             updatedAt = "2026-06-21T10:00:00Z",
         )
@@ -57,6 +72,8 @@ class FlowerMappersTest {
         assertEquals(SyncState.SYNCED.name, merged.syncState)
         assertEquals("maj", merged.notes)
         assertEquals("https://x/y.jpg", merged.remoteImageUrl)
+        assertEquals("friends", merged.visibility)
+        assertEquals(false, merged.feedIncludeGps)
         assertEquals(
             Instant.parse("2026-06-21T10:00:00Z").toEpochMilli(),
             merged.updatedAt,

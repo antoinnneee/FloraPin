@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { FlowerLike } from '../likes/flower-like.entity';
 import { StorageService, PresignedUpload } from '../storage/storage.service';
 import { CreateFlowerDto, UpdateFlowerDto } from './dto/flower.dto';
 import { Flower } from './flower.entity';
@@ -39,6 +40,10 @@ export interface FlowerResponse {
   speciesRef: { id: string; scientificName: string; commonName: string } | null;
   tags: string[];
   photos: PhotoResponse[];
+  /** Nombre de cœurs reçus (NODE-139). */
+  likeCount: number;
+  /** Le spectateur courant a-t-il liké cette fleur (NODE-139). */
+  likedByMe: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,6 +60,8 @@ export class FlowersService {
     private readonly flowers: Repository<Flower>,
     @InjectRepository(FlowerPhoto)
     private readonly photos: Repository<FlowerPhoto>,
+    @InjectRepository(FlowerLike)
+    private readonly likes: Repository<FlowerLike>,
     private readonly storage: StorageService,
   ) {}
 
@@ -102,7 +109,7 @@ export class FlowersService {
       }),
     );
     const upload = await this.storage.presignUpload(imageKey);
-    return { flower: await this.toResponse(saved), upload };
+    return { flower: await this.toResponse(saved, ownerId), upload };
   }
 
   async getById(ownerId: string, id: string): Promise<FlowerResponse> {
@@ -113,7 +120,7 @@ export class FlowersService {
     if (!flower) {
       throw new NotFoundException('Fleur introuvable.');
     }
-    return this.toResponse(flower);
+    return this.toResponse(flower, ownerId);
   }
 
   async getImageUrl(ownerId: string, id: string): Promise<{ imageUrl: string }> {
@@ -142,7 +149,7 @@ export class FlowersService {
       const tagOk = !filters.tag || (f.tags?.includes(filters.tag) ?? false);
       return speciesOk && tagOk;
     });
-    return Promise.all(filtered.map((f) => this.toResponse(f)));
+    return Promise.all(filtered.map((f) => this.toResponse(f, ownerId)));
   }
 
   async update(
@@ -177,9 +184,9 @@ export class FlowersService {
         where: { id: saved.id, ownerId },
         relations: { speciesRef: true },
       });
-      return this.toResponse(reloaded ?? saved);
+      return this.toResponse(reloaded ?? saved, ownerId);
     }
-    return this.toResponse(saved);
+    return this.toResponse(saved, ownerId);
   }
 
   async remove(ownerId: string, id: string): Promise<void> {
@@ -190,8 +197,15 @@ export class FlowersService {
     await this.flowers.softRemove(flower);
   }
 
-  /** Construit la réponse API d'une fleur (photos + URL couverture présignées). */
-  async toResponse(flower: Flower): Promise<FlowerResponse> {
+  /**
+   * Construit la réponse API d'une fleur (photos + URL couverture présignées).
+   * [viewerId] sert à calculer `likedByMe` (NODE-139) ; omis pour les contextes
+   * sans spectateur identifié.
+   */
+  async toResponse(
+    flower: Flower,
+    viewerId?: string,
+  ): Promise<FlowerResponse> {
     const [longitude, latitude] = flower.location?.coordinates ?? [null, null];
     const photos = await this.photos.find({
       where: { flowerId: flower.id },
@@ -206,6 +220,14 @@ export class FlowersService {
       })),
     );
     const cover = photoResponses.find((p) => p.isCover) ?? photoResponses[0];
+    const likeCount = await this.likes.count({
+      where: { flowerId: flower.id },
+    });
+    const likedByMe = viewerId
+      ? (await this.likes.count({
+          where: { flowerId: flower.id, userId: viewerId },
+        })) > 0
+      : false;
     return {
       id: flower.id,
       ownerId: flower.ownerId,
@@ -229,6 +251,8 @@ export class FlowersService {
         : null,
       tags: flower.tags ?? [],
       photos: photoResponses,
+      likeCount,
+      likedByMe,
       createdAt: flower.createdAt,
       updatedAt: flower.updatedAt,
     };

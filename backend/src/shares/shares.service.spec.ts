@@ -6,6 +6,7 @@ import { Album } from '../albums/album.entity';
 import { Flower } from '../flowers/flower.entity';
 import { FlowerPhoto } from '../flowers/flower-photo.entity';
 import { FlowersService } from '../flowers/flowers.service';
+import { FlowerLike } from '../likes/flower-like.entity';
 import { FriendshipsService } from '../friendships/friendships.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { StorageService } from '../storage/storage.service';
@@ -151,6 +152,10 @@ describe('SharesService', () => {
         {
           provide: getRepositoryToken(FlowerPhoto),
           useValue: { find: async () => [] },
+        },
+        {
+          provide: getRepositoryToken(FlowerLike),
+          useValue: { count: async () => 0 },
         },
         { provide: StorageService, useClass: StubStorageService },
         {

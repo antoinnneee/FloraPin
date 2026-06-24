@@ -8,7 +8,10 @@ Les **visuels** (captures, mockups, og-image) sont à produire séparément.
 - **Sous-titre** : « Photographiez chaque fleur que vous croisez, retrouvez-la
   sur une carte, et partagez-la avec une communauté d'amis passionnés — même
   sans réseau. »
-- **CTA** : « Rejoindre la bêta »
+- **CTA principal** : « ⬇️ Télécharger l'app (Android) » → APK bêta auto-hébergé
+  (`/florapin.apk`). Secondaire : « Rejoindre la bêta ↓ ».
+- **Mention bêta** (sous le bouton) : « Version bêta — Android 8+ · autoriser les
+  « sources inconnues » à l'installation. »
 
 ## 2. Cartes fonctionnalités (9)
 1. **📷 Capture géolocalisée** — « Une photo, et la fleur est automatiquement
@@ -47,7 +50,10 @@ Les **visuels** (captures, mockups, og-image) sont à produire séparément.
 - **Titre** : « Prêt à cataloguer vos fleurs ? »
 - **Texte** : « Rejoignez la bêta et soyez parmi les premiers à essayer
   FloraPin. »
-- **Bouton** : « Je veux tester FloraPin »
+- **Bouton principal** : « ⬇️ Télécharger l'app (Android) » (+ mention bêta).
+- **Séparateur** : « ou laissez-nous votre e-mail pour être prévenu des mises à
+  jour ».
+- **Bouton secondaire** : « Je veux tester FloraPin »
 - **Champ** : email (inscription bêta)
 
 ## 6. Footer

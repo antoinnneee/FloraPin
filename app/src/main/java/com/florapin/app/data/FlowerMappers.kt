@@ -18,6 +18,8 @@ fun FlowerEntity.toCreateRequest(): CreateFlowerRequest = CreateFlowerRequest(
     longitude = longitude,
     accuracyM = accuracyMeters?.toDouble(),
     notes = notes,
+    visibility = visibility,
+    feedIncludeGps = feedIncludeGps,
     species = species,
     tags = tags.ifEmpty { null },
 )
@@ -30,6 +32,8 @@ fun FlowerEntity.toPushItem(): PushItem = PushItem(
     longitude = longitude,
     accuracyM = accuracyMeters?.toDouble(),
     notes = notes,
+    visibility = visibility,
+    feedIncludeGps = feedIncludeGps,
     species = species,
     tags = tags.ifEmpty { null },
 )
@@ -52,6 +56,8 @@ fun FlowerDto.applyTo(local: FlowerEntity): FlowerEntity = local.copy(
     speciesScientificName = speciesRef?.scientificName ?: local.speciesScientificName,
     speciesCommonName = speciesRef?.commonName ?: local.speciesCommonName,
     tags = tags.ifEmpty { local.tags },
+    visibility = visibility,
+    feedIncludeGps = feedIncludeGps,
     ownerId = ownerId,
 )
 
@@ -76,5 +82,7 @@ fun FlowerDto.toEntity(imagePath: String = ""): FlowerEntity = FlowerEntity(
     speciesScientificName = speciesRef?.scientificName,
     speciesCommonName = speciesRef?.commonName,
     tags = tags,
+    visibility = visibility,
+    feedIncludeGps = feedIncludeGps,
     ownerId = ownerId,
 )

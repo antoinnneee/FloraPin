@@ -18,6 +18,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -132,6 +133,7 @@ fun DetailScreen(
                 identificationVm = identificationVm,
                 onSaveNotes = viewModel::saveNotes,
                 onSaveClassification = viewModel::saveClassification,
+                onSetFeedPublication = viewModel::setFeedPublication,
                 onOpenSpecies = onOpenSpecies,
                 onAddPhoto = { showCamera = true },
                 onDeletePhoto = photosViewModel::deletePhoto,
@@ -164,6 +166,7 @@ private fun DetailContent(
     identificationVm: IdentificationRequestViewModel,
     onSaveNotes: (String) -> Unit,
     onSaveClassification: (String, List<String>, SpeciesDto?) -> Unit,
+    onSetFeedPublication: (Boolean, Boolean) -> Unit,
     onOpenSpecies: (String) -> Unit,
     onAddPhoto: () -> Unit,
     onDeletePhoto: (PhotoEntity) -> Unit,
@@ -239,6 +242,14 @@ private fun DetailContent(
                         .padding(vertical = 4.dp),
                 )
             }
+
+            // Publication au flux d'amis (NODE-137) : pour ses propres fleurs.
+            FeedPublicationSection(
+                flowerId = flower.id,
+                published = flower.visibility == "friends",
+                includeGps = flower.feedIncludeGps,
+                onSetPublication = onSetFeedPublication,
+            )
 
             // Demande d'identification aux amis quand l'espèce est absente (NODE-134).
             // Nécessite une fleur déjà synchronisée (serverId), car la demande est
@@ -389,6 +400,65 @@ private fun ClassificationEditor(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Enregistrer espèce & étiquettes")
+        }
+    }
+}
+
+/**
+ * Toggle « Publier sur mon flux d'amis » (NODE-137) : bascule la visibilité de
+ * la fleur en 'friends' et, le cas échéant, l'inclusion de la position GPS. Le
+ * changement est persisté localement puis synchronisé.
+ */
+@Composable
+private fun FeedPublicationSection(
+    flowerId: Long,
+    published: Boolean,
+    includeGps: Boolean,
+    onSetPublication: (Boolean, Boolean) -> Unit,
+) {
+    var isPublished by remember(flowerId, published) { mutableStateOf(published) }
+    var gps by remember(flowerId, includeGps) { mutableStateOf(includeGps) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = "Publier sur mon flux d'amis",
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Switch(
+                checked = isPublished,
+                onCheckedChange = {
+                    isPublished = it
+                    onSetPublication(it, gps)
+                },
+            )
+        }
+        if (isPublished) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = "Inclure la position GPS",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Switch(
+                    checked = gps,
+                    onCheckedChange = {
+                        gps = it
+                        onSetPublication(true, it)
+                    },
+                )
+            }
+            Text(
+                text = "Vos amis verront cette fleur dans leur flux.",
+                style = MaterialTheme.typography.labelSmall,
+            )
         }
     }
 }

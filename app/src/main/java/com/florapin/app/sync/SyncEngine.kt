@@ -70,6 +70,8 @@ class SyncEngine(
                     flower.serverId!!,
                     UpdateFlowerRequest(
                         notes = flower.notes,
+                        visibility = flower.visibility,
+                        feedIncludeGps = flower.feedIncludeGps,
                         species = flower.species,
                         speciesId = flower.speciesId,
                         tags = flower.tags,

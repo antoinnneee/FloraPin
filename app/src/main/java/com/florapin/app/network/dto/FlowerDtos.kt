@@ -11,6 +11,8 @@ data class CreateFlowerRequest(
     val accuracyM: Double? = null,
     val notes: String? = null,
     val visibility: String? = null,
+    /** Diffusion GPS au flux d'amis (NODE-137). */
+    val feedIncludeGps: Boolean? = null,
     val species: String? = null,
     val tags: List<String>? = null,
 )
@@ -19,6 +21,8 @@ data class CreateFlowerRequest(
 data class UpdateFlowerRequest(
     val notes: String? = null,
     val visibility: String? = null,
+    /** Diffusion GPS au flux d'amis (NODE-137). */
+    val feedIncludeGps: Boolean? = null,
     val takenAt: String? = null,
     val species: String? = null,
     /** FK référentiel (NODE-128) : rattache la fleur à une fiche espèce. */
@@ -59,6 +63,8 @@ data class FlowerDto(
     val speciesRef: SpeciesRefDto? = null,
     /** Fleur en attente d'identification collaborative (NODE-133/134). */
     val needsIdentification: Boolean = false,
+    /** Diffusion GPS au flux d'amis quand visibility='friends' (NODE-137). */
+    val feedIncludeGps: Boolean = true,
     val tags: List<String> = emptyList(),
     val photos: List<PhotoDto> = emptyList(),
     val createdAt: String,

@@ -49,6 +49,15 @@ data class FlowerEntity(
     /** Étiquettes libres (converties en chaîne pour Room, voir [Converters]). */
     val tags: List<String> = emptyList(),
 
+    /**
+     * Visibilité (NODE-137) : 'private' (défaut) ou 'friends' (publiée au flux
+     * d'amis). Pilotée par le toggle « Publier sur mon flux d'amis ».
+     */
+    val visibility: String = "private",
+
+    /** Diffusion du GPS au flux d'amis quand [visibility] = 'friends' (NODE-137). */
+    val feedIncludeGps: Boolean = true,
+
     // --- Champs de synchronisation (NODE-43) ---
 
     /** Identifiant serveur (UUID) une fois synchronisée ; null si locale seule. */

@@ -5,8 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.florapin.app.network.NetworkModule
+import com.florapin.app.network.api.FeedApi
 import com.florapin.app.network.api.FriendshipsApi
-import com.florapin.app.network.api.SharesApi
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.network.dto.FlowerDto
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,11 +28,12 @@ data class SharedFeedUiState(
 )
 
 /**
- * Feed des fleurs partagées avec l'utilisateur (SharesApi.sharedWithMe), enrichi
- * du nom de l'ami propriétaire (résolu via la liste d'amitiés).
+ * Feed des fleurs visibles par l'utilisateur (FeedApi.getFeed : partages ciblés
+ * + fleurs publiées 'friends', NODE-137), enrichi du nom de l'ami propriétaire
+ * (résolu via la liste d'amitiés).
  */
 class SharedFeedViewModel(
-    private val sharesApi: SharesApi,
+    private val feedApi: FeedApi,
     private val friendshipsApi: FriendshipsApi,
 ) : ViewModel() {
 
@@ -47,7 +48,7 @@ class SharedFeedViewModel(
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             try {
-                val flowers = sharesApi.sharedWithMe()
+                val flowers = feedApi.getFeed()
                 val names = friendshipsApi.list().associate { it.user.id to it.user.displayName }
                 _state.value = SharedFeedUiState(
                     loading = false,
@@ -68,7 +69,7 @@ class SharedFeedViewModel(
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     val tokenStore = EncryptedTokenStore(context.applicationContext)
                     val apis = NetworkModule.createAuthenticated(tokenStore)
-                    return SharedFeedViewModel(apis.shares, apis.friendships) as T
+                    return SharedFeedViewModel(apis.feed, apis.friendships) as T
                 }
             }
     }

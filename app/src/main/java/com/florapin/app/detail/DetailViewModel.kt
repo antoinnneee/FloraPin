@@ -64,6 +64,17 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * Publie ou retire la fleur du flux d'amis (NODE-137). [includeGps] règle la
+     * diffusion de la position quand la fleur est publiée.
+     */
+    fun setFeedPublication(published: Boolean, includeGps: Boolean) {
+        val current = flower.value ?: return
+        viewModelScope.launch {
+            repository.updateFeedVisibility(current, published, includeGps)
+        }
+    }
+
     fun delete(onDeleted: () -> Unit) {
         val current = flower.value ?: return
         viewModelScope.launch {

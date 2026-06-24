@@ -1,13 +1,11 @@
 package com.florapin.app.feed
 
+import com.florapin.app.network.api.FeedApi
 import com.florapin.app.network.api.FriendshipsApi
-import com.florapin.app.network.api.SharesApi
 import com.florapin.app.network.dto.CreateFriendshipRequest
-import com.florapin.app.network.dto.CreateShareRequest
 import com.florapin.app.network.dto.FlowerDto
 import com.florapin.app.network.dto.FriendUserDto
 import com.florapin.app.network.dto.FriendshipDto
-import com.florapin.app.network.dto.ShareDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -41,11 +39,8 @@ private fun friendship(userId: String, name: String) = FriendshipDto(
     createdAt = "2026-06-21T09:00:00Z",
 )
 
-private class FakeSharesApi(private val flowers: List<FlowerDto>) : SharesApi {
-    override suspend fun create(body: CreateShareRequest) = throw UnsupportedOperationException()
-    override suspend fun listMine() = emptyList<ShareDto>()
-    override suspend fun revoke(id: String) = Response.success<Unit>(null)
-    override suspend fun sharedWithMe() = flowers
+private class FakeFeedApi(private val flowers: List<FlowerDto>) : FeedApi {
+    override suspend fun getFeed(since: String?, limit: Int?) = flowers
 }
 
 private class FakeFriendshipsApi(private val data: List<FriendshipDto>) : FriendshipsApi {
@@ -69,7 +64,7 @@ class SharedFeedViewModelTest {
     @Test
     fun load_resolvesOwnerNames() = runTest {
         val vm = SharedFeedViewModel(
-            FakeSharesApi(listOf(flower("fl1", "alice"))),
+            FakeFeedApi(listOf(flower("fl1", "alice"))),
             FakeFriendshipsApi(listOf(friendship("alice", "Alice"))),
         )
         advanceUntilIdle()
@@ -82,7 +77,7 @@ class SharedFeedViewModelTest {
     @Test
     fun load_unknownOwner_nameIsNull() = runTest {
         val vm = SharedFeedViewModel(
-            FakeSharesApi(listOf(flower("fl1", "inconnu"))),
+            FakeFeedApi(listOf(flower("fl1", "inconnu"))),
             FakeFriendshipsApi(emptyList()),
         )
         advanceUntilIdle()

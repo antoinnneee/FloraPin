@@ -288,4 +288,36 @@ class SyncEngineTest {
         assertEquals("sp-1", body.speciesId)
         assertEquals(listOf("jardin"), body.tags)
     }
+
+    @Test
+    fun push_updateCarriesVisibilityAndFeedGps() = runBlocking {
+        val dao = FakeDao()
+        val repo = FlowerRepository(dao)
+        dao.insert(
+            FlowerEntity(
+                imagePath = "/p.jpg",
+                createdAt = 1_000L,
+                serverId = "srv-vis",
+                visibility = "friends",
+                feedIncludeGps = false,
+                syncState = SyncState.PENDING.name,
+                updatedAt = 1_000L,
+            ),
+        )
+        val flowersApi = FakeFlowersApi()
+        val engine = SyncEngine(
+            repository = repo,
+            syncApi = FakeSyncApi(),
+            flowersApi = flowersApi,
+            uploadImage = { _, _ -> },
+            lastSyncStore = FakeLastSync(),
+            now = { 5_000L },
+        )
+
+        engine.push()
+
+        val body = flowersApi.lastUpdateBody!!
+        assertEquals("friends", body.visibility)
+        assertEquals(false, body.feedIncludeGps)
+    }
 }

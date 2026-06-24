@@ -47,11 +47,15 @@ cd deploy
 
 Le script, de bout en bout :
 
-1. **synchronise** (`rsync`) les sources `backend/`, `landing/` et `deploy/`
+1. **(re)génère l'APK debug** (`assembleDebug`) et le dépose dans
+   `landing/public/florapin.apk` — la vitrine sert ainsi **la dernière version**
+   de l'app à chaque déploiement (voir « APK de téléchargement » ci-dessous) ;
+2. **synchronise** (`rsync`) les sources `backend/`, `landing/` et `deploy/`
    vers le VPS (en excluant `node_modules/` et `dist/`) ;
-2. **build la vitrine sur le VPS dans un conteneur** `node:22-alpine`
-   (`npm ci && npm run build` → `landing/dist`, monté dans Caddy) ;
-3. lance `docker compose up -d --build` côté serveur — ce qui **installe et
+3. **build la vitrine sur le VPS dans un conteneur** `node:22-alpine`
+   (`npm ci && npm run build` → `landing/dist`, monté dans Caddy) — Astro recopie
+   `public/florapin.apk` dans `dist/`, donc Caddy l'expose à `/florapin.apk` ;
+4. lance `docker compose up -d --build` côté serveur — ce qui **installe et
    compile le backend dans l'image** (npm ci + nest build) puis (re)démarre
    db + minio + api + proxy.
 
@@ -123,6 +127,26 @@ docker compose up -d proxy
 > Alternatives sans VPS : Vercel/Netlify (déploiement Git + CDN) ou GitHub Pages
 > (domaine custom + HTTPS). Dans ce cas, la vitrine est indépendante de cette
 > stack et l'API garde son domaine.
+
+### APK de téléchargement (bêta — NODE-152)
+
+La vitrine héberge **directement l'APK** pour la bêta (pas de Play Store ni de
+GitHub Releases pour l'instant) :
+
+- `deploy.sh` (re)génère l'**APK debug** (`./gradlew :app:assembleDebug`) et le
+  copie dans `landing/public/florapin.apk` **avant** le rsync. C'est donc
+  toujours la dernière version qui part en ligne.
+- Astro recopie `public/` dans `dist/` ; Caddy (`file_server`) sert le fichier à
+  l'URL stable **`https://<DOMAIN>/florapin.apk`**.
+- `landing/public/*.apk` est **gitignoré** (binaire ~58 Mo régénéré au déploiement).
+- Build local requis : le SDK Android (le conteneur `node:22-alpine` du VPS ne
+  peut pas compiler une app Android). Si le build échoue, `deploy.sh` réutilise
+  l'APK existant plutôt que de bloquer le déploiement.
+- C'est un **APK debug non signé en release** : Android affichera l'avertissement
+  « sources inconnues ». Acceptable pour la bêta ; passage à un APK signé
+  (NODE-142) puis au Play Store (NODE-147) prévu ensuite.
+- Le bouton de téléchargement sur la page (`DOWNLOAD_URL = /florapin.apk`) est
+  l'objet de **NODE-153**.
 
 ## Sauvegarde (POC — voir NODE-30)
 

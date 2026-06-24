@@ -1,5 +1,8 @@
 dist/
 node_modules/
+# APK servi par la vitrine : régénéré par deploy.sh (assembleDebug) à chaque
+# déploiement. Binaire volumineux — jamais commité.
+public/*.apk
 # Cache de build Astro (généré).
 .astro/
 .env

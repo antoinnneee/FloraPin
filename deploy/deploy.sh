@@ -133,7 +133,31 @@ echo "📦 Synchronisation de backend/..."
 remote_sync --exclude 'node_modules/' --exclude 'dist/' \
     "$REPO_ROOT/backend/" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/backend/" || exit 1
 
-echo "📦 Synchronisation de landing/ (sources)..."
+# --- APK de téléchargement (bêta) ---
+# La vitrine sert l'APK directement : on (re)génère la DERNIÈRE version debug et
+# on la dépose dans landing/public/ AVANT le rsync. Astro recopie public/ tel
+# quel dans dist/, donc Caddy l'expose à https://<DOMAIN>/florapin.apk.
+#
+# Exception au principe « rien buildé en local » : un APK ne peut se construire
+# que via le SDK Android (absent du conteneur node:22-alpine du VPS). Ce build
+# tourne donc sur la machine de déploiement. Si gradle / le SDK manquent, on ne
+# bloque PAS tout le déploiement : on réutilise un APK déjà présent s'il existe.
+APK_SRC="$REPO_ROOT/app/build/outputs/apk/debug/app-debug.apk"
+APK_DST="$REPO_ROOT/landing/public/florapin.apk"
+echo "📱 (Re)génération de l'APK debug (assembleDebug)..."
+GRADLEW="$REPO_ROOT/gradlew"
+[ -x "$GRADLEW" ] || GRADLEW="$REPO_ROOT/gradlew.bat"
+if ( cd "$REPO_ROOT" && "$GRADLEW" :app:assembleDebug ); then
+    cp "$APK_SRC" "$APK_DST"
+    echo "✅ APK à jour copié dans landing/public/florapin.apk ($(du -h "$APK_DST" | cut -f1))."
+elif [ -f "$APK_DST" ]; then
+    echo "⚠️  Build APK échoué (SDK Android absent ?) — réutilisation de l'APK existant."
+else
+    echo "⚠️  Build APK échoué et aucun APK existant : la vitrine sera déployée SANS"
+    echo "    fichier de téléchargement (le lien renverra 404 tant qu'un APK n'est pas généré)."
+fi
+
+echo "📦 Synchronisation de landing/ (sources + APK)..."
 remote_sync --exclude 'node_modules/' --exclude 'dist/' \
     "$REPO_ROOT/landing/" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/landing/" || exit 1
 

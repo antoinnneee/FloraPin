@@ -78,6 +78,14 @@ export class Flower {
   visibility: FlowerVisibility;
 
   /**
+   * Diffusion au feed des amis (NODE-136) : quand la fleur est visible 'friends',
+   * inclut (true) ou masque (false) ses coordonnées GPS pour les amis, à l'image
+   * de l'option includeGps des partages ciblés (NODE-22). Sans effet en 'private'.
+   */
+  @Column({ name: 'feed_include_gps', type: 'boolean', default: true })
+  feedIncludeGps: boolean;
+
+  /**
    * Demande d'identification collaborative (NODE-133) : le propriétaire sollicite
    * ses amis. Repassé à false quand une proposition est acceptée.
    */

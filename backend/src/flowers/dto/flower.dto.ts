@@ -1,6 +1,7 @@
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsIn,
   IsISO8601,
   IsLatitude,
@@ -44,6 +45,11 @@ export class CreateFlowerDto {
   @IsIn(VISIBILITIES)
   visibility?: FlowerVisibility;
 
+  /** Diffusion du GPS au feed des amis (NODE-136), défaut true. */
+  @IsOptional()
+  @IsBoolean()
+  feedIncludeGps?: boolean;
+
   @IsOptional()
   @IsString()
   @MaxLength(200)
@@ -66,6 +72,11 @@ export class UpdateFlowerDto {
   @IsOptional()
   @IsIn(VISIBILITIES)
   visibility?: FlowerVisibility;
+
+  /** Diffusion du GPS au feed des amis (NODE-136). */
+  @IsOptional()
+  @IsBoolean()
+  feedIncludeGps?: boolean;
 
   @IsOptional()
   @IsISO8601()

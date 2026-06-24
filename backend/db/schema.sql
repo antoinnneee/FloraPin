@@ -105,6 +105,9 @@ CREATE TABLE flowers (
                 CHECK (visibility IN ('private', 'friends')),
     -- Demande d'identification collaborative (NODE-133).
     needs_identification BOOLEAN NOT NULL DEFAULT false,
+    -- Diffusion GPS au feed des amis (NODE-136) : masque le GPS si false quand
+    -- visibility = 'friends', comme l'option includeGps des partages ciblés.
+    feed_include_gps BOOLEAN NOT NULL DEFAULT true,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at  TIMESTAMPTZ                        -- soft-delete (sync — NODE-19)
@@ -134,6 +137,13 @@ UPDATE flowers f
 -- Migration des bases existantes (NODE-133) : drapeau de demande d'identification.
 ALTER TABLE flowers ADD COLUMN IF NOT EXISTS needs_identification BOOLEAN
     NOT NULL DEFAULT false;
+
+-- Migration (NODE-136) : option de diffusion GPS au feed des amis.
+ALTER TABLE flowers ADD COLUMN IF NOT EXISTS feed_include_gps BOOLEAN
+    NOT NULL DEFAULT true;
+-- Résolution du feed broadcast : fleurs des amis visibles 'friends'.
+CREATE INDEX IF NOT EXISTS idx_flowers_feed ON flowers(owner_id)
+    WHERE visibility = 'friends';
 
 -- =====================================================================
 -- Photos d'une fleur (NODE-104 : plusieurs photos par fleur)

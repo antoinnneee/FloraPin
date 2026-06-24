@@ -28,6 +28,8 @@ export interface FlowerResponse {
   takenAt: Date;
   notes: string;
   visibility: string;
+  /** Diffusion du GPS au feed des amis quand visibility='friends' (NODE-136). */
+  feedIncludeGps: boolean;
   /** Demande d'identification collaborative en cours (NODE-133). */
   needsIdentification: boolean;
   species: string | null;
@@ -84,6 +86,7 @@ export class FlowersService {
       takenAt: new Date(dto.takenAt),
       notes: dto.notes ?? '',
       visibility: dto.visibility ?? 'private',
+      feedIncludeGps: dto.feedIncludeGps ?? true,
       species: dto.species ?? null,
       tags: dto.tags ?? [],
     });
@@ -156,6 +159,9 @@ export class FlowersService {
     }
     if (dto.notes !== undefined) flower.notes = dto.notes;
     if (dto.visibility !== undefined) flower.visibility = dto.visibility;
+    if (dto.feedIncludeGps !== undefined) {
+      flower.feedIncludeGps = dto.feedIncludeGps;
+    }
     if (dto.takenAt !== undefined) flower.takenAt = new Date(dto.takenAt);
     if (dto.species !== undefined) flower.species = dto.species;
     // Rattachement au référentiel (NODE-128) : le propriétaire pose species_id
@@ -210,6 +216,7 @@ export class FlowersService {
       takenAt: flower.takenAt,
       notes: flower.notes,
       visibility: flower.visibility,
+      feedIncludeGps: flower.feedIncludeGps ?? true,
       needsIdentification: flower.needsIdentification ?? false,
       species: flower.species ?? null,
       speciesId: flower.speciesId ?? null,

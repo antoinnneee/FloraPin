@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import { Album } from '../albums/album.entity';
 import { Flower } from '../flowers/flower.entity';
 import { FlowerResponse, FlowersService } from '../flowers/flowers.service';
@@ -133,6 +133,26 @@ export class SharesService {
       }
     }
     return [...byId.values()];
+  }
+
+  /**
+   * Fleurs diffusées à tout le réseau d'amis (NODE-136) : celles de mes amis
+   * acceptés marquées `visibility='friends'`, sans partage ciblé. Le GPS est
+   * masqué quand `feedIncludeGps` est false (option héritée des partages, NODE-22).
+   */
+  async broadcastWithMe(viewerId: string): Promise<FlowerResponse[]> {
+    const friendIds = await this.friendships.acceptedFriendIds(viewerId);
+    if (friendIds.length === 0) return [];
+
+    const flowers = await this.flowers.find({
+      where: { ownerId: In(friendIds), visibility: 'friends' },
+    });
+    return Promise.all(
+      flowers.map(async (flower) => {
+        const response = await this.flowersService.toResponse(flower);
+        return flower.feedIncludeGps ? response : stripGps(response);
+      }),
+    );
   }
 
   /** Résout les fleurs concrètes couvertes par un partage selon son périmètre. */

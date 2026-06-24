@@ -1,0 +1,66 @@
+---
+// Bouton de téléchargement de l'app, réutilisé dans le Hero et le CTA final.
+// L'URL provient de src/config.ts (source de vérité unique, swap Play Store aisé).
+import { DOWNLOAD_URL, DOWNLOAD_NOTE } from '../config';
+
+interface Props {
+  /** Libellé du bouton. */
+  label?: string;
+  /** Affiche la mention bêta sous le bouton (défaut true). */
+  note?: boolean;
+}
+
+const { label = "⬇️ Télécharger l'app (Android)", note = true } = Astro.props;
+
+// Lien externe (Play Store) → nouvel onglet ; APK local → attribut download.
+const isExternal = DOWNLOAD_URL.startsWith('http');
+---
+
+<div class="download">
+  <a
+    href={DOWNLOAD_URL}
+    class="btn-download"
+    {...(isExternal
+      ? { target: '_blank', rel: 'noopener' }
+      : { download: true })}
+  >
+    {label}
+  </a>
+  {note && <p class="dl-note">{DOWNLOAD_NOTE}</p>}
+</div>
+
+<style>
+  .download {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .btn-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--green-700);
+    color: var(--white);
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 14px 28px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(21, 128, 61, 0.28);
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  }
+
+  .btn-download:hover {
+    background: var(--green-800);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(21, 128, 61, 0.36);
+  }
+
+  .dl-note {
+    font-size: 0.76rem;
+    color: var(--gray-600);
+    margin: 0;
+    max-width: 320px;
+  }
+</style>

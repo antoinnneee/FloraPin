@@ -1,4 +1,5 @@
 ---
+import DownloadButton from './DownloadButton.astro';
 ---
 
 <section id="beta" class="beta-cta">
@@ -7,6 +8,11 @@
       <span class="hero-emoji" aria-hidden="true">🌸</span>
       <h2>Prêt à cataloguer vos fleurs ?</h2>
       <p>Rejoignez la bêta et soyez parmi les premiers à essayer FloraPin.</p>
+
+      <div class="dl-wrap">
+        <DownloadButton />
+      </div>
+      <p class="or">ou laissez-nous votre e-mail pour être prévenu des mises à jour</p>
 
       <!--
         Remplacez l'attribut action par votre URL Formspree :
@@ -70,6 +76,18 @@
     font-size: 1rem;
     color: var(--gray-600);
     margin-bottom: 32px;
+  }
+
+  .dl-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+
+  .or {
+    font-size: 0.82rem;
+    color: #9ca3af;
+    margin-bottom: 20px;
   }
 
   .form-row {

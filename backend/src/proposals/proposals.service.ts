@@ -100,6 +100,8 @@ export class ProposalsService {
     } else {
       flower.species = proposal.species;
     }
+    // L'identification est trouvée : la demande collaborative est close (NODE-133).
+    flower.needsIdentification = false;
     await this.flowers.save(flower);
 
     proposal.status = 'accepted';

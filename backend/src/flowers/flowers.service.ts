@@ -28,6 +28,8 @@ export interface FlowerResponse {
   takenAt: Date;
   notes: string;
   visibility: string;
+  /** Demande d'identification collaborative en cours (NODE-133). */
+  needsIdentification: boolean;
   species: string | null;
   /** FK vers le référentiel d'espèces (NODE-124), null si non rapprochée. */
   speciesId: string | null;
@@ -208,6 +210,7 @@ export class FlowersService {
       takenAt: flower.takenAt,
       notes: flower.notes,
       visibility: flower.visibility,
+      needsIdentification: flower.needsIdentification ?? false,
       species: flower.species ?? null,
       speciesId: flower.speciesId ?? null,
       speciesRef: flower.speciesRef

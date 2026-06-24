@@ -103,6 +103,8 @@ CREATE TABLE flowers (
     tags        TEXT[] NOT NULL DEFAULT '{}',      -- étiquettes libres
     visibility  TEXT NOT NULL DEFAULT 'private'    -- 'private' | 'friends'
                 CHECK (visibility IN ('private', 'friends')),
+    -- Demande d'identification collaborative (NODE-133).
+    needs_identification BOOLEAN NOT NULL DEFAULT false,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at  TIMESTAMPTZ                        -- soft-delete (sync — NODE-19)
@@ -128,6 +130,10 @@ UPDATE flowers f
  WHERE f.species_id IS NULL
    AND f.species IS NOT NULL
    AND lower(btrim(f.species)) = lower(s.scientific_name);
+
+-- Migration des bases existantes (NODE-133) : drapeau de demande d'identification.
+ALTER TABLE flowers ADD COLUMN IF NOT EXISTS needs_identification BOOLEAN
+    NOT NULL DEFAULT false;
 
 -- =====================================================================
 -- Photos d'une fleur (NODE-104 : plusieurs photos par fleur)

@@ -77,6 +77,13 @@ export class Flower {
   @Column({ type: 'text', default: 'private' })
   visibility: FlowerVisibility;
 
+  /**
+   * Demande d'identification collaborative (NODE-133) : le propriétaire sollicite
+   * ses amis. Repassé à false quand une proposition est acceptée.
+   */
+  @Column({ name: 'needs_identification', type: 'boolean', default: false })
+  needsIdentification: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

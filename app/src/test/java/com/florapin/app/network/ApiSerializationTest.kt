@@ -2,7 +2,9 @@ package com.florapin.app.network
 
 import com.florapin.app.network.dto.CreateFlowerRequest
 import com.florapin.app.network.dto.FlowerDto
+import com.florapin.app.network.dto.ProposeSpeciesRequest
 import com.florapin.app.network.dto.SpeciesDto
+import com.florapin.app.network.dto.SpeciesProposalDto
 import com.squareup.moshi.Moshi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -78,5 +80,37 @@ class ApiSerializationTest {
         val flower = moshi.adapter(FlowerDto::class.java).fromJson(json)!!
         assertEquals(emptyList<String>(), flower.tags)
         assertNull(flower.latitude)
+        // Absent du JSON → false par défaut (NODE-134).
+        assertEquals(false, flower.needsIdentification)
+    }
+
+    @Test
+    fun parsesFlowerDto_needsIdentification() {
+        val json = """
+            {"id":"f1","ownerId":"o1","imageUrl":"u","takenAt":"t",
+             "notes":"","visibility":"shared","needsIdentification":true,
+             "createdAt":"t","updatedAt":"t"}
+        """.trimIndent()
+        val flower = moshi.adapter(FlowerDto::class.java).fromJson(json)!!
+        assertTrue(flower.needsIdentification)
+    }
+
+    @Test
+    fun serializesProposeRequest() {
+        val json = moshi
+            .adapter(ProposeSpeciesRequest::class.java)
+            .toJson(ProposeSpeciesRequest("Rosa canina"))
+        assertTrue(json.contains("\"species\":\"Rosa canina\""))
+    }
+
+    @Test
+    fun parsesSpeciesProposalDto() {
+        val json = """
+            {"id":"p1","flowerId":"f1","proposedBy":"u1",
+             "species":"Rosa canina","status":"pending","createdAt":"t"}
+        """.trimIndent()
+        val p = moshi.adapter(SpeciesProposalDto::class.java).fromJson(json)!!
+        assertEquals("f1", p.flowerId)
+        assertEquals("pending", p.status)
     }
 }

@@ -51,6 +51,7 @@ fun GalleryScreen(
     onFlowerClick: (Long) -> Unit,
     onOpenFriends: () -> Unit,
     onOpenAlbums: () -> Unit,
+    onOpenIdentify: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: GalleryViewModel = viewModel(),
 ) {
@@ -67,6 +68,9 @@ fun GalleryScreen(
                     SortMenu(selected = sort, onSelect = viewModel::setSort)
                     IconButton(onClick = onOpenAlbums) {
                         Text("📁", style = MaterialTheme.typography.titleLarge)
+                    }
+                    IconButton(onClick = onOpenIdentify) {
+                        Text("🔎", style = MaterialTheme.typography.titleLarge)
                     }
                     IconButton(onClick = onOpenFriends) {
                         Text("🤝", style = MaterialTheme.typography.titleLarge)

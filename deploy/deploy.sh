@@ -208,13 +208,18 @@ fi
 # à jour après le rsync) dans le conteneur db ; psql utilise les identifiants
 # internes du conteneur ($POSTGRES_USER/$POSTGRES_DB) — aucun secret côté script.
 echo "🗄️  Application du schéma (migrations idempotentes) à la base..."
-if ! remote_ssh "cd '$REMOTE_DIR/deploy' && echo '$REMOTE_PASSWORD' | sudo -S docker compose -f docker-compose.yml exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -f /docker-entrypoint-initdb.d/01-schema.sql'"; then
+# On COPIE le fichier fraîchement synchronisé dans le conteneur (docker compose cp)
+# au lieu de lire le bind-mount /docker-entrypoint-initdb.d/01-schema.sql : rsync
+# remplace l'inode du fichier hôte, mais un conteneur db créé lors d'un déploiement
+# antérieur garde l'ANCIEN inode monté → il verrait un schéma périmé. La copie
+# garantit que psql applique bien la version à jour.
+if ! remote_ssh "cd '$REMOTE_DIR/deploy' && echo '$REMOTE_PASSWORD' | sudo -S docker compose -f docker-compose.yml cp '$REMOTE_DIR/backend/db/schema.sql' db:/tmp/schema.sql && echo '$REMOTE_PASSWORD' | sudo -S docker compose -f docker-compose.yml exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -f /tmp/schema.sql'"; then
     echo "❌ Échec de l'application du schéma à la base (voir docker compose logs db)."
     exit 1
 fi
 echo "✅ Schéma à jour (colonnes/tables manquantes ajoutées si besoin)."
-# Recharge le catalogue d'espèces (idempotent) — non bloquant.
-if remote_ssh "cd '$REMOTE_DIR/deploy' && echo '$REMOTE_PASSWORD' | sudo -S docker compose -f docker-compose.yml exec -T db sh -c 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -f /docker-entrypoint-initdb.d/02-seed-species.sql'" >/dev/null 2>&1; then
+# Recharge le catalogue d'espèces (idempotent) — non bloquant. Même précaution (cp).
+if remote_ssh "cd '$REMOTE_DIR/deploy' && echo '$REMOTE_PASSWORD' | sudo -S docker compose -f docker-compose.yml cp '$REMOTE_DIR/backend/db/seed-species.sql' db:/tmp/seed-species.sql && echo '$REMOTE_PASSWORD' | sudo -S docker compose -f docker-compose.yml exec -T db sh -c 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -f /tmp/seed-species.sql'" >/dev/null 2>&1; then
     echo "✅ Catalogue d'espèces rechargé (seed idempotent)."
 else
     echo "ℹ️  Seed d'espèces non rejoué (non bloquant)."

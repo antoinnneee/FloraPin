@@ -13,5 +13,7 @@ interface FeedApi {
     suspend fun getFeed(
         @Query("since") since: String? = null,
         @Query("limit") limit: Int? = null,
+        /** 'date' (défaut) ou 'likes' (meilleures photos, NODE-140). */
+        @Query("sort") sort: String? = null,
     ): List<FlowerDto>
 }

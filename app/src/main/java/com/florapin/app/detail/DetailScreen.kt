@@ -49,6 +49,8 @@ import com.florapin.app.data.PhotoEntity
 import com.florapin.app.data.imageModel
 import com.florapin.app.identify.IdentificationRequestSection
 import com.florapin.app.identify.IdentificationRequestViewModel
+import com.florapin.app.likes.LikeButton
+import com.florapin.app.likes.LikeViewModel
 import com.florapin.app.location.GeoPoint
 import com.florapin.app.network.dto.SpeciesDto
 import com.florapin.app.share.ShareFlowerSheet
@@ -73,11 +75,19 @@ fun DetailScreen(
     identificationVm: IdentificationRequestViewModel = viewModel(
         factory = IdentificationRequestViewModel.factory(LocalContext.current),
     ),
+    likeVm: LikeViewModel = viewModel(
+        factory = LikeViewModel.factory(LocalContext.current),
+    ),
 ) {
     viewModel.setFlowerId(flowerId)
     photosViewModel.setFlowerId(flowerId)
     val flower by viewModel.flower.collectAsStateWithLifecycle()
     val photos by photosViewModel.photos.collectAsStateWithLifecycle()
+    val likeState by likeVm.state.collectAsStateWithLifecycle()
+    val serverId = flower?.serverId
+    androidx.compose.runtime.LaunchedEffect(serverId) {
+        serverId?.let(likeVm::bind)
+    }
     var showShare by remember { mutableStateOf(false) }
     var showAddToAlbum by remember { mutableStateOf(false) }
     var showCamera by remember { mutableStateOf(false) }
@@ -134,6 +144,8 @@ fun DetailScreen(
                 onSaveNotes = viewModel::saveNotes,
                 onSaveClassification = viewModel::saveClassification,
                 onSetFeedPublication = viewModel::setFeedPublication,
+                likeState = likeState,
+                onToggleLike = likeVm::toggle,
                 onOpenSpecies = onOpenSpecies,
                 onAddPhoto = { showCamera = true },
                 onDeletePhoto = photosViewModel::deletePhoto,
@@ -167,6 +179,8 @@ private fun DetailContent(
     onSaveNotes: (String) -> Unit,
     onSaveClassification: (String, List<String>, SpeciesDto?) -> Unit,
     onSetFeedPublication: (Boolean, Boolean) -> Unit,
+    likeState: com.florapin.app.likes.LikeState,
+    onToggleLike: () -> Unit,
     onOpenSpecies: (String) -> Unit,
     onAddPhoto: () -> Unit,
     onDeletePhoto: (PhotoEntity) -> Unit,
@@ -199,10 +213,24 @@ private fun DetailContent(
                 onMakeCover = onMakeCover,
             )
 
-            Text(
-                text = formatCaptureDate(flower.createdAt),
-                style = MaterialTheme.typography.titleMedium,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = formatCaptureDate(flower.createdAt),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                // Cœur disponible une fois la fleur synchronisée (NODE-140).
+                if (flower.serverId != null && likeState.loaded) {
+                    LikeButton(
+                        liked = likeState.liked,
+                        count = likeState.count,
+                        onToggle = onToggleLike,
+                    )
+                }
+            }
 
             val point = flower.toGeoPoint()
             if (point != null) {

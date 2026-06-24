@@ -44,7 +44,7 @@ val privacyPolicyUrl: String = run {
     }
     props.getProperty("PRIVACY_POLICY_URL")
         ?: System.getenv("PRIVACY_POLICY_URL")
-        ?: "https://florapin.fr/politique-de-confidentialite"
+        ?: "https://florapin.pattounecorp.ovh/politique-de-confidentialite"
 }
 
 // Secrets de signature release, lus depuis keystore.properties (gitignoré) ou

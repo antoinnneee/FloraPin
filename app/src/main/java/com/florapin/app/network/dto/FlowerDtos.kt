@@ -65,6 +65,10 @@ data class FlowerDto(
     val needsIdentification: Boolean = false,
     /** Diffusion GPS au flux d'amis quand visibility='friends' (NODE-137). */
     val feedIncludeGps: Boolean = true,
+    /** Nombre de cœurs reçus (NODE-139/140). */
+    val likeCount: Int = 0,
+    /** Le spectateur courant a-t-il liké cette fleur (NODE-139/140). */
+    val likedByMe: Boolean = false,
     val tags: List<String> = emptyList(),
     val photos: List<PhotoDto> = emptyList(),
     val createdAt: String,

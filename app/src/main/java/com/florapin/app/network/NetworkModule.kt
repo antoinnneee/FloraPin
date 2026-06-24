@@ -7,6 +7,7 @@ import com.florapin.app.network.api.FeedApi
 import com.florapin.app.network.api.FlowersApi
 import com.florapin.app.network.api.FriendshipsApi
 import com.florapin.app.network.api.IdentificationApi
+import com.florapin.app.network.api.LikesApi
 import com.florapin.app.network.api.PhotosApi
 import com.florapin.app.network.api.PushApi
 import com.florapin.app.network.api.SharesApi
@@ -37,6 +38,7 @@ class FloraApis(
     val species: SpeciesApi,
     val identification: IdentificationApi,
     val feed: FeedApi,
+    val likes: LikesApi,
 )
 
 /**
@@ -78,6 +80,7 @@ object NetworkModule {
         species = retrofit.create(SpeciesApi::class.java),
         identification = retrofit.create(IdentificationApi::class.java),
         feed = retrofit.create(FeedApi::class.java),
+        likes = retrofit.create(LikesApi::class.java),
     )
 
     /**

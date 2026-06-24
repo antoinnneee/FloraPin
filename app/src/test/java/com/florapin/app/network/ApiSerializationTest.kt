@@ -84,6 +84,9 @@ class ApiSerializationTest {
         assertEquals(false, flower.needsIdentification)
         // Absent du JSON → true par défaut (NODE-137).
         assertEquals(true, flower.feedIncludeGps)
+        // Cœurs absents → 0 / false par défaut (NODE-140).
+        assertEquals(0, flower.likeCount)
+        assertEquals(false, flower.likedByMe)
     }
 
     @Test

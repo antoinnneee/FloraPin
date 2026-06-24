@@ -6,11 +6,11 @@ Les **visuels** (captures, mockups, og-image) sont à produire séparément.
 ## 1. Hero
 - **Accroche** : « Vos fleurs, géolocalisées et gardées pour toujours. »
 - **Sous-titre** : « Photographiez chaque fleur que vous croisez, retrouvez-la
-  sur une carte, et partagez vos plus belles trouvailles avec vos amis — même
+  sur une carte, et partagez-la avec une communauté d'amis passionnés — même
   sans réseau. »
 - **CTA** : « Rejoindre la bêta »
 
-## 2. Cartes fonctionnalités (6)
+## 2. Cartes fonctionnalités (9)
 1. **📷 Capture géolocalisée** — « Une photo, et la fleur est automatiquement
    épinglée à l'endroit exact où vous l'avez trouvée. »
 2. **🗺️ Carte des fleurs** — « Toutes vos trouvailles réunies sur une carte
@@ -19,17 +19,23 @@ Les **visuels** (captures, mockups, og-image) sont à produire séparément.
    et sa mini-carte. »
 4. **👥 Partage entre amis** — « Choisissez ce que vous partagez : une fleur ou
    toute votre collection, avec ou sans localisation. »
-5. **🌿 Identification** — « Vous ne connaissez pas l'espèce ? Laissez-la « à
-   identifier » : un ami ou Pl@ntNet vous aide. »
-6. **📴 Fonctionne hors-ligne** — « Capture, galerie et carte marchent sans
+5. **📣 Flux d'amis** — « Publiez vos trouvailles à tous vos amis d'un coup et
+   suivez les leurs dans un flux dédié. »
+6. **🙋 Demande d'identification** — « Bloqué sur une espèce ? Sollicitez vos
+   amis : ils reçoivent la demande et vous proposent un nom. »
+7. **❤️ Cœurs & votes** — « Mettez un cœur aux plus belles photos et faites
+   ressortir les meilleures trouvailles. »
+8. **🌿 Identification collaborative** — « Vous ne connaissez pas l'espèce ?
+   Laissez-la « à identifier » et demandez à vos amis de vous aider à la nommer. »
+9. **📴 Fonctionne hors-ligne** — « Capture, galerie et carte marchent sans
    réseau ni compte. Vos données restent chez vous. »
 
 ## 3. Comment ça marche (3 étapes)
 1. **Photographier** — « Ouvrez l'app et prenez une photo de la fleur. »
 2. **Localiser** — « Sa position est enregistrée automatiquement et apparaît sur
    votre carte. »
-3. **Partager** — « Partagez vos trouvailles avec vos amis, en gardant vos spots
-   secrets si vous le souhaitez. »
+3. **Partager** — « Publiez vos trouvailles dans le flux de vos amis, recevez
+   leurs cœurs et leur aide pour identifier les espèces. »
 
 ## 4. Encart vie privée
 - **Titre** : « Vos spots restent secrets »

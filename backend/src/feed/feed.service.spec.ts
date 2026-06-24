@@ -25,6 +25,8 @@ function flower(
     speciesRef: null,
     tags: [],
     photos: [],
+    likeCount: 0,
+    likedByMe: false,
     createdAt: new Date(createdAt),
     updatedAt: new Date(createdAt),
     ...overrides,
@@ -77,6 +79,17 @@ describe('FeedService', () => {
     broadcast = [flower('d', '2026-06-22T10:00:00Z')];
     const result = await feed.getFeed('viewer');
     expect(result.map((f) => f.id)).toEqual(['d', 'b', 'a', 'c']);
+  });
+
+  it('trie par cœurs quand sort=likes (date départage)', async () => {
+    shared = [
+      flower('a', '2026-06-20T10:00:00Z', { likeCount: 1 }),
+      flower('b', '2026-06-21T10:00:00Z', { likeCount: 5 }),
+      flower('c', '2026-06-19T10:00:00Z', { likeCount: 5 }),
+    ];
+    const result = await feed.getFeed('viewer', undefined, 50, 'likes');
+    // b et c ont 5 cœurs : b (plus récent) devant c ; a (1 cœur) en dernier.
+    expect(result.map((f) => f.id)).toEqual(['b', 'c', 'a']);
   });
 
   it('déduplique partage ciblé + broadcast en gardant la variante avec GPS', async () => {

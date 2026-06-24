@@ -2,6 +2,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
+import { FlowerLike } from '../likes/flower-like.entity';
 import { StorageService } from '../storage/storage.service';
 import { StubStorageService } from '../storage/stub-storage.service';
 import { Flower } from './flower.entity';
@@ -73,6 +74,10 @@ describe('FlowersService', () => {
         FlowersService,
         { provide: getRepositoryToken(Flower), useValue: repo },
         { provide: getRepositoryToken(FlowerPhoto), useClass: FakePhotoRepo },
+        {
+          provide: getRepositoryToken(FlowerLike),
+          useValue: { count: async () => 0 },
+        },
         { provide: StorageService, useClass: StubStorageService },
       ],
     }).compile();

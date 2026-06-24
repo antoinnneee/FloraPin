@@ -243,6 +243,18 @@ CREATE TABLE species_proposals (
 CREATE INDEX idx_species_proposals_flower ON species_proposals(flower_id);
 
 -- =====================================================================
+-- Cœurs sur les fleurs (NODE-139)
+-- =====================================================================
+CREATE TABLE flower_likes (
+    flower_id   UUID NOT NULL REFERENCES flowers(id) ON DELETE CASCADE,
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (flower_id, user_id)            -- un cœur par (fleur, utilisateur)
+);
+-- Comptage des cœurs par fleur + « liké par moi » (NODE-139).
+CREATE INDEX idx_flower_likes_flower ON flower_likes(flower_id);
+
+-- =====================================================================
 -- Notifications in-app (NODE-23)
 -- =====================================================================
 CREATE TABLE notifications (

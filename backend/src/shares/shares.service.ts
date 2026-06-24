@@ -123,7 +123,7 @@ export class SharesService {
       const flowers = await this.resolveFlowers(share);
 
       for (const flower of flowers) {
-        const response = await this.flowersService.toResponse(flower);
+        const response = await this.flowersService.toResponse(flower, viewerId);
         const presented = share.includeGps ? response : stripGps(response);
         const previous = byId.get(presented.id);
         // Conserve la variante avec GPS si elle existe.
@@ -149,7 +149,7 @@ export class SharesService {
     });
     return Promise.all(
       flowers.map(async (flower) => {
-        const response = await this.flowersService.toResponse(flower);
+        const response = await this.flowersService.toResponse(flower, viewerId);
         return flower.feedIncludeGps ? response : stripGps(response);
       }),
     );

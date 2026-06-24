@@ -8,6 +8,7 @@ import { FlowersModule } from './flowers/flowers.module';
 import { FriendshipsModule } from './friendships/friendships.module';
 import { IdentificationModule } from './identification/identification.module';
 import { IdentificationRequestsModule } from './identification-requests/identification-requests.module';
+import { LikesModule } from './likes/likes.module';
 import { MailModule } from './mail/mail.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ObservabilityModule } from './observability/observability.module';
@@ -48,6 +49,7 @@ import { UsersModule } from './users/users.module';
     FeedModule,
     IdentificationModule,
     IdentificationRequestsModule,
+    LikesModule,
     ProposalsModule,
     PushModule,
     SyncModule,

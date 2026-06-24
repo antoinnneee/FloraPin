@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { FlowerResponse } from '../flowers/flowers.service';
 import { SharesService } from '../shares/shares.service';
+import { FeedSort } from './dto/feed.dto';
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
@@ -19,6 +20,7 @@ export class FeedService {
     viewerId: string,
     since?: Date,
     limit = DEFAULT_LIMIT,
+    sort: FeedSort = 'date',
   ): Promise<FlowerResponse[]> {
     const [targeted, broadcast] = await Promise.all([
       this.shares.sharedWithMe(viewerId),
@@ -39,9 +41,14 @@ export class FeedService {
     }
 
     const effectiveLimit = Math.min(Math.max(limit, 1), MAX_LIMIT);
+    const byDate = (a: FlowerResponse, b: FlowerResponse) =>
+      b.createdAt.getTime() - a.createdAt.getTime();
+    // Tri par cœurs (NODE-139), la date départageant les ex æquo.
+    const byLikes = (a: FlowerResponse, b: FlowerResponse) =>
+      b.likeCount - a.likeCount || byDate(a, b);
     return [...byId.values()]
       .filter((f) => !since || f.createdAt.getTime() > since.getTime())
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .sort(sort === 'likes' ? byLikes : byDate)
       .slice(0, effectiveLimit);
   }
 }

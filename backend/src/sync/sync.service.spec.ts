@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { Flower } from '../flowers/flower.entity';
 import { FlowerPhoto } from '../flowers/flower-photo.entity';
 import { FlowersService } from '../flowers/flowers.service';
+import { FlowerLike } from '../likes/flower-like.entity';
 import { StorageService } from '../storage/storage.service';
 import { StubStorageService } from '../storage/stub-storage.service';
 import { SyncService } from './sync.service';
@@ -66,6 +67,10 @@ describe('SyncService', () => {
         FlowersService,
         { provide: getRepositoryToken(Flower), useValue: repo },
         { provide: getRepositoryToken(FlowerPhoto), useClass: FakePhotoRepo },
+        {
+          provide: getRepositoryToken(FlowerLike),
+          useValue: { count: async () => 0 },
+        },
         { provide: StorageService, useClass: StubStorageService },
       ],
     }).compile();

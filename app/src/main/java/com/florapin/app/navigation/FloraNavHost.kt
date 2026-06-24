@@ -139,7 +139,7 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
                 },
             ),
             deepLinks = listOf(
-                navDeepLink { uriPattern = "https://florapin.fr/reset?token={token}" },
+                navDeepLink { uriPattern = "https://florapin.pattounecorp.ovh/reset?token={token}" },
             ),
         ) { backStackEntry ->
             val token = backStackEntry.arguments?.getString("token").orEmpty()
@@ -166,7 +166,7 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
                 },
             ),
             deepLinks = listOf(
-                navDeepLink { uriPattern = "https://florapin.fr/verify?token={token}" },
+                navDeepLink { uriPattern = "https://florapin.pattounecorp.ovh/verify?token={token}" },
             ),
         ) { backStackEntry ->
             val token = backStackEntry.arguments?.getString("token").orEmpty()

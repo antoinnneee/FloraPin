@@ -121,7 +121,7 @@ docker compose up -d proxy
 - API : `https://<DOMAIN>/api/v1` · Swagger : `https://<DOMAIN>/api/docs`
 - DNS : un seul enregistrement A `<DOMAIN>` → IP du VPS (déjà requis pour l'API).
 - `landing/dist` est gitignoré : il faut **builder sur le VPS** (ou copier le
-  build) avant `up`. `astro.config.mjs` fixe `site: https://florapin.fr` — adapter
+  build) avant `up`. `astro.config.mjs` fixe `site: https://florapin.pattounecorp.ovh` — adapter
   si le domaine diffère (impacte les URLs Open Graph/canoniques).
 
 > Alternatives sans VPS : Vercel/Netlify (déploiement Git + CDN) ou GitHub Pages

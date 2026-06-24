@@ -20,7 +20,7 @@ import { StubMailSender } from './stub-mail.sender';
         const logger = new Logger('MailModule');
         const from = config.get<string>(
           'MAIL_FROM',
-          'FloraPin <no-reply@florapin.fr>',
+          'FloraPin <no-reply@florapin.pattounecorp.ovh>',
         );
 
         if (config.get<string>('MAIL_DRIVER', 'stub') !== 'smtp') {

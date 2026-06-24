@@ -22,7 +22,7 @@ data class EmailVerifyUiState(
 
 /**
  * Valide un token de vérification d'email reçu par lien
- * (`florapin.fr/verify?token=...`). Endpoint public : aucune session requise.
+ * (`florapin.pattounecorp.ovh/verify?token=...`). Endpoint public : aucune session requise.
  */
 class EmailVerifyViewModel(
     private val session: SessionManager,

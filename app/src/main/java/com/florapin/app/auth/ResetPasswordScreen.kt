@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Écran de réinitialisation (NODE-116) : le token (reçu par email via deep link
- * `florapin.fr/reset?token=...`, ou saisi manuellement) + le nouveau mot de
+ * `florapin.pattounecorp.ovh/reset?token=...`, ou saisi manuellement) + le nouveau mot de
  * passe. Succès ⇒ [onResetDone] (retour Login).
  */
 @Composable

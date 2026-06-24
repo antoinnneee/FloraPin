@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Écran de confirmation de vérification d'email (NODE-117), ouvert via le deep
- * link `florapin.fr/verify?token=...`. Valide automatiquement le token reçu.
+ * link `florapin.pattounecorp.ovh/verify?token=...`. Valide automatiquement le token reçu.
  */
 @Composable
 fun VerifyEmailScreen(

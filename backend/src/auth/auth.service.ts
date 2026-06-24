@@ -134,7 +134,7 @@ export class AuthService {
       }),
     );
 
-    const baseUrl = this.config.get<string>('APP_BASE_URL', 'https://florapin.fr');
+    const baseUrl = this.config.get<string>('APP_BASE_URL', 'https://florapin.pattounecorp.ovh');
     const resetUrl = `${baseUrl}/reset?token=${rawToken}`;
     await this.mail.send(resetPasswordEmail(user.email, resetUrl, ttlMinutes));
   }
@@ -189,7 +189,7 @@ export class AuthService {
       }),
     );
 
-    const baseUrl = this.config.get<string>('APP_BASE_URL', 'https://florapin.fr');
+    const baseUrl = this.config.get<string>('APP_BASE_URL', 'https://florapin.pattounecorp.ovh');
     const verifyUrl = `${baseUrl}/verify?token=${rawToken}`;
     await this.mail.send(verifyEmail(user.email, verifyUrl));
   }

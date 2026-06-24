@@ -50,7 +50,7 @@
             </intent-filter>
 
             <!-- Deep link de réinitialisation de mot de passe (NODE-116) :
-                 https://florapin.fr/reset?token=... ouvre ResetPasswordScreen.
+                 https://florapin.pattounecorp.ovh/reset?token=... ouvre ResetPasswordScreen.
                  (App Links vérifiés nécessiteraient assetlinks.json hébergé.) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -58,19 +58,19 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="https"
-                    android:host="florapin.fr"
+                    android:host="florapin.pattounecorp.ovh"
                     android:pathPrefix="/reset" />
             </intent-filter>
 
             <!-- Deep link de vérification d'email (NODE-117) :
-                 https://florapin.fr/verify?token=... ouvre VerifyEmailScreen. -->
+                 https://florapin.pattounecorp.ovh/verify?token=... ouvre VerifyEmailScreen. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="https"
-                    android:host="florapin.fr"
+                    android:host="florapin.pattounecorp.ovh"
                     android:pathPrefix="/verify" />
             </intent-filter>
         </activity>

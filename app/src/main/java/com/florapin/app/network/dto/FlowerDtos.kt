@@ -57,6 +57,8 @@ data class FlowerDto(
     val speciesId: String? = null,
     /** Espèce résolue depuis le référentiel (NODE-125), null si non rapprochée. */
     val speciesRef: SpeciesRefDto? = null,
+    /** Fleur en attente d'identification collaborative (NODE-133/134). */
+    val needsIdentification: Boolean = false,
     val tags: List<String> = emptyList(),
     val photos: List<PhotoDto> = emptyList(),
     val createdAt: String,

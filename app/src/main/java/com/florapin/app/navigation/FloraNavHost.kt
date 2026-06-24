@@ -35,6 +35,7 @@ import com.florapin.app.detail.SpeciesDetailScreen
 import com.florapin.app.feed.SharedFeedScreen
 import com.florapin.app.friends.FriendsScreen
 import com.florapin.app.gallery.GalleryScreen
+import com.florapin.app.identify.IdentifyScreen
 import com.florapin.app.map.MapScreen
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.profile.ProfileScreen
@@ -58,6 +59,7 @@ private object Routes {
     const val ALBUM_DETAIL = "album/{id}"
     const val DETAIL = "detail/{id}"
     const val SPECIES_DETAIL = "species/{id}"
+    const val IDENTIFY = "identify"
 
     fun detail(id: Long) = "detail/$id"
     fun album(id: Long) = "album/$id"
@@ -204,7 +206,11 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
                 onFlowerClick = { id -> navController.navigate(Routes.detail(id)) },
                 onOpenFriends = { navController.navigate(Routes.FRIENDS) },
                 onOpenAlbums = { navController.navigate(Routes.ALBUMS) },
+                onOpenIdentify = { navController.navigate(Routes.IDENTIFY) },
             )
+        }
+        composable(Routes.IDENTIFY) {
+            IdentifyScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.ALBUMS) {
             AlbumsScreen(

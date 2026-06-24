@@ -46,6 +46,8 @@ import com.florapin.app.capture.CameraScreen
 import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.PhotoEntity
 import com.florapin.app.data.imageModel
+import com.florapin.app.identify.IdentificationRequestSection
+import com.florapin.app.identify.IdentificationRequestViewModel
 import com.florapin.app.location.GeoPoint
 import com.florapin.app.network.dto.SpeciesDto
 import com.florapin.app.share.ShareFlowerSheet
@@ -66,6 +68,9 @@ fun DetailScreen(
     photosViewModel: PhotosViewModel = viewModel(),
     speciesPicker: SpeciesPickerViewModel = viewModel(
         factory = SpeciesPickerViewModel.factory(LocalContext.current),
+    ),
+    identificationVm: IdentificationRequestViewModel = viewModel(
+        factory = IdentificationRequestViewModel.factory(LocalContext.current),
     ),
 ) {
     viewModel.setFlowerId(flowerId)
@@ -124,6 +129,7 @@ fun DetailScreen(
                 flower = current,
                 photos = photos,
                 speciesPicker = speciesPicker,
+                identificationVm = identificationVm,
                 onSaveNotes = viewModel::saveNotes,
                 onSaveClassification = viewModel::saveClassification,
                 onOpenSpecies = onOpenSpecies,
@@ -155,6 +161,7 @@ private fun DetailContent(
     flower: FlowerEntity,
     photos: List<PhotoEntity>,
     speciesPicker: SpeciesPickerViewModel,
+    identificationVm: IdentificationRequestViewModel,
     onSaveNotes: (String) -> Unit,
     onSaveClassification: (String, List<String>, SpeciesDto?) -> Unit,
     onOpenSpecies: (String) -> Unit,
@@ -230,6 +237,16 @@ private fun DetailContent(
                         .fillMaxWidth()
                         .clickable { onOpenSpecies(speciesId) }
                         .padding(vertical = 4.dp),
+                )
+            }
+
+            // Demande d'identification aux amis quand l'espèce est absente (NODE-134).
+            // Nécessite une fleur déjà synchronisée (serverId), car la demande est
+            // adressée aux amis via l'API.
+            if (flower.species.isNullOrBlank()) {
+                IdentificationRequestSection(
+                    flowerServerId = flower.serverId,
+                    viewModel = identificationVm,
                 )
             }
 

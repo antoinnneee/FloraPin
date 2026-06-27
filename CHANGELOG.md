@@ -12,6 +12,15 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.2.0] — 2026-06-28
+
+### Ajouté
+- Contrôles de capture photo : **zoom** (pincement à deux doigts + curseur
+  synchronisés, avec affichage du facteur ex. « 2.0× ») et **mode macro**
+  (bascule la mise au point rapprochée `CONTROL_AF_MODE_MACRO` via l'interop
+  Camera2, pour les sujets très proches). Le curseur n'apparaît que si l'appareil
+  offre une plage de zoom.
+
 ## [1.1.0] — 2026-06-28
 
 ### Ajouté

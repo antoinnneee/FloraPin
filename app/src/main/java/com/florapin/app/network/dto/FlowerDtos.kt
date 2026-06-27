@@ -79,6 +79,23 @@ data class FlowerDto(
     val updatedAt: String,
 )
 
+/** Photos ordonnées (couverture d'abord, puis par position). */
+private fun FlowerDto.orderedPhotos(): List<PhotoDto> =
+    photos.sortedWith(compareByDescending<PhotoDto> { it.isCover }.thenBy { it.position })
+
+/**
+ * URLs pleine résolution de toutes les photos de la fleur (couverture d'abord).
+ * Repli sur l'image de couverture seule si la liste `photos` est vide (anciennes
+ * fleurs ou DTO non enrichi).
+ */
+fun FlowerDto.fullPhotoUrls(): List<String> =
+    orderedPhotos().map { it.url }.ifEmpty { listOf(imageUrl) }
+
+/** Versions légères (miniature WebP si dispo) des mêmes photos, pour les listes. */
+fun FlowerDto.previewPhotoUrls(): List<String> =
+    orderedPhotos().map { it.thumbnailUrl ?: it.url }
+        .ifEmpty { listOf(thumbnailUrl ?: imageUrl) }
+
 @JsonClass(generateAdapter = true)
 data class AddPhotoResponse(
     val photo: PhotoDto,

@@ -14,11 +14,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.florapin.app.data.FlowerRepository
+import com.florapin.app.data.PhotoRepository
 import com.florapin.app.location.GeoPoint
 import com.florapin.app.location.LocationProvider
 import com.florapin.app.permission.AppPermission
@@ -34,6 +38,8 @@ import com.florapin.app.permission.PermissionsScreen
 import com.florapin.app.permission.isGranted
 import com.florapin.app.permission.rememberMultiplePermissionsState
 import com.florapin.app.sync.SyncScheduler
+import kotlinx.coroutines.launch
+import java.io.File
 
 /** État de la récupération GPS pour la capture courante. */
 private sealed interface LocationState {
@@ -43,11 +49,28 @@ private sealed interface LocationState {
 }
 
 /**
+ * Photo qui vient d'être prise et est en cours de revue. La première photo d'un
+ * groupe est la couverture (portée par la fleur) ; les suivantes sont des photos
+ * additionnelles (table `flower_photos`).
+ */
+private sealed interface Captured {
+    val uri: Uri
+
+    data class Cover(override val uri: Uri) : Captured
+    data class Added(override val uri: Uri, val photoId: Long) : Captured
+}
+
+/**
  * Flux complet de capture (NODE-6 + NODE-7) :
  * 1. s'assure que la permission caméra est accordée (la localisation est
  *    demandée en même temps mais reste optionnelle) ;
  * 2. affiche l'aperçu caméra ;
- * 3. après la prise, récupère la position et montre la photo + ses coordonnées.
+ * 3. après chaque prise, propose d'**annuler** la photo, d'en **ajouter** une
+ *    autre au même groupe (même fleur), ou de **terminer**.
+ *
+ * La synchronisation cloud est déclenchée à « Terminer » : on pousse alors la
+ * fleur et toutes ses photos en une fois (et une annulation avant n'a donc rien
+ * envoyé au serveur).
  */
 @Composable
 fun CaptureFlow(
@@ -55,33 +78,61 @@ fun CaptureFlow(
     onFinished: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val (permissions, requestPermissions) = rememberMultiplePermissionsState(
         permissions = listOf(AppPermission.CAMERA, AppPermission.LOCATION),
     )
     val cameraGranted = permissions.statuses[AppPermission.CAMERA]?.isGranted == true
 
     val locationProvider = remember(context) { LocationProvider(context) }
-    val repository = remember(context) { FlowerRepository.from(context) }
+    val flowerRepo = remember(context) { FlowerRepository.from(context) }
+    val photoRepo = remember(context) { PhotoRepository.from(context) }
 
-    var capturedUri: Uri? by remember { mutableStateOf(null) }
+    // Identifiant de la fleur du groupe en cours (null tant qu'aucune photo prise).
+    var flowerId: Long? by remember { mutableStateOf(null) }
+    var photoCount by remember { mutableIntStateOf(0) }
+    // URI brut renvoyé par la caméra, en attente de persistance.
+    var pendingUri: Uri? by remember { mutableStateOf(null) }
+    // Photo actuellement en revue (null => on affiche la caméra).
+    var captured: Captured? by remember { mutableStateOf(null) }
     var locationState: LocationState by remember { mutableStateOf(LocationState.Loading) }
 
-    // Récupère la position puis persiste la fleur dès qu'une photo est prise.
-    LaunchedEffect(capturedUri) {
-        val uri = capturedUri ?: return@LaunchedEffect
-        locationState = LocationState.Loading
-        val point = runCatching { locationProvider.currentLocation() }.getOrNull()
-        locationState = if (point != null) {
-            LocationState.Available(point)
+    // Persiste la photo prise : crée la fleur (couverture) à la première, sinon
+    // rattache une photo additionnelle au groupe.
+    LaunchedEffect(pendingUri) {
+        val uri = pendingUri ?: return@LaunchedEffect
+        val path = uri.path
+        if (path == null) {
+            pendingUri = null
+            return@LaunchedEffect
+        }
+        val existing = flowerId
+        if (existing == null) {
+            locationState = LocationState.Loading
+            val point = runCatching { locationProvider.currentLocation() }.getOrNull()
+            locationState = if (point != null) {
+                LocationState.Available(point)
+            } else {
+                LocationState.Unavailable
+            }
+            val id = runCatching {
+                flowerRepo.saveCapture(imagePath = path, location = point)
+            }.getOrNull()
+            if (id != null) {
+                flowerId = id
+                photoCount = 1
+                captured = Captured.Cover(uri)
+            }
         } else {
-            LocationState.Unavailable
+            val photoId = runCatching {
+                photoRepo.addLocalPhoto(existing, path)
+            }.getOrNull()
+            if (photoId != null) {
+                photoCount += 1
+                captured = Captured.Added(uri, photoId)
+            }
         }
-        uri.path?.let { path ->
-            runCatching { repository.saveCapture(imagePath = path, location = point) }
-                // Tente une sync immédiate : no-op si la synchronisation cloud est
-                // désactivée (la photo reste alors uniquement sur l'appareil).
-                .onSuccess { SyncScheduler.syncNow(context) }
-        }
+        pendingUri = null
     }
 
     when {
@@ -93,32 +144,65 @@ fun CaptureFlow(
             )
         }
 
-        capturedUri == null -> {
+        captured == null -> {
             CameraScreen(
-                onPhotoSaved = { uri -> capturedUri = uri },
+                onPhotoSaved = { uri -> pendingUri = uri },
                 modifier = modifier,
             )
         }
 
         else -> {
             CapturedPhotoScreen(
-                uri = capturedUri!!,
+                captured = captured!!,
+                photoCount = photoCount,
                 locationState = locationState,
-                onRetake = { capturedUri = null },
-                onFinished = onFinished,
+                onCancelPhoto = {
+                    val c = captured
+                    if (c != null) scope.launch {
+                        when (c) {
+                            is Captured.Cover -> {
+                                // Annule entièrement la capture (fleur mono-photo).
+                                flowerId?.let { id ->
+                                    flowerRepo.getById(id)?.let { flowerRepo.delete(it) }
+                                }
+                                flowerId = null
+                                photoCount = 0
+                            }
+
+                            is Captured.Added -> {
+                                // Retire seulement cette photo additionnelle.
+                                photoRepo.hardDelete(c.photoId)
+                                photoCount = (photoCount - 1).coerceAtLeast(1)
+                            }
+                        }
+                        c.uri.path?.let { runCatching { File(it).delete() } }
+                        captured = null
+                    }
+                },
+                onAddAnother = { captured = null },
+                onFinish = {
+                    scope.launch {
+                        // Pousse la fleur et toutes ses photos d'un coup ; no-op si
+                        // la synchronisation cloud est désactivée (reste sur l'appareil).
+                        if (flowerId != null) SyncScheduler.syncNow(context)
+                        onFinished()
+                    }
+                },
                 modifier = modifier,
             )
         }
     }
 }
 
-/** Aperçu de la photo enregistrée + coordonnées GPS associées. */
+/** Aperçu de la photo prise + actions (annuler / ajouter au groupe / terminer). */
 @Composable
 private fun CapturedPhotoScreen(
-    uri: Uri,
+    captured: Captured,
+    photoCount: Int,
     locationState: LocationState,
-    onRetake: () -> Unit,
-    onFinished: () -> Unit,
+    onCancelPhoto: () -> Unit,
+    onAddAnother: () -> Unit,
+    onFinish: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -132,7 +216,7 @@ private fun CapturedPhotoScreen(
             contentAlignment = Alignment.Center,
         ) {
             AsyncImage(
-                model = uri,
+                model = captured.uri,
                 contentDescription = "Photo capturée",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize(),
@@ -142,32 +226,40 @@ private fun CapturedPhotoScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 // Évite que la barre de navigation système recouvre les boutons
-                // « Reprendre / Terminer » sur les appareils en mode 3 boutons.
+                // sur les appareils en mode 3 boutons.
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "Photo enregistrée dans la galerie ✅",
+                text = "📸 $photoCount photo${if (photoCount > 1) "s" else ""} dans ce groupe",
                 style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                text = uri.lastPathSegment ?: uri.toString(),
-                style = MaterialTheme.typography.bodySmall,
             )
             LocationLine(locationState)
             Button(
-                onClick = onRetake,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Reprendre une photo")
-            }
-            OutlinedButton(
-                onClick = onFinished,
+                onClick = onFinish,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Terminer")
+            }
+            OutlinedButton(
+                onClick = onAddAnother,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("➕ Ajouter une photo")
+            }
+            TextButton(
+                onClick = onCancelPhoto,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = if (captured is Captured.Cover) {
+                        "Annuler cette capture"
+                    } else {
+                        "Annuler cette photo"
+                    },
+                )
             }
         }
     }

@@ -26,14 +26,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
 import com.florapin.app.network.dto.FlowerDto
+import com.florapin.app.network.dto.fullPhotoUrls
+import com.florapin.app.network.dto.previewPhotoUrls
 import com.florapin.app.ui.components.EmptyState
+import com.florapin.app.ui.components.PhotoCarousel
 
 /**
  * Écran « Fleurs à identifier » (NODE-134) : les fleurs non identifiées que mes
@@ -114,10 +115,12 @@ private fun IdentifyCard(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            AsyncImage(
-                model = flower.imageUrl,
+            // Toutes les photos de la fleur (carrousel + plein écran/zoom au clic),
+            // pour mieux juger l'espèce à proposer. Repli sur la couverture seule.
+            PhotoCarousel(
+                previewModels = flower.previewPhotoUrls(),
+                fullModels = flower.fullPhotoUrls(),
                 contentDescription = "Fleur à identifier",
-                contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp),

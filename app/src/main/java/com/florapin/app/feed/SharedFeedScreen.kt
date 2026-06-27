@@ -22,13 +22,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
 import com.florapin.app.likes.LikeButton
+import com.florapin.app.network.dto.fullPhotoUrls
+import com.florapin.app.network.dto.previewPhotoUrls
 import com.florapin.app.ui.components.EmptyState
+import com.florapin.app.ui.components.PhotoCarousel
 
 /**
  * Feed des fleurs partagées avec moi (NODE-72) : photo (URL présignée via Coil),
@@ -105,11 +106,12 @@ private fun SharedFlowerCard(
     val flower = item.flower
     Card(modifier = Modifier.fillMaxWidth()) {
         Column {
-            AsyncImage(
-                // Preview léger : miniature WebP si disponible, sinon plein.
-                model = flower.thumbnailUrl ?: flower.imageUrl,
+            // Carrousel de toutes les photos de la fleur (preview léger), avec
+            // visionneuse plein écran + zoom au clic. Repli sur la couverture seule.
+            PhotoCarousel(
+                previewModels = flower.previewPhotoUrls(),
+                fullModels = flower.fullPhotoUrls(),
                 contentDescription = "Fleur partagée",
-                contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1f),

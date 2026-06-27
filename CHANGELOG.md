@@ -12,6 +12,20 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.3.0] — 2026-06-28
+
+### Ajouté
+- Groupe de photos à la capture : après une prise, on peut **annuler** la photo,
+  en **ajouter une autre au même groupe** (même fleur) ou **terminer**. La
+  synchronisation cloud est déclenchée à « Terminer » (la fleur et toutes ses
+  photos partent d'un coup ; une annulation avant n'a rien envoyé).
+- Visionneuse photo **plein écran avec zoom** depuis le détail : toucher la photo
+  principale ou une vignette ouvre un carrousel plein écran (swipe entre photos,
+  pincement + double-tap pour zoomer).
+- Affichage **multi-photos** côté ami : le flux « Partagées avec moi » et l'écran
+  « Fleurs à identifier » montrent désormais toutes les photos d'une fleur
+  (carrousel + plein écran/zoom au clic), au lieu de la seule couverture.
+
 ## [1.2.0] — 2026-06-28
 
 ### Ajouté

@@ -37,7 +37,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
@@ -65,6 +65,7 @@ import com.florapin.app.map.setupFlowerClustering
 import com.florapin.app.map.updateFlowerMarkers
 import com.florapin.app.network.dto.SpeciesDto
 import com.florapin.app.share.ShareFlowerSheet
+import com.florapin.app.ui.components.FullscreenPhotoViewer
 import com.florapin.app.util.formatCaptureDate
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
@@ -206,6 +207,13 @@ private fun DetailContent(
     onMakeCover: (PhotoEntity) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Modèles d'images pour la visionneuse plein écran : couverture puis photos
+    // additionnelles, dans l'ordre affiché.
+    val viewerModels = remember(flower.imagePath, flower.remoteImageUrl, photos) {
+        listOf(flower.imageModel()) + photos.map { it.imageModel() }
+    }
+    var viewerStart by remember { mutableStateOf<Int?>(null) }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -214,11 +222,12 @@ private fun DetailContent(
     ) {
         AsyncImage(
             model = flower.imageModel(),
-            contentDescription = "Photo de la fleur",
+            contentDescription = "Photo de la fleur (toucher pour agrandir)",
             contentScale = ContentScale.Fit,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(320.dp),
+                .height(320.dp)
+                .clickable { viewerStart = 0 },
         )
 
         Column(
@@ -230,6 +239,8 @@ private fun DetailContent(
                 onAddPhoto = onAddPhoto,
                 onDeletePhoto = onDeletePhoto,
                 onMakeCover = onMakeCover,
+                // index + 1 : la couverture occupe la position 0 dans la visionneuse.
+                onOpenPhoto = { index -> viewerStart = index + 1 },
             )
 
             Row(
@@ -328,6 +339,14 @@ private fun DetailContent(
             )
         }
     }
+
+    viewerStart?.let { start ->
+        FullscreenPhotoViewer(
+            models = viewerModels,
+            startIndex = start,
+            onDismiss = { viewerStart = null },
+        )
+    }
 }
 
 /**
@@ -340,6 +359,7 @@ private fun PhotoGallery(
     onAddPhoto: () -> Unit,
     onDeletePhoto: (PhotoEntity) -> Unit,
     onMakeCover: (PhotoEntity) -> Unit,
+    onOpenPhoto: (Int) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -355,9 +375,10 @@ private fun PhotoGallery(
         }
         if (photos.isNotEmpty()) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(photos, key = { it.id }) { photo ->
+                itemsIndexed(photos, key = { _, p -> p.id }) { index, photo ->
                     PhotoThumbnail(
                         photo = photo,
+                        onOpen = { onOpenPhoto(index) },
                         onDelete = { onDeletePhoto(photo) },
                         onMakeCover = { onMakeCover(photo) },
                     )
@@ -370,17 +391,19 @@ private fun PhotoGallery(
 @Composable
 private fun PhotoThumbnail(
     photo: PhotoEntity,
+    onOpen: () -> Unit,
     onDelete: () -> Unit,
     onMakeCover: () -> Unit,
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         AsyncImage(
             model = photo.thumbnailModel(),
-            contentDescription = "Photo supplémentaire",
+            contentDescription = "Photo supplémentaire (toucher pour agrandir)",
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(100.dp)
-                .clip(RoundedCornerShape(8.dp)),
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(onClick = onOpen),
         )
         Row {
             // « Définir comme couverture » seulement si la photo a un fichier local.

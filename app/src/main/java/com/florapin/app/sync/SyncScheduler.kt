@@ -23,6 +23,7 @@ object SyncScheduler {
 
     /** Sync périodique (toutes les ~6 h, quand le réseau est disponible). */
     fun schedulePeriodic(context: Context) {
+        if (!SyncPreferences(context).isEnabled()) return
         val request = PeriodicWorkRequestBuilder<SyncWorker>(6, TimeUnit.HOURS)
             .setConstraints(networkConstraint)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
@@ -41,8 +42,9 @@ object SyncScheduler {
         wm.cancelUniqueWork(ONESHOT)
     }
 
-    /** Sync immédiate (ex. au login ou au retour réseau). */
+    /** Sync immédiate (ex. au login ou au retour réseau). No-op si sync désactivée. */
     fun syncNow(context: Context) {
+        if (!SyncPreferences(context).isEnabled()) return
         val request = OneTimeWorkRequestBuilder<SyncWorker>()
             .setConstraints(networkConstraint)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)

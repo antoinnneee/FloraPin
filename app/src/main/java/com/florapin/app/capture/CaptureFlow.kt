@@ -30,6 +30,7 @@ import com.florapin.app.permission.AppPermission
 import com.florapin.app.permission.PermissionsScreen
 import com.florapin.app.permission.isGranted
 import com.florapin.app.permission.rememberMultiplePermissionsState
+import com.florapin.app.sync.SyncScheduler
 
 /** État de la récupération GPS pour la capture courante. */
 private sealed interface LocationState {
@@ -74,6 +75,9 @@ fun CaptureFlow(
         }
         uri.path?.let { path ->
             runCatching { repository.saveCapture(imagePath = path, location = point) }
+                // Tente une sync immédiate : no-op si la synchronisation cloud est
+                // désactivée (la photo reste alors uniquement sur l'appareil).
+                .onSuccess { SyncScheduler.syncNow(context) }
         }
     }
 

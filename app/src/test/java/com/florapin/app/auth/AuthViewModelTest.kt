@@ -22,6 +22,7 @@ import kotlinx.coroutines.test.setMain
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -174,8 +175,12 @@ class AuthViewModelTest {
         assertEquals(AuthUiState.Idle, vm.state.value)
     }
 
+    /**
+     * Le logout efface les jetons mais CONSERVE les données locales : les photos
+     * de base restent sur l'appareil (synchronisation optionnelle).
+     */
     @Test
-    fun logout_purgesLocalData() = runTest {
+    fun logout_keepsLocalDataOnDevice() = runTest {
         val store = MemTokenStore().apply { save("acc", "ref") }
         var cleared = false
         val cleaner = com.florapin.app.network.auth.SessionDataCleaner { cleared = true }
@@ -184,6 +189,7 @@ class AuthViewModelTest {
         AuthViewModel(session).logout { }
         advanceUntilIdle()
 
-        assertTrue(cleared)
+        assertEquals(null, store.refreshToken())
+        assertFalse(cleared)
     }
 }

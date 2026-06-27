@@ -7,8 +7,9 @@ import com.florapin.app.sync.LastSyncStore
 import com.florapin.app.sync.PrefsLastSyncStore
 
 /**
- * Purge des données locales au logout (NODE-93) : table `flowers`, fichiers
- * images du stockage privé, et curseur de sync (full-pull au prochain login).
+ * Purge des données locales (table `flowers`, fichiers images du stockage privé,
+ * curseur de sync). Utilisé à la suppression de compte (NODE-93). Le logout, lui,
+ * conserve désormais les photos sur l'appareil (réglage de sync optionnel).
  */
 class LocalSessionDataCleaner(
     private val context: Context,

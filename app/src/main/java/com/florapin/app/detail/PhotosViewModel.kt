@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.florapin.app.data.FlowerRepository
 import com.florapin.app.data.PhotoEntity
 import com.florapin.app.data.PhotoRepository
+import com.florapin.app.sync.SyncScheduler
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -37,7 +38,12 @@ class PhotosViewModel(application: Application) : AndroidViewModel(application) 
 
     fun addPhoto(imagePath: String) {
         val id = flowerId.value ?: return
-        viewModelScope.launch { photoRepo.addLocalPhoto(id, imagePath) }
+        viewModelScope.launch {
+            photoRepo.addLocalPhoto(id, imagePath)
+            // Tente une sync immédiate : no-op si la synchronisation cloud est
+            // désactivée (la photo reste alors uniquement sur l'appareil).
+            SyncScheduler.syncNow(getApplication())
+        }
     }
 
     fun deletePhoto(photo: PhotoEntity) {

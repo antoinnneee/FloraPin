@@ -53,9 +53,10 @@ class SessionManager(
     }
 
     /**
-     * Révoque le refresh côté serveur (best-effort) puis purge le stockage local :
-     * tokens, et données de session (fleurs, images, curseur de sync) pour éviter
-     * qu'un compte hérite des données d'un autre au login suivant (NODE-93).
+     * Déconnexion : révoque le refresh côté serveur (best-effort) puis efface les
+     * jetons locaux. Les données de session (fleurs, photos, fichiers) sont
+     * CONSERVÉES sur l'appareil : la synchronisation est optionnelle et les photos
+     * de base restent disponibles hors-ligne après reconnexion.
      */
     suspend fun logout() {
         val refresh = tokenStore.refreshToken()
@@ -65,7 +66,6 @@ class SessionManager(
             // déconnexion locale garantie quoi qu'il arrive
         } finally {
             tokenStore.clear()
-            localData?.clearLocalData()
         }
     }
 

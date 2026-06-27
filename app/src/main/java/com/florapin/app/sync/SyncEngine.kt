@@ -23,7 +23,8 @@ class SyncEngine(
     private val repository: FlowerRepository,
     private val syncApi: SyncApi,
     private val flowersApi: FlowersApi,
-    private val uploadImage: suspend (url: String, file: File) -> Unit,
+    /** Téléverse l'image d'une fleur (serverId) ; le serveur la réencode en WebP. */
+    private val uploadFlowerImage: suspend (serverId: String, file: File) -> Unit,
     private val lastSyncStore: LastSyncStore,
     private val now: () -> Long = { System.currentTimeMillis() },
     /** Sync des albums (NODE-102) ; optionnel pour rester rétrocompatible. */
@@ -50,17 +51,23 @@ class SyncEngine(
 
         if (created.isNotEmpty()) {
             val results = syncApi.push(SyncPushRequest(created.map { it.toPushItem() }))
-            results.forEach { result ->
-                val localId = result.localId.toLongOrNull() ?: return@forEach
-                val local = repository.getById(localId)
-                if (local != null && local.imagePath.isNotEmpty()) {
-                    runCatching { uploadImage(result.upload.url, File(local.imagePath)) }
+                .associateBy { it.localId }
+            // On itère sur NOS fleurs locales et on retrouve leur résultat par
+            // notre propre id : pas de dépendance au format du localId renvoyé.
+            created.forEach { local ->
+                val result = results[local.id.toString()] ?: return@forEach
+                // Persiste le serverId AVANT toute opération faillible (upload
+                // image, parsing de date). Sinon une erreur ici laisserait la
+                // fleur en PENDING : au prochain sync elle serait re-poussée et
+                // le serveur en créerait un doublon (fleur « grise » au pull).
+                val serverUpdatedAt = runCatching { isoToMillis(result.flower.updatedAt) }
+                    .getOrDefault(now())
+                repository.markSynced(local.id, result.flower.id, serverUpdatedAt)
+                if (local.imagePath.isNotEmpty()) {
+                    runCatching {
+                        uploadFlowerImage(result.flower.id, File(local.imagePath))
+                    }
                 }
-                repository.markSynced(
-                    localId,
-                    result.flower.id,
-                    isoToMillis(result.flower.updatedAt),
-                )
             }
         }
 
@@ -115,15 +122,28 @@ class SyncEngine(
         val response = syncApi.pull(lastSyncStore.get())
         response.flowers.forEach { dto ->
             val existing = repository.findByServerId(dto.id)
-            val localId = if (existing != null) {
+            if (existing != null) {
                 repository.update(dto.applyTo(existing))
-                existing.id
-            } else {
-                // Fleur distante inconnue (autre appareil) : insérée avec son URL
-                // image distante ; Coil charge l'URL présignée à l'affichage.
-                repository.insert(dto.toEntity())
+                // Réconcilie les photos additionnelles de la fleur (NODE-107).
+                photoSync?.reconcile(existing.id, dto.photos)
+                return@forEach
             }
-            // Réconcilie les photos additionnelles de la fleur (NODE-107).
+
+            // Fleur distante au serverId inconnu localement. Avant de l'insérer,
+            // on vérifie qu'elle ne fait pas doublon avec une de nos captures
+            // locales (même date de capture, image présente) déjà synchronisée
+            // sous un AUTRE serverId : ce serait un orphelin créé par un
+            // double-push. On le supprime côté serveur au lieu de l'afficher en
+            // double (fleur « grise »).
+            val twin = repository.findLocalTwin(isoToMillis(dto.takenAt))
+            if (twin?.serverId != null && twin.serverId != dto.id) {
+                runCatching { flowersApi.delete(dto.id) }
+                return@forEach
+            }
+
+            // Vraie fleur distante (autre appareil) : insérée avec son URL image
+            // distante ; Coil charge l'URL présignée à l'affichage.
+            val localId = repository.insert(dto.toEntity())
             photoSync?.reconcile(localId, dto.photos)
         }
         response.deletedIds.forEach { serverId ->

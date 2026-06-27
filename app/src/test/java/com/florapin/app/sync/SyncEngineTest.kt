@@ -32,6 +32,10 @@ private class FakeDao : FlowerDao {
     override suspend fun getById(id: Long) = store[id]
     override suspend fun findByServerId(serverId: String) =
         store.values.find { it.serverId == serverId }
+    override suspend fun findLocalTwin(createdAt: Long) =
+        store.values.find {
+            it.createdAt == createdAt && it.imagePath.isNotEmpty() && it.deletedAt == null
+        }
     override fun observeById(id: Long): Flow<FlowerEntity?> = flowOf(store[id])
     override fun observeBySpecies(
         speciesId: String?,
@@ -87,16 +91,24 @@ private class FakeSyncApi(
 
 private class FakeFlowersApi : FlowersApi {
     var lastUpdateBody: UpdateFlowerRequest? = null
+    val deleted = mutableListOf<String>()
     override suspend fun create(body: CreateFlowerRequest) =
         throw UnsupportedOperationException()
     override suspend fun list(species: String?, tag: String?) = emptyList<FlowerDto>()
     override suspend fun get(id: String) = throw UnsupportedOperationException()
+    override suspend fun uploadImage(
+        id: String,
+        file: okhttp3.MultipartBody.Part,
+    ) = dto(id, "2026-06-21T10:00:00Z")
     override suspend fun imageUrl(id: String) = ImageUrlResponse("u")
     override suspend fun update(id: String, body: UpdateFlowerRequest): FlowerDto {
         lastUpdateBody = body
         return dto(id, "2026-06-21T10:00:00Z")
     }
-    override suspend fun delete(id: String) = retrofit2.Response.success<Unit>(null)
+    override suspend fun delete(id: String): retrofit2.Response<Unit> {
+        deleted += id
+        return retrofit2.Response.success<Unit>(null)
+    }
 }
 
 private class FakeLastSync : LastSyncStore {
@@ -147,7 +159,7 @@ class SyncEngineTest {
             repository = repo,
             syncApi = syncApi,
             flowersApi = FakeFlowersApi(),
-            uploadImage = { url, file -> uploads += url to file },
+            uploadFlowerImage = { serverId, file -> uploads += serverId to file },
             lastSyncStore = FakeLastSync(),
             now = { 5_000L },
         )
@@ -155,7 +167,7 @@ class SyncEngineTest {
         engine.push()
 
         assertEquals(1, syncApi.lastPushSize)
-        assertEquals("https://upload", uploads.single().first)
+        assertEquals("srv-9", uploads.single().first)
         val synced = dao.store[localId]!!
         assertEquals("srv-9", synced.serverId)
         assertEquals(SyncState.SYNCED.name, synced.syncState)
@@ -185,7 +197,7 @@ class SyncEngineTest {
                 ),
             ),
             flowersApi = FakeFlowersApi(),
-            uploadImage = { _, _ -> },
+            uploadFlowerImage = { _, _ -> },
             lastSyncStore = store,
             now = { 9_000L },
         )
@@ -210,7 +222,7 @@ class SyncEngineTest {
                 ),
             ),
             flowersApi = FakeFlowersApi(),
-            uploadImage = { _, _ -> },
+            uploadFlowerImage = { _, _ -> },
             lastSyncStore = FakeLastSync(),
         )
 
@@ -220,6 +232,46 @@ class SyncEngineTest {
         assertEquals("", inserted.imagePath)
         assertEquals("https://x/srv-remote.jpg", inserted.remoteImageUrl)
         assertEquals(SyncState.SYNCED.name, inserted.syncState)
+    }
+
+    @Test
+    fun pull_skipsServerDuplicateOfLocalCapture() = runBlocking {
+        val dao = FakeDao()
+        val repo = FlowerRepository(dao)
+        // takenAt du helper dto() = 2026-06-21T09:00:00Z.
+        val takenAtMillis = java.time.Instant.parse("2026-06-21T09:00:00Z").toEpochMilli()
+        // Capture locale déjà synchronisée (image présente) à cette date.
+        dao.insert(
+            FlowerEntity(
+                imagePath = "/p.jpg",
+                createdAt = takenAtMillis,
+                serverId = "srv-original",
+                syncState = SyncState.SYNCED.name,
+                updatedAt = takenAtMillis,
+            ),
+        )
+        val flowersApi = FakeFlowersApi()
+        val engine = SyncEngine(
+            repository = repo,
+            syncApi = FakeSyncApi(
+                pullResponse = SyncPullResponse(
+                    serverTime = "2026-06-21T12:00:00Z",
+                    // Orphelin serveur : même date de capture, autre serverId.
+                    flowers = listOf(dto("srv-orphan", "2026-06-21T11:00:00Z")),
+                    deletedIds = emptyList(),
+                ),
+            ),
+            flowersApi = flowersApi,
+            uploadFlowerImage = { _, _ -> },
+            lastSyncStore = FakeLastSync(),
+        )
+
+        engine.pull()
+
+        // Aucun doublon inséré et l'orphelin est supprimé côté serveur.
+        assertNull(dao.store.values.find { it.serverId == "srv-orphan" })
+        assertEquals(1, dao.store.size)
+        assertEquals(listOf("srv-orphan"), flowersApi.deleted)
     }
 
     @Test
@@ -245,7 +297,7 @@ class SyncEngineTest {
                 ),
             ),
             flowersApi = FakeFlowersApi(),
-            uploadImage = { _, _ -> },
+            uploadFlowerImage = { _, _ -> },
             lastSyncStore = FakeLastSync(),
         )
 
@@ -276,7 +328,7 @@ class SyncEngineTest {
             repository = repo,
             syncApi = FakeSyncApi(),
             flowersApi = flowersApi,
-            uploadImage = { _, _ -> },
+            uploadFlowerImage = { _, _ -> },
             lastSyncStore = FakeLastSync(),
             now = { 5_000L },
         )
@@ -309,7 +361,7 @@ class SyncEngineTest {
             repository = repo,
             syncApi = FakeSyncApi(),
             flowersApi = flowersApi,
-            uploadImage = { _, _ -> },
+            uploadFlowerImage = { _, _ -> },
             lastSyncStore = FakeLastSync(),
             now = { 5_000L },
         )

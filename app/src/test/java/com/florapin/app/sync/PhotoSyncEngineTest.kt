@@ -44,13 +44,22 @@ class MemPhotoDao : PhotoDao {
 private class FakePhotosApi : PhotosApi {
     var uploadedFrom: String? = null
     var added = 0
+    val uploaded = mutableListOf<Pair<String, String>>()
     val removed = mutableListOf<Pair<String, String>>()
     override suspend fun add(flowerId: String): AddPhotoResponse {
         added++
         return AddPhotoResponse(
-            photo = PhotoDto("srv-photo-$added", "url", added, false),
+            photo = PhotoDto("srv-photo-$added", "url", position = added, isCover = false),
             upload = PresignedUpload("https://up/$added", "PUT", 600),
         )
+    }
+    override suspend fun uploadImage(
+        flowerId: String,
+        photoId: String,
+        file: okhttp3.MultipartBody.Part,
+    ): PhotoDto {
+        uploaded.add(flowerId to photoId)
+        return PhotoDto(photoId, "url", position = 0, isCover = false)
     }
     override suspend fun remove(flowerId: String, photoId: String): Response<Unit> {
         removed.add(flowerId to photoId)
@@ -67,8 +76,10 @@ class PhotoSyncEngineTest {
         val dao = MemPhotoDao()
         val repo = PhotoRepository(dao) { 100L }
         val api = FakePhotosApi()
-        var uploaded: String? = null
-        val engine = PhotoSyncEngine(repo, api) { url, _ -> uploaded = url }
+        var uploadedPhotoId: String? = null
+        val engine = PhotoSyncEngine(repo, api) { _, photoServerId, _ ->
+            uploadedPhotoId = photoServerId
+        }
 
         repo.addLocalPhoto(flowerLocalId = 1L, imagePath = "/p.jpg")
 
@@ -77,14 +88,14 @@ class PhotoSyncEngineTest {
         val photo = dao.store.values.single()
         assertEquals(SyncState.SYNCED.name, photo.syncState)
         assertEquals("srv-photo-1", photo.serverId)
-        assertEquals("https://up/1", uploaded)
+        assertEquals("srv-photo-1", uploadedPhotoId)
     }
 
     @Test
     fun push_skipsPhotosOfUnsyncedFlower() = runBlocking {
         val dao = MemPhotoDao()
         val repo = PhotoRepository(dao) { 100L }
-        val engine = PhotoSyncEngine(repo, FakePhotosApi()) { _, _ -> }
+        val engine = PhotoSyncEngine(repo, FakePhotosApi()) { _, _, _ -> }
 
         repo.addLocalPhoto(flowerLocalId = 2L, imagePath = "/p.jpg")
         engine.push { null } // fleur pas encore synchronisée
@@ -96,13 +107,13 @@ class PhotoSyncEngineTest {
     fun reconcile_insertsAdditionalServerPhotos_ignoringCover() = runBlocking {
         val dao = MemPhotoDao()
         val repo = PhotoRepository(dao) { 100L }
-        val engine = PhotoSyncEngine(repo, FakePhotosApi()) { _, _ -> }
+        val engine = PhotoSyncEngine(repo, FakePhotosApi()) { _, _, _ -> }
 
         engine.reconcile(
             flowerLocalId = 5L,
             remote = listOf(
-                PhotoDto("cover-1", "u0", 0, true),
-                PhotoDto("extra-1", "u1", 1, false),
+                PhotoDto("cover-1", "u0", position = 0, isCover = true),
+                PhotoDto("extra-1", "u1", position = 1, isCover = false),
             ),
         )
 
@@ -117,7 +128,7 @@ class PhotoSyncEngineTest {
     fun reconcile_removesSyncedPhotoAbsentFromServer() = runBlocking {
         val dao = MemPhotoDao()
         val repo = PhotoRepository(dao) { 100L }
-        val engine = PhotoSyncEngine(repo, FakePhotosApi()) { _, _ -> }
+        val engine = PhotoSyncEngine(repo, FakePhotosApi()) { _, _, _ -> }
 
         dao.insert(
             PhotoEntity(flowerLocalId = 5L, serverId = "gone", remoteUrl = "u",

@@ -25,6 +25,14 @@ export class StubStorageService extends StorageService {
     };
   }
 
+  async putObject(
+    _key: string,
+    _body: Buffer,
+    _contentType: string,
+  ): Promise<void> {
+    // Aucun objet réel à stocker (placeholder).
+  }
+
   async presignDownload(key: string): Promise<string> {
     return `https://storage.invalid/${key}?download=stub`;
   }

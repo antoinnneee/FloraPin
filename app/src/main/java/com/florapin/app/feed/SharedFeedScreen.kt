@@ -106,7 +106,8 @@ private fun SharedFlowerCard(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column {
             AsyncImage(
-                model = flower.imageUrl,
+                // Preview léger : miniature WebP si disponible, sinon plein.
+                model = flower.thumbnailUrl ?: flower.imageUrl,
                 contentDescription = "Fleur partagée",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier

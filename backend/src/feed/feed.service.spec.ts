@@ -12,6 +12,7 @@ function flower(
     id,
     ownerId: 'o',
     imageUrl: 'u',
+    thumbnailUrl: null,
     latitude: null,
     longitude: null,
     accuracyM: null,

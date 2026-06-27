@@ -41,6 +41,8 @@ data class PresignedUpload(
 data class PhotoDto(
     val id: String,
     val url: String,
+    /** URL présignée de la miniature WebP (preview), ou null si non réencodée. */
+    val thumbnailUrl: String? = null,
     val position: Int,
     val isCover: Boolean,
 )
@@ -50,6 +52,8 @@ data class FlowerDto(
     val id: String,
     val ownerId: String,
     val imageUrl: String,
+    /** URL présignée de la miniature de couverture (preview), ou null. */
+    val thumbnailUrl: String? = null,
     val latitude: Double? = null,
     val longitude: Double? = null,
     val accuracyM: Double? = null,

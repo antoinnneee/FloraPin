@@ -29,9 +29,17 @@ export class Flower {
   @Column({ name: 'owner_id', type: 'uuid' })
   ownerId: string;
 
-  /** Clé de l'objet image dans le stockage (MinIO). */
+  /** Clé de l'objet image (pleine résolution) dans le stockage (MinIO). */
   @Column({ name: 'image_key' })
   imageKey: string;
+
+  /**
+   * Clé de la miniature WebP (NODE : preview en galerie/feed). Nullable : les
+   * fleurs créées avant le réencodage serveur n'en ont pas — l'app retombe
+   * alors sur l'image pleine résolution.
+   */
+  @Column({ name: 'thumbnail_key', type: 'text', nullable: true })
+  thumbnailKey: string | null;
 
   /** Position WGS84 (SRID 4326), nullable. */
   @Index({ spatial: true })

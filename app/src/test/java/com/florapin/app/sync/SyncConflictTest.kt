@@ -30,6 +30,10 @@ private class MemDao : FlowerDao {
     override suspend fun getById(id: Long) = store[id]
     override suspend fun findByServerId(serverId: String) =
         store.values.find { it.serverId == serverId }
+    override suspend fun findLocalTwin(createdAt: Long) =
+        store.values.find {
+            it.createdAt == createdAt && it.imagePath.isNotEmpty() && it.deletedAt == null
+        }
     override fun observeById(id: Long): Flow<FlowerEntity?> = flowOf(store[id])
     override fun observeBySpecies(
         speciesId: String?,
@@ -58,6 +62,8 @@ private class ConflictFlowersApi : FlowersApi {
     override suspend fun create(body: CreateFlowerRequest) = throw UnsupportedOperationException()
     override suspend fun list(species: String?, tag: String?) = emptyList<FlowerDto>()
     override suspend fun get(id: String) = throw UnsupportedOperationException()
+    override suspend fun uploadImage(id: String, file: okhttp3.MultipartBody.Part) =
+        throw UnsupportedOperationException()
     override suspend fun imageUrl(id: String) = ImageUrlResponse("u")
     override suspend fun update(id: String, body: UpdateFlowerRequest): FlowerDto =
         throw HttpException(Response.error<FlowerDto>(409, "".toResponseBody()))
@@ -96,7 +102,7 @@ class SyncConflictTest {
             repository = repo,
             syncApi = EmptySyncApi(),
             flowersApi = ConflictFlowersApi(),
-            uploadImage = { _, _ -> },
+            uploadFlowerImage = { _, _ -> },
             lastSyncStore = MemLastSync(),
             now = { 9_000L },
         )

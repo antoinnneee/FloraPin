@@ -20,9 +20,13 @@ export class FlowerPhoto {
   @Column({ name: 'flower_id', type: 'uuid' })
   flowerId: string;
 
-  /** Clé de l'objet image dans le stockage (MinIO). */
+  /** Clé de l'objet image (pleine résolution) dans le stockage (MinIO). */
   @Column({ name: 'image_key' })
   imageKey: string;
+
+  /** Clé de la miniature WebP, ou null pour les photos antérieures au réencodage. */
+  @Column({ name: 'thumbnail_key', type: 'text', nullable: true })
+  thumbnailKey: string | null;
 
   /** Ordre d'affichage. */
   @Column({ type: 'int', default: 0 })

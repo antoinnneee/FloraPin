@@ -6,7 +6,18 @@ import {
 class FakeClient implements ObjectStorageClient {
   buckets = new Set<string>();
   putCalls: Array<{ bucket: string; key: string; expiry: number }> = [];
+  putObjects: Array<{ bucket: string; key: string; size?: number }> = [];
   removed: Array<{ bucket: string; key: string }> = [];
+
+  async putObject(
+    bucket: string,
+    key: string,
+    _body: Buffer,
+    size?: number,
+  ): Promise<unknown> {
+    this.putObjects.push({ bucket, key, size });
+    return { etag: 'fake' };
+  }
 
   async removeObject(bucket: string, key: string): Promise<void> {
     this.removed.push({ bucket, key });

@@ -96,7 +96,8 @@ CREATE INDEX IF NOT EXISTS idx_species_scientific_name
 CREATE TABLE IF NOT EXISTS flowers (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    image_key   TEXT NOT NULL,                     -- clé de l'objet dans MinIO
+    image_key   TEXT NOT NULL,                     -- clé de l'objet (pleine rés.) dans MinIO
+    thumbnail_key TEXT,                            -- miniature WebP (preview galerie/feed)
     -- Position WGS84 (SRID 4326). Nullable : la capture peut être sans GPS.
     location    geography(Point, 4326),
     accuracy_m  REAL,                              -- précision horizontale (mètres)
@@ -132,6 +133,7 @@ ALTER TABLE flowers ADD COLUMN IF NOT EXISTS needs_identification BOOLEAN
     NOT NULL DEFAULT false;                                                        -- NODE-133
 ALTER TABLE flowers ADD COLUMN IF NOT EXISTS feed_include_gps BOOLEAN
     NOT NULL DEFAULT true;                                                         -- NODE-136
+ALTER TABLE flowers ADD COLUMN IF NOT EXISTS thumbnail_key TEXT;                   -- preview WebP
 
 -- Index (après les ALTER : toutes les colonnes ciblées existent désormais).
 -- Requêtes géo (ST_DWithin, bbox) : index GiST sur la position.
@@ -164,11 +166,13 @@ UPDATE flowers f
 CREATE TABLE IF NOT EXISTS flower_photos (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     flower_id   UUID NOT NULL REFERENCES flowers(id) ON DELETE CASCADE,
-    image_key   TEXT NOT NULL,                     -- clé de l'objet dans MinIO
+    image_key   TEXT NOT NULL,                     -- clé de l'objet (pleine rés.) dans MinIO
+    thumbnail_key TEXT,                            -- miniature WebP (preview)
     position    INTEGER NOT NULL DEFAULT 0,        -- ordre d'affichage
     is_cover    BOOLEAN NOT NULL DEFAULT false,    -- photo de couverture
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE flower_photos ADD COLUMN IF NOT EXISTS thumbnail_key TEXT;  -- preview WebP
 CREATE INDEX IF NOT EXISTS idx_flower_photos_flower ON flower_photos(flower_id);
 -- Au plus une couverture par fleur.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_flower_photos_cover

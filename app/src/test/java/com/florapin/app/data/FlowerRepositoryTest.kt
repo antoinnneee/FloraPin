@@ -37,6 +37,7 @@ class FlowerRepositoryTest {
             Unit
         override suspend fun markFailed(id: Long) = Unit
         override suspend fun findByServerId(serverId: String): FlowerEntity? = null
+        override suspend fun findLocalTwin(createdAt: Long): FlowerEntity? = null
         override suspend fun softDeleteByServerId(serverId: String, deletedAt: Long) =
             Unit
     }

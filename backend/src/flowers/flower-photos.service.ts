@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PresignedUpload, StorageService } from '../storage/storage.service';
+import { encodeWebp } from '../storage/image-processing';
 import { FlowerPhoto } from './flower-photo.entity';
 import { PhotoResponse } from './flowers.service';
 import { Flower } from './flower.entity';
@@ -42,6 +43,39 @@ export class FlowerPhotosService {
     );
     const upload = await this.storage.presignUpload(imageKey);
     return { photo: await this.toResponse(photo), upload };
+  }
+
+  /**
+   * Réencode et stocke le binaire d'une photo additionnelle (WebP pleine
+   * résolution + miniature). Si la photo est la couverture, met aussi à jour
+   * `flowers.image_key`/`thumbnail_key`.
+   */
+  async uploadImage(
+    ownerId: string,
+    flowerId: string,
+    photoId: string,
+    input: Buffer,
+  ): Promise<PhotoResponse> {
+    await this.requireFlower(ownerId, flowerId);
+    const photo = await this.requirePhoto(flowerId, photoId);
+
+    const { full, thumbnail } = await encodeWebp(input);
+    const imageKey = this.storage.buildKey(ownerId, 'webp');
+    const thumbnailKey = this.storage.buildKey(ownerId, 'webp');
+    await this.storage.putObject(imageKey, full, 'image/webp');
+    await this.storage.putObject(thumbnailKey, thumbnail, 'image/webp');
+
+    const oldKey = photo.imageKey;
+    photo.imageKey = imageKey;
+    photo.thumbnailKey = thumbnailKey;
+    await this.photos.save(photo);
+    if (photo.isCover) {
+      await this.flowers.update(flowerId, { imageKey, thumbnailKey });
+    }
+    if (oldKey && oldKey !== imageKey) {
+      await this.storage.delete(oldKey).catch(() => undefined);
+    }
+    return this.toResponse(photo);
   }
 
   async remove(
@@ -138,6 +172,9 @@ export class FlowerPhotosService {
     return {
       id: photo.id,
       url: await this.storage.presignDownload(photo.imageKey),
+      thumbnailUrl: photo.thumbnailKey
+        ? await this.storage.presignDownload(photo.thumbnailKey)
+        : null,
       position: photo.position,
       isCover: photo.isCover,
     };

@@ -20,7 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FlowerAlbumCrossRef::class,
         PhotoEntity::class,
     ],
-    version = 9,
+    version = 11,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -144,6 +144,49 @@ abstract class FloraDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v9 → v10 : anti-doublon de synchronisation. Nettoie les fleurs
+         * « grises » dupliquées (re-tirées du serveur sans image locale alors
+         * qu'une capture locale existait) puis impose l'unicité du serverId.
+         */
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Supprime les lignes sans image qui font doublon (même date de
+                //    capture) avec une fleur possédant bien son fichier local.
+                db.execSQL(
+                    "DELETE FROM flowers WHERE imagePath = '' AND EXISTS (" +
+                        "SELECT 1 FROM flowers AS twin WHERE twin.id <> flowers.id " +
+                        "AND twin.createdAt = flowers.createdAt " +
+                        "AND twin.imagePath <> '' AND twin.deletedAt IS NULL)",
+                )
+                // 2. Dédoublonne ce qui partagerait encore un même serverId
+                //    (on conserve le plus ancien) avant de poser l'index unique.
+                db.execSQL(
+                    "DELETE FROM flowers WHERE serverId IS NOT NULL AND id NOT IN (" +
+                        "SELECT MIN(id) FROM flowers WHERE serverId IS NOT NULL " +
+                        "GROUP BY serverId)",
+                )
+                // 3. Garantit qu'un serverId ne désigne qu'une seule ligne.
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_flowers_serverId " +
+                        "ON flowers(serverId)",
+                )
+            }
+        }
+
+        /**
+         * v10 → v11 : URL de miniature WebP distante (preview en galerie/feed),
+         * pour fleurs et photos additionnelles.
+         */
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE flowers ADD COLUMN remoteThumbnailUrl TEXT")
+                db.execSQL(
+                    "ALTER TABLE flower_photos ADD COLUMN remoteThumbnailUrl TEXT",
+                )
+            }
+        }
+
         @Volatile
         private var instance: FloraDatabase? = null
 
@@ -167,6 +210,8 @@ abstract class FloraDatabase : RoomDatabase() {
                 MIGRATION_6_7,
                 MIGRATION_7_8,
                 MIGRATION_8_9,
+                MIGRATION_9_10,
+                MIGRATION_10_11,
             ).build()
     }
 }

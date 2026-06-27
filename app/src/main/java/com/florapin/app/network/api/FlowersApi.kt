@@ -5,12 +5,15 @@ import com.florapin.app.network.dto.CreateFlowerResponse
 import com.florapin.app.network.dto.FlowerDto
 import com.florapin.app.network.dto.ImageUrlResponse
 import com.florapin.app.network.dto.UpdateFlowerRequest
+import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -26,6 +29,17 @@ interface FlowersApi {
 
     @GET("flowers/{id}")
     suspend fun get(@Path("id") id: String): FlowerDto
+
+    /**
+     * Téléverse le binaire image (multipart, champ `file`) ; le serveur réencode
+     * en WebP (pleine résolution + miniature) et renvoie la fleur à jour.
+     */
+    @Multipart
+    @POST("flowers/{id}/image")
+    suspend fun uploadImage(
+        @Path("id") id: String,
+        @Part file: MultipartBody.Part,
+    ): FlowerDto
 
     @GET("flowers/{id}/image-url")
     suspend fun imageUrl(@Path("id") id: String): ImageUrlResponse

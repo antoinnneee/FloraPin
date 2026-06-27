@@ -17,7 +17,9 @@ import java.io.File
 class PhotoSyncEngine(
     private val photos: PhotoRepository,
     private val photosApi: PhotosApi,
-    private val uploadImage: suspend (url: String, file: File) -> Unit,
+    /** Téléverse l'image d'une photo (multipart) ; le serveur la réencode en WebP. */
+    private val uploadPhotoImage:
+        suspend (flowerServerId: String, photoServerId: String, file: File) -> Unit,
 ) {
     /**
      * Pousse les photos locales en attente, pour les fleurs déjà synchronisées
@@ -30,10 +32,18 @@ class PhotoSyncEngine(
             when {
                 photo.serverId == null && photo.deletedAt == null -> {
                     val res = photosApi.add(flowerServerId)
-                    if (photo.imagePath.isNotEmpty()) {
-                        runCatching { uploadImage(res.upload.url, File(photo.imagePath)) }
-                    }
+                    // markSynced d'abord : le serverId est persisté même si
+                    // l'upload échoue (évite une re-création en doublon).
                     photos.markSynced(photo.id, res.photo.id)
+                    if (photo.imagePath.isNotEmpty()) {
+                        runCatching {
+                            uploadPhotoImage(
+                                flowerServerId,
+                                res.photo.id,
+                                File(photo.imagePath),
+                            )
+                        }
+                    }
                 }
                 photo.serverId != null && photo.deletedAt != null -> {
                     runCatching { photosApi.remove(flowerServerId, photo.serverId) }

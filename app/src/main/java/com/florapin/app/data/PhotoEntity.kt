@@ -31,6 +31,9 @@ data class PhotoEntity(
     /** URL présignée de lecture (photo distante). */
     val remoteUrl: String? = null,
 
+    /** URL présignée de la miniature WebP (preview), ou null. */
+    val remoteThumbnailUrl: String? = null,
+
     val position: Int = 0,
     val isCover: Boolean = false,
     val syncState: String = SyncState.PENDING.name,
@@ -40,3 +43,8 @@ data class PhotoEntity(
 /** Source d'image à fournir à Coil pour une photo : fichier local sinon URL. */
 fun PhotoEntity.imageModel(): Any? =
     if (imagePath.isNotEmpty()) File(imagePath) else remoteUrl
+
+/** Source d'image légère (preview) : fichier local, sinon miniature, sinon plein. */
+fun PhotoEntity.thumbnailModel(): Any? =
+    if (imagePath.isNotEmpty()) File(imagePath)
+    else remoteThumbnailUrl ?: remoteUrl

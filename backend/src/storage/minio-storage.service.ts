@@ -9,6 +9,13 @@ import { PresignedUpload, StorageService } from './storage.service';
 export interface ObjectStorageClient {
   presignedPutObject(bucket: string, key: string, expiry: number): Promise<string>;
   presignedGetObject(bucket: string, key: string, expiry: number): Promise<string>;
+  putObject(
+    bucket: string,
+    key: string,
+    body: Buffer,
+    size?: number,
+    metaData?: Record<string, string>,
+  ): Promise<unknown>;
   bucketExists(bucket: string): Promise<boolean>;
   makeBucket(bucket: string, region?: string): Promise<void>;
   removeObject(bucket: string, key: string): Promise<void>;
@@ -62,6 +69,16 @@ export class MinioStorageService
       this.expiresIn,
     );
     return { url, method: 'PUT', expiresIn: this.expiresIn };
+  }
+
+  async putObject(
+    key: string,
+    body: Buffer,
+    contentType: string,
+  ): Promise<void> {
+    await this.client.putObject(this.bucket, key, body, body.length, {
+      'Content-Type': contentType,
+    });
   }
 
   async presignDownload(key: string): Promise<string> {

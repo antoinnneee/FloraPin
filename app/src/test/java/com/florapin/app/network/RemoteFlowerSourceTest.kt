@@ -41,6 +41,10 @@ private class FakeFlowersApi(private val uploadUrl: String) : FlowersApi {
     override suspend fun list(species: String?, tag: String?): List<FlowerDto> =
         emptyList()
     override suspend fun get(id: String): FlowerDto = sampleFlower(id)
+    override suspend fun uploadImage(
+        id: String,
+        file: okhttp3.MultipartBody.Part,
+    ): FlowerDto = sampleFlower(id)
     override suspend fun imageUrl(id: String): ImageUrlResponse =
         ImageUrlResponse("https://x/$id.jpg?sig")
     override suspend fun update(id: String, body: UpdateFlowerRequest): FlowerDto =

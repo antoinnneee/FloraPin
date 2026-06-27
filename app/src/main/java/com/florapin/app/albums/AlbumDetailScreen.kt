@@ -35,7 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.florapin.app.data.FlowerEntity
-import com.florapin.app.data.imageModel
+import com.florapin.app.data.thumbnailModel
 import com.florapin.app.ui.components.EmptyState
 import com.florapin.app.util.formatCaptureDate
 
@@ -137,7 +137,7 @@ private fun AlbumFlowerThumbnail(
     ) {
         Column {
             AsyncImage(
-                model = flower.imageModel(),
+                model = flower.thumbnailModel(),
                 contentDescription = "Fleur du ${formatCaptureDate(flower.createdAt)}",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxWidth().aspectRatio(1f),

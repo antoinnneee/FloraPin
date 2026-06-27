@@ -36,6 +36,17 @@ interface FlowerDao {
     @Query("SELECT * FROM flowers WHERE serverId = :serverId LIMIT 1")
     suspend fun findByServerId(serverId: String): FlowerEntity?
 
+    /**
+     * Cherche une capture locale (image présente, non supprimée) à la date de
+     * capture donnée. Sert à détecter, au pull, qu'une fleur distante « inconnue »
+     * fait en réalité doublon avec une de nos fleurs déjà synchronisée.
+     */
+    @Query(
+        "SELECT * FROM flowers WHERE createdAt = :createdAt AND imagePath != '' " +
+            "AND deletedAt IS NULL LIMIT 1",
+    )
+    suspend fun findLocalTwin(createdAt: Long): FlowerEntity?
+
     /** Flux d'une fleur non supprimée (émet null si supprimée/inexistante). */
     @Query("SELECT * FROM flowers WHERE id = :id AND deletedAt IS NULL")
     fun observeById(id: Long): Flow<FlowerEntity?>

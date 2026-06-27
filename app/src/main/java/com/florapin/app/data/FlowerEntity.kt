@@ -1,6 +1,7 @@
 package com.florapin.app.data
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.io.File
 
@@ -11,7 +12,13 @@ import java.io.File
  * L'image n'est pas stockée en base — seul son chemin l'est (le fichier vit
  * dans le stockage privé, voir [com.florapin.app.capture.PhotoStorage]).
  */
-@Entity(tableName = "flowers")
+@Entity(
+    tableName = "flowers",
+    // Un serverId ne peut désigner qu'une seule ligne (anti-doublon de sync).
+    // Les fleurs locales non synchronisées (serverId NULL) ne sont pas
+    // contraintes : SQLite traite les NULL comme distincts.
+    indices = [Index(value = ["serverId"], unique = true)],
+)
 data class FlowerEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
@@ -81,6 +88,13 @@ data class FlowerEntity(
      * capturée localement (l'image vit alors dans [imagePath]).
      */
     val remoteImageUrl: String? = null,
+
+    /**
+     * URL (présignée) de la miniature WebP côté serveur, pour afficher un preview
+     * léger en galerie/feed sans charger l'image pleine résolution (NODE-53).
+     * Null pour une capture locale ou une fleur antérieure au réencodage serveur.
+     */
+    val remoteThumbnailUrl: String? = null,
 )
 
 /** État de synchronisation d'une fleur locale. */
@@ -96,3 +110,12 @@ enum class SyncState {
  */
 fun FlowerEntity.imageModel(): Any? =
     if (imagePath.isNotEmpty()) File(imagePath) else remoteImageUrl
+
+/**
+ * Source d'image légère (preview) pour les listes (galerie/feed/albums) : le
+ * fichier local s'il existe, sinon la miniature distante, et à défaut l'image
+ * pleine résolution distante. Le détail, lui, utilise [imageModel] (plein).
+ */
+fun FlowerEntity.thumbnailModel(): Any? =
+    if (imagePath.isNotEmpty()) File(imagePath)
+    else remoteThumbnailUrl ?: remoteImageUrl

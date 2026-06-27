@@ -17,6 +17,16 @@ export abstract class StorageService {
   /** URL présignée pour téléverser l'objet (PUT direct par le client). */
   abstract presignUpload(key: string): Promise<PresignedUpload>;
 
+  /**
+   * Téléverse un objet depuis le serveur (utilisé quand l'API réencode l'image
+   * en WebP avant de la stocker, plutôt que l'upload présigné direct).
+   */
+  abstract putObject(
+    key: string,
+    body: Buffer,
+    contentType: string,
+  ): Promise<void>;
+
   /** URL présignée de lecture (GET), à durée limitée. */
   abstract presignDownload(key: string): Promise<string>;
 

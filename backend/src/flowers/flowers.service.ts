@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FlowerLike } from '../likes/flower-like.entity';
 import { StorageService, PresignedUpload } from '../storage/storage.service';
+import { encodeWebp } from '../storage/image-processing';
 import { CreateFlowerDto, UpdateFlowerDto } from './dto/flower.dto';
 import { Flower } from './flower.entity';
 import { FlowerPhoto } from './flower-photo.entity';
@@ -15,6 +16,8 @@ import { FlowerPhoto } from './flower-photo.entity';
 export interface PhotoResponse {
   id: string;
   url: string;
+  /** URL présignée de la miniature WebP, ou null si non encore réencodée. */
+  thumbnailUrl: string | null;
   position: number;
   isCover: boolean;
 }
@@ -23,6 +26,8 @@ export interface FlowerResponse {
   id: string;
   ownerId: string;
   imageUrl: string;
+  /** URL présignée de la miniature de couverture (preview), ou null. */
+  thumbnailUrl: string | null;
   latitude: number | null;
   longitude: number | null;
   accuracyM: number | null;
@@ -123,6 +128,51 @@ export class FlowersService {
     return this.toResponse(flower, ownerId);
   }
 
+  /**
+   * Réencode l'image reçue en WebP (pleine résolution + miniature), la stocke
+   * sur MinIO et met à jour la fleur + sa photo de couverture. Remplace l'upload
+   * présigné direct : l'octet transite par l'API pour être réencodé.
+   */
+  async uploadImage(
+    ownerId: string,
+    id: string,
+    input: Buffer,
+  ): Promise<FlowerResponse> {
+    const flower = await this.flowers.findOne({
+      where: { id, ownerId },
+      relations: { speciesRef: true },
+    });
+    if (!flower) {
+      throw new NotFoundException('Fleur introuvable.');
+    }
+
+    const { full, thumbnail } = await encodeWebp(input);
+    const imageKey = this.storage.buildKey(ownerId, 'webp');
+    const thumbnailKey = this.storage.buildKey(ownerId, 'webp');
+    await this.storage.putObject(imageKey, full, 'image/webp');
+    await this.storage.putObject(thumbnailKey, thumbnail, 'image/webp');
+
+    const oldKeys = [flower.imageKey];
+    flower.imageKey = imageKey;
+    flower.thumbnailKey = thumbnailKey;
+    const saved = await this.flowers.save(flower);
+
+    // La couverture suit l'image principale (NODE-104).
+    await this.photos.update(
+      { flowerId: id, isCover: true },
+      { imageKey, thumbnailKey },
+    );
+
+    // Best-effort : retire l'ancien objet (souvent le placeholder .jpg).
+    await Promise.all(
+      oldKeys
+        .filter((k) => k && k !== imageKey)
+        .map((k) => this.storage.delete(k).catch(() => undefined)),
+    );
+
+    return this.toResponse(saved, ownerId);
+  }
+
   async getImageUrl(ownerId: string, id: string): Promise<{ imageUrl: string }> {
     const flower = await this.flowers.findOne({ where: { id, ownerId } });
     if (!flower) {
@@ -215,6 +265,9 @@ export class FlowersService {
       photos.map(async (p) => ({
         id: p.id,
         url: await this.storage.presignDownload(p.imageKey),
+        thumbnailUrl: p.thumbnailKey
+          ? await this.storage.presignDownload(p.thumbnailKey)
+          : null,
         position: p.position,
         isCover: p.isCover,
       })),
@@ -232,6 +285,7 @@ export class FlowersService {
       id: flower.id,
       ownerId: flower.ownerId,
       imageUrl: cover?.url ?? (await this.storage.presignDownload(flower.imageKey)),
+      thumbnailUrl: cover?.thumbnailUrl ?? null,
       latitude,
       longitude,
       accuracyM: flower.accuracyM,

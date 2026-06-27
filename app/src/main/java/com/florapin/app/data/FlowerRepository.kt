@@ -120,6 +120,10 @@ class FlowerRepository(private val dao: FlowerDao) {
     suspend fun findByServerId(serverId: String): FlowerEntity? =
         dao.findByServerId(serverId)
 
+    /** Capture locale (image présente) à une date de capture donnée, ou null. */
+    suspend fun findLocalTwin(createdAt: Long): FlowerEntity? =
+        dao.findLocalTwin(createdAt)
+
     /** Insère une fleur distante reçue par sync (autre appareil). */
     suspend fun insert(flower: FlowerEntity): Long = dao.insert(flower)
 

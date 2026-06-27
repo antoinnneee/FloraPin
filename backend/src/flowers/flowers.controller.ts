@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -10,9 +11,12 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -52,6 +56,24 @@ export class FlowersController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.flowers.getById(user.userId, id);
+  }
+
+  /**
+   * Téléverse le binaire image d'une fleur (multipart, champ `file`). Le serveur
+   * réencode en WebP (pleine résolution + miniature) avant stockage.
+   */
+  @Post(':id/image')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadImage(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: { buffer: Buffer } | undefined,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Fichier image manquant.');
+    }
+    return this.flowers.uploadImage(user.userId, id, file.buffer);
   }
 
   @Get(':id/image-url')

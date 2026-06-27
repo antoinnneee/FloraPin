@@ -12,6 +12,12 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Modifié
+- Identification automatique Pl@ntNet **désactivée par défaut** (backend) tant
+  qu'elle n'est pas configurée : il faut désormais `PLANTNET_ENABLED=true` *et*
+  une clé d'API pour l'activer (sinon stub renvoyant des suggestions vides).
+  Évite toute tentative d'appel à Pl@ntNet non configuré.
+
 ## [1.3.0] — 2026-06-28
 
 ### Ajouté

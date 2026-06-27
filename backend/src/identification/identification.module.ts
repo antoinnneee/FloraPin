@@ -18,10 +18,16 @@ import { StubPlantIdentifier } from './stub.identifier';
       provide: PlantIdentifier,
       inject: [ConfigService],
       useFactory: (config: ConfigService): PlantIdentifier => {
+        const logger = new Logger('IdentificationModule');
+        // Désactivée par défaut tant que Pl@ntNet n'est pas configuré : il faut
+        // explicitement PLANTNET_ENABLED=true *et* une clé d'API pour l'activer.
+        const enabled = config.get<string>('PLANTNET_ENABLED', 'false') === 'true';
         const apiKey = config.get<string>('PLANTNET_API_KEY');
-        if (!apiKey) {
-          new Logger('IdentificationModule').warn(
-            'Identification : StubPlantIdentifier (PLANTNET_API_KEY absent).',
+        if (!enabled || !apiKey) {
+          logger.log(
+            !enabled
+              ? 'Identification automatique désactivée (PLANTNET_ENABLED ≠ true) : StubPlantIdentifier.'
+              : 'Identification : StubPlantIdentifier (PLANTNET_API_KEY absent).',
           );
           return new StubPlantIdentifier();
         }

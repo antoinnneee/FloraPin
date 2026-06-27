@@ -36,4 +36,15 @@ interface IdentificationApi {
         @Path("id") flowerId: String,
         @Body body: ProposeSpeciesRequest,
     ): SpeciesProposalDto
+
+    /** Propositions d'espèce reçues sur ma fleur (côté propriétaire). */
+    @GET("flowers/{id}/proposals")
+    suspend fun listProposals(@Path("id") flowerId: String): List<SpeciesProposalDto>
+
+    /** Accepte une proposition : l'espèce est appliquée à ma fleur (propriétaire). */
+    @POST("flowers/{id}/proposals/{proposalId}/accept")
+    suspend fun acceptProposal(
+        @Path("id") flowerId: String,
+        @Path("proposalId") proposalId: String,
+    ): SpeciesProposalDto
 }

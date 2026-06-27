@@ -52,12 +52,13 @@ export class IdentificationRequestsService {
   }
 
   /**
-   * Fleurs « à identifier » partagées avec moi (vue côté ami) : je peux y
-   * répondre par une proposition d'espèce.
+   * Fleurs « à identifier » d'amis (vue côté ami) : je peux y répondre par une
+   * proposition d'espèce. La demande sollicite *tous* les amis acceptés, donc on
+   * liste les fleurs `needsIdentification` de mes amis, sans exiger un partage
+   * ciblé ni une publication au flux (cf. needsIdentificationFromFriends).
    */
   async listForViewer(viewerId: string): Promise<FlowerResponse[]> {
-    const shared = await this.shares.sharedWithMe(viewerId);
-    return shared.filter((flower) => flower.needsIdentification);
+    return this.shares.needsIdentificationFromFriends(viewerId);
   }
 
   /** Lève la demande d'identification (propriétaire). */

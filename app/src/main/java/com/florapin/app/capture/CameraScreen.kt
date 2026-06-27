@@ -8,9 +8,12 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -95,6 +98,9 @@ fun CameraScreen(
             colors = ButtonDefaults.buttonColors(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                // Pousse le bouton au-dessus de la barre de navigation système
+                // (3 boutons sur certains Xiaomi/MIUI), sinon elle le recouvre.
+                .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(bottom = 32.dp)
                 .size(80.dp),
         ) {

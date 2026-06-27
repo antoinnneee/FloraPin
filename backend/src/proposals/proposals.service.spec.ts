@@ -84,7 +84,7 @@ describe('ProposalsService', () => {
         { provide: getRepositoryToken(Flower), useValue: flowerRepo },
         {
           provide: SharesService,
-          useValue: { sharedWithMe: async () => visibleToFriend },
+          useValue: { needsIdentificationFromFriends: async () => visibleToFriend },
         },
         {
           provide: NotificationsService,

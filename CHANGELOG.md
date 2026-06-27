@@ -12,13 +12,38 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.1.0] — 2026-06-28
+
 ### Ajouté
+- Identification collaborative — côté propriétaire (NODE-134) : section
+  **« Propositions de vos amis »** sur le détail d'une fleur non identifiée,
+  chargée en direct du serveur (`GET flowers/{id}/proposals`), avec bouton
+  **« Accepter »** (`POST .../proposals/{id}/accept`) qui applique l'espèce à la
+  fleur (localement + serveur). Boucle la fonctionnalité : demande → proposition
+  → acceptation.
 - Sélecteur de style de carte (combobox) dans l'onglet **Carte** : 9 styles
   MapTiler (Rues, Plein air, Topographique, Satellite, Hybride, Épuré, Clair,
   Dataviz, Hiver). Choix mémorisé par appareil et réutilisé par la mini-carte
   des fiches.
 
 ### Corrigé
+- Proposition d'espèce refusée (403) côté ami : `propose()` vérifiait l'accès via
+  `sharedWithMe` (partages ciblés) alors que l'ami voit la fleur via la diffusion.
+  Aligné sur `needsIdentificationFromFriends` (même périmètre que la liste).
+- Espèce non rafraîchie après acceptation d'une proposition : le champ « Espèce »
+  gardait son état mémorisé (`remember(flowerId)`) et n'affichait la valeur qu'au
+  retour sur l'écran. Clés du `remember` étendues à la valeur initiale.
+- Demande d'identification invisible côté ami : le propriétaire envoyait bien la
+  demande (fleur marquée « à identifier » + amis notifiés), mais l'écran « Fleurs
+  à identifier » de l'ami restait vide. `listForViewer` ne lisait que les partages
+  ciblés (`sharedWithMe`) alors que la demande sollicite *tous* les amis acceptés.
+  Désormais l'ami voit toutes les fleurs `needsIdentification` de ses amis, sans
+  exiger de partage ciblé ni de publication au flux (GPS masqué sauf opt-in).
+- Barre de navigation système (mode 3 boutons, ex. Xiaomi/MIUI) qui recouvrait
+  le bouton de capture et les boutons « Reprendre / Terminer » du flux photo :
+  ces écrans plein écran sans `Scaffold` ne réservaient qu'un padding fixe.
+  Ajout de `windowInsetsPadding(navigationBars)`. Invisible en émulateur
+  (navigation gestuelle, inset bas plus fin).
 - Grand espace vide au-dessus du titre « 🌸 FloraPin » (et des autres écrans) :
   trois `Scaffold` empilés appliquaient chacun l'inset de la status bar. Un seul
   consommateur d'inset par écran désormais.

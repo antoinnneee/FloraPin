@@ -43,7 +43,11 @@ export class ProposalsService {
     if (flower.species) {
       throw new ConflictException('Cette fleur est déjà identifiée.');
     }
-    const visible = await this.shares.sharedWithMe(proposerId);
+    // Même périmètre que la liste « Fleurs à identifier » (NODE-133/134) : on
+    // autorise la proposition sur toute fleur « à identifier » d'un ami, sans
+    // exiger un partage ciblé ni une publication au flux. Aligné sur
+    // listForViewer pour éviter qu'une fleur visible reste non « proposable ».
+    const visible = await this.shares.needsIdentificationFromFriends(proposerId);
     if (!visible.some((f) => f.id === flowerId)) {
       throw new ForbiddenException('Fleur non accessible.');
     }

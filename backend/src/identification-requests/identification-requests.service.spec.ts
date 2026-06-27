@@ -11,7 +11,7 @@ describe('IdentificationRequestsService', () => {
   let flowers: { findOne: jest.Mock; save: jest.Mock };
   let friendships: { acceptedFriendIds: jest.Mock };
   let notifications: { create: jest.Mock };
-  let shares: { sharedWithMe: jest.Mock };
+  let shares: { needsIdentificationFromFriends: jest.Mock };
   let service: IdentificationRequestsService;
 
   beforeEach(() => {
@@ -26,7 +26,7 @@ describe('IdentificationRequestsService', () => {
     };
     friendships = { acceptedFriendIds: jest.fn(async () => ['a', 'b']) };
     notifications = { create: jest.fn(async () => undefined) };
-    shares = { sharedWithMe: jest.fn(async () => []) };
+    shares = { needsIdentificationFromFriends: jest.fn(async () => []) };
     service = new IdentificationRequestsService(
       flowers as never,
       friendships as never,
@@ -66,13 +66,14 @@ describe('IdentificationRequestsService', () => {
   });
 
   describe('listForViewer', () => {
-    it('ne renvoie que les fleurs partagées en attente d’identification', async () => {
-      shares.sharedWithMe.mockResolvedValue([
+    it('délègue aux fleurs « à identifier » des amis (sans exiger un partage ciblé)', async () => {
+      shares.needsIdentificationFromFriends.mockResolvedValue([
         { id: 'f1', needsIdentification: true } as FlowerResponse,
-        { id: 'f2', needsIdentification: false } as FlowerResponse,
       ]);
 
       const result = await service.listForViewer('viewer');
+
+      expect(shares.needsIdentificationFromFriends).toHaveBeenCalledWith('viewer');
       expect(result.map((f) => f.id)).toEqual(['f1']);
     });
   });

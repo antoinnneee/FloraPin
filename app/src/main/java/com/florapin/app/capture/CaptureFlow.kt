@@ -4,9 +4,12 @@ import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -138,6 +141,9 @@ private fun CapturedPhotoScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                // Évite que la barre de navigation système recouvre les boutons
+                // « Reprendre / Terminer » sur les appareils en mode 3 boutons.
+                .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,

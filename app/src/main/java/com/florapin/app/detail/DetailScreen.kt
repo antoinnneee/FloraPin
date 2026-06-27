@@ -88,6 +88,9 @@ fun DetailScreen(
     identificationVm: IdentificationRequestViewModel = viewModel(
         factory = IdentificationRequestViewModel.factory(LocalContext.current),
     ),
+    proposalsVm: ReceivedProposalsViewModel = viewModel(
+        factory = ReceivedProposalsViewModel.factory(LocalContext.current),
+    ),
     likeVm: LikeViewModel = viewModel(
         factory = LikeViewModel.factory(LocalContext.current),
     ),
@@ -100,6 +103,7 @@ fun DetailScreen(
     val serverId = flower?.serverId
     androidx.compose.runtime.LaunchedEffect(serverId) {
         serverId?.let(likeVm::bind)
+        serverId?.let(proposalsVm::load)
     }
     var showShare by remember { mutableStateOf(false) }
     var showAddToAlbum by remember { mutableStateOf(false) }
@@ -154,6 +158,7 @@ fun DetailScreen(
                 photos = photos,
                 speciesPicker = speciesPicker,
                 identificationVm = identificationVm,
+                proposalsVm = proposalsVm,
                 onSaveNotes = viewModel::saveNotes,
                 onSaveClassification = viewModel::saveClassification,
                 onSetFeedPublication = viewModel::setFeedPublication,
@@ -189,6 +194,7 @@ private fun DetailContent(
     photos: List<PhotoEntity>,
     speciesPicker: SpeciesPickerViewModel,
     identificationVm: IdentificationRequestViewModel,
+    proposalsVm: ReceivedProposalsViewModel,
     onSaveNotes: (String) -> Unit,
     onSaveClassification: (String, List<String>, SpeciesDto?) -> Unit,
     onSetFeedPublication: (Boolean, Boolean) -> Unit,
@@ -300,6 +306,19 @@ private fun DetailContent(
                     flowerServerId = flower.serverId,
                     viewModel = identificationVm,
                 )
+                // Propositions reçues des amis (NODE-134) : visibles et acceptables
+                // tant que la fleur n'est pas identifiée. L'acceptation applique
+                // l'espèce localement (device-first) en plus du serveur.
+                ReceivedProposalsSection(
+                    viewModel = proposalsVm,
+                    onAccept = { proposal ->
+                        flower.serverId?.let { sid ->
+                            proposalsVm.accept(sid, proposal) { species ->
+                                onSaveClassification(species, flower.tags, null)
+                            }
+                        }
+                    },
+                )
             }
 
             NotesEditor(
@@ -394,10 +413,14 @@ private fun ClassificationEditor(
     onSave: (String, List<String>, SpeciesDto?) -> Unit,
 ) {
     val initialTagsText = initialTags.joinToString(", ")
-    var species by remember(flowerId) { mutableStateOf(initialSpecies) }
-    var tagsText by remember(flowerId) { mutableStateOf(initialTagsText) }
+    // Clés incluant la valeur initiale : le champ se resynchronise quand l'espèce
+    // change de l'extérieur (ex. acceptation d'une proposition d'ami). Comme
+    // initialSpecies ne bouge qu'à la sauvegarde/acceptation, la frappe en cours
+    // n'est pas perturbée.
+    var species by remember(flowerId, initialSpecies) { mutableStateOf(initialSpecies) }
+    var tagsText by remember(flowerId, initialTagsText) { mutableStateOf(initialTagsText) }
     // Fiche du référentiel sélectionnée ; null tant que l'utilisateur tape librement.
-    var selected by remember(flowerId) { mutableStateOf<SpeciesDto?>(null) }
+    var selected by remember(flowerId, initialSpecies) { mutableStateOf<SpeciesDto?>(null) }
     val suggestions by speciesPicker.suggestions.collectAsStateWithLifecycle()
 
     val changed = species != initialSpecies ||

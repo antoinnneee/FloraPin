@@ -155,6 +155,33 @@ export class SharesService {
     );
   }
 
+  /**
+   * Fleurs « à identifier » d'amis visibles par [viewerId] (NODE-133/134).
+   *
+   * La demande d'identification notifie *tous* les amis acceptés du propriétaire
+   * (cf. IdentificationRequestsService.request) : l'audience est donc le réseau
+   * d'amis, indépendamment d'un partage ciblé ou de la publication au flux. On
+   * retourne toutes les fleurs `needsIdentification` des amis acceptés — le clic
+   * « Demander une identification » vaut consentement explicite à les montrer.
+   * GPS masqué sauf si `feedIncludeGps` (cohérent avec broadcastWithMe).
+   */
+  async needsIdentificationFromFriends(
+    viewerId: string,
+  ): Promise<FlowerResponse[]> {
+    const friendIds = await this.friendships.acceptedFriendIds(viewerId);
+    if (friendIds.length === 0) return [];
+
+    const flowers = await this.flowers.find({
+      where: { ownerId: In(friendIds), needsIdentification: true },
+    });
+    return Promise.all(
+      flowers.map(async (flower) => {
+        const response = await this.flowersService.toResponse(flower, viewerId);
+        return flower.feedIncludeGps ? response : stripGps(response);
+      }),
+    );
+  }
+
   /** Résout les fleurs concrètes couvertes par un partage selon son périmètre. */
   private async resolveFlowers(share: Share): Promise<Flower[]> {
     switch (share.scope) {

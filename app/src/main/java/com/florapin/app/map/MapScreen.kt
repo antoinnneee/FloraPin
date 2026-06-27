@@ -40,7 +40,7 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.Style
 
 /** Style MapTiler (tuiles OSM) ; nécessite une clé API. */
-private fun mapTilerStyleUrl(apiKey: String): String =
+internal fun mapTilerStyleUrl(apiKey: String): String =
     "https://api.maptiler.com/maps/streets/style.json?key=$apiKey"
 
 /** Caméra par défaut : vue large centrée sur la France métropolitaine. */

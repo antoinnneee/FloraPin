@@ -1,5 +1,7 @@
 package com.florapin.app.detail
 
+import android.annotation.SuppressLint
+import android.view.MotionEvent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,20 +43,31 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
+import com.florapin.app.BuildConfig
 import com.florapin.app.albums.AddToAlbumSheet
 import com.florapin.app.capture.CameraScreen
 import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.PhotoEntity
 import com.florapin.app.data.imageModel
+import com.florapin.app.data.thumbnailModel
 import com.florapin.app.identify.IdentificationRequestSection
 import com.florapin.app.identify.IdentificationRequestViewModel
 import com.florapin.app.likes.LikeButton
 import com.florapin.app.likes.LikeViewModel
 import com.florapin.app.location.GeoPoint
+import com.florapin.app.map.FlowerEmoji
+import com.florapin.app.map.FlowerMarker
+import com.florapin.app.map.mapTilerStyleUrl
+import com.florapin.app.map.rememberMapViewWithLifecycle
+import com.florapin.app.map.setupFlowerClustering
+import com.florapin.app.map.updateFlowerMarkers
 import com.florapin.app.network.dto.SpeciesDto
 import com.florapin.app.share.ShareFlowerSheet
 import com.florapin.app.util.formatCaptureDate
+import org.maplibre.android.camera.CameraPosition
+import org.maplibre.android.geometry.LatLng
 
 /**
  * Détail d'une fleur (NODE-10) : photo, coordonnées, mini-carte, notes éditables
@@ -238,7 +251,7 @@ private fun DetailContent(
                     text = "📍 ${point.format()}",
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                MiniMap(point)
+                MiniMap(point, emoji = FlowerEmoji.forSpecies(flower.species))
             } else {
                 Text(
                     text = "📍 Position non enregistrée",
@@ -343,7 +356,7 @@ private fun PhotoThumbnail(
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         AsyncImage(
-            model = photo.imageModel(),
+            model = photo.thumbnailModel(),
             contentDescription = "Photo supplémentaire",
             contentScale = ContentScale.Crop,
             modifier = Modifier
@@ -533,38 +546,101 @@ private fun parseTags(raw: String): List<String> =
         .distinct()
 
 /**
- * Mini-carte (placeholder) : situe la position. Le rendu cartographique
- * interactif (MapLibre) est traité par la fonctionnalité Carte (NODE-11).
+ * Mini-carte interactive (NODE-11) : situe la fleur sur une carte MapLibre
+ * (tuiles MapTiler) centrée sur sa position, avec un marqueur emoji d'espèce.
+ * Réutilise l'infrastructure de la fonctionnalité Carte. Sans clé MapTiler, on
+ * retombe sur un aperçu textuel des coordonnées.
  */
+@SuppressLint("ClickableViewAccessibility")
 @Composable
-private fun MiniMap(point: GeoPoint) {
+private fun MiniMap(point: GeoPoint, emoji: String) {
+    val apiKey = BuildConfig.MAPTILER_API_KEY
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(140.dp),
+            .height(180.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer,
         ),
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text("🗺️", style = MaterialTheme.typography.headlineMedium)
-                Text(
-                    text = "${"%.5f".format(point.latitude)}, " +
-                        "%.5f".format(point.longitude),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text(
-                    text = "Carte interactive à venir",
-                    style = MaterialTheme.typography.labelSmall,
-                )
+        if (apiKey.isBlank()) {
+            MiniMapFallback(point)
+            return@Card
+        }
+
+        val target = remember(point.latitude, point.longitude) {
+            LatLng(point.latitude, point.longitude)
+        }
+        val mapView = rememberMapViewWithLifecycle()
+
+        androidx.compose.runtime.LaunchedEffect(mapView, target, emoji) {
+            mapView.getMapAsync { map ->
+                map.cameraPosition = CameraPosition.Builder()
+                    .target(target)
+                    .zoom(MINI_MAP_ZOOM)
+                    .build()
+                map.setStyle(mapTilerStyleUrl(apiKey)) { style ->
+                    style.setupFlowerClustering()
+                    style.updateFlowerMarkers(
+                        listOf(
+                            FlowerMarker(
+                                id = 0L,
+                                latitude = point.latitude,
+                                longitude = point.longitude,
+                                emoji = emoji,
+                            ),
+                        ),
+                    )
+                }
             }
+        }
+
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = {
+                // Empêche la Column scrollable parente d'intercepter les gestes
+                // tant qu'on manipule la carte (sinon le scroll vertical vole le
+                // déplacement/zoom de la carte).
+                mapView.apply {
+                    setOnTouchListener { view, event ->
+                        when (event.actionMasked) {
+                            MotionEvent.ACTION_DOWN ->
+                                view.parent?.requestDisallowInterceptTouchEvent(true)
+                            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                                view.parent?.requestDisallowInterceptTouchEvent(false)
+                        }
+                        false
+                    }
+                }
+            },
+        )
+    }
+}
+
+/** Zoom de la mini-carte du détail : assez serré pour situer la fleur. */
+private const val MINI_MAP_ZOOM = 14.0
+
+/** Aperçu textuel des coordonnées quand la carte ne peut pas s'afficher. */
+@Composable
+private fun MiniMapFallback(point: GeoPoint) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text("🗺️", style = MaterialTheme.typography.headlineMedium)
+            Text(
+                text = "${"%.5f".format(point.latitude)}, " +
+                    "%.5f".format(point.longitude),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                text = "Carte indisponible (clé MapTiler manquante)",
+                style = MaterialTheme.typography.labelSmall,
+            )
         }
     }
 }

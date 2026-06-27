@@ -4,10 +4,13 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -18,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -35,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.BuildConfig
+import com.florapin.app.sync.SyncPreferences
+import com.florapin.app.sync.SyncScheduler
 
 /**
  * Écran Profil (NODE-97) : nom + email de l'utilisateur courant et bouton de
@@ -80,6 +86,7 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -136,11 +143,14 @@ fun ProfileScreen(
                 )
             }
 
+            SyncSettingsSection()
+
             Button(
                 onClick = onLogout,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError,
                 ),
             ) {
                 Text("Se déconnecter")
@@ -212,6 +222,56 @@ private fun EmailVerificationSection(
             verificationMessage?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
             }
+        }
+    }
+}
+
+/**
+ * Réglage « Synchronisation cloud » (par appareil). Désactivé par défaut :
+ * les photos restent uniquement sur l'appareil. À l'activation, planifie la
+ * synchronisation et lance une passe immédiate ; à la désactivation, l'annule.
+ */
+@Composable
+private fun SyncSettingsSection() {
+    val context = LocalContext.current
+    val prefs = remember(context) { SyncPreferences(context) }
+    var enabled by remember { mutableStateOf(prefs.isEnabled()) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Synchronisation cloud",
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Switch(
+                    checked = enabled,
+                    onCheckedChange = { value ->
+                        enabled = value
+                        prefs.setEnabled(value)
+                        if (value) {
+                            SyncScheduler.schedulePeriodic(context)
+                            SyncScheduler.syncNow(context)
+                        } else {
+                            SyncScheduler.cancelAll(context)
+                        }
+                    },
+                )
+            }
+            Text(
+                text = "Désactivée, vos photos restent uniquement sur cet appareil. " +
+                    "Activez-la pour les sauvegarder sur le serveur et les retrouver " +
+                    "sur vos autres appareils.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

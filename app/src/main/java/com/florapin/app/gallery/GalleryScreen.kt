@@ -35,7 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.florapin.app.data.FlowerEntity
-import com.florapin.app.data.imageModel
+import com.florapin.app.data.thumbnailModel
 import com.florapin.app.ui.components.EmptyState
 import com.florapin.app.util.formatCaptureDate
 
@@ -179,6 +179,9 @@ private fun FlowerThumbnail(
     flower: FlowerEntity,
     onClick: () -> Unit,
 ) {
+    // Nom de l'espèce si disponible (commun → scientifique → saisie libre),
+    // sinon on retombe sur la date de capture.
+    val name = flower.displayName()
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -186,15 +189,15 @@ private fun FlowerThumbnail(
     ) {
         Column {
             AsyncImage(
-                model = flower.imageModel(),
-                contentDescription = "Fleur du ${formatCaptureDate(flower.createdAt)}",
+                model = flower.thumbnailModel(),
+                contentDescription = name ?: "Fleur du ${formatCaptureDate(flower.createdAt)}",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1f),
             )
             Text(
-                text = formatCaptureDate(flower.createdAt),
+                text = name ?: formatCaptureDate(flower.createdAt),
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -203,3 +206,9 @@ private fun FlowerThumbnail(
         }
     }
 }
+
+/** Nom d'espèce affichable (commun, scientifique ou saisie libre), ou null. */
+private fun FlowerEntity.displayName(): String? =
+    speciesCommonName?.takeIf { it.isNotBlank() }
+        ?: speciesScientificName?.takeIf { it.isNotBlank() }
+        ?: species?.takeIf { it.isNotBlank() }

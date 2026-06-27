@@ -5,8 +5,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import com.florapin.app.navigation.FloraNavHost
 import com.florapin.app.ui.theme.FloraPinTheme
@@ -17,9 +15,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FloraPinTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    FloraNavHost(modifier = Modifier.padding(innerPadding))
-                }
+                // Pas de Scaffold ici : chaque écran gère ses propres insets via
+                // son TopAppBar/Scaffold. Un Scaffold racine en plus appliquerait
+                // l'inset de la status bar une seconde fois (grand vide en haut).
+                FloraNavHost(modifier = Modifier.fillMaxSize())
             }
         }
     }

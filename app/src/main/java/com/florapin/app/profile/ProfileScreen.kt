@@ -212,13 +212,21 @@ private fun EmailVerificationSection(
                 Text("Enregistrer la nouvelle adresse")
             }
 
+            // Vérification d'email désactivée tant que l'envoi d'emails n'est pas
+            // opérationnel (configuration DNS en cours). Réactiver en repassant
+            // `enabled = !sending` une fois le DNS/SMTP configuré.
             Button(
                 onClick = onVerify,
-                enabled = !sending,
+                enabled = false,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(if (sending) "Envoi…" else "Vérifier mon email")
+                Text("Vérifier mon email (bientôt)")
             }
+            Text(
+                "L'envoi d'email n'est pas encore activé (configuration DNS en cours).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             verificationMessage?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
             }

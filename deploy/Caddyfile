@@ -17,6 +17,14 @@
 		reverse_proxy api:{$API_PORT:3000}
 	}
 
+	# Objets MinIO (images) : les URLs présignées sont en path-style
+	# /{bucket}/{clé}. On route /{bucket}/* vers MinIO en PRÉSERVANT l'en-tête
+	# Host (Caddy le fait par défaut) — indispensable pour que la signature
+	# SigV4 (calculée sur le host public) reste valide.
+	handle /{$MINIO_BUCKET:florapin}/* {
+		reverse_proxy minio:9000
+	}
+
 	# Vitrine statique (build Astro) servie à la racine.
 	handle {
 		root * /srv/landing

@@ -17,6 +17,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +28,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -38,10 +40,6 @@ import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.Style
-
-/** Style MapTiler (tuiles OSM) ; nécessite une clé API. */
-internal fun mapTilerStyleUrl(apiKey: String): String =
-    "https://api.maptiler.com/maps/streets/style.json?key=$apiKey"
 
 /** Caméra par défaut : vue large centrée sur la France métropolitaine. */
 private val DEFAULT_CAMERA: CameraPosition = CameraPosition.Builder()
@@ -71,11 +69,26 @@ fun MapScreen(
     val availableSpecies by viewModel.availableSpecies.collectAsStateWithLifecycle()
     val currentOnFlowerClick by rememberUpdatedState(onFlowerClick)
 
+    val context = LocalContext.current
+    val stylePrefs = remember { MapStylePreferences(context) }
+    var selectedStyle by remember { mutableStateOf(stylePrefs.get()) }
+
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text("Carte") },
+                actions = {
+                    if (apiKey.isNotBlank()) {
+                        MapStyleSelector(
+                            selected = selectedStyle,
+                            onSelect = {
+                                selectedStyle = it
+                                stylePrefs.set(it)
+                            },
+                        )
+                    }
+                },
             )
         },
     ) { innerPadding ->
@@ -85,18 +98,24 @@ fun MapScreen(
         }
 
         val mapView = rememberMapViewWithLifecycle()
+        val mapRef = remember { mutableStateOf<MapLibreMap?>(null) }
         val style = remember { mutableStateOf<Style?>(null) }
 
         LaunchedEffect(mapView) {
             mapView.getMapAsync { map ->
+                mapRef.value = map
                 map.cameraPosition = DEFAULT_CAMERA
-                map.setStyle(mapTilerStyleUrl(apiKey)) { loadedStyle ->
-                    loadedStyle.setupFlowerClustering()
-                    style.value = loadedStyle
-                }
                 map.addOnMapClickListener { latLng ->
                     handleMapClick(map, latLng) { id -> currentOnFlowerClick(id) }
                 }
+            }
+        }
+
+        // (Re)charge le style à l'ouverture et à chaque changement de sélection.
+        LaunchedEffect(mapRef.value, selectedStyle) {
+            mapRef.value?.setStyle(mapTilerStyleUrl(apiKey, selectedStyle)) { loadedStyle ->
+                loadedStyle.setupFlowerClustering()
+                style.value = loadedStyle
             }
         }
 
@@ -166,6 +185,32 @@ private fun FilterBar(
             selectedSpecies = selectedSpecies,
             onSelectSpecies = onSelectSpecies,
         )
+    }
+}
+
+/** Sélecteur de style de carte (combobox) affiché dans la barre du haut. */
+@Composable
+private fun MapStyleSelector(
+    selected: MapStyle,
+    onSelect: (MapStyle) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+        TextButton(onClick = { expanded = true }) {
+            Text(selected.label)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            MapStyle.entries.forEach { style ->
+                DropdownMenuItem(
+                    text = { Text(style.label) },
+                    onClick = {
+                        onSelect(style)
+                        expanded = false
+                    },
+                )
+            }
+        }
     }
 }
 

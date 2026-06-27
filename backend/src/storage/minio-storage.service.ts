@@ -37,6 +37,13 @@ export class MinioStorageService
     private readonly bucket: string,
     private readonly expiresIn: number,
     private readonly region = 'us-east-1',
+    /**
+     * Client dédié à la SIGNATURE des URLs présignées, configuré avec un endpoint
+     * PUBLIC (joignable depuis l'appareil/le navigateur). Par défaut = client
+     * interne : sans endpoint public, les URLs pointeraient vers l'hôte Docker
+     * interne (ex. `minio:9000`), injoignable par un autre appareil au pull.
+     */
+    private readonly presignClient: ObjectStorageClient = client,
   ) {
     super();
   }
@@ -63,7 +70,7 @@ export class MinioStorageService
   }
 
   async presignUpload(key: string): Promise<PresignedUpload> {
-    const url = await this.client.presignedPutObject(
+    const url = await this.presignClient.presignedPutObject(
       this.bucket,
       key,
       this.expiresIn,
@@ -82,7 +89,11 @@ export class MinioStorageService
   }
 
   async presignDownload(key: string): Promise<string> {
-    return this.client.presignedGetObject(this.bucket, key, this.expiresIn);
+    return this.presignClient.presignedGetObject(
+      this.bucket,
+      key,
+      this.expiresIn,
+    );
   }
 
   async delete(key: string): Promise<void> {

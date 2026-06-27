@@ -1,5 +1,6 @@
 package com.florapin.app.navigation
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -85,6 +86,9 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
 
     Scaffold(
         modifier = modifier,
+        // Aucun inset système ici : les écrans (TopAppBar) gèrent l'inset haut et
+        // la NavigationBar gère son propre inset bas. Évite le double comptage.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (showBottomBar) {
                 FloraBottomBar(

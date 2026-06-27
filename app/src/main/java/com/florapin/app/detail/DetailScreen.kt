@@ -555,6 +555,8 @@ private fun parseTags(raw: String): List<String> =
 @Composable
 private fun MiniMap(point: GeoPoint, emoji: String) {
     val apiKey = BuildConfig.MAPTILER_API_KEY
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val mapStyle = remember { com.florapin.app.map.MapStylePreferences(context).get() }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -573,13 +575,13 @@ private fun MiniMap(point: GeoPoint, emoji: String) {
         }
         val mapView = rememberMapViewWithLifecycle()
 
-        androidx.compose.runtime.LaunchedEffect(mapView, target, emoji) {
+        androidx.compose.runtime.LaunchedEffect(mapView, target, emoji, mapStyle) {
             mapView.getMapAsync { map ->
                 map.cameraPosition = CameraPosition.Builder()
                     .target(target)
                     .zoom(MINI_MAP_ZOOM)
                     .build()
-                map.setStyle(mapTilerStyleUrl(apiKey)) { style ->
+                map.setStyle(mapTilerStyleUrl(apiKey, mapStyle)) { style ->
                     style.setupFlowerClustering()
                     style.updateFlowerMarkers(
                         listOf(

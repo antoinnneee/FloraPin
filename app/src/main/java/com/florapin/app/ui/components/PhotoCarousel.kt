@@ -2,8 +2,11 @@ package com.florapin.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -199,16 +202,32 @@ private fun ZoomableImage(
                 )
             }
             .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    scale = (scale * zoom).coerceIn(1f, 5f)
-                    if (scale > 1f) {
-                        offsetX += pan.x
-                        offsetY += pan.y
-                        onZoomChange(true)
-                    } else {
-                        offsetX = 0f; offsetY = 0f
-                        onZoomChange(false)
-                    }
+                // Gestes de zoom/déplacement gérés à la main (plutôt que
+                // detectTransformGestures) pour NE PAS consommer un simple
+                // glissement à un doigt tant que l'image n'est pas zoomée : ainsi
+                // le HorizontalPager parent reçoit le swipe inter-photos. On ne
+                // capture le geste que s'il y a ≥ 2 doigts (pincement) ou si
+                // l'image est déjà zoomée (déplacement panoramique).
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    do {
+                        val event = awaitPointerEvent()
+                        val multiTouch = event.changes.count { it.pressed } >= 2
+                        if (multiTouch || scale > 1f) {
+                            val zoom = event.calculateZoom()
+                            val pan = event.calculatePan()
+                            scale = (scale * zoom).coerceIn(1f, 5f)
+                            if (scale > 1f) {
+                                offsetX += pan.x
+                                offsetY += pan.y
+                                onZoomChange(true)
+                            } else {
+                                offsetX = 0f; offsetY = 0f
+                                onZoomChange(false)
+                            }
+                            event.changes.forEach { it.consume() }
+                        }
+                    } while (event.changes.any { it.pressed })
                 }
             },
         contentAlignment = Alignment.Center,

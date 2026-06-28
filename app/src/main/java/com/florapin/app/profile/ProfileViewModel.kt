@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.florapin.app.data.LocalSessionDataCleaner
 import com.florapin.app.network.NetworkModule
+import com.florapin.app.network.api.IdentificationApi
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.network.auth.SessionManager
 import com.florapin.app.network.auth.TokenStore
@@ -32,6 +33,8 @@ data class ProfileUiState(
     /** Changement d'adresse en cours (NODE-117). */
     val emailSaving: Boolean = false,
     val emailError: String? = null,
+    /** Nombre de mes propositions d'espèce acceptées par des amis, ou null si non chargé. */
+    val acceptedProposals: Int? = null,
 )
 
 /**
@@ -42,6 +45,7 @@ data class ProfileUiState(
 class ProfileViewModel(
     tokenStore: TokenStore,
     private val session: SessionManager,
+    private val identification: IdentificationApi,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -51,6 +55,16 @@ class ProfileViewModel(
 
     init {
         refresh()
+        loadStats()
+    }
+
+    /** Charge les statistiques collaboratives (best-effort, n'altère pas le profil). */
+    private fun loadStats() {
+        viewModelScope.launch {
+            runCatching { identification.proposalStats() }.onSuccess { stats ->
+                _state.update { it.copy(acceptedProposals = stats.acceptedProposals) }
+            }
+        }
     }
 
     /** Rafraîchit le profil depuis le serveur (fallback /users/me). */
@@ -158,7 +172,11 @@ class ProfileViewModel(
                     val cleaner = LocalSessionDataCleaner.from(context)
                     val session =
                         NetworkModule.sessionManager(apis, tokenStore, cleaner)
-                    return ProfileViewModel(tokenStore, session) as T
+                    return ProfileViewModel(
+                        tokenStore,
+                        session,
+                        apis.identification,
+                    ) as T
                 }
             }
     }

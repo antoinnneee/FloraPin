@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -51,5 +52,16 @@ export class ProposalsController {
     @Param('proposalId', ParseUUIDPipe) proposalId: string,
   ) {
     return this.proposals.accept(user.userId, flowerId, proposalId);
+  }
+
+  /** Le propriétaire refuse une proposition (elle est retirée). */
+  @Delete(':proposalId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  reject(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) flowerId: string,
+    @Param('proposalId', ParseUUIDPipe) proposalId: string,
+  ) {
+    return this.proposals.reject(user.userId, flowerId, proposalId);
   }
 }

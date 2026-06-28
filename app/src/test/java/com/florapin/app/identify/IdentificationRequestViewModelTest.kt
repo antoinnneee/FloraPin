@@ -40,6 +40,12 @@ private class StubApi(
         flowerId: String,
         proposalId: String,
     ): SpeciesProposalDto = throw UnsupportedOperationException()
+    override suspend fun rejectProposal(
+        flowerId: String,
+        proposalId: String,
+    ): Response<Unit> = Response.success(null)
+    override suspend fun proposalStats() =
+        com.florapin.app.network.dto.ProposalStatsDto(0)
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -96,6 +102,12 @@ class IdentificationRequestViewModelTest {
                 flowerId: String,
                 proposalId: String,
             ): SpeciesProposalDto = throw UnsupportedOperationException()
+            override suspend fun rejectProposal(
+                flowerId: String,
+                proposalId: String,
+            ): Response<Unit> = Response.success(null)
+            override suspend fun proposalStats() =
+                com.florapin.app.network.dto.ProposalStatsDto(0)
         }
         val vm = IdentificationRequestViewModel(api)
 

@@ -74,6 +74,27 @@ private class FakeAuthApi(
     override suspend fun changeEmail(body: com.florapin.app.network.dto.ChangeEmailRequest): UserDto = USER
 }
 
+/** Stats fixes ; le reste de l'API n'est pas sollicité par le profil. */
+private class FakeIdentificationApi(
+    private val accepted: Int = 3,
+) : com.florapin.app.network.api.IdentificationApi {
+    override suspend fun request(flowerId: String) = Response.success<Unit>(null)
+    override suspend fun cancel(flowerId: String) = Response.success<Unit>(null)
+    override suspend fun listToIdentify() = emptyList<com.florapin.app.network.dto.FlowerDto>()
+    override suspend fun propose(
+        flowerId: String,
+        body: com.florapin.app.network.dto.ProposeSpeciesRequest,
+    ) = throw NotImplementedError()
+    override suspend fun listProposals(flowerId: String) =
+        emptyList<com.florapin.app.network.dto.SpeciesProposalDto>()
+    override suspend fun acceptProposal(flowerId: String, proposalId: String) =
+        throw NotImplementedError()
+    override suspend fun rejectProposal(flowerId: String, proposalId: String) =
+        Response.success<Unit>(null)
+    override suspend fun proposalStats() =
+        com.florapin.app.network.dto.ProposalStatsDto(accepted)
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProfileViewModelTest {
 
@@ -87,7 +108,7 @@ class ProfileViewModelTest {
 
     @Test
     fun initialState_showsPersistedDisplayName() = runTest {
-        val vm = ProfileViewModel(MemTokenStore(displayName = "Alice"), SessionManager(FakeAuthApi(), MemTokenStore()))
+        val vm = ProfileViewModel(MemTokenStore(displayName = "Alice"), SessionManager(FakeAuthApi(), MemTokenStore()), FakeIdentificationApi())
 
         // Avant l'exécution de la coroutine de refresh : nom persisté, pas d'email.
         assertEquals("Alice", vm.state.value.displayName)
@@ -97,7 +118,7 @@ class ProfileViewModelTest {
     @Test
     fun refresh_fillsEmailFromNetwork() = runTest {
         val store = MemTokenStore(displayName = "Alice")
-        val vm = ProfileViewModel(store, SessionManager(FakeAuthApi(), store))
+        val vm = ProfileViewModel(store, SessionManager(FakeAuthApi(), store), FakeIdentificationApi())
 
         advanceUntilIdle()
 
@@ -108,9 +129,23 @@ class ProfileViewModelTest {
     }
 
     @Test
+    fun loadStats_fillsAcceptedProposals() = runTest {
+        val store = MemTokenStore(displayName = "Alice")
+        val vm = ProfileViewModel(
+            store,
+            SessionManager(FakeAuthApi(), store),
+            FakeIdentificationApi(accepted = 5),
+        )
+
+        advanceUntilIdle()
+
+        assertEquals(5, vm.state.value.acceptedProposals)
+    }
+
+    @Test
     fun refresh_failure_keepsPersistedNameAndSetsError() = runTest {
         val store = MemTokenStore(displayName = "Alice")
-        val vm = ProfileViewModel(store, SessionManager(FakeAuthApi(failMe = true), store))
+        val vm = ProfileViewModel(store, SessionManager(FakeAuthApi(failMe = true), store), FakeIdentificationApi())
 
         advanceUntilIdle()
 
@@ -122,7 +157,7 @@ class ProfileViewModelTest {
     @Test
     fun deleteAccount_success_clearsSessionAndCallsOnDeleted() = runTest {
         val store = MemTokenStore(displayName = "Alice")
-        val vm = ProfileViewModel(store, SessionManager(FakeAuthApi(), store))
+        val vm = ProfileViewModel(store, SessionManager(FakeAuthApi(), store), FakeIdentificationApi())
         advanceUntilIdle()
 
         var deleted = false
@@ -137,7 +172,7 @@ class ProfileViewModelTest {
     @Test
     fun deleteAccount_wrongPassword_setsErrorAndKeepsSession() = runTest {
         val store = MemTokenStore(displayName = "Alice")
-        val vm = ProfileViewModel(store, SessionManager(FakeAuthApi(deleteStatus = 401), store))
+        val vm = ProfileViewModel(store, SessionManager(FakeAuthApi(deleteStatus = 401), store), FakeIdentificationApi())
         advanceUntilIdle()
         // Le refresh initial appelle clear() ? non : seul deleteAccount le fait.
         val clearedBefore = store.cleared

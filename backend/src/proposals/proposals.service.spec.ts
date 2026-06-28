@@ -12,6 +12,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { SharesService } from '../shares/shares.service';
 import { Species } from '../species/species.entity';
 import { SpeciesService } from '../species/species.service';
+import { UsersService } from '../users/users.service';
 import { SpeciesProposal } from './species-proposal.entity';
 import { ProposalsService } from './proposals.service';
 
@@ -57,6 +58,18 @@ class FakeProposalRepo {
   }): Promise<SpeciesProposal | null> {
     const found = this.store.get(opts.where.id);
     return found && found.flowerId === opts.where.flowerId ? found : null;
+  }
+  async delete(id: string): Promise<void> {
+    this.store.delete(id);
+  }
+  async count(opts: {
+    where: { proposedBy: string; status: string };
+  }): Promise<number> {
+    return [...this.store.values()].filter(
+      (p) =>
+        p.proposedBy === opts.where.proposedBy &&
+        p.status === opts.where.status,
+    ).length;
   }
 }
 
@@ -109,6 +122,11 @@ describe('ProposalsService', () => {
                 emoji: null,
               }) as Species,
           },
+        },
+        {
+          provide: UsersService,
+          // Résolution simulée du nom d'affichage : « Nom <id> ».
+          useValue: { findById: async (id: string) => ({ displayName: `Nom ${id}` }) },
         },
       ],
     }).compile();
@@ -195,5 +213,50 @@ describe('ProposalsService', () => {
       userId: FRIEND,
       type: 'species_confirmed',
     });
+  });
+
+  it('liste les propositions avec le nom de leur auteur', async () => {
+    flowerRepo.seed({
+      id: FLOWER,
+      ownerId: OWNER,
+      species: null,
+      needsIdentification: true,
+    });
+    await service.propose(FRIEND, FLOWER, 'Rosa canina');
+
+    const list = await service.listForFlower(OWNER, FLOWER);
+
+    expect(list).toHaveLength(1);
+    expect(list[0].proposedBy).toBe(FRIEND);
+    expect(list[0].proposedByName).toBe('Nom friend');
+  });
+
+  it('le propriétaire refuse une proposition : elle est retirée', async () => {
+    flowerRepo.seed({
+      id: FLOWER,
+      ownerId: OWNER,
+      species: null,
+      needsIdentification: true,
+    });
+    const proposal = await service.propose(FRIEND, FLOWER, 'Rosa canina');
+
+    await service.reject(OWNER, FLOWER, proposal.id);
+
+    expect(await service.listForFlower(OWNER, FLOWER)).toHaveLength(0);
+  });
+
+  it('compte les propositions acceptées d’un auteur', async () => {
+    flowerRepo.seed({
+      id: FLOWER,
+      ownerId: OWNER,
+      species: null,
+      needsIdentification: true,
+    });
+    const proposal = await service.propose(FRIEND, FLOWER, 'Rosa canina');
+    expect(await service.acceptedCountForProposer(FRIEND)).toBe(0);
+
+    await service.accept(OWNER, FLOWER, proposal.id);
+
+    expect(await service.acceptedCountForProposer(FRIEND)).toBe(1);
   });
 });

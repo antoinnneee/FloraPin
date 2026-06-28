@@ -16,7 +16,16 @@ data class SpeciesProposalDto(
     val id: String,
     val flowerId: String,
     val proposedBy: String,
+    /** Nom d'affichage de l'ami qui a proposé (peut être vide). */
+    val proposedByName: String = "",
     val species: String,
     val status: String,
     val createdAt: String,
+)
+
+/** Statistiques collaboratives de l'utilisateur (page de profil). */
+@JsonClass(generateAdapter = true)
+data class ProposalStatsDto(
+    /** Nombre de mes propositions d'espèce acceptées par des amis. */
+    val acceptedProposals: Int,
 )

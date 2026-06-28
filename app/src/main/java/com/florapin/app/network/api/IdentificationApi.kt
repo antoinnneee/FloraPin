@@ -1,6 +1,7 @@
 package com.florapin.app.network.api
 
 import com.florapin.app.network.dto.FlowerDto
+import com.florapin.app.network.dto.ProposalStatsDto
 import com.florapin.app.network.dto.ProposeSpeciesRequest
 import com.florapin.app.network.dto.SpeciesProposalDto
 import retrofit2.Response
@@ -47,4 +48,15 @@ interface IdentificationApi {
         @Path("id") flowerId: String,
         @Path("proposalId") proposalId: String,
     ): SpeciesProposalDto
+
+    /** Refuse une proposition : elle est retirée de ma fleur (propriétaire). */
+    @DELETE("flowers/{id}/proposals/{proposalId}")
+    suspend fun rejectProposal(
+        @Path("id") flowerId: String,
+        @Path("proposalId") proposalId: String,
+    ): Response<Unit>
+
+    /** Mes statistiques collaboratives (nombre de propositions acceptées). */
+    @GET("me/proposal-stats")
+    suspend fun proposalStats(): ProposalStatsDto
 }

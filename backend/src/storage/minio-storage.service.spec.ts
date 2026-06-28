@@ -52,12 +52,20 @@ class FakeClient implements ObjectStorageClient {
 describe('MinioStorageService', () => {
   const BUCKET = 'florapin';
   const EXPIRES = 600;
+  const DOWNLOAD_EXPIRES = 604800;
   let client: FakeClient;
   let service: MinioStorageService;
 
   beforeEach(() => {
     client = new FakeClient();
-    service = new MinioStorageService(client, BUCKET, EXPIRES);
+    service = new MinioStorageService(
+      client,
+      BUCKET,
+      EXPIRES,
+      'us-east-1',
+      client,
+      DOWNLOAD_EXPIRES,
+    );
   });
 
   it('génère une clé sous flowers/<owner>/', () => {
@@ -77,9 +85,12 @@ describe('MinioStorageService', () => {
     });
   });
 
-  it('présigne un download GET', async () => {
+  it('présigne un download GET avec l’expiration longue (persistée par l’app)', async () => {
     const url = await service.presignDownload('flowers/o/x.jpg');
     expect(url).toContain('sig=get');
+    // L'app persiste ces URLs en local : elles doivent survivre bien au-delà de
+    // l'expiration courte d'upload, sinon 403 « Request has expired ».
+    expect(url).toContain(`e=${DOWNLOAD_EXPIRES}`);
   });
 
   it('crée le bucket au démarrage s’il manque', async () => {

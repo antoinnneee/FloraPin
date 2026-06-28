@@ -20,6 +20,13 @@ class PhotoSyncEngine(
     /** Téléverse l'image d'une photo (multipart) ; le serveur la réencode en WebP. */
     private val uploadPhotoImage:
         suspend (flowerServerId: String, photoServerId: String, file: File) -> Unit,
+    /**
+     * Met en cache localement l'image d'une photo distante (clé = serverId, URL
+     * présignée) ; retourne le chemin local ou null. Par défaut no-op
+     * (tests/compat). Évite que l'affichage dépende de l'expiration des URLs.
+     */
+    private val cacheRemoteImage: suspend (photoServerId: String, url: String) -> String? =
+        { _, _ -> null },
 ) {
     /**
      * Pousse les photos locales en attente, pour les fleurs déjà synchronisées
@@ -63,9 +70,11 @@ class PhotoSyncEngine(
         for (dto in additional) {
             val existing = photos.findByServerId(dto.id)
             if (existing == null) {
-                photos.insert(dto.toEntity(flowerLocalId))
+                val localId = photos.insert(dto.toEntity(flowerLocalId))
+                cacheImageIfMissing(localId, dto.id, imagePath = "", dto.url)
             } else if (existing.syncState == SyncState.SYNCED.name) {
                 photos.update(dto.applyTo(existing))
+                cacheImageIfMissing(existing.id, dto.id, existing.imagePath, dto.url)
             }
         }
         // Photos synchronisées disparues du serveur : suppression locale.
@@ -77,5 +86,21 @@ class PhotoSyncEngine(
                     it.syncState == SyncState.SYNCED.name
             }
             .forEach { photos.hardDelete(it.id) }
+    }
+
+    /**
+     * Télécharge l'image de la photo [localId] dans le stockage privé et renseigne
+     * son `imagePath`, sauf si une copie locale existe déjà ou si l'URL est
+     * absente. Best-effort : un échec laisse l'URL distante en repli.
+     */
+    private suspend fun cacheImageIfMissing(
+        localId: Long,
+        serverId: String,
+        imagePath: String,
+        remoteUrl: String?,
+    ) {
+        if (imagePath.isNotEmpty() || remoteUrl.isNullOrEmpty()) return
+        val path = cacheRemoteImage(serverId, remoteUrl) ?: return
+        photos.cacheImagePath(localId, path)
     }
 }

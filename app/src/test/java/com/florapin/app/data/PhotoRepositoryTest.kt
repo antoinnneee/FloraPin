@@ -29,6 +29,9 @@ private class FakePhotoDao : PhotoDao {
     override suspend fun markSynced(id: Long, serverId: String) {
         store[id]?.let { store[id] = it.copy(serverId = serverId, syncState = SyncState.SYNCED.name) }
     }
+    override suspend fun setImagePath(id: Long, path: String) {
+        store[id]?.let { store[id] = it.copy(imagePath = path) }
+    }
 }
 
 class PhotoRepositoryTest {

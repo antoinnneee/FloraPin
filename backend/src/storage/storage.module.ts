@@ -69,6 +69,10 @@ import { StubStorageService } from './stub-storage.service';
           config.get<number>('STORAGE_PRESIGN_EXPIRES', 600),
           region,
           presignClient,
+          // Lecture : URLs persistées en local par l'app (device-first), donc
+          // longue durée (défaut 7 jours = maximum SigV4) pour qu'une fleur
+          // synchronisée reste visible entre deux synchros.
+          config.get<number>('STORAGE_DOWNLOAD_PRESIGN_EXPIRES', 604800),
         );
       },
     },

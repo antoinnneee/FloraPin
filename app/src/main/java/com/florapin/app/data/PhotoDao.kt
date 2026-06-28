@@ -50,4 +50,8 @@ interface PhotoDao {
             "WHERE id = :id",
     )
     suspend fun markSynced(id: Long, serverId: String)
+
+    /** Renseigne le chemin local après mise en cache d'une image distante. */
+    @Query("UPDATE flower_photos SET imagePath = :path WHERE id = :id")
+    suspend fun setImagePath(id: Long, path: String)
 }

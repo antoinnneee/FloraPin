@@ -58,6 +58,10 @@ class PhotoRepository(
     suspend fun markSynced(localId: Long, serverId: String) =
         dao.markSynced(localId, serverId)
 
+    /** Renseigne le chemin local après mise en cache d'une image distante. */
+    suspend fun cacheImagePath(localId: Long, path: String) =
+        dao.setImagePath(localId, path)
+
     suspend fun hardDelete(id: Long) = dao.deleteById(id)
 
     suspend fun deleteAll() = dao.deleteAll()

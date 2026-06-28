@@ -53,6 +53,7 @@ private class MemFlowerDao : FlowerDao {
     override suspend fun pendingSync() = emptyList<FlowerEntity>()
     override suspend fun markSynced(id: Long, serverId: String, updatedAt: Long) {}
     override suspend fun markFailed(id: Long) {}
+    override suspend fun setImagePath(id: Long, path: String) {}
     override suspend fun softDeleteByServerId(serverId: String, deletedAt: Long) {}
 }
 

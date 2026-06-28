@@ -10,7 +10,29 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
-## [Non publié]
+## [1.4.2] — 2026-06-28
+
+### Corrigé
+- **Images de fleurs invisibles après synchronisation.** Une fleur synchronisée
+  depuis le serveur (sans copie locale de l'image) s'affichait avec une vignette
+  vide, en galerie comme au détail. Cause : le backend signait les URLs de lecture
+  MinIO avec la même expiration courte que l'upload (10 min), alors que l'app
+  device-first **persiste ces URLs en base locale** et les réaffiche bien plus
+  tard → `403 Request has expired`. Double correctif :
+  - **Backend** : l'expiration de lecture est désormais distincte et longue
+    (7 jours, maximum SigV4 ; `STORAGE_DOWNLOAD_PRESIGN_EXPIRES`).
+  - **App (durable)** : à la synchro, l'image d'une fleur/photo distante est
+    **téléchargée dans le stockage privé** et `imagePath` est renseigné. L'affichage
+    ne dépend plus jamais de l'expiration des URLs présignées. *(Pour récupérer des
+    fleurs déjà synchronisées avec des URLs périmées : se déconnecter/reconnecter
+    déclenche un pull complet qui régénère les URLs et télécharge les images.)*
+- **Erreur 409 après suppression puis nouvelle demande d'identification.** Quand
+  le propriétaire supprimait une identification puis en redemandait une, l'ami qui
+  proposait une espèce recevait une erreur 409 (« Cette fleur est déjà
+  identifiée »). Le garde-fou se basait sur le texte d'espèce résiduel au lieu de
+  l'état réel « ouverte aux propositions » (`needsIdentification`), repositionné par
+  la nouvelle demande. La proposition est désormais acceptée tant que la fleur
+  attend une identification.
 
 ## [1.4.1] — 2026-06-28
 

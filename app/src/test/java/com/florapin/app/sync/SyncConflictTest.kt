@@ -55,6 +55,9 @@ private class MemDao : FlowerDao {
     override suspend fun markFailed(id: Long) {
         store[id]?.let { store[id] = it.copy(syncState = SyncState.FAILED.name) }
     }
+    override suspend fun setImagePath(id: Long, path: String) {
+        store[id]?.let { store[id] = it.copy(imagePath = path) }
+    }
     override suspend fun softDeleteByServerId(serverId: String, deletedAt: Long) {}
 }
 

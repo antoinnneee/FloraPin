@@ -117,6 +117,14 @@ class FlowerRepository(private val dao: FlowerDao) {
 
     suspend fun markFailed(localId: Long) = dao.markFailed(localId)
 
+    /**
+     * Renseigne le chemin local après mise en cache d'une image distante : Coil
+     * affiche désormais le fichier local, sans dépendre de l'expiration de l'URL
+     * présignée. N'altère pas l'état de sync.
+     */
+    suspend fun cacheImagePath(localId: Long, path: String) =
+        dao.setImagePath(localId, path)
+
     suspend fun findByServerId(serverId: String): FlowerEntity? =
         dao.findByServerId(serverId)
 

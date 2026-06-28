@@ -5,10 +5,10 @@ import android.content.Context
 /**
  * Préférence locale « Synchronisation cloud » (réglage par appareil).
  *
- * Désactivée par défaut : l'app est 100% locale et les photos de base restent
- * sur l'appareil. Quand l'utilisateur l'active, [SyncWorker] pousse la
- * bibliothèque locale vers le serveur et tire le delta. Le feed des amis (lecture
- * seule) reste accessible indépendamment de ce réglage.
+ * Activée par défaut : [SyncWorker] pousse la bibliothèque locale vers le serveur
+ * et tire le delta. L'utilisateur peut la désactiver pour rester 100% local (les
+ * photos de base restent alors sur l'appareil). Le feed des amis (lecture seule)
+ * reste accessible indépendamment de ce réglage.
  */
 class SyncPreferences(context: Context) {
     private val prefs =
@@ -22,6 +22,6 @@ class SyncPreferences(context: Context) {
 
     private companion object {
         const val KEY = "sync_enabled"
-        const val DEFAULT = false
+        const val DEFAULT = true
     }
 }

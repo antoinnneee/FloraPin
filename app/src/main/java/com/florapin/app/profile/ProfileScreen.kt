@@ -235,9 +235,10 @@ private fun EmailVerificationSection(
 }
 
 /**
- * Réglage « Synchronisation cloud » (par appareil). Désactivé par défaut :
- * les photos restent uniquement sur l'appareil. À l'activation, planifie la
- * synchronisation et lance une passe immédiate ; à la désactivation, l'annule.
+ * Réglage « Synchronisation cloud » (par appareil). Activé par défaut :
+ * la bibliothèque est sauvegardée sur le serveur. À l'activation, planifie la
+ * synchronisation et lance une passe immédiate ; à la désactivation, l'annule
+ * (les photos restent alors uniquement sur l'appareil).
  */
 @Composable
 private fun SyncSettingsSection() {

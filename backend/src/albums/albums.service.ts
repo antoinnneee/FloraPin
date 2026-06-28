@@ -9,6 +9,7 @@ export interface AlbumResponse {
   id: string;
   ownerId: string;
   name: string;
+  clientId: string | null;
   flowerIds: string[];
   createdAt: Date;
 }
@@ -23,9 +24,22 @@ export class AlbumsService {
   ) {}
 
   async create(ownerId: string, dto: CreateAlbumDto): Promise<AlbumResponse> {
+    // Idempotence : si le client fournit un clientId déjà connu pour cet
+    // utilisateur, on renvoie l'album existant au lieu d'en créer un doublon.
+    // Couvre le re-push après une réponse perdue / un crash après le POST.
+    if (dto.clientId) {
+      const existing = await this.albums.findOne({
+        where: { ownerId, clientId: dto.clientId },
+        relations: { flowers: true },
+      });
+      if (existing) {
+        return toResponse(existing);
+      }
+    }
     const album = this.albums.create({
       ownerId,
       name: dto.name,
+      clientId: dto.clientId ?? null,
       flowers: [],
     });
     const saved = await this.albums.save(album);
@@ -110,6 +124,7 @@ function toResponse(album: Album): AlbumResponse {
     id: album.id,
     ownerId: album.ownerId,
     name: album.name,
+    clientId: album.clientId ?? null,
     flowerIds: (album.flowers ?? []).map((f) => f.id),
     createdAt: album.createdAt,
   };

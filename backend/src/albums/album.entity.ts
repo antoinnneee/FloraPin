@@ -26,6 +26,14 @@ export class Album {
   @Column({ type: 'text' })
   name: string;
 
+  /**
+   * Identifiant stable fourni par le client à la création (UUID). Rend la
+   * création idempotente : voir AlbumsService.create. Null pour les albums
+   * créés avant l'introduction du champ.
+   */
+  @Column({ name: 'client_id', type: 'uuid', nullable: true })
+  clientId: string | null;
+
   @ManyToMany(() => Flower)
   @JoinTable({
     name: 'flower_albums',

@@ -102,7 +102,8 @@ class ShareViewModelTest {
     @Test
     fun load_exposesAlbums() = runTest {
         val albums = listOf(
-            AlbumDto("a1", "owner", "Printemps", emptyList(), "2026-06-21T09:00:00Z"),
+            AlbumDto("a1", "owner", "Printemps", "client-a1", emptyList(),
+                "2026-06-21T09:00:00Z"),
         )
         val vm = ShareViewModel(
             FakeFriendshipsApi(emptyList()),

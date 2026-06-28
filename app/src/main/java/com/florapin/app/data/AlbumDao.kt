@@ -32,6 +32,9 @@ interface AlbumDao {
     @Query("SELECT * FROM albums WHERE serverId = :serverId LIMIT 1")
     suspend fun findByServerId(serverId: String): AlbumEntity?
 
+    @Query("SELECT * FROM albums WHERE clientId = :clientId LIMIT 1")
+    suspend fun findByClientId(clientId: String): AlbumEntity?
+
     @Query("SELECT * FROM albums WHERE deletedAt IS NULL")
     suspend fun allActive(): List<AlbumEntity>
 

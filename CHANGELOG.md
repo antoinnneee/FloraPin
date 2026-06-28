@@ -12,7 +12,25 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Corrigé
+- **Duplication d'albums à la synchronisation.** La création d'album est désormais
+  **idempotente** : l'app génère un `clientId` (UUID) stable, envoyé au serveur,
+  qui retombe sur l'album existant si un push précédent a réussi mais que la
+  réponse a été perdue (coupure réseau / crash après le POST). Le `pull` rattache
+  aussi un album local par `clientId` quand son `serverId` n'a pas été persisté,
+  au lieu d'insérer un doublon. Migration Room 11→12 (colonne `clientId` + index
+  unique) et colonne `albums.client_id` côté backend (index unique partiel
+  `(owner_id, client_id)`). Équivalent, pour les albums, du correctif déjà fait
+  pour les fleurs (MIGRATION_9_10).
+- Compilation des tests : stubs `IdentificationApi` complétés (`listProposals`,
+  `acceptProposal`) — la suite de tests unitaires Android recompile.
+
 ### Modifié
+- Vitrine : le téléchargement enregistre désormais l'APK sous son **vrai numéro
+  de version** (`florapin_1.3.0.apk` au lieu de `florapin_beta.apk`) et la mention
+  sous le bouton affiche la version. La version est alignée automatiquement sur
+  `versionName` (`app/build.gradle.kts`) : `deploy.sh` régénère
+  `landing/src/version.json` (lu par `config.ts`) à chaque déploiement.
 - Identification automatique Pl@ntNet **désactivée par défaut** (backend) tant
   qu'elle n'est pas configurée : il faut désormais `PLANTNET_ENABLED=true` *et*
   une clé d'API pour l'activer (sinon stub renvoyant des suggestions vides).

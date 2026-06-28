@@ -22,6 +22,8 @@ private class MemAlbumDao : AlbumDao {
         flowOf(emptyList())
     override suspend fun findByServerId(serverId: String) =
         albums.values.find { it.serverId == serverId }
+    override suspend fun findByClientId(clientId: String) =
+        albums.values.find { it.clientId == clientId }
     override suspend fun allActive() = albums.values.filter { it.deletedAt == null }
     override suspend fun insert(album: AlbumEntity): Long {
         val id = ++seq; albums[id] = album.copy(id = id); return id

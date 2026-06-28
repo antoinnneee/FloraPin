@@ -12,36 +12,6 @@ import DownloadButton from './DownloadButton.astro';
       <div class="dl-wrap">
         <DownloadButton />
       </div>
-      <p class="or">ou laissez-nous votre e-mail pour être prévenu des mises à jour</p>
-
-      <!--
-        Remplacez l'attribut action par votre URL Formspree :
-        https://formspree.io/f/<VOTRE_ID>
-        Ou pointez vers un endpoint backend dédié.
-      -->
-      <form
-        class="form"
-        action="https://formspree.io/f/VOTRE_ID"
-        method="POST"
-        novalidate
-      >
-        <div class="form-row">
-          <label for="beta-email" class="sr-only">Adresse e-mail</label>
-          <input
-            id="beta-email"
-            type="email"
-            name="email"
-            placeholder="votre@email.com"
-            required
-            autocomplete="email"
-          />
-          <button type="submit">Je veux tester FloraPin →</button>
-        </div>
-        <p class="legal">
-          Votre adresse e-mail sera utilisée uniquement pour la bêta FloraPin.
-          <a href="/politique-de-confidentialite">Politique de confidentialité</a>.
-        </p>
-      </form>
     </div>
   </div>
 </section>
@@ -81,82 +51,6 @@ import DownloadButton from './DownloadButton.astro';
   .dl-wrap {
     display: flex;
     justify-content: center;
-    margin-bottom: 16px;
-  }
-
-  .or {
-    font-size: 0.82rem;
-    color: #9ca3af;
-    margin-bottom: 20px;
-  }
-
-  .form-row {
-    display: flex;
-    border-radius: 14px;
-    overflow: hidden;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
-    margin-bottom: 12px;
-  }
-
-  input[type="email"] {
-    flex: 1;
-    padding: 16px 20px;
-    font-family: var(--font);
-    font-size: 1rem;
-    border: none;
-    outline: none;
-    background: var(--white);
-    color: var(--gray-900);
-    min-width: 0;
-  }
-
-  input[type="email"]::placeholder { color: #9ca3af; }
-
-  button[type="submit"] {
-    background: var(--green-700);
-    color: var(--white);
-    font-family: var(--font);
-    font-size: 0.88rem;
-    font-weight: 700;
-    padding: 16px 22px;
-    border: none;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.2s;
-  }
-
-  button[type="submit"]:hover { background: var(--green-800); }
-
-  .legal {
-    font-size: 0.76rem;
-    color: #9ca3af;
     margin-bottom: 0;
-  }
-
-  .legal a {
-    color: var(--green-700);
-    text-decoration: underline;
-  }
-
-  /* Accessibilité */
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border-width: 0;
-  }
-
-  @media (max-width: 500px) {
-    .form-row { flex-direction: column; }
-
-    button[type="submit"] {
-      border-radius: 0;
-      padding: 16px;
-    }
   }
 </style>

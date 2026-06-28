@@ -126,7 +126,7 @@ et limitées aux albums du propriétaire.
 
 | Méthode | Chemin                       | Corps / Description |
 |---------|------------------------------|---------------------|
-| POST    | `/albums`                    | `{ name }` → crée un album |
+| POST    | `/albums`                    | `{ name, clientId? }` → crée un album. `clientId` (UUID) rend la création **idempotente** : un même `clientId` renvoie l'album existant au lieu d'un doublon (anti-doublon de sync). |
 | GET     | `/albums`                    | Liste mes albums (plus récents d'abord) |
 | GET     | `/albums/:id`                | Un album |
 | PATCH   | `/albums/:id`                | `{ name }` → renomme |
@@ -134,7 +134,7 @@ et limitées aux albums du propriétaire.
 | POST    | `/albums/:id/flowers`        | `{ flowerId }` → rattache une fleur (idempotent) |
 | DELETE  | `/albums/:id/flowers/:flowerId` | Retire une fleur de l'album |
 
-`Album` = `{ id, ownerId, name, flowerIds, createdAt }`.
+`Album` = `{ id, ownerId, name, clientId, flowerIds, createdAt }`.
 
 ## Amis (`/friendships`)
 

@@ -118,6 +118,32 @@ fun ProfileScreen(
                 }
             }
 
+            // Statistiques collaboratives : nombre de mes propositions acceptées.
+            state.acceptedProposals?.let { count ->
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(
+                            text = "🌿 $count",
+                            style = MaterialTheme.typography.headlineSmall,
+                        )
+                        Text(
+                            text = if (count == 1) {
+                                "identification acceptée par un ami"
+                            } else {
+                                "identifications acceptées par des amis"
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
             if (!state.emailVerified && state.email.isNotBlank()) {
                 EmailVerificationSection(
                     currentEmail = state.email,

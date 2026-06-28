@@ -73,6 +73,14 @@ private class FakeIdentificationApi(
         flowerId: String,
         proposalId: String,
     ): SpeciesProposalDto = throw UnsupportedOperationException()
+
+    override suspend fun rejectProposal(
+        flowerId: String,
+        proposalId: String,
+    ): retrofit2.Response<Unit> = retrofit2.Response.success(null)
+
+    override suspend fun proposalStats() =
+        com.florapin.app.network.dto.ProposalStatsDto(0)
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

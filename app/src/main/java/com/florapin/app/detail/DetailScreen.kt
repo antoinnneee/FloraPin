@@ -329,6 +329,11 @@ private fun DetailContent(
                             }
                         }
                     },
+                    onReject = { proposal ->
+                        flower.serverId?.let { sid ->
+                            proposalsVm.reject(sid, proposal)
+                        }
+                    },
                 )
             }
 

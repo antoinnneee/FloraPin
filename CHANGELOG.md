@@ -10,6 +10,18 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
+## [1.4.3] — 2026-06-28
+
+### Ajouté
+- **Propositions d'identification : auteur visible et refus possible.** Sur le
+  détail d'une fleur, chaque proposition d'espèce reçue affiche désormais
+  **« Proposé par <nom> »**, et le propriétaire peut la **Refuser** (en plus de
+  l'accepter). Une proposition refusée est retirée. *(Backend :
+  `DELETE /flowers/:id/proposals/:proposalId` + nom de l'auteur dans la liste.)*
+- **Compteur d'identifications acceptées sur le profil.** La page Profil affiche
+  le **nombre de mes propositions d'espèce acceptées** par des amis.
+  *(Backend : `GET /me/proposal-stats`.)*
+
 ## [1.4.2] — 2026-06-28
 
 ### Corrigé

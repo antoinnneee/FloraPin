@@ -11,7 +11,20 @@ import { Flower } from '../flowers/flower.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SharesService } from '../shares/shares.service';
 import { SpeciesService } from '../species/species.service';
-import { SpeciesProposal } from './species-proposal.entity';
+import { UsersService } from '../users/users.service';
+import { ProposalStatus, SpeciesProposal } from './species-proposal.entity';
+
+/** Proposition enrichie du nom d'affichage de son auteur (NODE-31/134). */
+export interface ProposalResponse {
+  id: string;
+  flowerId: string;
+  proposedBy: string;
+  /** Nom d'affichage de l'ami qui a proposé (vide si introuvable). */
+  proposedByName: string;
+  species: string;
+  status: ProposalStatus;
+  createdAt: Date;
+}
 
 @Injectable()
 export class ProposalsService {
@@ -23,6 +36,7 @@ export class ProposalsService {
     private readonly shares: SharesService,
     private readonly notifications: NotificationsService,
     private readonly species: SpeciesService,
+    private readonly users: UsersService,
   ) {}
 
   /** Un ami propose une espèce pour une fleur non identifiée qui lui est partagée. */
@@ -74,15 +88,53 @@ export class ProposalsService {
     return saved;
   }
 
-  /** Le propriétaire liste les propositions reçues sur sa fleur. */
+  /**
+   * Le propriétaire liste les propositions reçues sur sa fleur, enrichies du nom
+   * d'affichage de leur auteur (pour montrer « de qui » vient la proposition).
+   */
   async listForFlower(
     ownerId: string,
     flowerId: string,
-  ): Promise<SpeciesProposal[]> {
+  ): Promise<ProposalResponse[]> {
     await this.ownedFlowerOrThrow(ownerId, flowerId);
-    return this.proposals.find({
+    const proposals = await this.proposals.find({
       where: { flowerId },
       order: { createdAt: 'DESC' },
+    });
+    return Promise.all(
+      proposals.map(async (p) => ({
+        id: p.id,
+        flowerId: p.flowerId,
+        proposedBy: p.proposedBy,
+        proposedByName:
+          (await this.users.findById(p.proposedBy))?.displayName ?? '',
+        species: p.species,
+        status: p.status,
+        createdAt: p.createdAt,
+      })),
+    );
+  }
+
+  /** Le propriétaire refuse une proposition : elle est retirée de sa fleur. */
+  async reject(
+    ownerId: string,
+    flowerId: string,
+    proposalId: string,
+  ): Promise<void> {
+    await this.ownedFlowerOrThrow(ownerId, flowerId);
+    const proposal = await this.proposals.findOne({
+      where: { id: proposalId, flowerId },
+    });
+    if (!proposal) {
+      throw new NotFoundException('Proposition introuvable.');
+    }
+    await this.proposals.delete(proposal.id);
+  }
+
+  /** Nombre de propositions de [proposerId] qui ont été acceptées (profil). */
+  acceptedCountForProposer(proposerId: string): Promise<number> {
+    return this.proposals.count({
+      where: { proposedBy: proposerId, status: 'accepted' },
     });
   }
 

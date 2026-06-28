@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,6 +37,8 @@ data class ReceivedProposalsUiState(
     val error: String? = null,
     /** Proposition dont l'acceptation est en cours. */
     val acceptingId: String? = null,
+    /** Proposition dont le refus est en cours. */
+    val rejectingId: String? = null,
 )
 
 /**
@@ -98,6 +101,30 @@ class ReceivedProposalsViewModel(
         }
     }
 
+    /** Refuse [proposal] : retirée côté serveur puis de la liste affichée. */
+    fun reject(flowerServerId: String, proposal: SpeciesProposalDto) {
+        if (_state.value.rejectingId != null) return
+        _state.update { it.copy(rejectingId = proposal.id, error = null) }
+        viewModelScope.launch {
+            try {
+                api.rejectProposal(flowerServerId, proposal.id)
+                _state.update {
+                    it.copy(
+                        rejectingId = null,
+                        proposals = it.proposals.filterNot { p -> p.id == proposal.id },
+                    )
+                }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        rejectingId = null,
+                        error = e.message ?: "Échec du refus.",
+                    )
+                }
+            }
+        }
+    }
+
     companion object {
         fun factory(context: Context): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
@@ -120,10 +147,13 @@ class ReceivedProposalsViewModel(
 fun ReceivedProposalsSection(
     viewModel: ReceivedProposalsViewModel,
     onAccept: (SpeciesProposalDto) -> Unit,
+    onReject: (SpeciesProposalDto) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     if (state.proposals.isEmpty() && state.error == null) return
+
+    val busy = state.acceptingId != null || state.rejectingId != null
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -135,22 +165,42 @@ fun ReceivedProposalsSection(
         )
         state.proposals.forEach { proposal ->
             Card(modifier = Modifier.fillMaxWidth()) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
                         text = "🌿 ${proposal.species}",
                         style = MaterialTheme.typography.bodyLarge,
                     )
-                    Button(
-                        onClick = { onAccept(proposal) },
-                        enabled = state.acceptingId == null,
+                    // « De qui » vient la proposition (NODE-134).
+                    Text(
+                        text = "Proposé par ${
+                            proposal.proposedByName.ifBlank { "un ami" }
+                        }",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text(if (state.acceptingId == proposal.id) "…" else "Accepter")
+                        OutlinedButton(
+                            onClick = { onReject(proposal) },
+                            enabled = !busy,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(if (state.rejectingId == proposal.id) "…" else "Refuser")
+                        }
+                        Button(
+                            onClick = { onAccept(proposal) },
+                            enabled = !busy,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(if (state.acceptingId == proposal.id) "…" else "Accepter")
+                        }
                     }
                 }
             }

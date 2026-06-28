@@ -191,9 +191,19 @@ CREATE TABLE IF NOT EXISTS albums (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name        TEXT NOT NULL,
+    -- Identifiant stable généré par le client à la création (anti-doublon).
+    -- Rend la création idempotente : un re-push (réponse perdue / crash après le
+    -- POST) retombe sur l'album existant au lieu d'en créer un second.
+    client_id   UUID,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Idempotent pour les bases déjà créées (ALTER ADD COLUMN IF NOT EXISTS).
+ALTER TABLE albums ADD COLUMN IF NOT EXISTS client_id UUID;
 CREATE INDEX IF NOT EXISTS idx_albums_owner ON albums(owner_id);
+-- Unicité (owner, client_id) : garantit qu'un même clientId ne crée qu'un album
+-- par utilisateur. Index partiel : les anciens albums (client_id NULL) sont ignorés.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_albums_owner_client
+    ON albums(owner_id, client_id) WHERE client_id IS NOT NULL;
 
 -- Appartenance fleur ↔ album (n..n).
 CREATE TABLE IF NOT EXISTS flower_albums (

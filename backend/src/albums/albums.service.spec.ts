@@ -22,9 +22,14 @@ class FakeAlbumRepo {
   }
 
   async findOne(opts: {
-    where: { id: string; ownerId: string };
+    where: { id?: string; ownerId: string; clientId?: string };
   }): Promise<Album | null> {
-    const found = this.store.get(opts.where.id);
+    // Recherche par id (cas courant) ou par clientId (idempotence de create).
+    const found = opts.where.id
+      ? this.store.get(opts.where.id)
+      : [...this.store.values()].find(
+          (a) => a.clientId === opts.where.clientId,
+        );
     if (!found || found.ownerId !== opts.where.ownerId) return null;
     return { ...found, flowers: [...found.flowers] };
   }
@@ -87,6 +92,18 @@ describe('AlbumsService', () => {
     const list = await service.list(OWNER);
     expect(list).toHaveLength(1);
     expect(list[0].id).toBe(created.id);
+  });
+
+  it('création idempotente : un même clientId ne crée pas de doublon', async () => {
+    const clientId = randomUUID();
+    const first = await service.create(OWNER, { name: 'Jardin', clientId });
+    // Re-push (réponse perdue) : même clientId → renvoie l'album existant.
+    const second = await service.create(OWNER, { name: 'Jardin', clientId });
+
+    expect(second.id).toBe(first.id);
+    expect(second.clientId).toBe(clientId);
+    const list = await service.list(OWNER);
+    expect(list).toHaveLength(1);
   });
 
   it('renomme un album', async () => {

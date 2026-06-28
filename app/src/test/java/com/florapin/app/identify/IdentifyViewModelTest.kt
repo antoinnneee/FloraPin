@@ -65,6 +65,14 @@ private class FakeIdentificationApi(
             createdAt = "t",
         )
     }
+
+    override suspend fun listProposals(flowerId: String): List<SpeciesProposalDto> =
+        emptyList()
+
+    override suspend fun acceptProposal(
+        flowerId: String,
+        proposalId: String,
+    ): SpeciesProposalDto = throw UnsupportedOperationException()
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

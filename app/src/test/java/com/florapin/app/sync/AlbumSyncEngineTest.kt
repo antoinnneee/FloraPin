@@ -71,6 +71,8 @@ private class MemAlbumDao(private val flowers: MemFlowerDao) : AlbumDao {
         )
     override suspend fun findByServerId(serverId: String) =
         albums.values.find { it.serverId == serverId }
+    override suspend fun findByClientId(clientId: String) =
+        albums.values.find { it.clientId == clientId }
     override suspend fun allActive() = albums.values.filter { it.deletedAt == null }
     override suspend fun insert(album: AlbumEntity): Long {
         val id = ++seq; albums[id] = album.copy(id = id); return id
@@ -109,8 +111,12 @@ private class FakeAlbumsApi : AlbumsApi {
     override suspend fun list() = server.values.toList()
     override suspend fun get(id: String) = server.getValue(id)
     override suspend fun create(body: CreateAlbumRequest): AlbumDto {
+        // Idempotence (comme le backend) : un clientId déjà connu renvoie l'album
+        // existant au lieu d'en créer un doublon.
+        server.values.find { it.clientId == body.clientId }?.let { return it }
         val id = "srv-album-${++seq}"
-        val dto = AlbumDto(id, "owner", body.name, emptyList(), "2026-06-21T09:00:00Z")
+        val dto = AlbumDto(id, "owner", body.name, body.clientId, emptyList(),
+            "2026-06-21T09:00:00Z")
         server[id] = dto
         return dto
     }
@@ -171,8 +177,8 @@ class AlbumSyncEngineTest {
         ) { 100L }
 
         val flower = flowerDao.seed(serverId = "srv-flower-9")
-        api.server["srv-a"] = AlbumDto("srv-a", "owner", "Été", listOf("srv-flower-9"),
-            "2026-06-21T09:00:00Z")
+        api.server["srv-a"] = AlbumDto("srv-a", "owner", "Été", "client-a",
+            listOf("srv-flower-9"), "2026-06-21T09:00:00Z")
 
         engine.pull()
 
@@ -181,6 +187,43 @@ class AlbumSyncEngineTest {
         assertEquals("Été", local!!.name)
         assertEquals(SyncState.SYNCED.name, local.syncState)
         assertEquals(listOf(flower.id), albumDao.memberFlowerIds(local.id))
+    }
+
+    @Test
+    fun lostMarkSynced_doesNotDuplicateAlbum() = runBlocking {
+        // Reproduit le bug : la création serveur réussit mais markSynced échoue
+        // (réponse perdue). L'album local reste serverId=null/PENDING alors que le
+        // serveur l'a déjà. Le cycle de sync suivant ne doit PAS créer de doublon.
+        val flowerDao = MemFlowerDao()
+        val albumDao = MemAlbumDao(flowerDao)
+        val albumRepo = AlbumRepository(albumDao) { 100L }
+        val flowerRepo = FlowerRepository(flowerDao)
+
+        // 1er push : markSynced est neutralisé pour simuler une réponse perdue.
+        val droppingDao = object : AlbumDao by albumDao {
+            override suspend fun markSynced(id: Long, serverId: String, updatedAt: Long) {
+                // perdu : on ne persiste pas le serverId
+            }
+        }
+        val api = FakeAlbumsApi()
+        val albumId = albumRepo.create("Jardin")
+        AlbumSyncEngine(
+            AlbumRepository(droppingDao) { 100L }, flowerRepo, api,
+        ) { 100L }.push()
+
+        // Le serveur a bien l'album ; le local est resté sans serverId.
+        assertEquals(1, api.server.size)
+        assertNull(albumDao.getById(albumId)!!.serverId)
+
+        // 2e cycle complet avec un DAO normal : push (idempotent) + pull.
+        val engine = AlbumSyncEngine(albumRepo, flowerRepo, api) { 100L }
+        engine.push()
+        engine.pull()
+
+        // Un seul album côté serveur ET côté local : pas de doublon.
+        assertEquals(1, api.server.size)
+        assertEquals(1, albumDao.albums.size)
+        assertNotNull(albumDao.getById(albumId)!!.serverId)
     }
 
     @Test
@@ -196,8 +239,8 @@ class AlbumSyncEngineTest {
 
         // Album déjà synchronisé localement mais absent du serveur.
         albumDao.insert(
-            AlbumEntity(serverId = "gone", name = "Vieux", createdAt = 0, updatedAt = 0,
-                syncState = SyncState.SYNCED.name),
+            AlbumEntity(serverId = "gone", clientId = "client-gone", name = "Vieux",
+                createdAt = 0, updatedAt = 0, syncState = SyncState.SYNCED.name),
         )
 
         engine.pull()

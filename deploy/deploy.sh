@@ -156,6 +156,26 @@ else
     echo "    La vitrine sera déployée SANS fichier de téléchargement (/florapin.apk → 404)."
 fi
 
+# --- Version de l'app pour la vitrine ---
+# La vitrine affiche/nomme le téléchargement avec la VRAIE version (florapin_<ver>.apk).
+# La source de vérité est `versionName` dans app/build.gradle.kts, mais le dossier
+# app/ N'EST PAS synchronisé sur le VPS (le build Astro ne voit que landing/). On
+# extrait donc la version ICI (app/ disponible en local) et on l'écrit dans
+# landing/src/version.json, lu par config.ts au build. Fait AVANT le rsync de landing/.
+GRADLE_FILE="$REPO_ROOT/app/build.gradle.kts"
+VERSION_JSON="$REPO_ROOT/landing/src/version.json"
+if [ -f "$GRADLE_FILE" ]; then
+    APP_VERSION=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]+"' "$GRADLE_FILE" | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+    if [ -n "$APP_VERSION" ]; then
+        printf '{\n  "version": "%s"\n}\n' "$APP_VERSION" > "$VERSION_JSON"
+        echo "🏷️  Version de la vitrine alignée sur l'app : $APP_VERSION."
+    else
+        echo "⚠️  versionName introuvable dans build.gradle.kts ; version.json inchangé."
+    fi
+else
+    echo "ℹ️  app/build.gradle.kts absent ; version.json inchangé (valeur commitée conservée)."
+fi
+
 echo "📦 Synchronisation de landing/ (sources + APK)..."
 remote_sync --exclude 'node_modules/' --exclude 'dist/' \
     "$REPO_ROOT/landing/" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/landing/" || exit 1

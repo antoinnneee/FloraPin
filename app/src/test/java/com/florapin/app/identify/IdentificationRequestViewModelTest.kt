@@ -34,6 +34,12 @@ private class StubApi(
         flowerId: String,
         body: ProposeSpeciesRequest,
     ): SpeciesProposalDto = throw UnsupportedOperationException()
+    override suspend fun listProposals(flowerId: String): List<SpeciesProposalDto> =
+        emptyList()
+    override suspend fun acceptProposal(
+        flowerId: String,
+        proposalId: String,
+    ): SpeciesProposalDto = throw UnsupportedOperationException()
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -82,6 +88,13 @@ class IdentificationRequestViewModelTest {
             override suspend fun propose(
                 flowerId: String,
                 body: ProposeSpeciesRequest,
+            ): SpeciesProposalDto = throw UnsupportedOperationException()
+            override suspend fun listProposals(
+                flowerId: String,
+            ): List<SpeciesProposalDto> = emptyList()
+            override suspend fun acceptProposal(
+                flowerId: String,
+                proposalId: String,
             ): SpeciesProposalDto = throw UnsupportedOperationException()
         }
         val vm = IdentificationRequestViewModel(api)

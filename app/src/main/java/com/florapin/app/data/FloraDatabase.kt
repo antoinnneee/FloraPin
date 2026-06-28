@@ -20,7 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FlowerAlbumCrossRef::class,
         PhotoEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -187,6 +187,37 @@ abstract class FloraDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v11 → v12 : anti-doublon des albums. Ajoute un `clientId` (UUID stable
+         * généré localement) envoyé au serveur pour rendre la création
+         * idempotente (cf. AlbumSyncEngine / backend). On backfille chaque album
+         * existant avec un UUID DISTINCT avant de poser l'index unique (deux ''
+         * violeraient l'unicité). Les albums déjà synchronisés passent par le
+         * chemin rename (serverId != null), donc ces clientId rétro-actifs ne
+         * sont jamais envoyés en création — leur format importe peu.
+         */
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE albums ADD COLUMN clientId TEXT NOT NULL " +
+                        "DEFAULT ''",
+                )
+                // UUID v4-like par ligne (randomblob volatile → distinct par row).
+                db.execSQL(
+                    "UPDATE albums SET clientId = lower(" +
+                        "substr(hex(randomblob(4)),1,8) || '-' || " +
+                        "substr(hex(randomblob(2)),1,4) || '-' || " +
+                        "substr(hex(randomblob(2)),1,4) || '-' || " +
+                        "substr(hex(randomblob(2)),1,4) || '-' || " +
+                        "substr(hex(randomblob(6)),1,12)) WHERE clientId = ''",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_albums_clientId " +
+                        "ON albums(clientId)",
+                )
+            }
+        }
+
         @Volatile
         private var instance: FloraDatabase? = null
 
@@ -212,6 +243,7 @@ abstract class FloraDatabase : RoomDatabase() {
                 MIGRATION_8_9,
                 MIGRATION_9_10,
                 MIGRATION_10_11,
+                MIGRATION_11_12,
             ).build()
     }
 }

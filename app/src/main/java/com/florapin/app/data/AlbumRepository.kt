@@ -33,6 +33,7 @@ class AlbumRepository(
         val ts = now()
         return dao.insert(
             AlbumEntity(
+                clientId = java.util.UUID.randomUUID().toString(),
                 name = name,
                 createdAt = ts,
                 updatedAt = ts,
@@ -91,6 +92,9 @@ class AlbumRepository(
 
     suspend fun findByServerId(serverId: String): AlbumEntity? =
         dao.findByServerId(serverId)
+
+    suspend fun findByClientId(clientId: String): AlbumEntity? =
+        dao.findByClientId(clientId)
 
     suspend fun insert(album: AlbumEntity): Long = dao.insert(album)
 

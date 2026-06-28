@@ -12,6 +12,10 @@ fun AlbumDto.toEntity(): AlbumEntity {
     val created = createdAt.isoToEpochMillis()
     return AlbumEntity(
         serverId = id,
+        // Le serveur peut ne pas avoir de clientId (album d'avant l'anti-doublon)
+        // ou en avoir déjà un d'un autre appareil : on en génère un localement à
+        // défaut (clientId est NOT NULL et unique côté Room).
+        clientId = clientId ?: java.util.UUID.randomUUID().toString(),
         name = name,
         ownerId = ownerId,
         createdAt = created,
@@ -23,6 +27,8 @@ fun AlbumDto.toEntity(): AlbumEntity {
 /** Applique l'état serveur à un album local existant (réconciliation). */
 fun AlbumDto.applyTo(local: AlbumEntity): AlbumEntity = local.copy(
     serverId = id,
+    // Conserve le clientId local ; n'adopte celui du serveur que s'il est connu.
+    clientId = clientId ?: local.clientId,
     name = name,
     ownerId = ownerId,
     syncState = SyncState.SYNCED.name,

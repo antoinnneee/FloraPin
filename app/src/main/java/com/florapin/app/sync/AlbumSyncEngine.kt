@@ -34,7 +34,12 @@ class AlbumSyncEngine(
             val serverId = album.serverId
             when {
                 serverId == null && album.deletedAt == null -> {
-                    val dto = albumsApi.create(CreateAlbumRequest(album.name))
+                    // Création idempotente : le clientId permet au serveur de
+                    // retomber sur l'album existant si un push précédent a réussi
+                    // mais que markSynced n'a pas abouti (réponse perdue/crash).
+                    val dto = albumsApi.create(
+                        CreateAlbumRequest(album.name, album.clientId),
+                    )
                     albums.markSynced(album.id, dto.id, now())
                     reconcileMembers(dto.id, albums.memberFlowerServerIds(album.id))
                 }
@@ -67,15 +72,35 @@ class AlbumSyncEngine(
     suspend fun pull() {
         val remote = albumsApi.list()
         for (dto in remote) {
+            // 1) par serverId. 2) sinon, filet anti-doublon : on rattache un album
+            // local créé ici dont le push a réussi côté serveur mais dont le
+            // serverId n'a pas été persisté (markSynced manqué) — repéré via le
+            // clientId. Évite de réinsérer un doublon.
             val existing = albums.findByServerId(dto.id)
+                ?: dto.clientId?.let { albums.findByClientId(it) }
             val localId: Long
-            if (existing == null) {
-                localId = albums.insert(dto.toEntity())
-            } else {
-                // Album en cours d'édition locale : on ne l'écrase pas.
-                if (existing.syncState != com.florapin.app.data.SyncState.SYNCED.name) continue
-                albums.update(dto.applyTo(existing))
-                localId = existing.id
+            when {
+                existing == null -> {
+                    localId = albums.insert(dto.toEntity())
+                }
+                // Rattaché par clientId alors que le serverId local manque : le
+                // push a créé l'album côté serveur mais markSynced a échoué. On
+                // adopte le serverId SANS écraser un éventuel renommage local
+                // resté PENDING (il sera poussé au prochain push via la branche
+                // rename). Anti-doublon : évite la réinsertion.
+                existing.serverId == null -> {
+                    albums.update(existing.copy(serverId = dto.id))
+                    localId = existing.id
+                }
+                // Album en cours d'édition locale (déjà synchronisé) : on ne
+                // l'écrase pas, last-write-wins côté push.
+                existing.syncState != com.florapin.app.data.SyncState.SYNCED.name -> {
+                    continue
+                }
+                else -> {
+                    albums.update(dto.applyTo(existing))
+                    localId = existing.id
+                }
             }
             // Réconcilie l'appartenance locale (fleurs déjà présentes localement).
             val memberLocalIds = dto.flowerIds.mapNotNull {

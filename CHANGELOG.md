@@ -12,6 +12,16 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.4.1] — 2026-06-28
+
+### Corrigé
+- **Swipe entre photos en plein écran.** Dans la visionneuse plein écran (avec
+  zoom), le glissement à un doigt ne changeait plus de photo : le détecteur de
+  zoom consommait tous les gestes, même image non zoomée. Désormais le geste n'est
+  capté que lors d'un vrai zoom/déplacement (deux doigts ou image déjà zoomée) ;
+  à l'échelle 1, le glissement passe au carrousel et fait défiler les photos de la
+  fleur.
+
 ## [1.4.0] — 2026-06-28
 
 ### Ajouté

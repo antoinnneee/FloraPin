@@ -5,12 +5,17 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.FlowerRepository
+import com.florapin.app.friends.FriendsBadgeStore
+import com.florapin.app.identify.IdentifyBadgeStore
+import com.florapin.app.network.NetworkModule
+import com.florapin.app.network.auth.EncryptedTokenStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 /** Ordre de tri de la galerie (NODE-120). */
 enum class GallerySort(val label: String) {
@@ -52,6 +57,50 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun setSort(sort: GallerySort) {
         _sort.value = sort
+    }
+
+    // --- Badges de nouveautés (demandes d'identification & d'amis non vues) ---
+
+    private val apis by lazy {
+        NetworkModule.createAuthenticated(EncryptedTokenStore(application))
+    }
+    private val identifyBadgeStore = IdentifyBadgeStore(application)
+    private val friendsBadgeStore = FriendsBadgeStore(application)
+
+    private val _identifyBadge = MutableStateFlow(0)
+    /** Nombre de demandes d'identification d'amis non encore vues (0 = pas de badge). */
+    val identifyBadge: StateFlow<Int> = _identifyBadge.asStateFlow()
+
+    private val _friendsBadge = MutableStateFlow(0)
+    /** Nombre de demandes d'amis entrantes non encore vues (0 = pas de badge). */
+    val friendsBadge: StateFlow<Int> = _friendsBadge.asStateFlow()
+
+    /**
+     * Recalcule les badges : récupère les demandes courantes (identification et
+     * amitiés entrantes) et compte celles non encore vues. Appelé à l'affichage de
+     * la galerie (lancement et retour depuis ces écrans, qui auront marqué leurs
+     * demandes comme vues). Silencieux hors-ligne / non connecté (on conserve la
+     * dernière valeur connue).
+     */
+    fun refreshBadges() {
+        viewModelScope.launch {
+            try {
+                val ids = apis.identification.listToIdentify().map { it.id }
+                _identifyBadge.value = identifyBadgeStore.unseenCount(ids)
+            } catch (_: Exception) {
+                // hors-ligne / non connecté : on garde la valeur actuelle
+            }
+        }
+        viewModelScope.launch {
+            try {
+                val incomingIds = apis.friendships.list()
+                    .filter { it.status == "pending" && it.direction == "incoming" }
+                    .map { it.id }
+                _friendsBadge.value = friendsBadgeStore.unseenCount(incomingIds)
+            } catch (_: Exception) {
+                // hors-ligne / non connecté : on garde la valeur actuelle
+            }
+        }
     }
 }
 

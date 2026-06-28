@@ -44,6 +44,15 @@ export class MinioStorageService
      * interne (ex. `minio:9000`), injoignable par un autre appareil au pull.
      */
     private readonly presignClient: ObjectStorageClient = client,
+    /**
+     * Expiration des URLs de LECTURE (GET), distincte de l'upload. L'app est
+     * device-first : elle PERSISTE ces URLs en base locale lors de la synchro et
+     * les réaffiche bien plus tard. Une expiration courte (celle de l'upload)
+     * rendait toutes les images d'une fleur synchronisée illisibles (403 « Request
+     * has expired ») dès 10 min après le pull. On vise donc le maximum SigV4
+     * (7 jours), rafraîchi à chaque synchro.
+     */
+    private readonly downloadExpiresIn: number = expiresIn,
   ) {
     super();
   }
@@ -92,7 +101,7 @@ export class MinioStorageService
     return this.presignClient.presignedGetObject(
       this.bucket,
       key,
-      this.expiresIn,
+      this.downloadExpiresIn,
     );
   }
 

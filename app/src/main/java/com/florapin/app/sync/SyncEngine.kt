@@ -26,6 +26,14 @@ class SyncEngine(
     /** Téléverse l'image d'une fleur (serverId) ; le serveur la réencode en WebP. */
     private val uploadFlowerImage: suspend (serverId: String, file: File) -> Unit,
     private val lastSyncStore: LastSyncStore,
+    /**
+     * Met en cache localement l'image d'une fleur distante (clé = serverId, URL
+     * présignée) : télécharge le fichier et retourne son chemin local, ou null en
+     * cas d'échec. Par défaut no-op (tests/compat). Évite que l'affichage dépende
+     * de l'expiration des URLs présignées une fois la fleur tirée.
+     */
+    private val cacheRemoteImage: suspend (serverId: String, url: String) -> String? =
+        { _, _ -> null },
     private val now: () -> Long = { System.currentTimeMillis() },
     /** Sync des albums (NODE-102) ; optionnel pour rester rétrocompatible. */
     private val albumSync: AlbumSyncEngine? = null,
@@ -124,6 +132,10 @@ class SyncEngine(
             val existing = repository.findByServerId(dto.id)
             if (existing != null) {
                 repository.update(dto.applyTo(existing))
+                // Met en cache l'image localement si on n'en a pas de copie (fleur
+                // tirée d'un autre appareil) : l'affichage ne dépendra plus de
+                // l'expiration de l'URL présignée.
+                cacheRemoteImageIfMissing(existing.id, dto.id, existing.imagePath, dto.imageUrl)
                 // Réconcilie les photos additionnelles de la fleur (NODE-107).
                 photoSync?.reconcile(existing.id, dto.photos)
                 return@forEach
@@ -142,14 +154,33 @@ class SyncEngine(
             }
 
             // Vraie fleur distante (autre appareil) : insérée avec son URL image
-            // distante ; Coil charge l'URL présignée à l'affichage.
+            // distante, puis téléchargée en local pour ne plus dépendre de
+            // l'expiration de l'URL présignée à l'affichage.
             val localId = repository.insert(dto.toEntity())
+            cacheRemoteImageIfMissing(localId, dto.id, imagePath = "", dto.imageUrl)
             photoSync?.reconcile(localId, dto.photos)
         }
         response.deletedIds.forEach { serverId ->
             repository.softDeleteByServerId(serverId, now())
         }
         lastSyncStore.set(response.serverTime)
+    }
+
+    /**
+     * Télécharge l'image de la fleur [localId] dans le stockage privé et renseigne
+     * son `imagePath`, sauf si une copie locale existe déjà ou si l'URL est
+     * absente. Best-effort : un échec (URL expirée, réseau) laisse l'URL distante
+     * en repli sans interrompre la synchro.
+     */
+    private suspend fun cacheRemoteImageIfMissing(
+        localId: Long,
+        serverId: String,
+        imagePath: String,
+        remoteUrl: String?,
+    ) {
+        if (imagePath.isNotEmpty() || remoteUrl.isNullOrEmpty()) return
+        val path = cacheRemoteImage(serverId, remoteUrl) ?: return
+        repository.cacheImagePath(localId, path)
     }
 
     private fun isoToMillis(iso: String): Long = Instant.parse(iso).toEpochMilli()

@@ -122,15 +122,39 @@ describe('ProposalsService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('refuse si la fleur est déjà identifiée', async () => {
-    flowerRepo.seed({ id: FLOWER, ownerId: OWNER, species: 'Bellis' });
+  it('refuse si la fleur n’attend pas d’identification', async () => {
+    flowerRepo.seed({
+      id: FLOWER,
+      ownerId: OWNER,
+      species: 'Bellis',
+      needsIdentification: false,
+    });
     await expect(
       service.propose(FRIEND, FLOWER, 'Rosa canina'),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
+  it('autorise une proposition après suppression puis nouvelle demande d’identification', async () => {
+    // Régression : une ancienne espèce subsiste (suppression non propagée) mais
+    // la fleur a été ré-ouverte (needsIdentification=true) → propose() doit
+    // réussir au lieu de renvoyer un 409.
+    flowerRepo.seed({
+      id: FLOWER,
+      ownerId: OWNER,
+      species: 'Bellis',
+      needsIdentification: true,
+    });
+    const proposal = await service.propose(FRIEND, FLOWER, 'Rosa canina');
+    expect(proposal.status).toBe('pending');
+  });
+
   it('refuse si la fleur n’est pas partagée avec l’ami', async () => {
-    flowerRepo.seed({ id: FLOWER, ownerId: OWNER, species: null });
+    flowerRepo.seed({
+      id: FLOWER,
+      ownerId: OWNER,
+      species: null,
+      needsIdentification: true,
+    });
     visibleToFriend = [];
     await expect(
       service.propose(FRIEND, FLOWER, 'Rosa canina'),
@@ -138,7 +162,12 @@ describe('ProposalsService', () => {
   });
 
   it('crée une proposition et notifie le propriétaire', async () => {
-    flowerRepo.seed({ id: FLOWER, ownerId: OWNER, species: null });
+    flowerRepo.seed({
+      id: FLOWER,
+      ownerId: OWNER,
+      species: null,
+      needsIdentification: true,
+    });
     const proposal = await service.propose(FRIEND, FLOWER, 'Rosa canina');
     expect(proposal.status).toBe('pending');
     expect(notified).toContainEqual({
@@ -148,7 +177,12 @@ describe('ProposalsService', () => {
   });
 
   it('le propriétaire accepte : l’espèce est appliquée et l’ami notifié', async () => {
-    flowerRepo.seed({ id: FLOWER, ownerId: OWNER, species: null });
+    flowerRepo.seed({
+      id: FLOWER,
+      ownerId: OWNER,
+      species: null,
+      needsIdentification: true,
+    });
     const proposal = await service.propose(FRIEND, FLOWER, 'Rosa canina');
 
     await service.accept(OWNER, FLOWER, proposal.id);

@@ -70,6 +70,9 @@ private class FakeDao : FlowerDao {
     override suspend fun markFailed(id: Long) {
         store[id]?.let { store[id] = it.copy(syncState = SyncState.FAILED.name) }
     }
+    override suspend fun setImagePath(id: Long, path: String) {
+        store[id]?.let { store[id] = it.copy(imagePath = path) }
+    }
     override suspend fun softDeleteByServerId(serverId: String, deletedAt: Long) {
         store.values.find { it.serverId == serverId }?.let {
             store[it.id] = it.copy(deletedAt = deletedAt, syncState = SyncState.SYNCED.name)
@@ -232,6 +235,66 @@ class SyncEngineTest {
         assertEquals("", inserted.imagePath)
         assertEquals("https://x/srv-remote.jpg", inserted.remoteImageUrl)
         assertEquals(SyncState.SYNCED.name, inserted.syncState)
+    }
+
+    @Test
+    fun pull_cachesRemoteImageLocally() = runBlocking {
+        val dao = FakeDao()
+        val repo = FlowerRepository(dao)
+        val cached = mutableListOf<Pair<String, String>>()
+        val engine = SyncEngine(
+            repository = repo,
+            syncApi = FakeSyncApi(
+                pullResponse = SyncPullResponse(
+                    serverTime = "2026-06-21T12:00:00Z",
+                    flowers = listOf(dto("srv-remote", "2026-06-21T11:00:00Z")),
+                    deletedIds = emptyList(),
+                ),
+            ),
+            flowersApi = FakeFlowersApi(),
+            uploadFlowerImage = { _, _ -> },
+            lastSyncStore = FakeLastSync(),
+            // Simule un téléchargement réussi : retourne un chemin local stable.
+            cacheRemoteImage = { serverId, url ->
+                cached += serverId to url
+                "/local/$serverId.img"
+            },
+        )
+
+        engine.pull()
+
+        // L'image distante a été téléchargée et imagePath pointe vers le fichier
+        // local : l'affichage ne dépend plus de l'expiration de l'URL présignée.
+        assertEquals(listOf("srv-remote" to "https://x/srv-remote.jpg"), cached)
+        val inserted = dao.store.values.single { it.serverId == "srv-remote" }
+        assertEquals("/local/srv-remote.img", inserted.imagePath)
+    }
+
+    @Test
+    fun pull_keepsRemoteUrlWhenCacheFails() = runBlocking {
+        val dao = FakeDao()
+        val repo = FlowerRepository(dao)
+        val engine = SyncEngine(
+            repository = repo,
+            syncApi = FakeSyncApi(
+                pullResponse = SyncPullResponse(
+                    serverTime = "2026-06-21T12:00:00Z",
+                    flowers = listOf(dto("srv-remote", "2026-06-21T11:00:00Z")),
+                    deletedIds = emptyList(),
+                ),
+            ),
+            flowersApi = FakeFlowersApi(),
+            uploadFlowerImage = { _, _ -> },
+            lastSyncStore = FakeLastSync(),
+            // Échec de téléchargement (URL expirée, réseau) : on retombe sur l'URL.
+            cacheRemoteImage = { _, _ -> null },
+        )
+
+        engine.pull()
+
+        val inserted = dao.store.values.single { it.serverId == "srv-remote" }
+        assertEquals("", inserted.imagePath)
+        assertEquals("https://x/srv-remote.jpg", inserted.remoteImageUrl)
     }
 
     @Test

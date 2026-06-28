@@ -40,8 +40,13 @@ export class ProposalsService {
         'Le propriétaire identifie sa fleur directement.',
       );
     }
-    if (flower.species) {
-      throw new ConflictException('Cette fleur est déjà identifiée.');
+    // On se base sur l'état autoritaire « ouverte aux propositions »
+    // (needsIdentification), pas sur le texte d'espèce : après une suppression
+    // puis une nouvelle demande, request() repose needsIdentification=true alors
+    // qu'un ancien flower.species peut subsister. Tester species ici renvoyait
+    // un 409 à tort sur ces fleurs ré-ouvertes.
+    if (!flower.needsIdentification) {
+      throw new ConflictException('Cette fleur n’attend pas d’identification.');
     }
     // Même périmètre que la liste « Fleurs à identifier » (NODE-133/134) : on
     // autorise la proposition sur toute fleur « à identifier » d'un ami, sans

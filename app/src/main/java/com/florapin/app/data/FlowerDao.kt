@@ -80,6 +80,14 @@ interface FlowerDao {
     @Query("UPDATE flowers SET syncState = 'FAILED' WHERE id = :id")
     suspend fun markFailed(id: Long)
 
+    /**
+     * Renseigne le chemin local de l'image après mise en cache d'une image
+     * distante (NODE-53). N'altère PAS le syncState : il ne s'agit pas d'une
+     * modification utilisateur à repousser, juste d'un cache d'affichage.
+     */
+    @Query("UPDATE flowers SET imagePath = :path WHERE id = :id")
+    suspend fun setImagePath(id: Long, path: String)
+
     /** Suppression logique d'une fleur identifiée par son id serveur (pull). */
     @Query(
         "UPDATE flowers SET deletedAt = :deletedAt, updatedAt = :deletedAt, " +

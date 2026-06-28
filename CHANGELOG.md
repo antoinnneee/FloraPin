@@ -26,6 +26,9 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   `acceptProposal`) — la suite de tests unitaires Android recompile.
 
 ### Modifié
+- **Synchronisation cloud activée par défaut** (`SyncPreferences.DEFAULT = true`).
+  Les nouvelles installations sauvegardent la bibliothèque sur le serveur dès la
+  connexion ; le réglage reste désactivable dans Profil pour rester 100% local.
 - Vitrine : le téléchargement enregistre désormais l'APK sous son **vrai numéro
   de version** (`florapin_1.3.0.apk` au lieu de `florapin_beta.apk`) et la mention
   sous le bouton affiche la version. La version est alignée automatiquement sur

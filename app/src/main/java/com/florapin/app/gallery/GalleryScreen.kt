@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -23,6 +25,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,6 +61,12 @@ fun GalleryScreen(
     val flowers by viewModel.flowers.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
     val sort by viewModel.sort.collectAsStateWithLifecycle()
+    val identifyBadge by viewModel.identifyBadge.collectAsStateWithLifecycle()
+    val friendsBadge by viewModel.friendsBadge.collectAsStateWithLifecycle()
+
+    // Recalcule les badges à l'affichage de la galerie (lancement + retour depuis
+    // les écrans « à identifier » / amis, qui auront marqué leurs demandes vues).
+    LaunchedEffect(Unit) { viewModel.refreshBadges() }
 
     Scaffold(
         modifier = modifier,
@@ -69,12 +78,8 @@ fun GalleryScreen(
                     IconButton(onClick = onOpenAlbums) {
                         Text("📁", style = MaterialTheme.typography.titleLarge)
                     }
-                    IconButton(onClick = onOpenIdentify) {
-                        Text("🔎", style = MaterialTheme.typography.titleLarge)
-                    }
-                    IconButton(onClick = onOpenFriends) {
-                        Text("🤝", style = MaterialTheme.typography.titleLarge)
-                    }
+                    BadgedEmojiAction("🔎", identifyBadge, onClick = onOpenIdentify)
+                    BadgedEmojiAction("🤝", friendsBadge, onClick = onOpenFriends)
                 },
             )
         },
@@ -112,6 +117,29 @@ fun GalleryScreen(
 
                 else -> EmptyGallery()
             }
+        }
+    }
+}
+
+/**
+ * Action emoji de la barre du haut, surmontée d'un badge de nouveautés quand
+ * [badge] > 0 (au-delà de 99, affiche « 99+ »).
+ */
+@Composable
+private fun BadgedEmojiAction(
+    emoji: String,
+    badge: Int,
+    onClick: () -> Unit,
+) {
+    BadgedBox(
+        badge = {
+            if (badge > 0) {
+                Badge { Text(if (badge > 99) "99+" else "$badge") }
+            }
+        },
+    ) {
+        IconButton(onClick = onClick) {
+            Text(emoji, style = MaterialTheme.typography.titleLarge)
         }
     }
 }

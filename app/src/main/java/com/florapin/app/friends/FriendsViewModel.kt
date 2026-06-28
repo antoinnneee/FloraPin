@@ -28,7 +28,11 @@ data class FriendsUiState(
  * Gestion des amitiés : liste (amis acceptés, demandes entrantes/sortantes),
  * invitation par identifiant utilisateur, acceptation, suppression.
  */
-class FriendsViewModel(private val api: FriendshipsApi) : ViewModel() {
+class FriendsViewModel(
+    private val api: FriendshipsApi,
+    /** Suivi des demandes entrantes vues (badge). Null en test : remise à 0 ignorée. */
+    private val badgeStore: FriendsBadgeStore? = null,
+) : ViewModel() {
 
     private val _state = MutableStateFlow(FriendsUiState(loading = true))
     val state: StateFlow<FriendsUiState> = _state.asStateFlow()
@@ -41,7 +45,11 @@ class FriendsViewModel(private val api: FriendshipsApi) : ViewModel() {
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             try {
-                _state.value = categorize(api.list())
+                val categorized = categorize(api.list())
+                _state.value = categorized
+                // Ouvrir l'écran « voit » les demandes entrantes : le badge revient
+                // à 0, même sans avoir accepté/refusé.
+                badgeStore?.markSeen(categorized.incoming.map { it.id }.toSet())
             } catch (e: Exception) {
                 _state.update { it.copy(loading = false, error = messageOf(e)) }
             }
@@ -95,7 +103,10 @@ class FriendsViewModel(private val api: FriendshipsApi) : ViewModel() {
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     val tokenStore = EncryptedTokenStore(context.applicationContext)
                     val apis = NetworkModule.createAuthenticated(tokenStore)
-                    return FriendsViewModel(apis.friendships) as T
+                    return FriendsViewModel(
+                        apis.friendships,
+                        FriendsBadgeStore(context.applicationContext),
+                    ) as T
                 }
             }
     }

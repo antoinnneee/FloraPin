@@ -34,6 +34,8 @@ data class IdentifyUiState(
  */
 class IdentifyViewModel(
     private val api: IdentificationApi,
+    /** Suivi des demandes vues (badge). Null en test : la remise à 0 est ignorée. */
+    private val badgeStore: IdentifyBadgeStore? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(IdentifyUiState())
@@ -50,6 +52,9 @@ class IdentifyViewModel(
             try {
                 val flowers = api.listToIdentify()
                 _state.update { it.copy(loading = false, flowers = flowers, error = null) }
+                // Ouvrir l'écran « voit » toutes les demandes courantes : le badge
+                // de la galerie revient à 0, même sans avoir proposé d'espèce.
+                badgeStore?.markSeen(flowers.map { it.id }.toSet())
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
@@ -100,7 +105,10 @@ class IdentifyViewModel(
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     val tokenStore = EncryptedTokenStore(context.applicationContext)
                     val apis = NetworkModule.createAuthenticated(tokenStore)
-                    return IdentifyViewModel(apis.identification) as T
+                    return IdentifyViewModel(
+                        apis.identification,
+                        IdentifyBadgeStore(context.applicationContext),
+                    ) as T
                 }
             }
     }

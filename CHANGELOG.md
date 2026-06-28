@@ -12,6 +12,17 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.4.0] — 2026-06-28
+
+### Ajouté
+- **Badges de nouveautés dans la galerie** : un petit compteur sur les icônes de
+  la barre du haut indique les demandes **non encore vues** —
+  🔎 demandes d'identification d'amis, et 🤝 demandes d'amis entrantes. Ouvrir
+  l'écran correspondant remet le badge à 0 — même sans rien traiter (proposer une
+  espèce / accepter la demande). Le suivi des demandes vues est local à l'appareil
+  (`SeenIdsStore`) ; les compteurs se recalculent au lancement et au retour sur la
+  galerie (`GET /identification-requests` et `GET /friendships`).
+
 ### Corrigé
 - **Duplication d'albums à la synchronisation.** La création d'album est désormais
   **idempotente** : l'app génère un `clientId` (UUID) stable, envoyé au serveur,

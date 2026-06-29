@@ -4,6 +4,7 @@ import android.hardware.camera2.CaptureRequest
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
+import androidx.annotation.OptIn
 import androidx.camera.camera2.interop.Camera2CameraControl
 import androidx.camera.camera2.interop.CaptureRequestOptions
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
@@ -226,7 +227,7 @@ private fun ZoomControl(
  * effort : si le contrôleur n'est pas encore prêt ou si l'appareil ne gère pas
  * le mode, la requête est simplement ignorée par CameraX.
  */
-@OptIn(ExperimentalCamera2Interop::class)
+@OptIn(markerClass = [ExperimentalCamera2Interop::class])
 private fun applyMacroFocus(controller: LifecycleCameraController, enabled: Boolean) {
     val cameraControl = controller.cameraControl ?: return
     val afMode = if (enabled) {

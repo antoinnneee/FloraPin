@@ -10,6 +10,16 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
+## [Non publié]
+
+### Corrigé
+- **CI lint : opt-in Camera2 non pris en compte.** Le mode macro à la capture
+  utilise l'interop Camera2 (`Camera2CameraControl`), une API expérimentale dont
+  le marqueur `ExperimentalCamera2Interop` repose sur `@RequiresOptIn` de Java :
+  le `@OptIn` de Kotlin n'avait donc aucun effet et `lintDebug` échouait
+  (`UnsafeOptInUsageError`, 6 erreurs). Remplacé par `androidx.annotation.OptIn`
+  avec `markerClass`.
+
 ## [1.4.3] — 2026-06-28
 
 ### Ajouté

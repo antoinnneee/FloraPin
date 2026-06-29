@@ -68,8 +68,8 @@ android {
         applicationId = "com.florapin.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "1.4.4"
+        versionCode = 10
+        versionName = "1.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

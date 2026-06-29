@@ -2,6 +2,7 @@ package com.florapin.app.auth
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,6 +12,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -34,13 +36,16 @@ import com.florapin.app.ui.theme.FloraPinTheme
 fun RegisterScreen(
     isLoading: Boolean,
     error: String?,
-    onRegister: (email: String, password: String, displayName: String) -> Unit,
+    onRegister: (email: String, password: String, displayName: String, syncEnabled: Boolean) -> Unit,
     onSwitchToLogin: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var email by rememberSaveable { mutableStateOf("") }
     var displayName by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    // Choix de la sauvegarde cloud, fait dès l'inscription (réglage par appareil,
+    // modifiable ensuite dans Profil). Activé par défaut.
+    var syncEnabled by rememberSaveable { mutableStateOf(true) }
 
     val passwordTooShort = password.isNotEmpty() && password.length < 8
     val canSubmit = email.isNotBlank() &&
@@ -83,6 +88,31 @@ fun RegisterScreen(
             modifier = Modifier.fillMaxWidth(),
         )
 
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Synchronisation cloud",
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Text(
+                    text = "Sauvegardez vos fleurs sur le serveur et retrouvez-les " +
+                        "sur vos autres appareils. Désactivée, l'app reste 100 % " +
+                        "locale. Modifiable à tout moment dans Profil.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(
+                checked = syncEnabled,
+                onCheckedChange = { syncEnabled = it },
+                enabled = !isLoading,
+            )
+        }
+
         if (error != null) {
             Text(
                 text = error,
@@ -92,7 +122,7 @@ fun RegisterScreen(
         }
 
         Button(
-            onClick = { onRegister(email.trim(), password, displayName.trim()) },
+            onClick = { onRegister(email.trim(), password, displayName.trim(), syncEnabled) },
             enabled = canSubmit,
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -122,7 +152,7 @@ private fun RegisterScreenPreview() {
         RegisterScreen(
             isLoading = false,
             error = null,
-            onRegister = { _, _, _ -> },
+            onRegister = { _, _, _, _ -> },
             onSwitchToLogin = {},
         )
     }

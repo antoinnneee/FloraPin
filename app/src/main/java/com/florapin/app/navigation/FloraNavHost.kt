@@ -41,6 +41,7 @@ import com.florapin.app.map.MapScreen
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.profile.ProfileScreen
 import com.florapin.app.push.PushTokenRegistrar
+import com.florapin.app.sync.SyncPreferences
 import com.florapin.app.sync.SyncScheduler
 
 /** Destinations de l'application. */
@@ -199,7 +200,12 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
             RegisterScreen(
                 isLoading = state is AuthUiState.Loading,
                 error = (state as? AuthUiState.Error)?.message,
-                onRegister = authViewModel::register,
+                onRegister = { email, password, displayName, syncEnabled ->
+                    // Mémorise le choix de sync (par appareil) avant l'inscription :
+                    // OnAuthSuccess appelle startSync, qui est no-op si désactivée.
+                    SyncPreferences(context).setEnabled(syncEnabled)
+                    authViewModel.register(email, password, displayName)
+                },
                 onSwitchToLogin = { navController.popBackStack() },
             )
         }

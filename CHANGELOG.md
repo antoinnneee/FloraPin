@@ -10,6 +10,17 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
+## [1.5.0] — 2026-06-29
+
+### Ajouté
+- **Choix de la synchronisation cloud à l'inscription.** L'écran d'inscription
+  propose désormais un interrupteur **« Synchronisation cloud »** (activé par
+  défaut) : l'utilisateur décide dès la création de compte s'il veut sauvegarder
+  ses fleurs sur le serveur (et les retrouver sur ses autres appareils) ou rester
+  100 % local. Le choix est persisté dans `SyncPreferences` avant l'inscription
+  (`OnAuthSuccess` → `startSync` est no-op si désactivée) et reste modifiable à
+  tout moment dans Profil.
+
 ## [1.4.4] — 2026-06-29
 
 ### Corrigé

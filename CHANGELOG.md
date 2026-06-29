@@ -10,7 +10,7 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
-## [Non publié]
+## [1.4.4] — 2026-06-29
 
 ### Corrigé
 - **CI lint : opt-in Camera2 non pris en compte.** Le mode macro à la capture

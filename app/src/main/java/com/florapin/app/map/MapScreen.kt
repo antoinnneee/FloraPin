@@ -1,6 +1,8 @@
 package com.florapin.app.map
 
 import android.graphics.RectF
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +16,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -73,6 +76,21 @@ fun MapScreen(
     val stylePrefs = remember { MapStylePreferences(context) }
     var selectedStyle by remember { mutableStateOf(stylePrefs.get()) }
 
+    // Position de l'utilisateur : permission + référence carte partagées entre le
+    // bouton de recentrage (FAB) et le contenu.
+    val mapRef = remember { mutableStateOf<MapLibreMap?>(null) }
+    var locationGranted by remember { mutableStateOf(hasLocationPermission(context)) }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { locationGranted = hasLocationPermission(context) }
+
+    // À l'ouverture de la carte, demande la localisation si pas encore accordée.
+    LaunchedEffect(Unit) {
+        if (apiKey.isNotBlank() && !locationGranted) {
+            permissionLauncher.launch(LOCATION_PERMISSIONS)
+        }
+    }
+
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -91,6 +109,21 @@ fun MapScreen(
                 },
             )
         },
+        floatingActionButton = {
+            if (apiKey.isNotBlank()) {
+                FloatingActionButton(
+                    onClick = {
+                        if (locationGranted) {
+                            mapRef.value?.centerOnMyLocation()
+                        } else {
+                            permissionLauncher.launch(LOCATION_PERMISSIONS)
+                        }
+                    },
+                ) {
+                    Text("📍")
+                }
+            }
+        },
     ) { innerPadding ->
         if (apiKey.isBlank()) {
             MissingKeyMessage(modifier = Modifier.padding(innerPadding))
@@ -98,7 +131,6 @@ fun MapScreen(
         }
 
         val mapView = rememberMapViewWithLifecycle()
-        val mapRef = remember { mutableStateOf<MapLibreMap?>(null) }
         val style = remember { mutableStateOf<Style?>(null) }
 
         LaunchedEffect(mapView) {
@@ -116,6 +148,16 @@ fun MapScreen(
             mapRef.value?.setStyle(mapTilerStyleUrl(apiKey, selectedStyle)) { loadedStyle ->
                 loadedStyle.setupFlowerClustering()
                 style.value = loadedStyle
+            }
+        }
+
+        // Active le point « ma position » dès que le style est prêt et la
+        // permission accordée (à réappliquer après chaque rechargement de style).
+        LaunchedEffect(style.value, locationGranted) {
+            val loadedStyle = style.value
+            val map = mapRef.value
+            if (loadedStyle != null && map != null && locationGranted) {
+                map.enableMyLocation(context, loadedStyle)
             }
         }
 

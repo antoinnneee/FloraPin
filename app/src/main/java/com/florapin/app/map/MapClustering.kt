@@ -117,7 +117,9 @@ fun Style.updateFlowerMarkers(markers: List<FlowerMarker>) {
         Feature.fromGeometry(
             Point.fromLngLat(marker.longitude, marker.latitude),
         ).apply {
-            addNumberProperty(MapLayers.PROP_ID, marker.id)
+            // Seules mes fleurs portent un id : un tap ouvre leur détail local.
+            // Les fleurs d'amis (non navigables) restent affichées mais inertes.
+            if (marker.navigable) addNumberProperty(MapLayers.PROP_ID, marker.id)
             addStringProperty(MapLayers.PROP_EMOJI, marker.emoji)
         }
     }

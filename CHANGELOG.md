@@ -10,6 +10,19 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
+## [Non publié]
+
+### Ajouté
+- **Ma position sur la carte.** La carte affiche désormais l'indicateur « ma
+  position » de MapLibre (point bleu + halo de précision). La permission de
+  localisation est demandée à l'ouverture de la carte, et un bouton flottant
+  📍 recentre la vue sur la position courante.
+- **Fleurs des amis sur la carte.** Le chip **« Ami »** ajoute désormais sur la
+  carte les fleurs partagées par les amis (flux `FeedApi`) dont la position GPS a
+  été diffusée (`feedIncludeGps`). Jusqu'ici le filtre ne portait que sur la base
+  locale et n'affichait donc jamais de fleurs d'amis. Ces marqueurs ne sont pas
+  cliquables (pas de page détail locale).
+
 ## [1.5.0] — 2026-06-29
 
 ### Ajouté

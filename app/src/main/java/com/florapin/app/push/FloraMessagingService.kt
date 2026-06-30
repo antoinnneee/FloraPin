@@ -53,6 +53,7 @@ class FloraMessagingService : FirebaseMessagingService() {
         "friend_accepted" -> "Demande d'ami acceptée"
         "species_proposed" -> "Proposition d'espèce"
         "species_confirmed" -> "Espèce confirmée"
+        "flower_commented" -> "Nouveau commentaire"
         else -> "FloraPin"
     }
 
@@ -60,6 +61,7 @@ class FloraMessagingService : FirebaseMessagingService() {
         "flower_shared" -> "Un ami a partagé une fleur avec vous."
         "friend_request" -> "Vous avez reçu une demande d'ami."
         "friend_accepted" -> "Votre demande d'ami a été acceptée."
+        "flower_commented" -> "Quelqu'un a commenté votre fleur."
         else -> "Ouvrez FloraPin pour en savoir plus."
     }
 

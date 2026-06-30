@@ -291,6 +291,19 @@ CREATE TABLE IF NOT EXISTS flower_likes (
 CREATE INDEX IF NOT EXISTS idx_flower_likes_flower ON flower_likes(flower_id);
 
 -- =====================================================================
+-- Commentaires sur les fleurs (fil de discussion)
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS flower_comments (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    flower_id   UUID NOT NULL REFERENCES flowers(id) ON DELETE CASCADE,
+    authored_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body        TEXT NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- Listing chronologique des commentaires d'une fleur.
+CREATE INDEX IF NOT EXISTS idx_flower_comments_flower ON flower_comments(flower_id);
+
+-- =====================================================================
 -- Notifications in-app (NODE-23)
 -- =====================================================================
 CREATE TABLE IF NOT EXISTS notifications (

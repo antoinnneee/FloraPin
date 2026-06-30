@@ -95,6 +95,9 @@ fun DetailScreen(
     likeVm: LikeViewModel = viewModel(
         factory = LikeViewModel.factory(LocalContext.current),
     ),
+    commentsVm: CommentsViewModel = viewModel(
+        factory = CommentsViewModel.factory(LocalContext.current),
+    ),
 ) {
     viewModel.setFlowerId(flowerId)
     photosViewModel.setFlowerId(flowerId)
@@ -105,6 +108,7 @@ fun DetailScreen(
     androidx.compose.runtime.LaunchedEffect(serverId) {
         serverId?.let(likeVm::bind)
         serverId?.let(proposalsVm::load)
+        serverId?.let(commentsVm::bind)
     }
     var showShare by remember { mutableStateOf(false) }
     var showAddToAlbum by remember { mutableStateOf(false) }
@@ -165,6 +169,7 @@ fun DetailScreen(
                 onSetFeedPublication = viewModel::setFeedPublication,
                 likeState = likeState,
                 onToggleLike = likeVm::toggle,
+                commentsVm = commentsVm,
                 onOpenSpecies = onOpenSpecies,
                 onAddPhoto = { showCamera = true },
                 onDeletePhoto = photosViewModel::deletePhoto,
@@ -201,6 +206,7 @@ private fun DetailContent(
     onSetFeedPublication: (Boolean, Boolean) -> Unit,
     likeState: com.florapin.app.likes.LikeState,
     onToggleLike: () -> Unit,
+    commentsVm: CommentsViewModel,
     onOpenSpecies: (String) -> Unit,
     onAddPhoto: () -> Unit,
     onDeletePhoto: (PhotoEntity) -> Unit,
@@ -342,6 +348,12 @@ private fun DetailContent(
                 initialNotes = flower.notes,
                 onSave = onSaveNotes,
             )
+
+            // Fil de discussion : disponible une fois la fleur synchronisée
+            // (les commentaires vivent côté serveur, comme les cœurs).
+            if (flower.serverId != null) {
+                CommentsSection(viewModel = commentsVm)
+            }
         }
     }
 

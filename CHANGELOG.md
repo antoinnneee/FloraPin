@@ -10,6 +10,19 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
+## [Non publié]
+
+### Ajouté
+- **Commentaires sur les fleurs partagées.** Un fil de discussion est attaché à
+  chaque fleur : toute personne qui voit la fleur (propriétaire, partage ciblé ou
+  diffusion au réseau) peut commenter et lire les commentaires. Côté propriétaire,
+  la section apparaît en bas du détail (`DetailScreen`) une fois la fleur
+  synchronisée ; côté ami, un bouton **« 💬 Commenter »** sur chaque carte du feed
+  « Partagées avec moi » ouvre le fil en bottom sheet. Chacun supprime ses propres
+  messages ; le propriétaire peut modérer n'importe quel message de sa fleur. Le
+  propriétaire reçoit une notification `flower_commented`. Nouveau module backend
+  `comments` (`GET/POST/DELETE flowers/{id}/comments`, table `flower_comments`).
+
 ## [1.6.0] — 2026-06-30
 
 ### Ajouté

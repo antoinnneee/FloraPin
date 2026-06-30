@@ -15,16 +15,25 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.florapin.app.detail.CommentsSection
+import com.florapin.app.detail.CommentsViewModel
 import com.florapin.app.likes.LikeButton
 import com.florapin.app.network.dto.fullPhotoUrls
 import com.florapin.app.network.dto.previewPhotoUrls
@@ -44,6 +53,16 @@ fun SharedFeedScreen(
     ),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // Fleur dont le fil de commentaires est ouvert (en bottom sheet), ou null.
+    var commentsFor by remember { mutableStateOf<String?>(null) }
+
+    commentsFor?.let { flowerId ->
+        CommentsBottomSheet(
+            flowerServerId = flowerId,
+            onDismiss = { commentsFor = null },
+        )
+    }
 
     Scaffold(
         modifier = modifier,
@@ -77,6 +96,7 @@ fun SharedFeedScreen(
                 SharedFlowerCard(
                     item = item,
                     onToggleLike = { viewModel.toggleLike(item.flower.id) },
+                    onComment = { commentsFor = item.flower.id },
                 )
             }
         }
@@ -102,6 +122,7 @@ private fun SortBar(selected: FeedSort, onSelect: (FeedSort) -> Unit) {
 private fun SharedFlowerCard(
     item: SharedFlowerItem,
     onToggleLike: () -> Unit,
+    onComment: () -> Unit,
 ) {
     val flower = item.flower
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -150,7 +171,36 @@ private fun SharedFlowerCard(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
+                TextButton(onClick = onComment) {
+                    Text("💬 Commenter")
+                }
             }
         }
+    }
+}
+
+/**
+ * Bottom sheet présentant le fil de discussion d'une fleur partagée. La clé
+ * [flowerServerId] isole un ViewModel par fleur (la liste réutilise les VM).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CommentsBottomSheet(
+    flowerServerId: String,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val commentsVm: CommentsViewModel = viewModel(
+        key = "comments-$flowerServerId",
+        factory = CommentsViewModel.factory(LocalContext.current),
+    )
+    androidx.compose.runtime.LaunchedEffect(flowerServerId) {
+        commentsVm.bind(flowerServerId)
+    }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        CommentsSection(
+            viewModel = commentsVm,
+            modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp),
+        )
     }
 }

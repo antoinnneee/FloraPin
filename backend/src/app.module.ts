@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AlbumsModule } from './albums/albums.module';
 import { AuthModule } from './auth/auth.module';
+import { CommentsModule } from './comments/comments.module';
 import { FeedModule } from './feed/feed.module';
 import { FlowersModule } from './flowers/flowers.module';
 import { FriendshipsModule } from './friendships/friendships.module';
@@ -51,6 +52,7 @@ import { UsersModule } from './users/users.module';
     IdentificationRequestsModule,
     LikesModule,
     ProposalsModule,
+    CommentsModule,
     PushModule,
     SyncModule,
   ],

@@ -10,7 +10,7 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
-## [Non publié]
+## [1.6.0] — 2026-06-30
 
 ### Ajouté
 - **Ma position sur la carte.** La carte affiche désormais l'indicateur « ma

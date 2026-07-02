@@ -1,0 +1,25 @@
+# Normalisation des fins de ligne.
+# Par défaut, Git normalise en LF dans le dépôt et restitue selon la plateforme.
+* text=auto
+
+# Scripts shell : toujours LF, même sur Windows (sinon ils sont inexécutables
+# sous WSL/Linux — cause du bruit CRLF récurrent sur deploy/deploy.sh).
+*.sh text eol=lf
+gradlew text eol=lf
+
+# Scripts Windows : toujours CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+gradlew.bat text eol=crlf
+
+# Binaires : jamais de conversion.
+*.jks binary
+*.keystore binary
+*.apk binary
+*.aab binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.woff binary
+*.woff2 binary

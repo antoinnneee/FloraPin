@@ -62,7 +62,8 @@ export class CommentsService {
       });
     }
 
-    return this.toResponse(saved, authorId, flower.ownerId);
+    const authorName = (await this.users.findById(authorId))?.displayName ?? '';
+    return this.buildResponse(saved, authorId, flower.ownerId, authorName);
   }
 
   /** Liste les commentaires d'une fleur visible, du plus ancien au plus récent. */
@@ -75,8 +76,18 @@ export class CommentsService {
       where: { flowerId },
       order: { createdAt: 'ASC' },
     });
-    return Promise.all(
-      comments.map((c) => this.toResponse(c, viewerId, flower.ownerId)),
+    // Batch des auteurs : un seul chargement au lieu d'un users.findById par
+    // commentaire (N+1).
+    const authorIds = [...new Set(comments.map((c) => c.authoredBy))];
+    const authors = await this.users.findByIds(authorIds);
+    const nameById = new Map(authors.map((u) => [u.id, u.displayName]));
+    return comments.map((c) =>
+      this.buildResponse(
+        c,
+        viewerId,
+        flower.ownerId,
+        nameById.get(c.authoredBy) ?? '',
+      ),
     );
   }
 
@@ -102,16 +113,18 @@ export class CommentsService {
     await this.comments.delete(comment.id);
   }
 
-  private async toResponse(
+  /** Assemble la réponse d'un commentaire à partir d'un nom d'auteur déjà résolu. */
+  private buildResponse(
     c: FlowerComment,
     viewerId: string,
     ownerId: string,
-  ): Promise<CommentResponse> {
+    authorName: string,
+  ): CommentResponse {
     return {
       id: c.id,
       flowerId: c.flowerId,
       authoredBy: c.authoredBy,
-      authorName: (await this.users.findById(c.authoredBy))?.displayName ?? '',
+      authorName,
       body: c.body,
       canDelete: c.authoredBy === viewerId || ownerId === viewerId,
       createdAt: c.createdAt,

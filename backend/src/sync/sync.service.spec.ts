@@ -34,6 +34,21 @@ class FakeFlowerRepo {
       (f) => f.ownerId === opts.where.ownerId,
     );
   }
+
+  // Lookup d'idempotence (owner, clientId) du push.
+  async findOne(opts: {
+    where: { ownerId: string; clientId?: string; id?: string };
+  }): Promise<Flower | null> {
+    return (
+      [...this.store.values()].find(
+        (f) =>
+          f.ownerId === opts.where.ownerId &&
+          (opts.where.clientId === undefined ||
+            f.clientId === opts.where.clientId) &&
+          (opts.where.id === undefined || f.id === opts.where.id),
+      ) ?? null
+    );
+  }
 }
 
 class FakePhotoRepo {
@@ -69,7 +84,7 @@ describe('SyncService', () => {
         { provide: getRepositoryToken(FlowerPhoto), useClass: FakePhotoRepo },
         {
           provide: getRepositoryToken(FlowerLike),
-          useValue: { count: async () => 0 },
+          useValue: { count: async () => 0, find: async () => [] },
         },
         { provide: StorageService, useClass: StubStorageService },
       ],
@@ -92,6 +107,24 @@ describe('SyncService', () => {
     expect(results[0].upload.method).toBe('PUT');
     expect(results[1].flower.latitude).toBe(48.85);
     expect(repo.store.size).toBe(2);
+  });
+
+  it('est idempotent : re-pousser le même localId ne crée pas de doublon', async () => {
+    const first = await sync.push(OWNER, [
+      { localId: 'L1', takenAt: '2026-06-21T09:00:00Z' },
+    ]);
+    // Retry client (réponse précédente perdue) : même localId réémis.
+    const retry = await sync.push(OWNER, [
+      { localId: 'L1', takenAt: '2026-06-21T09:00:00Z' },
+    ]);
+
+    expect(repo.store.size).toBe(1);
+    // Le mapping renvoyé pointe sur la même fleur serveur.
+    expect(retry[0].localId).toBe('L1');
+    expect(retry[0].flower.id).toBe(first[0].flower.id);
+    // Une nouvelle URL d'upload est tout de même fournie (le binaire a pu
+    // manquer au premier essai).
+    expect(retry[0].upload.method).toBe('PUT');
   });
 
   it('tire toutes les fleurs au premier pull (sans since)', async () => {

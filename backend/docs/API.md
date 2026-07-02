@@ -50,10 +50,8 @@ en `geography(Point,4326)` ; restitués sous forme lat/long + `accuracyM`.
 | Méthode | Chemin        | Description |
 |---------|---------------|-------------|
 | GET     | `/users/me`   | Profil courant |
-| PATCH   | `/users/me`   | `{ displayName? }` |
 | PATCH   | `/users/me/email` | `{ email }` → user. **Autorisé uniquement tant que `emailVerified=false`** (NODE-117) ; `403` sinon, `409` si l'email est déjà pris. Réinitialise les tokens de vérification en cours. |
 | DELETE  | `/users/me`   | `{ password }` → **204**. Effacement RGPD : supprime le compte et **toutes** ses données (fleurs, photos, albums, amitiés, partages, propositions, notifications, jetons d'appareil) ; purge aussi les objets image (MinIO). Re-authentification par mot de passe ; `401` si incorrect. Irréversible. |
-| GET     | `/users?query=` | Recherche par email/nom (pour ajouter un ami) — résultats limités |
 
 `User` = `{ id, email, displayName, emailVerified, createdAt }` (jamais le `passwordHash`).
 
@@ -64,36 +62,42 @@ en `geography(Point,4326)` ; restitués sous forme lat/long + `accuracyM`.
 `POST /flowers`
 ```json
 { "takenAt": "2026-06-21T09:14:00Z", "latitude": 48.8584, "longitude": 2.2945,
-  "accuracyM": 5.0, "notes": "", "visibility": "private" }
+  "accuracyM": 5.0, "notes": "", "visibility": "private",
+  "feedIncludeGps": true, "species": "Rosa canina", "tags": ["haie"] }
 ```
+Seul `takenAt` est requis. `latitude`/`longitude` sont **liés** (les deux ou aucun).
+`visibility` ∈ `private` (défaut) / `friends`. `feedIncludeGps` (défaut `true`)
+diffuse ou masque le GPS dans le feed des amis (NODE-136). `species`, `tags`
+(≤ 20) sont optionnels.
+
 Réponse `201` :
 ```json
 { "flower": { "...": "Flower" },
   "upload": { "url": "https://minio/...signed", "method": "PUT", "expiresIn": 600 } }
 ```
-Le client **PUT** ensuite le binaire image directement sur `upload.url` (MinIO).
 La clé objet (`imageKey`) est générée côté serveur (ex. `flowers/{ownerId}/{uuid}.jpg`).
+Le binaire image se téléverse ensuite de **deux** façons :
+
+| Méthode | Chemin              | Description |
+|---------|---------------------|-------------|
+| PUT     | `upload.url`        | Upload présigné **direct** sur MinIO (via `upload.url` renvoyé à la création). |
+| POST    | `/flowers/:id/image`| Upload **multipart** (champ `file`) transitant par l'API, qui **réencode en WebP** (pleine résolution + miniature) avant stockage. Voir limites d'upload plus bas. |
 
 ### Lecture / liste
 
 | Méthode | Chemin                 | Description |
 |---------|------------------------|-------------|
-| GET     | `/flowers/:id`         | Une fleur (si visible par l'appelant) + `imageUrl` présignée GET |
+| GET     | `/flowers/:id`         | Une fleur **du propriétaire courant** (owner-only ; `404` sinon) + `imageUrl` présignée GET |
 | GET     | `/flowers/:id/image-url` | (Re)génère une URL GET présignée |
-| GET     | `/flowers`             | Liste filtrable (voir paramètres) |
+| GET     | `/flowers`             | Liste **mes** fleurs (owner-only, plus récentes d'abord), filtrable |
 
-Paramètres de `GET /flowers` (combinables) :
+`GET /flowers` ne renvoie **que les fleurs du propriétaire courant** (les fleurs
+d'amis passent par le feed / les partages). Paramètres de filtre (combinables) :
 
-| Param     | Exemple                         | Effet |
-|-----------|---------------------------------|-------|
-| `mine`    | `mine=true`                     | uniquement mes fleurs |
-| `bbox`    | `bbox=minLng,minLat,maxLng,maxLat` | intersection rectangle (carte) |
-| `lat`,`lng`,`radius` | `lat=48.85&lng=2.29&radius=1000` | `ST_DWithin` (rayon en mètres) |
-| `since`   | `since=2026-06-20T00:00:00Z`    | maj depuis (sync) |
-| `limit`,`cursor` | `limit=50`               | pagination |
-
-Périmètre de visibilité par défaut : **mes fleurs + celles visibles via amis**
-(voir règle ci-dessous). Réponses sans `location` exclues des requêtes géo.
+| Param     | Exemple                | Effet |
+|-----------|------------------------|-------|
+| `species` | `species=Rosa`         | filtre par nom d'espèce (sous-chaîne, insensible à la casse) |
+| `tag`     | `tag=haie`             | filtre par étiquette exacte |
 
 ### Modification / suppression
 
@@ -114,7 +118,8 @@ Périmètre de visibilité par défaut : **mes fleurs + celles visibles via amis
 
 | Méthode | Chemin                              | Description |
 |---------|-------------------------------------|-------------|
-| POST    | `/flowers/:id/photos`               | Ajoute une photo → `{ photo, upload }` (PUT présigné) |
+| POST    | `/flowers/:id/photos`               | Ajoute une photo → `{ photo, upload }` (PUT présigné direct) |
+| POST    | `/flowers/:id/photos/:photoId/image`| Upload **multipart** (champ `file`) du binaire, réencodé en WebP par l'API |
 | DELETE  | `/flowers/:id/photos/:photoId`      | Retire une photo (promeut une couverture si besoin) |
 | PATCH   | `/flowers/:id/photos/order`         | `{ photoIds: [...] }` → réordonne |
 | PATCH   | `/flowers/:id/photos/:photoId/cover`| Définit la photo de couverture |
@@ -141,11 +146,16 @@ et limitées aux albums du propriétaire.
 | Méthode | Chemin                     | Description |
 |---------|----------------------------|-------------|
 | GET     | `/friendships`             | Mes relations (pending/accepted), entrantes et sortantes |
-| POST    | `/friendships`             | `{ addresseeId }` → crée une demande (`pending`) |
+| POST    | `/friendships`             | `{ email }` → invite un utilisateur par email, crée une demande (`pending`) |
 | POST    | `/friendships/:id/accept`  | Accepte une demande reçue → `accepted` |
 | DELETE  | `/friendships/:id`         | Refuse / annule / supprime la relation |
 
 Unicité `(requester, addressee)` ; pas d'auto-amitié (contraintes en DB).
+
+**Anti-énumération** (I3) : si l'email ne correspond à aucun compte, `POST
+/friendships` renvoie une réponse **générique** de même forme que le cas nominal
+(demande `pending` fantôme, aucune ligne ni notification créée) — **pas de `404`**,
+afin de ne pas révéler l'existence d'un compte.
 
 ## Partage (`/flowers/:id/share`, `/shared`)
 
@@ -168,7 +178,7 @@ Deux mécanismes complémentaires :
 Une fleur `F` est visible par l'utilisateur `U` si :
 `F.owner = U`
 **ou** (`F.visibility='friends'` **et** amitié `accepted` entre `U` et `F.owner`)
-**ou** il existe `flower_shares(F, U)`.
+**ou** il existe un partage `shares(F, U)`.
 Toujours : `F.deleted_at IS NULL`.
 
 ## Synchronisation (`/sync`) — NODE-19
@@ -176,7 +186,7 @@ Toujours : `F.deleted_at IS NULL`.
 | Méthode | Chemin                | Description |
 |---------|-----------------------|-------------|
 | GET     | `/sync?since=<ISO>`   | Delta depuis `since` |
-| POST    | `/sync/flowers`       | Push d'un lot de captures locales (création/maj) |
+| POST    | `/sync/flowers`       | Push d'un lot (≤ 200) de captures locales — création **idempotente** (dédoublonnée sur `localId`) |
 
 Réponse `GET /sync` :
 ```json
@@ -187,8 +197,130 @@ Réponse `GET /sync` :
 Conflits : **last-write-wins** sur `updated_at` au POC. Le client renvoie ensuite
 `since = serverTime` au cycle suivant.
 
+`POST /sync/flowers` prend `{ items: [ { ...CreateFlower, localId } ] }` et crée
+une fleur par élément, en renvoyant pour chacune le mapping `localId` → fleur
+serveur + l'URL présignée d'upload (comme `POST /flowers`). La création est
+**idempotente** : `localId` est persisté (`flowers.client_id`, index unique
+partiel par propriétaire) et un renvoi du même lot renvoie les fleurs existantes
+au lieu de créer des doublons. Il ne s'agit toujours que de **création** : la
+mise à jour d'une fleur déjà synchronisée passe par `PATCH /flowers/:id`.
+
+## Feed des amis (`/feed`) — NODE-23/136
+
+| Méthode | Chemin  | Description |
+|---------|---------|-------------|
+| GET     | `/feed` | Fleurs visibles par moi (partages ciblés + fleurs `visibility='friends'` des amis), dédoublonnées, plus récentes d'abord |
+
+Paramètres : `since` (ISO, ne renvoie que les fleurs créées après), `limit`
+(1..200, défaut 50), `sort` ∈ `date` (défaut) / `likes` (par nombre de cœurs,
+la date départageant les ex æquo — NODE-139). Réponse : liste de `Flower`.
+
+## Commentaires (`/flowers/:id/comments`) — NODE-141
+
+Fil de discussion sur une fleur : **toute personne qui voit la fleur** peut lire
+et commenter. Poster notifie le propriétaire.
+
+| Méthode | Chemin                             | Description |
+|---------|------------------------------------|-------------|
+| POST    | `/flowers/:id/comments`            | `{ body }` (1..1000 car.) → commentaire |
+| GET     | `/flowers/:id/comments`            | Liste chronologique des commentaires |
+| DELETE  | `/flowers/:id/comments/:commentId` | `204` — auteur du commentaire **ou** propriétaire de la fleur |
+
+`Comment` = `{ id, flowerId, authoredBy, authorName, body, canDelete, createdAt }`
+(`canDelete` : le lecteur courant peut-il supprimer ce commentaire).
+
+## Cœurs (`/flowers/:id/like`) — NODE-139
+
+| Méthode | Chemin               | Description |
+|---------|----------------------|-------------|
+| POST    | `/flowers/:id/like`  | `204` — pose un cœur (**idempotent**) |
+| DELETE  | `/flowers/:id/like`  | `204` — retire le cœur (**idempotent**) |
+
+`likeCount` et `likedByMe` sont exposés dans chaque `Flower`.
+
+## Propositions d'espèce (`/flowers/:id/proposals`)
+
+Un ami propose une espèce pour une fleur partagée ; le propriétaire arbitre.
+
+| Méthode | Chemin                                    | Description |
+|---------|-------------------------------------------|-------------|
+| POST    | `/flowers/:id/proposals`                  | `{ species }` (2..200 car.) → propose une espèce |
+| GET     | `/flowers/:id/proposals`                  | Le propriétaire liste les propositions reçues |
+| POST    | `/flowers/:id/proposals/:proposalId/accept` | `200` — le propriétaire accepte une proposition |
+| DELETE  | `/flowers/:id/proposals/:proposalId`      | `204` — le propriétaire refuse (proposition retirée) |
+| GET     | `/me/proposal-stats`                      | `{ acceptedProposals }` — nb de mes propositions acceptées par des amis |
+
+## Identification par image (`/flowers/:id/identify`)
+
+| Méthode | Chemin                  | Description |
+|---------|-------------------------|-------------|
+| POST    | `/flowers/:id/identify` | `200 { flowerId, suggestions }` — suggestions d'espèce (Pl@ntNet), **propriétaire seul** |
+
+## Demandes d'identification collaborative (NODE-133)
+
+| Méthode | Chemin                                   | Description |
+|---------|------------------------------------------|-------------|
+| POST    | `/flowers/:id/identification-requests`   | `204` — le propriétaire demande à ses amis d'identifier la fleur |
+| DELETE  | `/flowers/:id/identification-requests`   | `204` — le propriétaire annule la demande |
+| GET     | `/identification-requests`               | Les fleurs « à identifier » qui me sont partagées (vue côté ami) |
+
+## Encyclopédie des espèces (`/species`) — NODE-125
+
+| Méthode | Chemin            | Description |
+|---------|-------------------|-------------|
+| GET     | `/species`        | Liste paginée du référentiel. Paramètres : `page` (≥ 1), `limit` (1..200) |
+| GET     | `/species/search` | Autocomplétion. Paramètres : `q` (requis), `limit` (1..50) |
+| GET     | `/species/:id`    | Fiche détaillée d'une espèce |
+
+`Species` = `{ id, scientificName, commonName, family, description, emoji }`.
+La liste paginée renvoie `{ items, total, page, limit }`.
+
+## Notifications in-app (`/notifications`)
+
+| Méthode | Chemin                       | Description |
+|---------|------------------------------|-------------|
+| GET     | `/notifications`             | Mes notifications |
+| GET     | `/notifications/unread-count`| `{ count }` — nombre de non lues |
+| POST    | `/notifications/:id/read`    | Marque une notification comme lue |
+
+Types (`type`) : `friend_request`, `friend_accepted`, `flower_shared`,
+`species_proposed`, `species_confirmed`, `identification_requested`,
+`flower_liked`, `flower_commented`. Chaque notification porte un `data` (jsonb)
+contextuel et un `readAt` (null tant que non lue).
+
+## Jetons d'appareil / Push (`/push`)
+
+| Méthode | Chemin                  | Description |
+|---------|-------------------------|-------------|
+| POST    | `/push/devices`         | `{ token, platform }` — enregistre le jeton FCM/APNs de l'appareil courant |
+| DELETE  | `/push/devices/:token`  | `{ ok: true }` — désenregistre un jeton (ne supprime que **ses** jetons, I2) |
+
+`platform` ∈ `android` / `ios` / `web`.
+
+## Limites & quotas
+
+**Rate limiting** (`@nestjs/throttler`, par IP) :
+
+| Route                     | Limite |
+|---------------------------|--------|
+| Global (toutes routes)    | 100 req / min |
+| `POST /auth/login`        | 5 / min |
+| `POST /auth/register`     | 3 / min |
+| `POST /auth/forgot-password` | 3 / 15 min |
+| `POST /auth/email/verification` | 3 / 15 min |
+
+Dépassement → `429 Too Many Requests`.
+
+**Upload d'image** (`POST /flowers/:id/image` et `POST /flowers/:id/photos/:photoId/image`) :
+
+- taille max **15 Mo** (dépassement → `413 Payload Too Large`) ;
+- types MIME acceptés : `image/jpeg`, `image/png`, `image/webp`, `image/heic`,
+  `image/heif` (type refusé → `400`) ;
+- le type déclaré est re-vérifié (magic bytes) au réencodage WebP côté serveur.
+
 ## Récapitulatif des codes
 
 - `201` création, `200` succès, `204` sans contenu.
 - `400` validation, `401` token absent/expiré, `403` non autorisé sur la
-  ressource, `404` introuvable/masqué, `409` conflit (ex. amitié existante).
+  ressource, `404` introuvable/masqué, `409` conflit (ex. amitié existante),
+  `413` fichier trop volumineux, `429` quota de requêtes dépassé.

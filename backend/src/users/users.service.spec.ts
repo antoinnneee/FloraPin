@@ -28,14 +28,15 @@ describe('UsersService.deleteAccount', () => {
     } as never;
     flowers = {
       find: jest.fn(async () => [
-        { id: 'f1', imageKey: 'flowers/u/a.jpg' },
-        { id: 'f2', imageKey: 'flowers/u/b.jpg' },
+        // f1 avec miniature ; f2 sans (fleur antérieure au réencodage).
+        { id: 'f1', imageKey: 'flowers/u/a.jpg', thumbnailKey: 'flowers/u/a-thumb.webp' },
+        { id: 'f2', imageKey: 'flowers/u/b.jpg', thumbnailKey: null },
       ]),
     } as never;
     photos = {
       find: jest.fn(async () => [
-        { imageKey: 'flowers/u/b.jpg' }, // doublon de la couverture f2
-        { imageKey: 'flowers/u/c.jpg' },
+        { imageKey: 'flowers/u/b.jpg', thumbnailKey: null }, // doublon couverture f2
+        { imageKey: 'flowers/u/c.jpg', thumbnailKey: 'flowers/u/c-thumb.webp' },
       ]),
     } as never;
     storage = { delete: jest.fn(async () => undefined) } as never;
@@ -65,13 +66,16 @@ describe('UsersService.deleteAccount', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('purge les objets distincts puis supprime l’utilisateur', async () => {
+  it('purge les objets distincts (images + miniatures) puis supprime l’utilisateur', async () => {
     await service.deleteAccount(USER_ID, 'correct horse');
 
     const deletedKeys = storage.delete.mock.calls.map((call) => call[0]).sort();
+    // Images ET miniatures non-null, sans doublon (b.jpg partagé f2/photo).
     expect(deletedKeys).toEqual([
+      'flowers/u/a-thumb.webp',
       'flowers/u/a.jpg',
       'flowers/u/b.jpg',
+      'flowers/u/c-thumb.webp',
       'flowers/u/c.jpg',
     ]);
     expect(flowers.find).toHaveBeenCalledWith({

@@ -92,7 +92,12 @@ describe('CommentsService', () => {
         },
         {
           provide: UsersService,
-          useValue: { findById: async (id: string) => ({ displayName: `Nom ${id}` }) },
+          useValue: {
+            findById: async (id: string) => ({ id, displayName: `Nom ${id}` }),
+            // Batch des auteurs (évite le N+1 findById par commentaire).
+            findByIds: async (ids: string[]) =>
+              ids.map((id) => ({ id, displayName: `Nom ${id}` })),
+          },
         },
       ],
     }).compile();

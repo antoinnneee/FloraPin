@@ -96,6 +96,10 @@ CREATE INDEX IF NOT EXISTS idx_species_scientific_name
 CREATE TABLE IF NOT EXISTS flowers (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    -- Identifiant local stable envoyé par le client au push (sync — NODE-19).
+    -- Rend POST /sync/flowers idempotent : un re-push retombe sur la fleur
+    -- existante au lieu d'en créer un doublon (cf. albums.client_id).
+    client_id   TEXT,
     image_key   TEXT NOT NULL,                     -- clé de l'objet (pleine rés.) dans MinIO
     thumbnail_key TEXT,                            -- miniature WebP (preview galerie/feed)
     -- Position WGS84 (SRID 4326). Nullable : la capture peut être sans GPS.
@@ -134,6 +138,7 @@ ALTER TABLE flowers ADD COLUMN IF NOT EXISTS needs_identification BOOLEAN
 ALTER TABLE flowers ADD COLUMN IF NOT EXISTS feed_include_gps BOOLEAN
     NOT NULL DEFAULT true;                                                         -- NODE-136
 ALTER TABLE flowers ADD COLUMN IF NOT EXISTS thumbnail_key TEXT;                   -- preview WebP
+ALTER TABLE flowers ADD COLUMN IF NOT EXISTS client_id TEXT;                        -- idempotence sync push (NODE-19)
 
 -- Index (après les ALTER : toutes les colonnes ciblées existent désormais).
 -- Requêtes géo (ST_DWithin, bbox) : index GiST sur la position.
@@ -148,6 +153,11 @@ CREATE INDEX IF NOT EXISTS idx_flowers_tags        ON flowers USING GIN (tags);
 -- Résolution du feed broadcast : fleurs des amis visibles 'friends' (NODE-136).
 CREATE INDEX IF NOT EXISTS idx_flowers_feed ON flowers(owner_id)
     WHERE visibility = 'friends';
+-- Idempotence du push (owner, client_id) : un même localId ne crée qu'une fleur
+-- par utilisateur. Index partiel : les fleurs sans client_id (API standard) sont
+-- ignorées. Sert aussi de lookup pour le dédoublonnage au re-push.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_flowers_owner_client
+    ON flowers(owner_id, client_id) WHERE client_id IS NOT NULL;
 
 -- Rapprochement best-effort du texte libre `species` vers le référentiel
 -- (NODE-124). Sans perte : `species` (texte) reste la source quand aucun match.

@@ -64,10 +64,10 @@ export class ProposalsService {
     }
     // Même périmètre que la liste « Fleurs à identifier » (NODE-133/134) : on
     // autorise la proposition sur toute fleur « à identifier » d'un ami, sans
-    // exiger un partage ciblé ni une publication au flux. Aligné sur
-    // listForViewer pour éviter qu'une fleur visible reste non « proposable ».
-    const visible = await this.shares.needsIdentificationFromFriends(proposerId);
-    if (!visible.some((f) => f.id === flowerId)) {
+    // exiger un partage ciblé ni une publication au flux. Contrôle booléen léger
+    // (needsIdentification + amitié acceptée), sans recalculer le feed ni
+    // présigner d'URL juste pour vérifier l'accès.
+    if (!(await this.shares.needsIdentificationVisibleTo(proposerId, flower))) {
       throw new ForbiddenException('Fleur non accessible.');
     }
 
@@ -101,18 +101,20 @@ export class ProposalsService {
       where: { flowerId },
       order: { createdAt: 'DESC' },
     });
-    return Promise.all(
-      proposals.map(async (p) => ({
-        id: p.id,
-        flowerId: p.flowerId,
-        proposedBy: p.proposedBy,
-        proposedByName:
-          (await this.users.findById(p.proposedBy))?.displayName ?? '',
-        species: p.species,
-        status: p.status,
-        createdAt: p.createdAt,
-      })),
-    );
+    // Batch des auteurs : un seul chargement pour tout le lot au lieu d'un
+    // users.findById par proposition (N+1).
+    const authorIds = [...new Set(proposals.map((p) => p.proposedBy))];
+    const authors = await this.users.findByIds(authorIds);
+    const nameById = new Map(authors.map((u) => [u.id, u.displayName]));
+    return proposals.map((p) => ({
+      id: p.id,
+      flowerId: p.flowerId,
+      proposedBy: p.proposedBy,
+      proposedByName: nameById.get(p.proposedBy) ?? '',
+      species: p.species,
+      status: p.status,
+      createdAt: p.createdAt,
+    }));
   }
 
   /** Le propriétaire refuse une proposition : elle est retirée de sa fleur. */

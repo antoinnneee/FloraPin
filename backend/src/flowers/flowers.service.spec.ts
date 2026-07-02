@@ -42,6 +42,53 @@ class FakeFlowerRepo {
     this.store.delete(obj.id);
     return obj;
   }
+
+  /**
+   * Fake QueryBuilder minimal reproduisant le filtrage SQL de `search` :
+   * ownerId (=), species (ILIKE sous-chaîne, insensible à la casse) et tag
+   * (appartenance au tableau). Suffisant pour les tests unitaires.
+   */
+  createQueryBuilder(_alias: string) {
+    const store = this.store;
+    const filters: {
+      ownerId?: string;
+      species?: string;
+      tag?: string;
+    } = {};
+    const builder = {
+      leftJoinAndSelect() {
+        return builder;
+      },
+      where(_clause: string, params: { ownerId: string }) {
+        filters.ownerId = params.ownerId;
+        return builder;
+      },
+      orderBy() {
+        return builder;
+      },
+      andWhere(clause: string, params: Record<string, string>) {
+        if (clause.includes('species')) {
+          filters.species = params.species; // '%rosa%'
+        } else if (clause.includes('ANY')) {
+          filters.tag = params.tag;
+        }
+        return builder;
+      },
+      async getMany(): Promise<Flower[]> {
+        const needle = filters.species
+          ? filters.species.replace(/%/g, '').toLowerCase()
+          : undefined;
+        return [...store.values()].filter((f) => {
+          const ownerOk = !filters.ownerId || f.ownerId === filters.ownerId;
+          const speciesOk =
+            !needle || (f.species?.toLowerCase().includes(needle) ?? false);
+          const tagOk = !filters.tag || (f.tags?.includes(filters.tag) ?? false);
+          return ownerOk && speciesOk && tagOk;
+        });
+      },
+    };
+    return builder;
+  }
 }
 
 class FakePhotoRepo {
@@ -54,9 +101,17 @@ class FakePhotoRepo {
     this.store.set(obj.id, { ...obj });
     return obj;
   }
-  async find(opts: { where: { flowerId: string } }): Promise<FlowerPhoto[]> {
+  async find(opts: {
+    where: { flowerId: string | { value: string[] } };
+  }): Promise<FlowerPhoto[]> {
+    const { flowerId } = opts.where;
+    // Supporte l'opérateur TypeORM In([...]) (batch toResponseMany).
+    const matches = (id: string) =>
+      typeof flowerId === 'object' && Array.isArray(flowerId.value)
+        ? flowerId.value.includes(id)
+        : id === flowerId;
     return [...this.store.values()]
-      .filter((p) => p.flowerId === opts.where.flowerId)
+      .filter((p) => matches(p.flowerId))
       .sort((a, b) => a.position - b.position);
   }
 }
@@ -76,7 +131,7 @@ describe('FlowersService', () => {
         { provide: getRepositoryToken(FlowerPhoto), useClass: FakePhotoRepo },
         {
           provide: getRepositoryToken(FlowerLike),
-          useValue: { count: async () => 0 },
+          useValue: { count: async () => 0, find: async () => [] },
         },
         { provide: StorageService, useClass: StubStorageService },
       ],
@@ -159,6 +214,27 @@ describe('FlowersService', () => {
 
     expect(updated.speciesId).toBe(speciesId);
     expect(repo.store.get(id)!.speciesId).toBe(speciesId);
+  });
+
+  it('toResponseMany renvoie une réponse par fleur, dans l’ordre fourni', async () => {
+    const a = await service.create(OWNER, { takenAt: '2026-06-21T09:00:00Z' });
+    const b = await service.create(OWNER, { takenAt: '2026-06-21T09:05:00Z' });
+    const flowerA = repo.store.get(a.flower.id)!;
+    const flowerB = repo.store.get(b.flower.id)!;
+
+    const responses = await service.toResponseMany([flowerB, flowerA], OWNER);
+
+    expect(responses.map((r) => r.id)).toEqual([flowerB.id, flowerA.id]);
+    // Chaque réponse porte sa photo de couverture (présignée) et un décompte de
+    // cœurs (0 ici) : forme identique à toResponse.
+    expect(responses[0].photos).toHaveLength(1);
+    expect(responses[0].imageUrl).toContain('download=stub');
+    expect(responses[0].likeCount).toBe(0);
+    expect(responses[0].likedByMe).toBe(false);
+  });
+
+  it('toResponseMany sur une liste vide ne fait aucune requête', async () => {
+    expect(await service.toResponseMany([], OWNER)).toEqual([]);
   });
 
   it('recherche par étiquette', async () => {

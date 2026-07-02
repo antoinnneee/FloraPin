@@ -155,7 +155,7 @@ describe('SharesService', () => {
         },
         {
           provide: getRepositoryToken(FlowerLike),
-          useValue: { count: async () => 0 },
+          useValue: { count: async () => 0, find: async () => [] },
         },
         { provide: StorageService, useClass: StubStorageService },
         {

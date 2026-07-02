@@ -31,14 +31,28 @@ FloraPin/
 │     ├─ data/           # Room (FlowerEntity, DAO, repository)
 │     ├─ gallery/        # Galerie (liste + ViewModel)
 │     ├─ detail/         # Écran détail d'une fleur
+│     ├─ albums/         # Albums (regroupements de fleurs)
 │     ├─ map/            # Carte MapLibre, clustering, filtres
+│     ├─ auth/           # Connexion / inscription / compte
+│     ├─ network/        # Client Retrofit + API backend
+│     ├─ sync/           # Synchronisation locale ↔ cloud
+│     ├─ feed/           # Feed des amis
+│     ├─ friends/        # Amis (demandes, relations)
+│     ├─ share/          # Partage de fleurs / albums
+│     ├─ identify/       # Identification d'espèce (Pl@ntNet + collaborative)
+│     ├─ likes/          # Cœurs sur les fleurs
+│     ├─ push/           # Notifications push (FCM)
+│     ├─ profile/        # Profil utilisateur
 │     ├─ permission/     # Permissions runtime
 │     ├─ navigation/     # Graphe de navigation
+│     ├─ util/           # Utilitaires partagés
 │     └─ ui/theme/       # Thème Compose
 ├─ backend/              # API NestJS (TypeScript)
-│  ├─ src/               # modules auth, users, flowers, friendships,
-│  │                     #   shares, feed, notifications, identification,
-│  │                     #   proposals, sync, storage
+│  ├─ src/               # modules auth, users, flowers, albums, friendships,
+│  │                     #   shares, feed, comments, likes, proposals,
+│  │                     #   identification, identification-requests, species,
+│  │                     #   notifications, push, mail, sync, storage,
+│  │                     #   observability
 │  ├─ db/schema.sql      # schéma PostgreSQL + PostGIS de référence
 │  ├─ docs/API.md        # contrats REST
 │  └─ ARCHITECTURE.md    # architecture backend

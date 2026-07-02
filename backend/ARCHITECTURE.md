@@ -70,24 +70,36 @@ présignées** générées par l'API (l'API ne sert pas les octets elle-même).
 backend/
 ├─ src/
 │  ├─ main.ts                  # bootstrap (ValidationPipe global, CORS, Helmet)
-│  ├─ app.module.ts            # assemblage des modules
-│  ├─ config/                  # configuration typée (env), validation des env vars
-│  ├─ common/                  # filtres d'exception, interceptors, guards, DTO partagés
-│  ├─ database/                # DataSource TypeORM, migrations, entités de base
-│  ├─ auth/                    # login/refresh, JwtStrategy, guards (NODE-17)
-│  ├─ users/                   # profils utilisateurs
-│  ├─ flowers/                 # CRUD fleurs + requêtes géo PostGIS (NODE-27)
-│  ├─ friendships/             # demandes/relations d'amitié (NODE-20)
-│  ├─ shares/                  # partage de fleurs entre amis (NODE-20)
-│  ├─ storage/                 # service MinIO : presign upload/download (NODE-28)
-│  └─ sync/                    # endpoints de synchronisation delta (NODE-19)
+│  ├─ app.module.ts            # assemblage des modules + ThrottlerModule (rate limit)
+│  ├─ auth/                    # login/refresh, reset/vérif email, JwtStrategy, guards (NODE-17)
+│  ├─ users/                   # profil courant, changement d'email, suppression RGPD
+│  ├─ flowers/                 # CRUD fleurs + photos + upload/réencodage WebP (NODE-27/104)
+│  ├─ albums/                  # albums (regroupements nommés de fleurs) — NODE-98
+│  ├─ friendships/             # demandes/relations d'amitié par email (NODE-20)
+│  ├─ shares/                  # partage ciblé de fleurs/albums entre amis (NODE-20/22)
+│  ├─ feed/                    # feed des amis (partages + visibilité « amis ») — NODE-23/136
+│  ├─ comments/                # fil de discussion sur une fleur — NODE-141
+│  ├─ likes/                   # cœurs sur les fleurs — NODE-139
+│  ├─ proposals/               # propositions d'espèce entre amis + stats de profil
+│  ├─ identification/          # identification par image (Pl@ntNet)
+│  ├─ identification-requests/ # demandes d'identification collaborative — NODE-133
+│  ├─ species/                 # encyclopédie / référentiel d'espèces — NODE-125
+│  ├─ notifications/           # notifications in-app
+│  ├─ push/                    # jetons d'appareil FCM/APNs + envoi push
+│  ├─ mail/                    # envoi d'emails (SMTP ou stub)
+│  ├─ storage/                 # service MinIO : presign + traitement d'image WebP (NODE-28)
+│  ├─ sync/                    # endpoints de synchronisation delta (NODE-19)
+│  └─ observability/           # filtre d'exceptions global + reporting d'erreurs
+├─ db/schema.sql               # schéma PostgreSQL + PostGIS de référence
 ├─ test/                       # tests e2e
-├─ Dockerfile
-└─ docker-compose.yml          # API + Postgres/PostGIS + MinIO (+ proxy) — NODE-29
+└─ Dockerfile
 ```
 
 Chaque domaine est un **module NestJS** autonome (controller + service +
-entité + DTO). Les dépendances transverses (config, base, auth) sont injectées.
+entité + DTO) ; le backend en compte **19** (plus l'`AppModule` racine). Les
+dépendances transverses (auth, storage, notifications) sont injectées. Le
+`docker compose` (API + Postgres/PostGIS + MinIO + proxy) n'est pas dans
+`backend/` mais dans **`deploy/docker-compose.yml`** (+ override) — cf. NODE-29.
 
 ## 5. Modèle de données (vue haute)
 

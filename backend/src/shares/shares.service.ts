@@ -118,21 +118,30 @@ export class SharesService {
       where: { sharedWith: viewerId },
     });
 
-    const byId = new Map<string, FlowerResponse>();
+    // Résout les fleurs de chaque partage en mémorisant, par id, la variante GPS
+    // la plus permissive (GPS visible s'il l'est dans au moins un partage). On
+    // construit ensuite les réponses en une passe batch (toResponseMany) pour
+    // éviter le N+1 photos/cœurs.
+    const flowerById = new Map<string, Flower>();
+    const includeGpsById = new Map<string, boolean>();
     for (const share of shares) {
       const flowers = await this.resolveFlowers(share);
-
       for (const flower of flowers) {
-        const response = await this.flowersService.toResponse(flower, viewerId);
-        const presented = share.includeGps ? response : stripGps(response);
-        const previous = byId.get(presented.id);
-        // Conserve la variante avec GPS si elle existe.
-        if (!previous || (previous.latitude === null && share.includeGps)) {
-          byId.set(presented.id, presented);
-        }
+        flowerById.set(flower.id, flower);
+        includeGpsById.set(
+          flower.id,
+          (includeGpsById.get(flower.id) ?? false) || share.includeGps,
+        );
       }
     }
-    return [...byId.values()];
+
+    const responses = await this.flowersService.toResponseMany(
+      [...flowerById.values()],
+      viewerId,
+    );
+    return responses.map((response) =>
+      includeGpsById.get(response.id) ? response : stripGps(response),
+    );
   }
 
   /**
@@ -147,12 +156,7 @@ export class SharesService {
     const flowers = await this.flowers.find({
       where: { ownerId: In(friendIds), visibility: 'friends' },
     });
-    return Promise.all(
-      flowers.map(async (flower) => {
-        const response = await this.flowersService.toResponse(flower, viewerId);
-        return flower.feedIncludeGps ? response : stripGps(response);
-      }),
-    );
+    return this.presentFeed(flowers, viewerId);
   }
 
   /**
@@ -161,21 +165,29 @@ export class SharesService {
    * que le feed (cf. FeedService.getFeed). Utilisé par les commentaires et les
    * cœurs pour contrôler l'accès à une fleur donnée.
    *
-   * NB : recalcule les fleurs partagées/diffusées au viewer — coût acceptable
-   * pour un contrôle ponctuel (la revue perf est un chantier séparé).
+   * Test booléen léger : ne construit AUCUNE réponse API (pas d'URL présignée ni
+   * de comptage de cœurs) — on résout uniquement les identifiants de fleurs.
    */
   async isVisibleTo(viewerId: string, flower: Flower): Promise<boolean> {
     if (flower.ownerId === viewerId) {
       return true;
     }
-    const [targeted, broadcast] = await Promise.all([
-      this.sharedWithMe(viewerId),
-      this.broadcastWithMe(viewerId),
-    ]);
-    return (
-      targeted.some((f) => f.id === flower.id) ||
-      broadcast.some((f) => f.id === flower.id)
-    );
+    // Diffusion au réseau : fleur 'friends' d'un ami accepté.
+    if (flower.visibility === 'friends') {
+      const friendIds = await this.friendships.acceptedFriendIds(viewerId);
+      if (friendIds.includes(flower.ownerId)) {
+        return true;
+      }
+    }
+    // Partages ciblés reçus : la fleur figure-t-elle dans l'un d'eux ?
+    const shares = await this.shares.find({ where: { sharedWith: viewerId } });
+    for (const share of shares) {
+      const flowers = await this.resolveFlowers(share);
+      if (flowers.some((f) => f.id === flower.id)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -197,11 +209,41 @@ export class SharesService {
     const flowers = await this.flowers.find({
       where: { ownerId: In(friendIds), needsIdentification: true },
     });
-    return Promise.all(
-      flowers.map(async (flower) => {
-        const response = await this.flowersService.toResponse(flower, viewerId);
-        return flower.feedIncludeGps ? response : stripGps(response);
-      }),
+    return this.presentFeed(flowers, viewerId);
+  }
+
+  /**
+   * Contrôle léger « [viewerId] peut-il proposer une espèce pour [flower] ? » :
+   * la fleur est ouverte à l'identification et appartient à un ami accepté (même
+   * périmètre que `needsIdentificationFromFriends`). Renvoie un booléen SANS
+   * construire de réponse API (pas d'URL présignée) — cf. ProposalsService.
+   */
+  async needsIdentificationVisibleTo(
+    viewerId: string,
+    flower: Flower,
+  ): Promise<boolean> {
+    if (!flower.needsIdentification) {
+      return false;
+    }
+    const friendIds = await this.friendships.acceptedFriendIds(viewerId);
+    return friendIds.includes(flower.ownerId);
+  }
+
+  /**
+   * Construit les réponses d'une liste de fleurs « diffusées » (batch, sans
+   * N+1) en masquant le GPS de celles dont `feedIncludeGps` est false (NODE-22).
+   */
+  private async presentFeed(
+    flowers: Flower[],
+    viewerId: string,
+  ): Promise<FlowerResponse[]> {
+    const responses = await this.flowersService.toResponseMany(
+      flowers,
+      viewerId,
+    );
+    const gpsByFlower = new Map(flowers.map((f) => [f.id, f.feedIncludeGps]));
+    return responses.map((response) =>
+      gpsByFlower.get(response.id) ? response : stripGps(response),
     );
   }
 

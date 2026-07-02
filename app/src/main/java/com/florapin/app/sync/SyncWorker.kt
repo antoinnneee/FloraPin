@@ -17,8 +17,11 @@ class SyncWorker(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = SYNC_LOCK.withLock {
-        if (!SyncPreferences(applicationContext).isEnabled()) {
-            return@withLock Result.success() // sync désactivée : app 100% locale
+        // Une passe forcée (bouton « Tout synchroniser ») s'exécute même quand la
+        // sync automatique est désactivée ; sinon on respecte le réglage.
+        val forced = inputData.getBoolean(SyncScheduler.KEY_FORCE, false)
+        if (!forced && !SyncPreferences(applicationContext).isEnabled()) {
+            return@withLock Result.success() // sync auto désactivée : app 100% locale
         }
         val tokenStore = EncryptedTokenStore(applicationContext)
         if (tokenStore.refreshToken() == null) {

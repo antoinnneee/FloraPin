@@ -9,6 +9,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.workDataOf
 import java.util.concurrent.TimeUnit
 
 /** Planification de la synchronisation via WorkManager. */
@@ -16,6 +17,9 @@ object SyncScheduler {
 
     private const val PERIODIC = "florapin-sync-periodic"
     private const val ONESHOT = "florapin-sync-now"
+
+    /** Clé d'entrée : forcer la passe même si la sync automatique est désactivée. */
+    const val KEY_FORCE = "force"
 
     private val networkConstraint = Constraints.Builder()
         .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -42,11 +46,20 @@ object SyncScheduler {
         wm.cancelUniqueWork(ONESHOT)
     }
 
-    /** Sync immédiate (ex. au login ou au retour réseau). No-op si sync désactivée. */
-    fun syncNow(context: Context) {
-        if (!SyncPreferences(context).isEnabled()) return
+    /**
+     * Sync immédiate.
+     *
+     * Par défaut (contextes automatiques : login, retour réseau, après une
+     * modification), no-op si la synchronisation automatique est désactivée.
+     * Avec [force] = true (bouton « Tout synchroniser »), la passe s'exécute
+     * quel que soit le réglage automatique — seule la connexion à un compte est
+     * requise (vérifiée dans [SyncWorker]).
+     */
+    fun syncNow(context: Context, force: Boolean = false) {
+        if (!force && !SyncPreferences(context).isEnabled()) return
         val request = OneTimeWorkRequestBuilder<SyncWorker>()
             .setConstraints(networkConstraint)
+            .setInputData(workDataOf(KEY_FORCE to force))
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
         WorkManager.getInstance(context).enqueueUniqueWork(

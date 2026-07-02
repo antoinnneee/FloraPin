@@ -10,6 +10,19 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
+## [Non publié]
+
+### Ajouté
+- **Bouton « Tout synchroniser ».** Dans le profil, un bouton force une
+  synchronisation complète immédiate (push + pull), même lorsque la
+  synchronisation automatique est désactivée — pratique en mode device-first.
+
+### Modifié
+- **Réglage de synchronisation.** L'interrupteur « Synchronisation cloud » devient
+  une case **« Synchroniser automatiquement »** : cochée, la sync tourne en
+  arrière-plan (périodique, au retour réseau, après chaque modification) ;
+  décochée, l'app reste locale jusqu'à un « Tout synchroniser » manuel.
+
 ## [1.8.1] — 2026-07-02
 
 ### Modifié

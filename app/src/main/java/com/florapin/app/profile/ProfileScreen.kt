@@ -15,13 +15,13 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -261,35 +261,55 @@ private fun EmailVerificationSection(
 }
 
 /**
- * Réglage « Synchronisation cloud » (par appareil). Activé par défaut :
- * la bibliothèque est sauvegardée sur le serveur. À l'activation, planifie la
- * synchronisation et lance une passe immédiate ; à la désactivation, l'annule
- * (les photos restent alors uniquement sur l'appareil).
+ * Réglage « Synchronisation cloud » (par appareil). Un bouton « Tout
+ * synchroniser » force une passe immédiate (même si l'automatique est
+ * désactivée) ; une case « Synchroniser automatiquement » planifie la sync en
+ * arrière-plan (périodique + au retour réseau + après chaque modification) et,
+ * une fois décochée, l'annule (les photos restent alors sur l'appareil).
  */
 @Composable
 private fun SyncSettingsSection() {
     val context = LocalContext.current
     val prefs = remember(context) { SyncPreferences(context) }
-    var enabled by remember { mutableStateOf(prefs.isEnabled()) }
+    var autoEnabled by remember { mutableStateOf(prefs.isEnabled()) }
+    var syncRequested by remember { mutableStateOf(false) }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            Text(
+                text = "Synchronisation cloud",
+                style = MaterialTheme.typography.titleSmall,
+            )
+
+            Button(
+                onClick = {
+                    SyncScheduler.syncNow(context, force = true)
+                    syncRequested = true
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Tout synchroniser")
+            }
+            if (syncRequested) {
+                Text(
+                    text = "Synchronisation lancée.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = "Synchronisation cloud",
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                Switch(
-                    checked = enabled,
+                Checkbox(
+                    checked = autoEnabled,
                     onCheckedChange = { value ->
-                        enabled = value
+                        autoEnabled = value
                         prefs.setEnabled(value)
                         if (value) {
                             SyncScheduler.schedulePeriodic(context)
@@ -299,11 +319,16 @@ private fun SyncSettingsSection() {
                         }
                     },
                 )
+                Text(
+                    text = "Synchroniser automatiquement",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             }
             Text(
-                text = "Désactivée, vos photos restent uniquement sur cet appareil. " +
-                    "Activez-la pour les sauvegarder sur le serveur et les retrouver " +
-                    "sur vos autres appareils.",
+                text = "Sans synchronisation automatique, vos photos restent sur cet " +
+                    "appareil jusqu'à ce que vous lanciez « Tout synchroniser ». " +
+                    "Activez-la pour tout sauvegarder en continu et retrouver votre " +
+                    "bibliothèque sur vos autres appareils.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

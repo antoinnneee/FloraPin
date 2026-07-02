@@ -10,7 +10,7 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
-## [Non publié]
+## [1.10.0] — 2026-07-02
 
 ### Ajouté
 - **Discuter des demandes d'identification.** Le fil de commentaires d'une fleur

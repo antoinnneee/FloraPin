@@ -80,6 +80,12 @@ describe('CommentsService', () => {
               flower.ownerId === viewerId ||
               (viewerId === FRIEND &&
                 sharedWithFriend.some((f) => f.id === flower.id)),
+            // FRIEND fait partie du réseau d'amis sollicité par une demande
+            // d'identification ; STRANGER non.
+            needsIdentificationVisibleTo: async (
+              viewerId: string,
+              flower: Flower,
+            ) => flower.needsIdentification === true && viewerId === FRIEND,
           },
         },
         {
@@ -125,6 +131,32 @@ describe('CommentsService', () => {
     flowerRepo.seed({ id: FLOWER, ownerId: OWNER });
     await expect(
       service.post(STRANGER, FLOWER, 'Coucou'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('un ami sollicité peut commenter une fleur à identifier non partagée', async () => {
+    // Fleur ouverte à l'identification, SANS partage ciblé ni publication au
+    // flux : FRIEND ne la « voit » pas au sens isVisibleTo, mais participe à la
+    // demande d'identification → il peut discuter.
+    const toIdentify = 'flower-id';
+    flowerRepo.seed({ id: toIdentify, ownerId: OWNER, needsIdentification: true });
+    const comment = await service.post(
+      FRIEND,
+      toIdentify,
+      'Tu peux ajouter une photo des feuilles ?',
+    );
+    expect(comment.body).toBe('Tu peux ajouter une photo des feuilles ?');
+    expect(notified).toContainEqual({
+      userId: OWNER,
+      type: 'flower_commented',
+    });
+  });
+
+  it('refuse un tiers hors réseau sur une fleur à identifier', async () => {
+    const toIdentify = 'flower-id';
+    flowerRepo.seed({ id: toIdentify, ownerId: OWNER, needsIdentification: true });
+    await expect(
+      service.post(STRANGER, toIdentify, 'Coucou'),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 

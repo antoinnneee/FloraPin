@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.florapin.app.detail.CommentsBottomSheet
 import com.florapin.app.network.dto.FlowerDto
 import com.florapin.app.network.dto.fullPhotoUrls
 import com.florapin.app.network.dto.previewPhotoUrls
@@ -50,6 +52,15 @@ fun IdentifyScreen(
     ),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // Fleur dont le fil de discussion est ouvert (bottom sheet), ou null.
+    var commentsFor by remember { mutableStateOf<String?>(null) }
+    commentsFor?.let { flowerId ->
+        CommentsBottomSheet(
+            flowerServerId = flowerId,
+            onDismiss = { commentsFor = null },
+        )
+    }
 
     Scaffold(
         modifier = modifier,
@@ -91,6 +102,7 @@ fun IdentifyScreen(
                             submitting = flower.id in state.submittingIds,
                             error = state.submitErrors[flower.id],
                             onPropose = { species -> viewModel.propose(flower.id, species) },
+                            onComment = { commentsFor = flower.id },
                         )
                     }
                 }
@@ -107,6 +119,7 @@ private fun IdentifyCard(
     submitting: Boolean,
     error: String?,
     onPropose: (String) -> Unit,
+    onComment: () -> Unit,
 ) {
     var species by remember(flower.id) { mutableStateOf("") }
 
@@ -161,6 +174,16 @@ private fun IdentifyCard(
                 ) {
                     Text(if (submitting) "Envoi…" else "Proposer cette espèce")
                 }
+            }
+
+            // Discussion autour de la demande : poser des questions sur le milieu,
+            // demander une photo supplémentaire… (le fil est partagé avec le
+            // propriétaire et le réseau d'amis sollicité).
+            TextButton(
+                onClick = onComment,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("💬 Discuter (environnement, photos…)")
             }
         }
     }

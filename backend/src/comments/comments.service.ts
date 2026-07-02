@@ -132,9 +132,14 @@ export class CommentsService {
   }
 
   /**
-   * Vérifie que [viewerId] voit la fleur : propriétaire, partage ciblé reçu, ou
-   * fleur diffusée à son réseau (`visibility='friends'`). Même périmètre que le
-   * feed — délégué à SharesService.isVisibleTo (partagé avec les cœurs).
+   * Vérifie que [viewerId] peut participer au fil de la fleur. Deux périmètres se
+   * cumulent :
+   * - il voit la fleur (propriétaire, partage ciblé, ou diffusion réseau) —
+   *   `SharesService.isVisibleTo`, partagé avec les cœurs ;
+   * - OU la fleur est ouverte à l'identification et il fait partie du réseau
+   *   d'amis sollicités — `SharesService.needsIdentificationVisibleTo`. On peut
+   *   ainsi discuter d'une demande d'identification (environnement, demander une
+   *   photo supplémentaire…) même sans partage ciblé ni publication au flux.
    */
   private async visibleFlowerOrThrow(
     viewerId: string,
@@ -144,7 +149,10 @@ export class CommentsService {
     if (!flower) {
       throw new NotFoundException('Fleur introuvable.');
     }
-    if (!(await this.shares.isVisibleTo(viewerId, flower))) {
+    const canParticipate =
+      (await this.shares.isVisibleTo(viewerId, flower)) ||
+      (await this.shares.needsIdentificationVisibleTo(viewerId, flower));
+    if (!canParticipate) {
       throw new ForbiddenException('Fleur non accessible.');
     }
     return flower;

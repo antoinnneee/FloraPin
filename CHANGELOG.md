@@ -10,6 +10,15 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
+## [Non publié]
+
+### Ajouté
+- **Discuter des demandes d'identification.** Le fil de commentaires d'une fleur
+  est désormais ouvert aux amis sollicités par une demande d'identification, même
+  si la fleur n'est ni partagée ni publiée au flux : on peut ainsi discuter du
+  milieu, demander une photo supplémentaire, etc. Un bouton « 💬 Discuter »
+  apparaît sur chaque fleur de l'écran « Fleurs à identifier ».
+
 ## [1.9.0] — 2026-07-02
 
 ### Ajouté

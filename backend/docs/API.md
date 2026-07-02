@@ -217,8 +217,11 @@ la date départageant les ex æquo — NODE-139). Réponse : liste de `Flower`.
 
 ## Commentaires (`/flowers/:id/comments`) — NODE-141
 
-Fil de discussion sur une fleur : **toute personne qui voit la fleur** peut lire
-et commenter. Poster notifie le propriétaire.
+Fil de discussion sur une fleur : peuvent lire et commenter **toute personne qui
+voit la fleur** (propriétaire, partage ciblé, diffusion réseau) **ainsi que les
+amis sollicités par une demande d'identification** (fleur `needsIdentification`,
+même sans partage) — pour discuter du milieu, demander une photo, etc. Poster
+notifie le propriétaire.
 
 | Méthode | Chemin                             | Description |
 |---------|------------------------------------|-------------|

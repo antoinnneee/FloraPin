@@ -33,8 +33,27 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   `fullBackupContent`) excluant les jetons d'auth ; `EncryptedTokenStore`
   survit à une restauration sur un autre appareil (prefs indéchiffrables →
   reset + reconnexion) au lieu de crasher au lancement en boucle.
+- **Backend — autorisations.** Liker/déliker une fleur exige désormais de la
+  voir (plus de likes ni de notifications sur les fleurs privées d'inconnus) ;
+  `DELETE /push/devices/:token` ne supprime que les jetons du compte
+  authentifié ; inviter un email sans compte renvoie une réponse générique
+  (anti-énumération d'adresses).
+- **Backend — RGPD.** La suppression de compte purge désormais aussi les
+  miniatures (fleurs et photos, y compris soft-deleted) du stockage MinIO, qui
+  survivaient jusqu'ici à l'effacement.
 
 ### Corrigé
+- **Backend — fuites de stockage.** Le remplacement d'une image de fleur ou de
+  photo supprime l'ancienne miniature ; la suppression d'une photo purge ses
+  objets ; changer la photo de couverture met à jour image ET miniature de la
+  fleur (plus d'affichage incohérent).
+- **Sync — doublons de fleurs.** `POST /sync/flowers` est désormais idempotent
+  (dédoublonnage sur `localId`) : un renvoi du même lot ne crée plus de
+  doublons côté serveur.
+- **Backend — performances.** Les listes de fleurs (galerie partagée, feed,
+  recherche) chargent photos et cœurs en requêtes groupées au lieu d'un N+1 par
+  fleur ; la recherche filtre en SQL (exploite les index) ; les contrôles
+  d'accès aux commentaires/propositions ne recalculent plus tout le feed.
 - **Sync — suppression propagée au serveur.** Supprimer une fleur synchronisée
   fait un soft-delete poussé au serveur (puis purge locale de la ligne, du
   fichier image et des photos) ; la fleur disparaît des autres appareils et du

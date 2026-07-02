@@ -8,6 +8,7 @@ import com.florapin.app.network.api.AlbumsApi
 import com.florapin.app.network.dto.AddFlowerToAlbumRequest
 import com.florapin.app.network.dto.CreateAlbumRequest
 import com.florapin.app.network.dto.UpdateAlbumRequest
+import retrofit2.HttpException
 
 /**
  * Synchronisation des albums (NODE-102), offline-first comme [SyncEngine] :
@@ -32,26 +33,42 @@ class AlbumSyncEngine(
     suspend fun push() {
         for (album in albums.pendingSync()) {
             val serverId = album.serverId
-            when {
-                serverId == null && album.deletedAt == null -> {
-                    // Création idempotente : le clientId permet au serveur de
-                    // retomber sur l'album existant si un push précédent a réussi
-                    // mais que markSynced n'a pas abouti (réponse perdue/crash).
-                    val dto = albumsApi.create(
-                        CreateAlbumRequest(album.name, album.clientId),
-                    )
-                    albums.markSynced(album.id, dto.id, now())
-                    reconcileMembers(dto.id, albums.memberFlowerServerIds(album.id))
+            // Chaque album est isolé (I10) : un échec permanent (404/409…) sur
+            // l'un ne bloque pas la sync des autres ni ne fait rejouer tout le
+            // worker indéfiniment.
+            try {
+                when {
+                    serverId == null && album.deletedAt == null -> {
+                        // Création idempotente : le clientId permet au serveur de
+                        // retomber sur l'album existant si un push précédent a réussi
+                        // mais que markSynced n'a pas abouti (réponse perdue/crash).
+                        val dto = albumsApi.create(
+                            CreateAlbumRequest(album.name, album.clientId),
+                        )
+                        albums.markSynced(album.id, dto.id, now())
+                        reconcileMembers(dto.id, albums.memberFlowerServerIds(album.id))
+                    }
+                    serverId != null && album.deletedAt != null -> {
+                        albumsApi.delete(serverId)
+                        albums.hardDelete(album)
+                    }
+                    serverId != null -> {
+                        albumsApi.rename(serverId, UpdateAlbumRequest(album.name))
+                        reconcileMembers(serverId, albums.memberFlowerServerIds(album.id))
+                        albums.markSynced(album.id, serverId, now())
+                    }
                 }
-                serverId != null && album.deletedAt != null -> {
-                    albumsApi.delete(serverId)
+            } catch (e: HttpException) {
+                // 404 : l'album n'existe plus côté serveur (supprimé ailleurs).
+                // Inutile de repousser indéfiniment : on purge la copie locale
+                // (le pull ferait de même pour un album resté synchronisé).
+                if (e.code() == 404 && serverId != null) {
                     albums.hardDelete(album)
                 }
-                serverId != null -> {
-                    albumsApi.rename(serverId, UpdateAlbumRequest(album.name))
-                    reconcileMembers(serverId, albums.memberFlowerServerIds(album.id))
-                    albums.markSynced(album.id, serverId, now())
-                }
+                // Autres codes : l'album reste PENDING, retenté au prochain sync.
+            } catch (_: Exception) {
+                // Erreur transitoire (réseau…) : on continue avec les suivants,
+                // l'album reste PENDING.
             }
         }
     }

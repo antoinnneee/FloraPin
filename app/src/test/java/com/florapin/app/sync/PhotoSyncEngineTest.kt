@@ -12,6 +12,7 @@ import com.florapin.app.network.dto.ReorderPhotosRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -28,6 +29,8 @@ class MemPhotoDao : PhotoDao {
         store.values.find { it.serverId == serverId }
     override suspend fun forFlower(flowerLocalId: Long) =
         store.values.filter { it.flowerLocalId == flowerLocalId && it.deletedAt == null }
+    override suspend fun allForFlower(flowerLocalId: Long) =
+        store.values.filter { it.flowerLocalId == flowerLocalId }
     override suspend fun insert(photo: PhotoEntity): Long {
         val id = ++seq; store[id] = photo.copy(id = id); return id
     }
@@ -41,6 +44,13 @@ class MemPhotoDao : PhotoDao {
     }
     override suspend fun setImagePath(id: Long, path: String) {
         store[id]?.let { store[id] = it.copy(imagePath = path) }
+    }
+    override suspend fun pendingImageUploads() =
+        store.values.filter {
+            it.imagePendingUpload && it.serverId != null && it.deletedAt == null
+        }
+    override suspend fun setImagePendingUpload(id: Long, pending: Boolean) {
+        store[id]?.let { store[id] = it.copy(imagePendingUpload = pending) }
     }
 }
 
@@ -141,5 +151,91 @@ class PhotoSyncEngineTest {
         engine.reconcile(5L, emptyList())
 
         assertEquals(0, dao.forFlower(5L).size)
+    }
+
+    @Test
+    fun push_uploadFailure_flagsPendingUpload_thenRetriesNextSync() = runBlocking {
+        val dao = MemPhotoDao()
+        val repo = PhotoRepository(dao) { 100L }
+        var failUpload = true
+        val uploaded = mutableListOf<String>()
+        val engine = PhotoSyncEngine(
+            repo,
+            FakePhotosApi(),
+            uploadPhotoImage = { _, photoServerId, _ ->
+                if (failUpload) error("réseau coupé") else uploaded += photoServerId
+            },
+        )
+        val id = repo.addLocalPhoto(flowerLocalId = 1L, imagePath = "/p.jpg")
+
+        engine.push { "srv-flower" }
+
+        // Photo synchronisée (serverId connu) mais image en souffrance (I9).
+        val afterFail = dao.store[id]!!
+        assertEquals(SyncState.SYNCED.name, afterFail.syncState)
+        assertEquals(true, afterFail.imagePendingUpload)
+
+        // Sync suivant : l'upload est retenté et le marqueur levé.
+        failUpload = false
+        engine.push { "srv-flower" }
+
+        assertEquals(listOf(afterFail.serverId), uploaded)
+        assertEquals(false, dao.store[id]!!.imagePendingUpload)
+    }
+
+    @Test
+    fun push_404onAdd_purgesPhotoInsteadOfRetryingForever() = runBlocking {
+        val dao = MemPhotoDao()
+        val repo = PhotoRepository(dao) { 100L }
+        // La fleur n'existe plus côté serveur : add répond 404.
+        val api = object : PhotosApi by FakePhotosApi() {
+            override suspend fun add(flowerId: String): AddPhotoResponse =
+                throw retrofit2.HttpException(
+                    Response.error<AddPhotoResponse>(404, "".toResponseBody()),
+                )
+        }
+        val engine = PhotoSyncEngine(repo, api, uploadPhotoImage = { _, _, _ -> })
+        repo.addLocalPhoto(flowerLocalId = 1L, imagePath = "/p.jpg")
+
+        engine.push { "srv-flower-disparue" }
+
+        // Erreur permanente : la photo est purgée, pas de retry infini (I10).
+        assertEquals(0, dao.store.size)
+    }
+
+    @Test
+    fun push_transientError_keepsPhotoPending() = runBlocking {
+        val dao = MemPhotoDao()
+        val repo = PhotoRepository(dao) { 100L }
+        val api = object : PhotosApi by FakePhotosApi() {
+            override suspend fun add(flowerId: String): AddPhotoResponse =
+                throw java.io.IOException("réseau coupé")
+        }
+        val engine = PhotoSyncEngine(repo, api, uploadPhotoImage = { _, _, _ -> })
+        val id = repo.addLocalPhoto(flowerLocalId = 1L, imagePath = "/p.jpg")
+
+        engine.push { "srv-flower" }
+
+        // Erreur transitoire : la photo reste en attente pour le prochain sync.
+        assertEquals(SyncState.PENDING.name, dao.store[id]!!.syncState)
+    }
+
+    @Test
+    fun purgeForFlower_removesAllRowsIncludingDeleted() = runBlocking {
+        val dao = MemPhotoDao()
+        val repo = PhotoRepository(dao) { 100L }
+        val engine = PhotoSyncEngine(repo, FakePhotosApi(), uploadPhotoImage = { _, _, _ -> })
+
+        dao.insert(PhotoEntity(flowerLocalId = 7L, imagePath = "/a.jpg"))
+        dao.insert(
+            PhotoEntity(flowerLocalId = 7L, serverId = "s", deletedAt = 10L),
+        )
+        dao.insert(PhotoEntity(flowerLocalId = 8L, imagePath = "/autre.jpg"))
+
+        engine.purgeForFlower(7L)
+
+        // Toutes les photos de la fleur 7 sont parties, celles de la 8 restent.
+        assertEquals(0, dao.allForFlower(7L).size)
+        assertEquals(1, dao.allForFlower(8L).size)
     }
 }

@@ -20,7 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FlowerAlbumCrossRef::class,
         PhotoEntity::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -218,6 +218,25 @@ abstract class FloraDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v12 → v13 : suivi des uploads d'image en souffrance (I9). Quand
+         * l'upload échoue APRÈS la création serveur (markSynced déjà passé),
+         * on pose ce marqueur pour retenter l'envoi aux syncs suivantes au
+         * lieu de perdre l'image.
+         */
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE flowers ADD COLUMN imagePendingUpload " +
+                        "INTEGER NOT NULL DEFAULT 0",
+                )
+                db.execSQL(
+                    "ALTER TABLE flower_photos ADD COLUMN imagePendingUpload " +
+                        "INTEGER NOT NULL DEFAULT 0",
+                )
+            }
+        }
+
         @Volatile
         private var instance: FloraDatabase? = null
 
@@ -244,6 +263,7 @@ abstract class FloraDatabase : RoomDatabase() {
                 MIGRATION_9_10,
                 MIGRATION_10_11,
                 MIGRATION_11_12,
+                MIGRATION_12_13,
             ).build()
     }
 }

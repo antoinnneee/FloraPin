@@ -16,6 +16,7 @@ import com.florapin.app.network.dto.UpdateAlbumRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -51,10 +52,17 @@ private class MemFlowerDao : FlowerDao {
     override suspend fun delete(flower: FlowerEntity) { store.remove(flower.id) }
     override suspend fun deleteAll() { store.clear() }
     override suspend fun pendingSync() = emptyList<FlowerEntity>()
-    override suspend fun markSynced(id: Long, serverId: String, updatedAt: Long) {}
+    override suspend fun markSynced(
+        id: Long,
+        serverId: String,
+        updatedAt: Long,
+        expectedUpdatedAt: Long,
+    ) {}
     override suspend fun markFailed(id: Long) {}
     override suspend fun setImagePath(id: Long, path: String) {}
     override suspend fun softDeleteByServerId(serverId: String, deletedAt: Long) {}
+    override suspend fun pendingImageUploads(): List<FlowerEntity> = emptyList()
+    override suspend fun setImagePendingUpload(id: Long, pending: Boolean) {}
 }
 
 private class MemAlbumDao(private val flowers: MemFlowerDao) : AlbumDao {
@@ -225,6 +233,68 @@ class AlbumSyncEngineTest {
         assertEquals(1, api.server.size)
         assertEquals(1, albumDao.albums.size)
         assertNotNull(albumDao.getById(albumId)!!.serverId)
+    }
+
+    @Test
+    fun push_permanentErrorOnOneAlbum_doesNotBlockOthers() = runBlocking {
+        val flowerDao = MemFlowerDao()
+        val albumDao = MemAlbumDao(flowerDao)
+        val albumRepo = AlbumRepository(albumDao) { 100L }
+        val base = FakeAlbumsApi()
+        // rename lève un 404 : l'album a été supprimé côté serveur.
+        val api = object : AlbumsApi by base {
+            override suspend fun rename(
+                id: String,
+                body: UpdateAlbumRequest,
+            ): AlbumDto = throw retrofit2.HttpException(
+                Response.error<AlbumDto>(404, "".toResponseBody()),
+            )
+        }
+
+        // Album A : renommage vers un id serveur disparu (404 permanent).
+        val goneId = albumDao.insert(
+            AlbumEntity(serverId = "srv-gone", clientId = "client-a", name = "A",
+                createdAt = 0, updatedAt = 0, syncState = SyncState.PENDING.name),
+        )
+        // Album B : simple création, doit passer malgré l'échec de A.
+        val newId = albumRepo.create("B")
+
+        AlbumSyncEngine(albumRepo, FlowerRepository(flowerDao), api) { 100L }.push()
+
+        // A (introuvable côté serveur) a été purgé localement, sans bloquer B.
+        assertNull(albumDao.getById(goneId))
+        val b = albumDao.getById(newId)!!
+        assertEquals(SyncState.SYNCED.name, b.syncState)
+        assertNotNull(b.serverId)
+    }
+
+    @Test
+    fun push_transientErrorOnOneAlbum_keepsItPendingAndContinues() = runBlocking {
+        val flowerDao = MemFlowerDao()
+        val albumDao = MemAlbumDao(flowerDao)
+        val albumRepo = AlbumRepository(albumDao) { 100L }
+        val base = FakeAlbumsApi()
+        // delete échoue en erreur réseau : l'album doit rester en attente.
+        val api = object : AlbumsApi by base {
+            override suspend fun delete(id: String): Response<Unit> =
+                throw java.io.IOException("réseau coupé")
+        }
+
+        val deletingId = albumDao.insert(
+            AlbumEntity(serverId = "srv-x", clientId = "client-x", name = "X",
+                createdAt = 0, updatedAt = 0, syncState = SyncState.PENDING.name,
+                deletedAt = 50L),
+        )
+        val newId = albumRepo.create("Y")
+
+        AlbumSyncEngine(albumRepo, FlowerRepository(flowerDao), api) { 100L }.push()
+
+        // X reste marqué à supprimer (retenté au prochain sync)…
+        val x = albumDao.getById(deletingId)!!
+        assertEquals(SyncState.PENDING.name, x.syncState)
+        assertNotNull(x.deletedAt)
+        // … et Y a quand même été créé.
+        assertEquals(SyncState.SYNCED.name, albumDao.getById(newId)!!.syncState)
     }
 
     @Test

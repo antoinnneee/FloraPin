@@ -28,6 +28,10 @@ interface PhotoDao {
     )
     suspend fun forFlower(flowerLocalId: Long): List<PhotoEntity>
 
+    /** Toutes les photos d'une fleur, y compris marquées supprimées (purge). */
+    @Query("SELECT * FROM flower_photos WHERE flowerLocalId = :flowerLocalId")
+    suspend fun allForFlower(flowerLocalId: Long): List<PhotoEntity>
+
     @Insert
     suspend fun insert(photo: PhotoEntity): Long
 
@@ -54,4 +58,17 @@ interface PhotoDao {
     /** Renseigne le chemin local après mise en cache d'une image distante. */
     @Query("UPDATE flower_photos SET imagePath = :path WHERE id = :id")
     suspend fun setImagePath(id: Long, path: String)
+
+    // --- Upload d'image en souffrance (I9) ---
+
+    /** Photos synchronisées dont l'upload d'image doit être retenté. */
+    @Query(
+        "SELECT * FROM flower_photos WHERE imagePendingUpload = 1 " +
+            "AND serverId IS NOT NULL AND deletedAt IS NULL",
+    )
+    suspend fun pendingImageUploads(): List<PhotoEntity>
+
+    /** Pose/lève le marqueur d'upload d'image en souffrance. */
+    @Query("UPDATE flower_photos SET imagePendingUpload = :pending WHERE id = :id")
+    suspend fun setImagePendingUpload(id: Long, pending: Boolean)
 }

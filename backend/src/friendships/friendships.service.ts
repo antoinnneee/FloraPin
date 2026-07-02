@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
@@ -35,7 +36,17 @@ export class FriendshipsService {
   ): Promise<FriendshipResponse> {
     const addressee = await this.users.findByEmail(email);
     if (!addressee) {
-      throw new NotFoundException('Utilisateur introuvable.');
+      // Anti-énumération (I3) : on ne révèle pas l'inexistence du compte via un
+      // 404. Réponse synthétique de même forme que le cas nominal (le client
+      // Android parse le corps puis rafraîchit la liste : la « demande » fantôme
+      // n'y apparaît jamais). Aucune ligne créée, aucune notification.
+      return {
+        id: randomUUID(),
+        status: 'pending',
+        direction: 'outgoing',
+        user: { id: randomUUID(), displayName: '', email: email.trim() },
+        createdAt: new Date(),
+      };
     }
     return this.request(requesterId, addressee.id);
   }

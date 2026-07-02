@@ -7,8 +7,9 @@ import okhttp3.Route
 
 /**
  * Sur un 401, tente un refresh des jetons (rotation) puis rejoue la requête avec
- * le nouvel access token. Abandonne (et purge) si le refresh échoue, et limite
- * le nombre de tentatives pour éviter les boucles.
+ * le nouvel access token. Abandonne (et purge) si le serveur refuse le refresh ;
+ * une simple erreur réseau abandonne la requête SANS déconnecter l'utilisateur
+ * (I12). Limite le nombre de tentatives pour éviter les boucles.
  */
 class TokenAuthenticator(
     private val tokenStore: TokenStore,
@@ -31,13 +32,23 @@ class TokenAuthenticator(
                 return retryWith(response, current)
             }
 
-            val pair = refresher.refresh(refreshToken)
-            if (pair == null) {
-                tokenStore.clear()
-                return null
+            return when (val result = refresher.refresh(refreshToken)) {
+                is RefreshResult.Success -> {
+                    tokenStore.save(
+                        result.tokens.accessToken,
+                        result.tokens.refreshToken,
+                    )
+                    retryWith(response, result.tokens.accessToken)
+                }
+                // Refus explicite du serveur : session invalide, on purge.
+                RefreshResult.Rejected -> {
+                    tokenStore.clear()
+                    null
+                }
+                // Erreur transitoire (réseau…) : on abandonne la requête mais
+                // l'utilisateur reste connecté ; un prochain appel retentera.
+                RefreshResult.TransientError -> null
             }
-            tokenStore.save(pair.accessToken, pair.refreshToken)
-            return retryWith(response, pair.accessToken)
         }
     }
 

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Règles d'extraction (API 31+, C4) : mêmes exclusions que backup_rules.xml,
+     pour la sauvegarde cloud ET le transfert appareil-à-appareil. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude
+            domain="sharedpref"
+            path="florapin_auth.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude
+            domain="sharedpref"
+            path="florapin_auth.xml" />
+    </device-transfer>
+</data-extraction-rules>

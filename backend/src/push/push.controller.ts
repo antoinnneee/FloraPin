@@ -29,10 +29,16 @@ export class PushController {
     return this.devices.register(user.userId, dto.token, dto.platform);
   }
 
-  /** Désenregistre un jeton (déconnexion). */
+  /**
+   * Désenregistre un jeton (déconnexion). Ne supprime que les jetons
+   * appartenant à l'utilisateur authentifié (I2).
+   */
   @Delete('devices/:token')
-  async unregister(@Param('token') token: string) {
-    await this.devices.unregister(token);
+  async unregister(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('token') token: string,
+  ) {
+    await this.devices.unregister(user.userId, token);
     return { ok: true };
   }
 }

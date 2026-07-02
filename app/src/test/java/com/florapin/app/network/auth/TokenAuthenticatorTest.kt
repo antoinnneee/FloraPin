@@ -51,9 +51,11 @@ class TokenAuthenticatorTest {
 
         val store = FakeTokenStore(access = "old", refresh = "r1")
         val refresher = object : TokenRefresher {
-            override fun refresh(refreshToken: String): TokenPair? {
+            override fun refresh(refreshToken: String): RefreshResult {
                 assertEquals("r1", refreshToken)
-                return TokenPair(accessToken = "new", refreshToken = "r2")
+                return RefreshResult.Success(
+                    TokenPair(accessToken = "new", refreshToken = "r2"),
+                )
             }
         }
 
@@ -80,12 +82,14 @@ class TokenAuthenticatorTest {
     }
 
     @Test
-    fun clearsTokens_whenRefreshFails() {
+    fun clearsTokens_whenServerRejectsRefresh() {
         server.enqueue(MockResponse().setResponseCode(401))
 
         val store = FakeTokenStore(access = "old", refresh = "r1")
         val refresher = object : TokenRefresher {
-            override fun refresh(refreshToken: String): TokenPair? = null
+            // Le serveur répond 401/403 au refresh : session invalide.
+            override fun refresh(refreshToken: String): RefreshResult =
+                RefreshResult.Rejected
         }
 
         val client = OkHttpClient.Builder()
@@ -96,9 +100,36 @@ class TokenAuthenticatorTest {
         val request = Request.Builder().url(server.url("/api/v1/flowers")).build()
         client.newCall(request).execute().close()
 
-        // Refresh échoué : session purgée.
+        // Refus explicite du serveur : session purgée.
         assertEquals(null, store.accessToken())
         assertEquals(null, store.refreshToken())
+    }
+
+    @Test
+    fun keepsTokens_whenRefreshFailsTransiently() {
+        server.enqueue(MockResponse().setResponseCode(401))
+
+        val store = FakeTokenStore(access = "old", refresh = "r1")
+        val refresher = object : TokenRefresher {
+            // Erreur réseau pendant le refresh : on ne sait rien de la session.
+            override fun refresh(refreshToken: String): RefreshResult =
+                RefreshResult.TransientError
+        }
+
+        val client = OkHttpClient.Builder()
+            .addInterceptor(AuthInterceptor(store))
+            .authenticator(TokenAuthenticator(store, refresher))
+            .build()
+
+        val request = Request.Builder().url(server.url("/api/v1/flowers")).build()
+        val response = client.newCall(request).execute()
+        response.close()
+
+        // La requête échoue (401 rendu à l'appelant)…
+        assertEquals(401, response.code)
+        // … mais l'utilisateur RESTE connecté (I12) : pas de purge des jetons.
+        assertEquals("old", store.accessToken())
+        assertEquals("r1", store.refreshToken())
     }
 
     @Test

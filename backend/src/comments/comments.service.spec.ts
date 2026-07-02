@@ -76,9 +76,10 @@ describe('CommentsService', () => {
           provide: SharesService,
           useValue: {
             // La fleur est partagée avec FRIEND (ciblé) mais pas STRANGER.
-            sharedWithMe: async (viewerId: string) =>
-              viewerId === FRIEND ? sharedWithFriend : [],
-            broadcastWithMe: async () => [],
+            isVisibleTo: async (viewerId: string, flower: Flower) =>
+              flower.ownerId === viewerId ||
+              (viewerId === FRIEND &&
+                sharedWithFriend.some((f) => f.id === flower.id)),
           },
         },
         {

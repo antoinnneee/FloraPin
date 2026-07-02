@@ -19,6 +19,7 @@ import java.io.File
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -58,17 +59,32 @@ private class FakeDao : FlowerDao {
     }
     override suspend fun pendingSync() =
         store.values.filter { it.syncState != SyncState.SYNCED.name }
-    override suspend fun markSynced(id: Long, serverId: String, updatedAt: Long) {
+    override suspend fun markSynced(
+        id: Long,
+        serverId: String,
+        updatedAt: Long,
+        expectedUpdatedAt: Long,
+    ) {
         store[id]?.let {
+            // Reflète le SQL réel : serverId toujours persisté ; l'état ne passe
+            // SYNCED que si la ligne n'a pas bougé depuis la lecture du push.
+            val untouched = it.updatedAt == expectedUpdatedAt
             store[id] = it.copy(
                 serverId = serverId,
-                syncState = SyncState.SYNCED.name,
-                updatedAt = updatedAt,
+                syncState = if (untouched) SyncState.SYNCED.name else it.syncState,
+                updatedAt = if (untouched) updatedAt else it.updatedAt,
             )
         }
     }
     override suspend fun markFailed(id: Long) {
         store[id]?.let { store[id] = it.copy(syncState = SyncState.FAILED.name) }
+    }
+    override suspend fun pendingImageUploads() =
+        store.values.filter {
+            it.imagePendingUpload && it.serverId != null && it.deletedAt == null
+        }
+    override suspend fun setImagePendingUpload(id: Long, pending: Boolean) {
+        store[id]?.let { store[id] = it.copy(imagePendingUpload = pending) }
     }
     override suspend fun setImagePath(id: Long, path: String) {
         store[id]?.let { store[id] = it.copy(imagePath = path) }
@@ -95,6 +111,8 @@ private class FakeSyncApi(
 private class FakeFlowersApi : FlowersApi {
     var lastUpdateBody: UpdateFlowerRequest? = null
     val deleted = mutableListOf<String>()
+    /** Si non null, `delete` lève cette exception au lieu de réussir. */
+    var deleteError: Exception? = null
     override suspend fun create(body: CreateFlowerRequest) =
         throw UnsupportedOperationException()
     override suspend fun list(species: String?, tag: String?) = emptyList<FlowerDto>()
@@ -109,6 +127,7 @@ private class FakeFlowersApi : FlowersApi {
         return dto(id, "2026-06-21T10:00:00Z")
     }
     override suspend fun delete(id: String): retrofit2.Response<Unit> {
+        deleteError?.let { throw it }
         deleted += id
         return retrofit2.Response.success<Unit>(null)
     }
@@ -434,5 +453,214 @@ class SyncEngineTest {
         val body = flowersApi.lastUpdateBody!!
         assertEquals("friends", body.visibility)
         assertEquals(false, body.feedIncludeGps)
+    }
+
+    @Test
+    fun push_deletePropagated_thenPurgesLocalRow() = runBlocking {
+        val dao = FakeDao()
+        val repo = FlowerRepository(dao)
+        // Fleur synchronisée puis supprimée localement (soft-delete, C3).
+        val id = dao.insert(
+            FlowerEntity(
+                imagePath = "",
+                createdAt = 1_000L,
+                serverId = "srv-del",
+                syncState = SyncState.PENDING.name,
+                updatedAt = 2_000L,
+                deletedAt = 2_000L,
+            ),
+        )
+        val flowersApi = FakeFlowersApi()
+        val engine = SyncEngine(
+            repository = repo,
+            syncApi = FakeSyncApi(),
+            flowersApi = flowersApi,
+            uploadFlowerImage = { _, _ -> },
+            lastSyncStore = FakeLastSync(),
+            now = { 5_000L },
+        )
+
+        engine.push()
+
+        // La suppression a été poussée, puis la ligne locale purgée.
+        assertEquals(listOf("srv-del"), flowersApi.deleted)
+        assertNull(dao.store[id])
+    }
+
+    @Test
+    fun push_delete404_alsoPurgesLocalRow() = runBlocking {
+        val dao = FakeDao()
+        val repo = FlowerRepository(dao)
+        val id = dao.insert(
+            FlowerEntity(
+                imagePath = "",
+                createdAt = 1_000L,
+                serverId = "srv-gone",
+                syncState = SyncState.PENDING.name,
+                updatedAt = 2_000L,
+                deletedAt = 2_000L,
+            ),
+        )
+        val flowersApi = FakeFlowersApi().apply {
+            deleteError = retrofit2.HttpException(
+                retrofit2.Response.error<Unit>(404, "".toResponseBody()),
+            )
+        }
+        val engine = SyncEngine(
+            repository = repo,
+            syncApi = FakeSyncApi(),
+            flowersApi = flowersApi,
+            uploadFlowerImage = { _, _ -> },
+            lastSyncStore = FakeLastSync(),
+            now = { 5_000L },
+        )
+
+        engine.push()
+
+        // Déjà supprimée côté serveur : même issue qu'un succès, la ligne part.
+        assertNull(dao.store[id])
+    }
+
+    @Test
+    fun push_imageUploadFailure_flagsPendingUpload_thenRetriesNextSync() = runBlocking {
+        val dao = FakeDao()
+        val repo = FlowerRepository(dao)
+        val localId = dao.insert(
+            FlowerEntity(
+                imagePath = "/p.jpg",
+                createdAt = 1_000L,
+                syncState = SyncState.PENDING.name,
+                updatedAt = 1_000L,
+            ),
+        )
+        val syncApi = FakeSyncApi(
+            pushResults = listOf(
+                SyncPushItemResult(
+                    localId = localId.toString(),
+                    flower = dto("srv-9", "2026-06-21T10:00:00Z"),
+                    upload = PresignedUpload("https://upload", "PUT", 600),
+                ),
+            ),
+        )
+        var failUpload = true
+        val uploads = mutableListOf<String>()
+        val engine = SyncEngine(
+            repository = repo,
+            syncApi = syncApi,
+            flowersApi = FakeFlowersApi(),
+            uploadFlowerImage = { serverId, _ ->
+                if (failUpload) error("réseau coupé") else uploads += serverId
+            },
+            lastSyncStore = FakeLastSync(),
+            now = { 5_000L },
+        )
+
+        engine.push()
+
+        // La fleur est synchronisée (serverId persisté) mais l'image, en échec,
+        // est marquée en souffrance au lieu d'être perdue (I9).
+        val afterFail = dao.store[localId]!!
+        assertEquals("srv-9", afterFail.serverId)
+        assertEquals(SyncState.SYNCED.name, afterFail.syncState)
+        assertEquals(true, afterFail.imagePendingUpload)
+
+        // Sync suivant, réseau rétabli : l'upload est retenté et le marqueur levé.
+        failUpload = false
+        engine.push()
+
+        assertEquals(listOf("srv-9"), uploads)
+        assertEquals(false, dao.store[localId]!!.imagePendingUpload)
+    }
+
+    @Test
+    fun pull_doesNotOverwriteLocallyPendingFlower() = runBlocking {
+        val dao = FakeDao()
+        val repo = FlowerRepository(dao)
+        // Édition locale non poussée (PENDING) : le pull ne doit pas l'écraser.
+        val id = dao.insert(
+            FlowerEntity(
+                imagePath = "/p.jpg",
+                createdAt = 1_000L,
+                serverId = "srv-2",
+                notes = "édition locale",
+                syncState = SyncState.PENDING.name,
+                updatedAt = 2_000L,
+            ),
+        )
+        val engine = SyncEngine(
+            repository = repo,
+            syncApi = FakeSyncApi(
+                pullResponse = SyncPullResponse(
+                    serverTime = "2026-06-21T12:00:00Z",
+                    flowers = listOf(
+                        dto("srv-2", "2026-06-21T11:00:00Z").copy(notes = "serveur"),
+                    ),
+                    deletedIds = emptyList(),
+                ),
+            ),
+            flowersApi = FakeFlowersApi(),
+            uploadFlowerImage = { _, _ -> },
+            lastSyncStore = FakeLastSync(),
+        )
+
+        engine.pull()
+
+        // L'édition locale survit ; elle sera poussée (last-write-wins au push).
+        assertEquals("édition locale", dao.store[id]!!.notes)
+        assertEquals(SyncState.PENDING.name, dao.store[id]!!.syncState)
+    }
+
+    @Test
+    fun push_concurrentEdit_keepsFlowerPendingButPersistsServerId() = runBlocking {
+        val dao = FakeDao()
+        val repo = FlowerRepository(dao)
+        val localId = dao.insert(
+            FlowerEntity(
+                imagePath = "/p.jpg",
+                createdAt = 1_000L,
+                notes = "v1",
+                syncState = SyncState.PENDING.name,
+                updatedAt = 1_000L,
+            ),
+        )
+        // SyncApi qui simule une édition utilisateur PENDANT le push (entre la
+        // lecture de la file et le markSynced).
+        val racingSyncApi = object : SyncApi {
+            override suspend fun pull(since: String?) =
+                SyncPullResponse("t", emptyList(), emptyList())
+            override suspend fun push(body: SyncPushRequest): List<SyncPushItemResult> {
+                dao.store[localId] = dao.store[localId]!!.copy(
+                    notes = "v2 (édition concurrente)",
+                    updatedAt = 9_999L,
+                    syncState = SyncState.PENDING.name,
+                )
+                return listOf(
+                    SyncPushItemResult(
+                        localId = localId.toString(),
+                        flower = dto("srv-9", "2026-06-21T10:00:00Z"),
+                        upload = PresignedUpload("https://upload", "PUT", 600),
+                    ),
+                )
+            }
+        }
+        val engine = SyncEngine(
+            repository = repo,
+            syncApi = racingSyncApi,
+            flowersApi = FakeFlowersApi(),
+            uploadFlowerImage = { _, _ -> },
+            lastSyncStore = FakeLastSync(),
+            now = { 5_000L },
+        )
+
+        engine.push()
+
+        val after = dao.store[localId]!!
+        // Le serverId est persisté (anti-doublon)…
+        assertEquals("srv-9", after.serverId)
+        // … mais l'édition concurrente n'est pas écrasée : la fleur reste
+        // PENDING et sera poussée au prochain sync.
+        assertEquals(SyncState.PENDING.name, after.syncState)
+        assertEquals("v2 (édition concurrente)", after.notes)
+        assertEquals(9_999L, after.updatedAt)
     }
 }

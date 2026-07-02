@@ -121,7 +121,7 @@ export class CommentsService {
   /**
    * Vérifie que [viewerId] voit la fleur : propriétaire, partage ciblé reçu, ou
    * fleur diffusée à son réseau (`visibility='friends'`). Même périmètre que le
-   * feed (cf. FeedService.getFeed).
+   * feed — délégué à SharesService.isVisibleTo (partagé avec les cœurs).
    */
   private async visibleFlowerOrThrow(
     viewerId: string,
@@ -131,17 +131,7 @@ export class CommentsService {
     if (!flower) {
       throw new NotFoundException('Fleur introuvable.');
     }
-    if (flower.ownerId === viewerId) {
-      return flower;
-    }
-    const [targeted, broadcast] = await Promise.all([
-      this.shares.sharedWithMe(viewerId),
-      this.shares.broadcastWithMe(viewerId),
-    ]);
-    const visible =
-      targeted.some((f) => f.id === flowerId) ||
-      broadcast.some((f) => f.id === flowerId);
-    if (!visible) {
+    if (!(await this.shares.isVisibleTo(viewerId, flower))) {
       throw new ForbiddenException('Fleur non accessible.');
     }
     return flower;

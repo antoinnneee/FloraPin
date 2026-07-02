@@ -73,16 +73,31 @@ describe('MinioStorageService', () => {
     expect(key).toMatch(/^flowers\/owner-1\/[0-9a-f-]+\.jpg$/);
   });
 
-  it('présigne un upload PUT avec la bonne expiration', async () => {
+  it('présigne un upload PUT avec une expiration plafonnée à 5 min', async () => {
+    // Un PUT présigné ne peut imposer ni taille ni type : la fenêtre d'usage
+    // est volontairement courte (cap à 300 s), même si la config demande plus.
     const result = await service.presignUpload('flowers/o/x.jpg');
     expect(result.method).toBe('PUT');
-    expect(result.expiresIn).toBe(EXPIRES);
+    expect(result.expiresIn).toBe(300);
     expect(result.url).toContain('sig=put');
     expect(client.putCalls[0]).toEqual({
       bucket: BUCKET,
       key: 'flowers/o/x.jpg',
-      expiry: EXPIRES,
+      expiry: 300,
     });
+  });
+
+  it('conserve une expiration d’upload configurée plus courte que le plafond', async () => {
+    const shortService = new MinioStorageService(
+      client,
+      BUCKET,
+      120,
+      'us-east-1',
+      client,
+      DOWNLOAD_EXPIRES,
+    );
+    const result = await shortService.presignUpload('flowers/o/y.jpg');
+    expect(result.expiresIn).toBe(120);
   });
 
   it('présigne un download GET avec l’expiration longue (persistée par l’app)', async () => {

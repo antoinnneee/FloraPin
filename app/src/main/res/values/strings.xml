@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FloraPin</string>
+
+    <!-- Confirmation de suppression d'une fleur (détail). -->
+    <string name="delete_flower_title">Supprimer cette fleur ?</string>
+    <string name="delete_flower_message">La fleur et ses photos seront définitivement supprimées. Cette action est irréversible.</string>
+    <string name="delete_flower_confirm">Supprimer</string>
+    <string name="delete_flower_cancel">Annuler</string>
 </resources>

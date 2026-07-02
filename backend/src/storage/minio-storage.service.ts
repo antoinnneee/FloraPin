@@ -78,13 +78,29 @@ export class MinioStorageService
     return `flowers/${ownerId}/${randomUUID()}.${extension}`;
   }
 
+  /**
+   * Durée de vie maximale d'une URL d'upload présignée (secondes). Volontairement
+   * courte : un PUT présigné SigV4 ne peut imposer NI taille maximale NI type de
+   * contenu, et aucun point de confirmation serveur ne re-vérifie l'objet après
+   * coup (le client Android actuel n'utilise d'ailleurs plus ce flux : il passe
+   * par les endpoints multipart `POST /flowers/:id/image` et
+   * `POST /flowers/:id/photos/:photoId/image`, validés et réencodés par l'API).
+   * Réduire la fenêtre limite l'abus d'une URL fuitée ; ne pas l'allonger sans
+   * ajouter une validation `statObject` post-upload.
+   */
+  private static readonly MAX_UPLOAD_EXPIRY_SECONDS = 300;
+
   async presignUpload(key: string): Promise<PresignedUpload> {
+    const expiresIn = Math.min(
+      this.expiresIn,
+      MinioStorageService.MAX_UPLOAD_EXPIRY_SECONDS,
+    );
     const url = await this.presignClient.presignedPutObject(
       this.bucket,
       key,
-      this.expiresIn,
+      expiresIn,
     );
-    return { url, method: 'PUT', expiresIn: this.expiresIn };
+    return { url, method: 'PUT', expiresIn };
   }
 
   async putObject(

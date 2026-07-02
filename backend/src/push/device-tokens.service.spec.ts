@@ -26,9 +26,12 @@ class FakeDeviceRepo {
       (d) => d.userId === opts.where.userId,
     );
   }
-  async delete(criteria: { token: string }): Promise<void> {
+  async delete(criteria: { token: string; userId?: string }): Promise<void> {
     for (const [id, d] of this.store) {
-      if (d.token === criteria.token) this.store.delete(id);
+      const tokenOk = d.token === criteria.token;
+      const userOk =
+        criteria.userId === undefined || d.userId === criteria.userId;
+      if (tokenOk && userOk) this.store.delete(id);
     }
   }
 }
@@ -63,7 +66,19 @@ describe('DeviceTokensService', () => {
 
   it('désenregistre un jeton', async () => {
     await service.register(USER, 'tok-a', 'android');
-    await service.unregister('tok-a');
+    await service.unregister(USER, 'tok-a');
+    expect(await service.tokensFor(USER)).toEqual([]);
+  });
+
+  it('ne désenregistre pas le jeton d’un autre utilisateur (I2)', async () => {
+    await service.register(USER, 'tok-a', 'android');
+    await service.unregister('intrus', 'tok-a');
+    expect(await service.tokensFor(USER)).toEqual(['tok-a']);
+  });
+
+  it('purge un jeton invalide quel que soit son propriétaire (FCM)', async () => {
+    await service.register(USER, 'tok-a', 'android');
+    await service.purgeToken('tok-a');
     expect(await service.tokensFor(USER)).toEqual([]);
   });
 });

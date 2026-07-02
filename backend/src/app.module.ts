@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AlbumsModule } from './albums/albums.module';
 import { AuthModule } from './auth/auth.module';
@@ -23,6 +25,12 @@ import { UsersModule } from './users/users.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    // Rate limiting global (C2) : 100 req/min par IP. Les endpoints sensibles
+    // (login, register, forgot-password…) portent des limites plus strictes via
+    // @Throttle() dans AuthController.
+    ThrottlerModule.forRoot({
+      throttlers: [{ ttl: 60_000, limit: 100 }],
+    }),
     ObservabilityModule,
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
@@ -55,6 +63,10 @@ import { UsersModule } from './users/users.module';
     CommentsModule,
     PushModule,
     SyncModule,
+  ],
+  providers: [
+    // Applique le rate limiting à toutes les routes HTTP.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}

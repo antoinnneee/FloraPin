@@ -14,9 +14,9 @@ describe('FcmPushSender', () => {
         return response;
       },
     };
-    const unregister = jest.fn();
-    const devices = { unregister } as unknown as DeviceTokensService;
-    return { sender: new FcmPushSender(messaging, devices), sent, unregister };
+    const purgeToken = jest.fn();
+    const devices = { purgeToken } as unknown as DeviceTokensService;
+    return { sender: new FcmPushSender(messaging, devices), sent, purgeToken };
   }
 
   it('sérialise type + payload en chaînes', async () => {
@@ -37,7 +37,7 @@ describe('FcmPushSender', () => {
   });
 
   it('purge les jetons invalides signalés par FCM', async () => {
-    const { sender, unregister } = build({
+    const { sender, purgeToken } = build({
       responses: [
         { success: true },
         {
@@ -49,12 +49,12 @@ describe('FcmPushSender', () => {
 
     await sender.send(['good', 'bad'], { type: 'x', data: {} });
 
-    expect(unregister).toHaveBeenCalledTimes(1);
-    expect(unregister).toHaveBeenCalledWith('bad');
+    expect(purgeToken).toHaveBeenCalledTimes(1);
+    expect(purgeToken).toHaveBeenCalledWith('bad');
   });
 
   it('ne purge pas sur une erreur transitoire', async () => {
-    const { sender, unregister } = build({
+    const { sender, purgeToken } = build({
       responses: [
         { success: false, error: { code: 'messaging/internal-error' } },
       ],
@@ -62,7 +62,7 @@ describe('FcmPushSender', () => {
 
     await sender.send(['t1'], { type: 'x', data: {} });
 
-    expect(unregister).not.toHaveBeenCalled();
+    expect(purgeToken).not.toHaveBeenCalled();
   });
 
   it('ne fait rien sans jeton', async () => {

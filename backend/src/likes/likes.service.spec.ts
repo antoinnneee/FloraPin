@@ -5,10 +5,13 @@ import { LikesService } from './likes.service';
 
 const OWNER = 'owner-1';
 const LIKER = 'liker-1';
+const STRANGER = 'stranger-1';
 const FLOWER = 'flower-1';
 
 describe('LikesService', () => {
   let flower: Flower | null;
+  /** Viewers (hors propriétaire) qui voient la fleur via partage/diffusion. */
+  let visibleTo: Set<string>;
   let likeRows: FlowerLike[];
   let likes: {
     findOne: jest.Mock;
@@ -17,11 +20,13 @@ describe('LikesService', () => {
     delete: jest.Mock;
   };
   let flowers: { findOne: jest.Mock };
+  let shares: { isVisibleTo: jest.Mock };
   let notifications: { create: jest.Mock };
   let service: LikesService;
 
   beforeEach(() => {
     flower = { id: FLOWER, ownerId: OWNER } as Flower;
+    visibleTo = new Set([LIKER]);
     likeRows = [];
     likes = {
       findOne: jest.fn(
@@ -45,10 +50,18 @@ describe('LikesService', () => {
       ),
     };
     flowers = { findOne: jest.fn(async () => flower) };
+    shares = {
+      // Même périmètre que CommentsService : propriétaire ou partage reçu.
+      isVisibleTo: jest.fn(
+        async (viewerId: string, f: Flower) =>
+          f.ownerId === viewerId || visibleTo.has(viewerId),
+      ),
+    };
     notifications = { create: jest.fn(async () => undefined) };
     service = new LikesService(
       likes as never,
       flowers as never,
+      shares as never,
       notifications as never,
     );
   });
@@ -82,6 +95,14 @@ describe('LikesService', () => {
         NotFoundException,
       );
     });
+
+    it('lève NotFound si la fleur n’est pas visible par le viewer (I1)', async () => {
+      await expect(service.like(STRANGER, FLOWER)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(likes.save).not.toHaveBeenCalled();
+      expect(notifications.create).not.toHaveBeenCalled();
+    });
   });
 
   describe('unlike', () => {
@@ -93,6 +114,20 @@ describe('LikesService', () => {
         userId: LIKER,
       });
       expect(likeRows).toHaveLength(0);
+    });
+
+    it('lève NotFound si la fleur n’est pas visible par le viewer (I1)', async () => {
+      await expect(service.unlike(STRANGER, FLOWER)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(likes.delete).not.toHaveBeenCalled();
+    });
+
+    it('lève NotFound si la fleur n’existe pas', async () => {
+      flower = null;
+      await expect(service.unlike(LIKER, FLOWER)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 });

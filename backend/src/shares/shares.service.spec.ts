@@ -293,6 +293,52 @@ describe('SharesService', () => {
     expect(feed).toEqual([]);
   });
 
+  describe('isVisibleTo (périmètre commentaires/cœurs)', () => {
+    it('le propriétaire voit toujours sa fleur', async () => {
+      const flower = flowerRepo.seed({
+        ownerId: OWNER,
+        imageKey: 'v1',
+        takenAt: new Date(),
+      });
+      expect(await service.isVisibleTo(OWNER, flower)).toBe(true);
+    });
+
+    it('un destinataire de partage ciblé voit la fleur', async () => {
+      const flower = flowerRepo.seed({
+        ownerId: OWNER,
+        imageKey: 'v2',
+        takenAt: new Date(),
+      });
+      await service.create(OWNER, {
+        friendId: VIEWER,
+        scope: 'flower',
+        flowerId: flower.id,
+      });
+      expect(await service.isVisibleTo(VIEWER, flower)).toBe(true);
+    });
+
+    it('un ami voit une fleur diffusée au réseau (visibility=friends)', async () => {
+      const FRIEND = 'friend';
+      acceptedFriends = [FRIEND];
+      const flower = flowerRepo.seed({
+        ownerId: FRIEND,
+        imageKey: 'v3',
+        takenAt: new Date(),
+        visibility: 'friends',
+      });
+      expect(await service.isVisibleTo(VIEWER, flower)).toBe(true);
+    });
+
+    it('un tiers sans partage ne voit pas la fleur', async () => {
+      const flower = flowerRepo.seed({
+        ownerId: OWNER,
+        imageKey: 'v4',
+        takenAt: new Date(),
+      });
+      expect(await service.isVisibleTo('etranger', flower)).toBe(false);
+    });
+  });
+
   it('partage une fleur avec GPS', async () => {
     const flower = flowerRepo.seed({
       ownerId: OWNER,

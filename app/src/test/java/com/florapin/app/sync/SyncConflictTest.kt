@@ -47,14 +47,25 @@ private class MemDao : FlowerDao {
     override suspend fun deleteAll() { store.clear() }
     override suspend fun pendingSync() =
         store.values.filter { it.syncState != SyncState.SYNCED.name }
-    override suspend fun markSynced(id: Long, serverId: String, updatedAt: Long) {
+    override suspend fun markSynced(
+        id: Long,
+        serverId: String,
+        updatedAt: Long,
+        expectedUpdatedAt: Long,
+    ) {
         store[id]?.let {
-            store[id] = it.copy(serverId = serverId, syncState = SyncState.SYNCED.name)
+            if (it.updatedAt != expectedUpdatedAt) {
+                store[id] = it.copy(serverId = serverId)
+            } else {
+                store[id] = it.copy(serverId = serverId, syncState = SyncState.SYNCED.name)
+            }
         }
     }
     override suspend fun markFailed(id: Long) {
         store[id]?.let { store[id] = it.copy(syncState = SyncState.FAILED.name) }
     }
+    override suspend fun pendingImageUploads(): List<FlowerEntity> = emptyList()
+    override suspend fun setImagePendingUpload(id: Long, pending: Boolean) {}
     override suspend fun setImagePath(id: Long, path: String) {
         store[id]?.let { store[id] = it.copy(imagePath = path) }
     }

@@ -10,6 +10,54 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
+## [Non publié]
+
+### Sécurité
+- **Backend — limites d'upload.** Les endpoints d'upload d'image (`POST
+  /flowers/:id/image`, photos additionnelles) refusent désormais les fichiers
+  de plus de 15 Mo (413) et les types non-image (400) : filtre MIME Multer +
+  vérification des magic bytes via sharp (un binaire corrompu renvoie un 400
+  propre au lieu d'un 500). L'expiry des URLs présignées MinIO est plafonné à
+  300 s.
+- **Backend — rate limiting.** `@nestjs/throttler` global (100 req/min) avec
+  limites strictes sur l'authentification : login 5/min, register 3/min,
+  forgot-password et renvoi d'email de vérification 3/15 min. Bloque le
+  brute-force et le flooding d'emails.
+- **Backend — autorisations.** Liker/déliker une fleur exige désormais de la
+  voir (propriétaire, partage ciblé ou diffusion réseau) — plus de likes ni de
+  notifications sur des fleurs privées d'inconnus. `DELETE /push/devices/:token`
+  ne supprime plus que les jetons du compte authentifié. Inviter un email sans
+  compte renvoie une réponse générique au lieu d'un 404 (anti-énumération
+  d'adresses).
+- **Android — sauvegarde.** Règles de backup (`dataExtractionRules` +
+  `fullBackupContent`) excluant les jetons d'auth ; `EncryptedTokenStore`
+  survit à une restauration sur un autre appareil (prefs indéchiffrables →
+  reset + reconnexion) au lieu de crasher au lancement en boucle.
+
+### Corrigé
+- **Sync — suppression propagée au serveur.** Supprimer une fleur synchronisée
+  fait un soft-delete poussé au serveur (puis purge locale de la ligne, du
+  fichier image et des photos) ; la fleur disparaît des autres appareils et du
+  feed des amis, et ne « ressuscite » plus au full-pull suivant. Une
+  confirmation est demandée avant la suppression.
+- **Sync — plus d'écrasement des éditions locales.** Le pull n'applique plus
+  l'état serveur sur une fleur dont des modifications locales n'ont pas encore
+  été poussées, et `markSynced` ne bascule en SYNCED que si la fleur n'a pas
+  été éditée pendant le push.
+- **Sync — fiabilité.** Verrou process-wide sur `SyncWorker` (le périodique et
+  le one-shot ne tournent plus en parallèle → plus de doublons serveur) ; un
+  échec d'upload d'image est marqué (`imagePendingUpload`, migration Room
+  v13) et retenté aux syncs suivantes au lieu d'être perdu ; un élément en
+  erreur permanente (404/409) ne bloque plus toute la sync albums/photos en
+  retry infini.
+- **Auth — déconnexions intempestives.** Une erreur réseau pendant le refresh
+  du token n'efface plus la session (seul un refus 401/403 du serveur
+  déconnecte).
+- **Notifications visibles sur Android 13+.** La permission
+  `POST_NOTIFICATIONS` est demandée (une seule fois) à l'arrivée sur la
+  galerie ; les push (partages, amis, commentaires) s'affichent enfin sur les
+  appareils récents.
+
 ## [1.7.0] — 2026-06-30
 
 ### Ajouté

@@ -156,6 +156,29 @@ export class SharesService {
   }
 
   /**
+   * Vérifie que [viewerId] voit [flower] : propriétaire, partage ciblé reçu,
+   * ou fleur diffusée à son réseau (`visibility='friends'`). Même périmètre
+   * que le feed (cf. FeedService.getFeed). Utilisé par les commentaires et les
+   * cœurs pour contrôler l'accès à une fleur donnée.
+   *
+   * NB : recalcule les fleurs partagées/diffusées au viewer — coût acceptable
+   * pour un contrôle ponctuel (la revue perf est un chantier séparé).
+   */
+  async isVisibleTo(viewerId: string, flower: Flower): Promise<boolean> {
+    if (flower.ownerId === viewerId) {
+      return true;
+    }
+    const [targeted, broadcast] = await Promise.all([
+      this.sharedWithMe(viewerId),
+      this.broadcastWithMe(viewerId),
+    ]);
+    return (
+      targeted.some((f) => f.id === flower.id) ||
+      broadcast.some((f) => f.id === flower.id)
+    );
+  }
+
+  /**
    * Fleurs « à identifier » d'amis visibles par [viewerId] (NODE-133/134).
    *
    * La demande d'identification notifie *tous* les amis acceptés du propriétaire

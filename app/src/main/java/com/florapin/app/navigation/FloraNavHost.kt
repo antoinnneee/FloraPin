@@ -1,5 +1,6 @@
 package com.florapin.app.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -70,6 +71,18 @@ private object Routes {
 }
 
 /**
+ * Routes du flux d'authentification. Le [BackHandler] global du NavHost ne s'y
+ * applique pas : on y laisse la gestion du retour par défaut.
+ */
+private val authRoutes: Set<String> = setOf(
+    Routes.LOGIN,
+    Routes.REGISTER,
+    Routes.FORGOT_PASSWORD,
+    Routes.RESET_PASSWORD,
+    Routes.VERIFY_EMAIL,
+)
+
+/**
  * Graphe de navigation principal avec garde d'authentification : démarre sur
  * Login si l'utilisateur n'est pas connecté, sinon sur la galerie.
  */
@@ -84,7 +97,30 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
     val startDestination = if (loggedIn) Routes.GALLERY else Routes.LOGIN
 
     val currentRoute by navController.currentBackStackEntryAsState()
-    val showBottomBar = currentRoute?.destination?.route in topLevelRoutes
+    val currentRouteStr = currentRoute?.destination?.route
+    val showBottomBar = currentRouteStr in topLevelRoutes
+
+    // Gestion du retour hardware, en trois temps (hors flux d'auth) :
+    //   1. Sur un écran poussé (détail fleur, espèce, albums…), on dépile pour
+    //      revenir à la page courante d'où l'on venait.
+    //   2. Sur un onglet secondaire (Carte, Partagées, Profil), on revient à
+    //      l'Accueil.
+    //   3. Sur l'Accueil, le handler est désactivé : le système quitte l'app.
+    // Placé au niveau du NavHost, ce handler reste un repli : tout BackHandler
+    // interne (visionneuse plein écran, bottom sheet, étapes de capture) est
+    // composé plus bas et garde donc la priorité (LIFO du dispatcher).
+    val homeRoute = TopLevelDestination.HOME.route
+    val inMainArea = currentRouteStr != null && currentRouteStr !in authRoutes
+    BackHandler(enabled = inMainArea && currentRouteStr != homeRoute) {
+        if (currentRouteStr != null && currentRouteStr !in topLevelRoutes) {
+            // Écran poussé → page précédente. Si rien à dépiler (arrivée directe
+            // via notification/deep link), repli sur l'Accueil.
+            if (!navController.popBackStack()) navController.navigateToTab(homeRoute)
+        } else {
+            // Onglet secondaire → Accueil.
+            navController.navigateToTab(homeRoute)
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -219,7 +255,6 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
                 onCapture = { navController.navigate(Routes.CAPTURE) },
                 onFlowerClick = { id -> navController.navigate(Routes.detail(id)) },
                 onOpenFriends = { navController.navigate(Routes.FRIENDS) },
-                onOpenAlbums = { navController.navigate(Routes.ALBUMS) },
                 onOpenIdentify = { navController.navigate(Routes.IDENTIFY) },
             )
         }
@@ -227,8 +262,9 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
             IdentifyScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.ALBUMS) {
+            // Onglet racine : pas de flèche retour (le BackHandler global gère le
+            // retour vers l'Accueil).
             AlbumsScreen(
-                onBack = { navController.popBackStack() },
                 onOpenAlbum = { id -> navController.navigate(Routes.album(id)) },
             )
         }

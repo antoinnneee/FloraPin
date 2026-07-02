@@ -20,7 +20,6 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -94,19 +93,10 @@ fun MapScreen(
     Scaffold(
         modifier = modifier,
         topBar = {
+            // Topbar épurée : le style de carte est descendu dans la barre de
+            // filtres (chip « 🗺️ »), comme le reste des contrôles.
             TopAppBar(
                 title = { Text("Carte") },
-                actions = {
-                    if (apiKey.isNotBlank()) {
-                        MapStyleSelector(
-                            selected = selectedStyle,
-                            onSelect = {
-                                selectedStyle = it
-                                stylePrefs.set(it)
-                            },
-                        )
-                    }
-                },
             )
         },
         floatingActionButton = {
@@ -175,6 +165,11 @@ fun MapScreen(
                 onSelectSpecies = viewModel::setSpeciesFilter,
                 friendsOnly = friendsOnly,
                 onToggleFriends = viewModel::toggleFriendsOnly,
+                style = selectedStyle,
+                onSelectStyle = {
+                    selectedStyle = it
+                    stylePrefs.set(it)
+                },
             )
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
@@ -199,6 +194,8 @@ private fun FilterBar(
     onSelectSpecies: (String?) -> Unit,
     friendsOnly: Boolean,
     onToggleFriends: () -> Unit,
+    style: MapStyle,
+    onSelectStyle: (MapStyle) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -227,25 +224,36 @@ private fun FilterBar(
             selectedSpecies = selectedSpecies,
             onSelectSpecies = onSelectSpecies,
         )
+
+        // Apparence de la carte (distincte des filtres de données) : chip affichant
+        // le style courant en toutes lettres, avec menu de sélection.
+        MapStyleChip(selected = style, onSelect = onSelectStyle)
     }
 }
 
-/** Sélecteur de style de carte (combobox) affiché dans la barre du haut. */
+/** Chip de choix du style (apparence) de la carte, dans la barre de filtres. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MapStyleSelector(
+private fun MapStyleChip(
     selected: MapStyle,
     onSelect: (MapStyle) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
 
     Box {
-        TextButton(onClick = { expanded = true }) {
-            Text(selected.label)
-        }
+        FilterChip(
+            selected = false,
+            onClick = { expanded = true },
+            leadingIcon = { Text("🗺️") },
+            label = { Text(selected.label) },
+        )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             MapStyle.entries.forEach { style ->
                 DropdownMenuItem(
-                    text = { Text(style.label) },
+                    text = {
+                        val mark = if (style == selected) "✓ " else ""
+                        Text("$mark${style.label}")
+                    },
                     onClick = {
                         onSelect(style)
                         expanded = false

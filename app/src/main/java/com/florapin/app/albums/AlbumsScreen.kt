@@ -40,9 +40,11 @@ import com.florapin.app.ui.components.EmptyState
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlbumsScreen(
-    onBack: () -> Unit,
     onOpenAlbum: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    // Onglet racine : pas de retour par défaut. Fourni seulement si l'écran est
+    // ouvert en pile (flèche affichée dans ce cas).
+    onBack: (() -> Unit)? = null,
     viewModel: AlbumsViewModel = viewModel(),
 ) {
     val albums by viewModel.albums.collectAsStateWithLifecycle()
@@ -54,7 +56,11 @@ fun AlbumsScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Albums") },
-                navigationIcon = { IconButton(onClick = onBack) { Text("←") } },
+                navigationIcon = {
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) { Text("←") }
+                    }
+                },
             )
         },
         floatingActionButton = {

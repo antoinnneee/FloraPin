@@ -16,6 +16,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -143,12 +145,26 @@ fun DetailScreen(
                     if (current != null) {
                         IconButton(onClick = { showAddToAlbum = true }) { Text("📁") }
                         IconButton(onClick = { showShare = true }) { Text("📤") }
+                        // Suppression (destructive) reléguée dans un menu de
+                        // débordement pour éviter un toucher accidentel à côté des
+                        // actions courantes ; une confirmation suit de toute façon.
+                        var menuOpen by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(onClick = { menuOpen = true }) { Text("⋮") }
+                            DropdownMenu(
+                                expanded = menuOpen,
+                                onDismissRequest = { menuOpen = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("🗑️ Supprimer") },
+                                    onClick = {
+                                        menuOpen = false
+                                        showDeleteConfirm = true
+                                    },
+                                )
+                            }
+                        }
                     }
-                    IconButton(
-                        // Confirmation avant suppression (I14) : évite qu'un
-                        // simple toucher accidentel détruise la fleur.
-                        onClick = { showDeleteConfirm = true },
-                    ) { Text("🗑️") }
                 },
             )
         },

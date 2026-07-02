@@ -10,6 +10,27 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
+## [1.11.0] — 2026-07-02
+
+### Modifié
+- **Interface allégée & plus lisible.** La barre du haut de l'Accueil était
+  surchargée : les **Albums** rejoignent la barre de navigation du bas (nouvel
+  onglet 📁, à côté de l'Accueil) et le **tri** descend dans la vue sous forme
+  d'une pastille affichant le critère courant en toutes lettres (« Tri : Plus
+  récentes »), au lieu d'une icône ↕️ dans la barre du haut. Il ne reste plus que
+  les entrées à notifier (🔎 identification, 🤝 amis) dans l'entête. Sur la
+  **Carte**, le choix du style rejoint lui aussi la barre de filtres (chip
+  « 🗺️ {style} »), vidant complètement sa barre du haut. Sur le **détail d'une
+  fleur**, la suppression (destructive) passe dans un menu de débordement « ⋮ »
+  pour éviter les touchers accidentels à côté des actions « Album » et
+  « Partager ».
+- **Gestion du bouton retour en trois temps.** Le retour matériel suit désormais
+  une séquence explicite : depuis la visu d'une fleur (ou tout écran poussé), il
+  revient à la page courante ; depuis un onglet secondaire (Carte, Partagées,
+  Profil), il ramène à l'Accueil ; depuis l'Accueil, il quitte l'application. Les
+  gestes de retour internes (visionneuse plein écran, fil de commentaires, étapes
+  de capture) restent prioritaires.
+
 ## [1.10.1] — 2026-07-02
 
 ### Corrigé

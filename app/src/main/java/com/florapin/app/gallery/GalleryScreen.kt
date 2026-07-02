@@ -2,6 +2,7 @@ package com.florapin.app.gallery
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
@@ -53,7 +55,6 @@ fun GalleryScreen(
     onCapture: () -> Unit,
     onFlowerClick: (Long) -> Unit,
     onOpenFriends: () -> Unit,
-    onOpenAlbums: () -> Unit,
     onOpenIdentify: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: GalleryViewModel = viewModel(),
@@ -74,10 +75,9 @@ fun GalleryScreen(
             TopAppBar(
                 title = { Text("🌸 FloraPin") },
                 actions = {
-                    SortMenu(selected = sort, onSelect = viewModel::setSort)
-                    IconButton(onClick = onOpenAlbums) {
-                        Text("📁", style = MaterialTheme.typography.titleLarge)
-                    }
+                    // Topbar allégée : seules les entrées « à notifier » restent
+                    // ici (identification demandée, invitations d'amis). Le tri est
+                    // descendu dans la vue, les albums dans la barre du bas.
                     BadgedEmojiAction("🔎", identifyBadge, onClick = onOpenIdentify)
                     BadgedEmojiAction("🤝", friendsBadge, onClick = onOpenFriends)
                 },
@@ -94,6 +94,12 @@ fun GalleryScreen(
                 query = query,
                 onQueryChange = viewModel::setQuery,
             )
+            // Tri rendu visible directement dans la vue, sous forme de pastille
+            // affichant le critère courant en toutes lettres (façon badge). N'a de
+            // sens que s'il y a des fleurs à trier.
+            if (flowers.isNotEmpty()) {
+                SortChip(selected = sort, onSelect = viewModel::setSort)
+            }
             when {
                 flowers.isNotEmpty() -> LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = 120.dp),
@@ -167,28 +173,38 @@ private fun SearchBar(
     )
 }
 
-/** Menu déroulant de choix du tri. */
+/**
+ * Pastille de tri façon « badge », posée dans la vue (et non dans la topbar).
+ * Elle affiche le critère de tri courant en toutes lettres et ouvre le menu de
+ * sélection au clic.
+ */
 @Composable
-private fun SortMenu(
+private fun SortChip(
     selected: GallerySort,
     onSelect: (GallerySort) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    IconButton(onClick = { expanded = true }) {
-        Text("↕️", style = MaterialTheme.typography.titleLarge)
-    }
-    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-        GallerySort.entries.forEach { order ->
-            DropdownMenuItem(
-                text = {
-                    val mark = if (order == selected) "✓ " else ""
-                    Text("$mark${order.label}")
-                },
-                onClick = {
-                    onSelect(order)
-                    expanded = false
-                },
-            )
+    Box(
+        modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 4.dp),
+    ) {
+        AssistChip(
+            onClick = { expanded = true },
+            leadingIcon = { Text("↕️") },
+            label = { Text("Tri : ${selected.label}") },
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            GallerySort.entries.forEach { order ->
+                DropdownMenuItem(
+                    text = {
+                        val mark = if (order == selected) "✓ " else ""
+                        Text("$mark${order.label}")
+                    },
+                    onClick = {
+                        onSelect(order)
+                        expanded = false
+                    },
+                )
+            }
         }
     }
 }

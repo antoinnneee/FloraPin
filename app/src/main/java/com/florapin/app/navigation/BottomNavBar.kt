@@ -8,8 +8,8 @@ import androidx.compose.runtime.Composable
 
 /**
  * Onglets principaux de la bottom navigation bar (NODE-110). Chaque onglet
- * correspond à une destination racine persistante : Accueil (galerie), Carte,
- * Partagées (feed) et Profil. Le reste de la navigation (Albums, Amis, Détail,
+ * correspond à une destination racine persistante : Accueil (galerie), Albums,
+ * Carte, Partagées (feed) et Profil. Le reste de la navigation (Amis, Détail,
  * Capture) reste poussé par-dessus, sans onglet dédié.
  */
 enum class TopLevelDestination(
@@ -18,6 +18,7 @@ enum class TopLevelDestination(
     val label: String,
 ) {
     HOME("gallery", "🏠", "Accueil"),
+    ALBUMS("albums", "📁", "Albums"),
     MAP("map", "🗺️", "Carte"),
     FEED("feed", "🖼️", "Partagées"),
     PROFILE("profile", "👤", "Profil"),

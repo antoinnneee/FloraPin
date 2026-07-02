@@ -52,7 +52,7 @@ export class FcmPushSender extends PushSender {
       .map(({ token }) => token);
 
     for (const token of stale) {
-      await this.devices.unregister(token);
+      await this.devices.purgeToken(token);
     }
     if (stale.length > 0) {
       this.logger.log(`${stale.length} jeton(s) FCM invalide(s) purgé(s).`);

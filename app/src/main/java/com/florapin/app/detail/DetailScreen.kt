@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -22,6 +23,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,9 +45,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
 import com.florapin.app.BuildConfig
+import com.florapin.app.R
 import com.florapin.app.albums.AddToAlbumSheet
 import com.florapin.app.capture.CameraScreen
 import com.florapin.app.data.FlowerEntity
@@ -113,6 +117,7 @@ fun DetailScreen(
     var showShare by remember { mutableStateOf(false) }
     var showAddToAlbum by remember { mutableStateOf(false) }
     var showCamera by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     if (showCamera) {
         CameraScreen(
@@ -140,7 +145,9 @@ fun DetailScreen(
                         IconButton(onClick = { showShare = true }) { Text("📤") }
                     }
                     IconButton(
-                        onClick = { viewModel.delete(onDeleted = onBack) },
+                        // Confirmation avant suppression (I14) : évite qu'un
+                        // simple toucher accidentel détruise la fleur.
+                        onClick = { showDeleteConfirm = true },
                     ) { Text("🗑️") }
                 },
             )
@@ -190,6 +197,27 @@ fun DetailScreen(
         AddToAlbumSheet(
             flowerLocalId = flowerId,
             onDismiss = { showAddToAlbum = false },
+        )
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text(stringResource(R.string.delete_flower_title)) },
+            text = { Text(stringResource(R.string.delete_flower_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirm = false
+                        viewModel.delete(onDeleted = onBack)
+                    },
+                ) { Text(stringResource(R.string.delete_flower_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text(stringResource(R.string.delete_flower_cancel))
+                }
+            },
         )
     }
 }

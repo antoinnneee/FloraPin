@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.FlowerRepository
 import com.florapin.app.network.dto.SpeciesDto
+import com.florapin.app.sync.SyncScheduler
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -78,7 +79,12 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
     fun delete(onDeleted: () -> Unit) {
         val current = flower.value ?: return
         viewModelScope.launch {
+            // Soft-delete si la fleur est connue du serveur (propagée puis purgée
+            // au push), hard-delete sinon — voir FlowerRepository.delete (C3).
             repository.delete(current)
+            // Propage sans attendre la sync périodique (no-op si sync désactivée
+            // ou utilisateur non connecté).
+            SyncScheduler.syncNow(getApplication())
             onDeleted()
         }
     }

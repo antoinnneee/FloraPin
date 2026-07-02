@@ -52,20 +52,30 @@ export class SyncService {
 
     return {
       serverTime: new Date().toISOString(),
-      flowers: await Promise.all(
-        changed.map((f) => this.flowersService.toResponse(f)),
-      ),
+      flowers: await this.flowersService.toResponseMany(changed),
       deletedIds: deleted.map((f) => f.id),
     };
   }
 
+  /**
+   * Pousse un lot de captures locales. Idempotent par `localId` : le client
+   * envoie un identifiant local stable (l'id de sa ligne Room, cf. sync Android)
+   * réutilisé tel quel à chaque retry. `FlowersService.create` déduplique sur
+   * (owner, clientId) et renvoie la fleur existante au lieu d'un doublon quand la
+   * réponse d'un push précédent a été perdue. On échoue tôt par item : un item
+   * fautif n'empêche pas les précédents d'être persistés côté serveur.
+   */
   async push(
     ownerId: string,
     items: PushItemDto[],
   ): Promise<SyncPushItemResult[]> {
     const results: SyncPushItemResult[] = [];
     for (const item of items) {
-      const created = await this.flowersService.create(ownerId, item);
+      const created = await this.flowersService.create(
+        ownerId,
+        item,
+        item.localId,
+      );
       results.push({ localId: item.localId, ...created });
     }
     return results;

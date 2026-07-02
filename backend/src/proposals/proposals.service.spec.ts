@@ -7,7 +7,6 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { Flower } from '../flowers/flower.entity';
-import { FlowerResponse } from '../flowers/flowers.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SharesService } from '../shares/shares.service';
 import { Species } from '../species/species.entity';
@@ -81,13 +80,13 @@ describe('ProposalsService', () => {
   let service: ProposalsService;
   let flowerRepo: FakeFlowerRepo;
   let proposalRepo: FakeProposalRepo;
-  let visibleToFriend: FlowerResponse[];
+  let canPropose: boolean;
   let notified: Array<{ userId: string; type: string }>;
 
   beforeEach(async () => {
     flowerRepo = new FakeFlowerRepo();
     proposalRepo = new FakeProposalRepo();
-    visibleToFriend = [{ id: FLOWER } as FlowerResponse];
+    canPropose = true;
     notified = [];
 
     const moduleRef = await Test.createTestingModule({
@@ -97,7 +96,9 @@ describe('ProposalsService', () => {
         { provide: getRepositoryToken(Flower), useValue: flowerRepo },
         {
           provide: SharesService,
-          useValue: { needsIdentificationFromFriends: async () => visibleToFriend },
+          // Contrôle booléen léger (sans presign) : la fleur « à identifier »
+          // appartient-elle à un ami accepté du proposeur ?
+          useValue: { needsIdentificationVisibleTo: async () => canPropose },
         },
         {
           provide: NotificationsService,
@@ -126,7 +127,11 @@ describe('ProposalsService', () => {
         {
           provide: UsersService,
           // Résolution simulée du nom d'affichage : « Nom <id> ».
-          useValue: { findById: async (id: string) => ({ displayName: `Nom ${id}` }) },
+          useValue: {
+            findById: async (id: string) => ({ id, displayName: `Nom ${id}` }),
+            findByIds: async (ids: string[]) =>
+              ids.map((id) => ({ id, displayName: `Nom ${id}` })),
+          },
         },
       ],
     }).compile();
@@ -173,7 +178,7 @@ describe('ProposalsService', () => {
       species: null,
       needsIdentification: true,
     });
-    visibleToFriend = [];
+    canPropose = false;
     await expect(
       service.propose(FRIEND, FLOWER, 'Rosa canina'),
     ).rejects.toBeInstanceOf(ForbiddenException);

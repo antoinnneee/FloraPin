@@ -74,16 +74,67 @@ class FlowerDaoTest {
                 imagePath = "/p.jpg",
                 createdAt = 1_000L,
                 syncState = SyncState.PENDING.name,
+                updatedAt = 1_000L,
             ),
         )
         assertEquals(1, dao.pendingSync().size)
 
-        dao.markSynced(id, "srv-9", 6_000L)
+        dao.markSynced(id, "srv-9", 6_000L, expectedUpdatedAt = 1_000L)
 
         assertEquals(0, dao.pendingSync().size)
         val saved = dao.getById(id)
         assertEquals("srv-9", saved?.serverId)
         assertEquals(SyncState.SYNCED.name, saved?.syncState)
+        assertEquals(6_000L, saved?.updatedAt)
+    }
+
+    @Test
+    fun markSynced_concurrentEdit_keepsPendingButPersistsServerId() = runBlocking {
+        val id = dao.insert(
+            FlowerEntity(
+                imagePath = "/p.jpg",
+                createdAt = 1_000L,
+                syncState = SyncState.PENDING.name,
+                updatedAt = 1_000L,
+            ),
+        )
+        // Édition utilisateur survenue APRÈS la lecture du push (updatedAt 1_000).
+        dao.update(
+            dao.getById(id)!!.copy(
+                notes = "édité pendant le push",
+                updatedAt = 2_000L,
+                syncState = SyncState.PENDING.name,
+            ),
+        )
+
+        dao.markSynced(id, "srv-9", 6_000L, expectedUpdatedAt = 1_000L)
+
+        val saved = dao.getById(id)!!
+        // Le serverId est persisté (anti-doublon)…
+        assertEquals("srv-9", saved.serverId)
+        // … mais l'édition concurrente n'est pas écrasée : toujours PENDING.
+        assertEquals(SyncState.PENDING.name, saved.syncState)
+        assertEquals(2_000L, saved.updatedAt)
+        assertEquals("édité pendant le push", saved.notes)
+    }
+
+    @Test
+    fun pendingImageUploads_flagLifecycle() = runBlocking {
+        val id = dao.insert(
+            FlowerEntity(
+                imagePath = "/p.jpg",
+                createdAt = 1_000L,
+                serverId = "srv-1",
+                syncState = SyncState.SYNCED.name,
+            ),
+        )
+        assertEquals(0, dao.pendingImageUploads().size)
+
+        dao.setImagePendingUpload(id, true)
+        assertEquals(listOf(id), dao.pendingImageUploads().map { it.id })
+
+        dao.setImagePendingUpload(id, false)
+        assertEquals(0, dao.pendingImageUploads().size)
     }
 
     @Test

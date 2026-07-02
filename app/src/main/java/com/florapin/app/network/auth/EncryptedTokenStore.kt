@@ -7,16 +7,32 @@ import androidx.security.crypto.MasterKey
 
 /**
  * Stockage des jetons dans des EncryptedSharedPreferences (chiffrées au repos).
+ *
+ * Résilience (C4) : si le fichier de prefs est indéchiffrable (typiquement une
+ * restauration de sauvegarde sur un autre appareil, où la clé Keystore d'origine
+ * n'existe pas), on supprime le fichier corrompu et on repart d'un stockage
+ * vierge au lieu de crasher au lancement — l'utilisateur devra simplement se
+ * reconnecter.
  */
 class EncryptedTokenStore(context: Context) : TokenStore {
 
     private val prefs: SharedPreferences = run {
-        val masterKey = MasterKey.Builder(context.applicationContext)
+        val appContext = context.applicationContext
+        try {
+            createEncryptedPrefs(appContext)
+        } catch (_: Exception) {
+            appContext.deleteSharedPreferences(PREFS_FILE)
+            createEncryptedPrefs(appContext)
+        }
+    }
+
+    private fun createEncryptedPrefs(context: Context): SharedPreferences {
+        val masterKey = MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
-        EncryptedSharedPreferences.create(
-            context.applicationContext,
-            "florapin_auth",
+        return EncryptedSharedPreferences.create(
+            context,
+            PREFS_FILE,
             masterKey,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
@@ -51,6 +67,8 @@ class EncryptedTokenStore(context: Context) : TokenStore {
     }
 
     private companion object {
+        /** Nom du fichier de prefs — exclu des sauvegardes (voir res/xml). */
+        const val PREFS_FILE = "florapin_auth"
         const val KEY_ACCESS = "access_token"
         const val KEY_REFRESH = "refresh_token"
         const val KEY_USER_ID = "user_id"

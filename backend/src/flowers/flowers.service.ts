@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { FlowerLike } from '../likes/flower-like.entity';
 import { StorageService, PresignedUpload } from '../storage/storage.service';
 import { encodeWebp } from '../storage/image-processing';
@@ -73,10 +73,16 @@ export class FlowersService {
   /**
    * Crée la fleur (métadonnées + GPS) et renvoie une URL présignée pour
    * téléverser le binaire image directement sur le stockage objet.
+   *
+   * [clientId] : identifiant local stable fourni par le client (sync push,
+   * NODE-19). Rend la création idempotente sur le modèle des albums : un re-push
+   * (réponse perdue / retry) retombe sur la fleur existante au lieu d'en créer
+   * un doublon. Renvoie alors une nouvelle URL d'upload pointant sur son objet.
    */
   async create(
     ownerId: string,
     dto: CreateFlowerDto,
+    clientId?: string,
   ): Promise<CreateFlowerResult> {
     const hasLat = dto.latitude !== undefined;
     const hasLng = dto.longitude !== undefined;
@@ -86,9 +92,21 @@ export class FlowersService {
       );
     }
 
+    if (clientId) {
+      const existing = await this.flowers.findOne({
+        where: { ownerId, clientId },
+        relations: { speciesRef: true },
+      });
+      if (existing) {
+        const upload = await this.storage.presignUpload(existing.imageKey);
+        return { flower: await this.toResponse(existing, ownerId), upload };
+      }
+    }
+
     const imageKey = this.storage.buildKey(ownerId, 'jpg');
     const entity = this.flowers.create({
       ownerId,
+      clientId: clientId ?? null,
       imageKey,
       location:
         hasLat && hasLng
@@ -152,7 +170,9 @@ export class FlowersService {
     await this.storage.putObject(imageKey, full, 'image/webp');
     await this.storage.putObject(thumbnailKey, thumbnail, 'image/webp');
 
-    const oldKeys = [flower.imageKey];
+    // Inclut l'ancienne miniature : sinon un ré-upload laissait un thumbnail
+    // orphelin sur MinIO à chaque remplacement d'image.
+    const oldKeys = [flower.imageKey, flower.thumbnailKey];
     flower.imageKey = imageKey;
     flower.thumbnailKey = thumbnailKey;
     const saved = await this.flowers.save(flower);
@@ -163,10 +183,13 @@ export class FlowersService {
       { imageKey, thumbnailKey },
     );
 
-    // Best-effort : retire l'ancien objet (souvent le placeholder .jpg).
+    // Best-effort : retire les anciens objets (image + miniature, souvent le
+    // placeholder .jpg initial).
     await Promise.all(
       oldKeys
-        .filter((k) => k && k !== imageKey)
+        .filter(
+          (k): k is string => !!k && k !== imageKey && k !== thumbnailKey,
+        )
         .map((k) => this.storage.delete(k).catch(() => undefined)),
     );
 
@@ -181,25 +204,32 @@ export class FlowersService {
     return { imageUrl: await this.storage.presignDownload(flower.imageKey) };
   }
 
-  /** Liste les fleurs de l'utilisateur, filtrables par espèce et/ou étiquette. */
+  /**
+   * Liste les fleurs de l'utilisateur, filtrables par espèce et/ou étiquette.
+   * Le filtrage est poussé en SQL (au lieu de charger toutes les fleurs puis de
+   * filtrer en mémoire) pour exploiter les index `idx_flowers_species` /
+   * `idx_flowers_tags`. `species` reste une correspondance insensible à la casse
+   * par sous-chaîne (ILIKE) ; `tag` teste l'appartenance au tableau (`= ANY`).
+   */
   async search(
     ownerId: string,
     filters: { species?: string; tag?: string } = {},
   ): Promise<FlowerResponse[]> {
-    const flowers = await this.flowers.find({
-      where: { ownerId },
-      order: { takenAt: 'DESC' },
-      relations: { speciesRef: true },
-    });
-
-    const species = filters.species?.toLowerCase();
-    const filtered = flowers.filter((f) => {
-      const speciesOk =
-        !species || (f.species?.toLowerCase().includes(species) ?? false);
-      const tagOk = !filters.tag || (f.tags?.includes(filters.tag) ?? false);
-      return speciesOk && tagOk;
-    });
-    return Promise.all(filtered.map((f) => this.toResponse(f, ownerId)));
+    const qb = this.flowers
+      .createQueryBuilder('flower')
+      .leftJoinAndSelect('flower.speciesRef', 'speciesRef')
+      .where('flower.ownerId = :ownerId', { ownerId })
+      .orderBy('flower.takenAt', 'DESC');
+    if (filters.species) {
+      qb.andWhere('flower.species ILIKE :species', {
+        species: `%${filters.species}%`,
+      });
+    }
+    if (filters.tag) {
+      qb.andWhere(':tag = ANY(flower.tags)', { tag: filters.tag });
+    }
+    const flowers = await qb.getMany();
+    return this.toResponseMany(flowers, ownerId);
   }
 
   async update(
@@ -250,17 +280,88 @@ export class FlowersService {
   /**
    * Construit la réponse API d'une fleur (photos + URL couverture présignées).
    * [viewerId] sert à calculer `likedByMe` (NODE-139) ; omis pour les contextes
-   * sans spectateur identifié.
+   * sans spectateur identifié. Pour une LISTE de fleurs, préférer
+   * `toResponseMany` qui regroupe les requêtes photos/cœurs (évite le N+1).
    */
   async toResponse(
     flower: Flower,
     viewerId?: string,
   ): Promise<FlowerResponse> {
-    const [longitude, latitude] = flower.location?.coordinates ?? [null, null];
     const photos = await this.photos.find({
       where: { flowerId: flower.id },
       order: { position: 'ASC' },
     });
+    const likeCount = await this.likes.count({
+      where: { flowerId: flower.id },
+    });
+    const likedByMe = viewerId
+      ? (await this.likes.count({
+          where: { flowerId: flower.id, userId: viewerId },
+        })) > 0
+      : false;
+    return this.buildResponse(flower, photos, likeCount, likedByMe);
+  }
+
+  /**
+   * Variante batch de `toResponse` pour une liste de fleurs (feed, listing,
+   * partages…). Charge les photos et les cœurs de TOUTES les fleurs en deux
+   * requêtes groupées (`IN`) au lieu d'une par fleur, supprimant le N+1 sur les
+   * requêtes SQL. Les URLs présignées restent calculées par photo (inhérent au
+   * stockage objet). Renvoie les réponses dans l'ordre des fleurs fournies.
+   */
+  async toResponseMany(
+    flowers: Flower[],
+    viewerId?: string,
+  ): Promise<FlowerResponse[]> {
+    if (flowers.length === 0) return [];
+    const flowerIds = flowers.map((f) => f.id);
+
+    const allPhotos = await this.photos.find({
+      where: { flowerId: In(flowerIds) },
+      order: { position: 'ASC' },
+    });
+    const photosByFlower = new Map<string, FlowerPhoto[]>();
+    for (const p of allPhotos) {
+      const list = photosByFlower.get(p.flowerId);
+      if (list) list.push(p);
+      else photosByFlower.set(p.flowerId, [p]);
+    }
+
+    // Un seul chargement des cœurs de la page : comptage + « liké par moi »
+    // calculés en mémoire à partir de ce jeu de lignes.
+    const allLikes = await this.likes.find({
+      where: { flowerId: In(flowerIds) },
+    });
+    const likeCountByFlower = new Map<string, number>();
+    const likedByViewer = new Set<string>();
+    for (const like of allLikes) {
+      likeCountByFlower.set(
+        like.flowerId,
+        (likeCountByFlower.get(like.flowerId) ?? 0) + 1,
+      );
+      if (viewerId && like.userId === viewerId) likedByViewer.add(like.flowerId);
+    }
+
+    return Promise.all(
+      flowers.map((flower) =>
+        this.buildResponse(
+          flower,
+          photosByFlower.get(flower.id) ?? [],
+          likeCountByFlower.get(flower.id) ?? 0,
+          viewerId ? likedByViewer.has(flower.id) : false,
+        ),
+      ),
+    );
+  }
+
+  /** Assemble la réponse API à partir des données déjà chargées (photos/cœurs). */
+  private async buildResponse(
+    flower: Flower,
+    photos: FlowerPhoto[],
+    likeCount: number,
+    likedByMe: boolean,
+  ): Promise<FlowerResponse> {
+    const [longitude, latitude] = flower.location?.coordinates ?? [null, null];
     const photoResponses: PhotoResponse[] = await Promise.all(
       photos.map(async (p) => ({
         id: p.id,
@@ -273,14 +374,6 @@ export class FlowersService {
       })),
     );
     const cover = photoResponses.find((p) => p.isCover) ?? photoResponses[0];
-    const likeCount = await this.likes.count({
-      where: { flowerId: flower.id },
-    });
-    const likedByMe = viewerId
-      ? (await this.likes.count({
-          where: { flowerId: flower.id, userId: viewerId },
-        })) > 0
-      : false;
     return {
       id: flower.id,
       ownerId: flower.ownerId,

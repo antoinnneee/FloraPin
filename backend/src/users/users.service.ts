@@ -47,6 +47,18 @@ export class UsersService {
     return this.users.findOne({ where: { id } });
   }
 
+  /**
+   * Charge plusieurs utilisateurs en une requête (`IN`). Utilisé pour résoudre
+   * en lot les noms d'affichage (auteurs de commentaires / propositions) sans
+   * multiplier les `findById` (N+1).
+   */
+  findByIds(ids: string[]): Promise<User[]> {
+    if (ids.length === 0) {
+      return Promise.resolve([]);
+    }
+    return this.users.find({ where: { id: In(ids) } });
+  }
+
   /** Met à jour le hash du mot de passe d'un utilisateur (reset — NODE-116). */
   async setPasswordHash(userId: string, passwordHash: string): Promise<void> {
     await this.users.update({ id: userId }, { passwordHash });
@@ -139,9 +151,13 @@ export class UsersService {
     const keys = new Set<string>();
     for (const flower of flowers) {
       if (flower.imageKey) keys.add(flower.imageKey);
+      // La miniature WebP est un objet distinct : sans ça, chaque fleur
+      // (soft-deletes inclus, cf. withDeleted) laissait fuiter sa preview.
+      if (flower.thumbnailKey) keys.add(flower.thumbnailKey);
     }
     for (const photo of photos) {
       if (photo.imageKey) keys.add(photo.imageKey);
+      if (photo.thumbnailKey) keys.add(photo.thumbnailKey);
     }
 
     // Suppression best-effort : un objet déjà absent ne doit pas bloquer

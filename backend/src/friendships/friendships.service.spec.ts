@@ -112,10 +112,16 @@ describe('FriendshipsService', () => {
     expect(res.user.id).toBe(BOB);
   });
 
-  it('invite par email : email inconnu → NotFound', async () => {
-    await expect(
-      service.requestByEmail(ALICE, 'ghost@test'),
-    ).rejects.toBeInstanceOf(NotFoundException);
+  it('invite par email : email inconnu → réponse générique sans ligne (anti-énumération)', async () => {
+    const res = await service.requestByEmail(ALICE, 'ghost@test');
+    // Même forme que le cas nominal : on ne révèle pas l'inexistence du compte.
+    expect(res.status).toBe('pending');
+    expect(res.direction).toBe('outgoing');
+    expect(res.user.email).toBe('ghost@test');
+    expect(res.user.displayName).toBe('');
+    // Aucune relation créée en base.
+    expect(repo.store.size).toBe(0);
+    expect(await service.list(ALICE)).toEqual([]);
   });
 
   it('refuse l’auto-ajout', async () => {

@@ -71,14 +71,44 @@ interface FlowerDao {
     @Query("SELECT * FROM flowers WHERE syncState != 'SYNCED' ORDER BY createdAt ASC")
     suspend fun pendingSync(): List<FlowerEntity>
 
+    /**
+     * Marque une fleur synchronisée après un push. Le `serverId` est TOUJOURS
+     * persisté (anti-doublon : sans lui, un re-push créerait une fleur « grise »
+     * côté serveur). En revanche, `syncState`/`updatedAt` ne basculent en SYNCED
+     * que si la ligne n'a pas été modifiée entre-temps (updatedAt encore égal à
+     * [expectedUpdatedAt]) : une édition utilisateur survenue pendant le push
+     * reste ainsi PENDING et sera poussée au prochain sync.
+     */
     @Query(
-        "UPDATE flowers SET serverId = :serverId, syncState = 'SYNCED', " +
-            "updatedAt = :updatedAt WHERE id = :id",
+        "UPDATE flowers SET serverId = :serverId, " +
+            "syncState = CASE WHEN updatedAt = :expectedUpdatedAt " +
+            "THEN 'SYNCED' ELSE syncState END, " +
+            "updatedAt = CASE WHEN updatedAt = :expectedUpdatedAt " +
+            "THEN :updatedAt ELSE updatedAt END " +
+            "WHERE id = :id",
     )
-    suspend fun markSynced(id: Long, serverId: String, updatedAt: Long)
+    suspend fun markSynced(
+        id: Long,
+        serverId: String,
+        updatedAt: Long,
+        expectedUpdatedAt: Long,
+    )
 
     @Query("UPDATE flowers SET syncState = 'FAILED' WHERE id = :id")
     suspend fun markFailed(id: Long)
+
+    // --- Upload d'image en souffrance (I9) ---
+
+    /** Fleurs synchronisées dont l'upload d'image doit être retenté. */
+    @Query(
+        "SELECT * FROM flowers WHERE imagePendingUpload = 1 " +
+            "AND serverId IS NOT NULL AND deletedAt IS NULL",
+    )
+    suspend fun pendingImageUploads(): List<FlowerEntity>
+
+    /** Pose/lève le marqueur d'upload d'image en souffrance. */
+    @Query("UPDATE flowers SET imagePendingUpload = :pending WHERE id = :id")
+    suspend fun setImagePendingUpload(id: Long, pending: Boolean)
 
     /**
      * Renseigne le chemin local de l'image après mise en cache d'une image

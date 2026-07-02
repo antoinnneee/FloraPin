@@ -7,6 +7,7 @@ import com.florapin.app.data.toEntity
 import com.florapin.app.network.api.PhotosApi
 import com.florapin.app.network.dto.PhotoDto
 import java.io.File
+import retrofit2.HttpException
 
 /**
  * Synchronisation des photos additionnelles (NODE-107), offline-first.
@@ -34,29 +35,83 @@ class PhotoSyncEngine(
      * fleur locale (null si pas encore synchronisée).
      */
     suspend fun push(flowerServerIdOf: suspend (Long) -> String?) {
+        // Retente d'abord les uploads d'image restés en souffrance (I9).
+        retryPendingImageUploads(flowerServerIdOf)
+
         for (photo in photos.pendingSync()) {
             val flowerServerId = flowerServerIdOf(photo.flowerLocalId) ?: continue
-            when {
-                photo.serverId == null && photo.deletedAt == null -> {
-                    val res = photosApi.add(flowerServerId)
-                    // markSynced d'abord : le serverId est persisté même si
-                    // l'upload échoue (évite une re-création en doublon).
-                    photos.markSynced(photo.id, res.photo.id)
-                    if (photo.imagePath.isNotEmpty()) {
-                        runCatching {
-                            uploadPhotoImage(
-                                flowerServerId,
-                                res.photo.id,
-                                File(photo.imagePath),
-                            )
+            // Chaque photo est isolée (I10) : un échec permanent (404…) sur
+            // l'une ne bloque pas la sync des autres ni ne la fait rejouer
+            // indéfiniment par le worker.
+            try {
+                when {
+                    photo.serverId == null && photo.deletedAt == null -> {
+                        val res = photosApi.add(flowerServerId)
+                        // markSynced d'abord : le serverId est persisté même si
+                        // l'upload échoue (évite une re-création en doublon).
+                        photos.markSynced(photo.id, res.photo.id)
+                        if (photo.imagePath.isNotEmpty()) {
+                            val uploaded = runCatching {
+                                uploadPhotoImage(
+                                    flowerServerId,
+                                    res.photo.id,
+                                    File(photo.imagePath),
+                                )
+                            }.isSuccess
+                            // Échec après markSynced : marqué pour être retenté
+                            // au prochain sync au lieu d'être perdu (I9).
+                            if (!uploaded) photos.setImagePendingUpload(photo.id, true)
                         }
                     }
+                    photo.serverId != null && photo.deletedAt != null -> {
+                        runCatching { photosApi.remove(flowerServerId, photo.serverId) }
+                        photos.hardDelete(photo.id)
+                    }
                 }
-                photo.serverId != null && photo.deletedAt != null -> {
-                    runCatching { photosApi.remove(flowerServerId, photo.serverId) }
+            } catch (e: Exception) {
+                if (e is HttpException && e.code() == 404) {
+                    // La fleur n'existe plus côté serveur : la photo ne pourra
+                    // jamais être poussée, on la purge localement.
+                    if (photo.imagePath.isNotEmpty()) {
+                        runCatching { File(photo.imagePath).delete() }
+                    }
                     photos.hardDelete(photo.id)
                 }
+                // Sinon (réseau, 5xx…) : la photo reste PENDING et sera
+                // retentée au prochain sync.
             }
+        }
+    }
+
+    /** Retente les uploads d'image marqués en souffrance (I9), best-effort. */
+    private suspend fun retryPendingImageUploads(
+        flowerServerIdOf: suspend (Long) -> String?,
+    ) {
+        for (photo in photos.pendingImageUploads()) {
+            val photoServerId = photo.serverId ?: continue
+            val flowerServerId = flowerServerIdOf(photo.flowerLocalId) ?: continue
+            if (photo.imagePath.isEmpty()) {
+                photos.setImagePendingUpload(photo.id, false)
+                continue
+            }
+            runCatching {
+                uploadPhotoImage(flowerServerId, photoServerId, File(photo.imagePath))
+                photos.setImagePendingUpload(photo.id, false)
+            }
+        }
+    }
+
+    /**
+     * Purge locale des photos d'une fleur supprimée (lignes ET fichiers), une
+     * fois la suppression de la fleur propagée au serveur (C3) : le serveur a
+     * déjà supprimé ses photos en cascade.
+     */
+    suspend fun purgeForFlower(flowerLocalId: Long) {
+        photos.allForFlower(flowerLocalId).forEach { photo ->
+            if (photo.imagePath.isNotEmpty()) {
+                runCatching { File(photo.imagePath).delete() }
+            }
+            photos.hardDelete(photo.id)
         }
     }
 

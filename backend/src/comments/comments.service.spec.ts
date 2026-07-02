@@ -76,9 +76,10 @@ describe('CommentsService', () => {
           provide: SharesService,
           useValue: {
             // La fleur est partagée avec FRIEND (ciblé) mais pas STRANGER.
-            sharedWithMe: async (viewerId: string) =>
-              viewerId === FRIEND ? sharedWithFriend : [],
-            broadcastWithMe: async () => [],
+            isVisibleTo: async (viewerId: string, flower: Flower) =>
+              flower.ownerId === viewerId ||
+              (viewerId === FRIEND &&
+                sharedWithFriend.some((f) => f.id === flower.id)),
           },
         },
         {
@@ -91,7 +92,12 @@ describe('CommentsService', () => {
         },
         {
           provide: UsersService,
-          useValue: { findById: async (id: string) => ({ displayName: `Nom ${id}` }) },
+          useValue: {
+            findById: async (id: string) => ({ id, displayName: `Nom ${id}` }),
+            // Batch des auteurs (évite le N+1 findById par commentaire).
+            findByIds: async (ids: string[]) =>
+              ids.map((id) => ({ id, displayName: `Nom ${id}` })),
+          },
         },
       ],
     }).compile();

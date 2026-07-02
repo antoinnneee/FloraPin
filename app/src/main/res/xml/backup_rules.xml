@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Règles de sauvegarde (API < 31, C4) : les jetons d'authentification chiffrés
+     sont exclus — leur clé Keystore n'est pas restaurable sur un autre appareil,
+     et des secrets de session n'ont pas leur place dans une sauvegarde cloud. -->
+<full-backup-content>
+    <exclude
+        domain="sharedpref"
+        path="florapin_auth.xml" />
+</full-backup-content>

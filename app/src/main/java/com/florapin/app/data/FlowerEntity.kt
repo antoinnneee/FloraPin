@@ -83,6 +83,13 @@ data class FlowerEntity(
     val deletedAt: Long? = null,
 
     /**
+     * Vrai si l'upload de l'image a échoué après la création côté serveur (I9) :
+     * la fleur est SYNCED (serverId connu) mais son image doit être retentée au
+     * prochain sync.
+     */
+    val imagePendingUpload: Boolean = false,
+
+    /**
      * URL (présignée) de l'image côté serveur, pour les fleurs distantes dont
      * le fichier n'est pas téléchargé localement (NODE-53). Null pour une fleur
      * capturée localement (l'image vit alors dans [imagePath]).

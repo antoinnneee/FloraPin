@@ -19,6 +19,12 @@ captures/
 *.dex
 local.properties
 
+# Artefacts de release à la racine (AAB/APK signés, notes, captures Play Store)
+/dist/
+
+# Réglages/état de l'assistant (local à la machine)
+.claude/
+
 # Logs / OS
 *.log
 .DS_Store

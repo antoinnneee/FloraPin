@@ -3,11 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Flower } from '../flowers/flower.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SharesService } from '../shares/shares.service';
 import { FlowerLike } from './flower-like.entity';
 
 /**
  * Cœurs sur les fleurs (NODE-139) : pose/retrait idempotents et notification
- * best-effort au propriétaire.
+ * best-effort au propriétaire. Réservé aux fleurs visibles par le viewer
+ * (même périmètre que les commentaires — SharesService.isVisibleTo).
  */
 @Injectable()
 export class LikesService {
@@ -16,15 +18,13 @@ export class LikesService {
     private readonly likes: Repository<FlowerLike>,
     @InjectRepository(Flower)
     private readonly flowers: Repository<Flower>,
+    private readonly shares: SharesService,
     private readonly notifications: NotificationsService,
   ) {}
 
   /** Pose un cœur (idempotent). Notifie le propriétaire (sauf auto-cœur). */
   async like(userId: string, flowerId: string): Promise<void> {
-    const flower = await this.flowers.findOne({ where: { id: flowerId } });
-    if (!flower) {
-      throw new NotFoundException('Fleur introuvable.');
-    }
+    const flower = await this.visibleFlowerOrThrow(userId, flowerId);
 
     const existing = await this.likes.findOne({ where: { flowerId, userId } });
     if (existing) return;
@@ -41,6 +41,22 @@ export class LikesService {
 
   /** Retire le cœur (idempotent : sans effet si absent). */
   async unlike(userId: string, flowerId: string): Promise<void> {
+    await this.visibleFlowerOrThrow(userId, flowerId);
     await this.likes.delete({ flowerId, userId });
+  }
+
+  /**
+   * Renvoie la fleur si [viewerId] la voit, sinon 404 (on ne révèle pas
+   * l'existence d'une fleur non accessible).
+   */
+  private async visibleFlowerOrThrow(
+    viewerId: string,
+    flowerId: string,
+  ): Promise<Flower> {
+    const flower = await this.flowers.findOne({ where: { id: flowerId } });
+    if (!flower || !(await this.shares.isVisibleTo(viewerId, flower))) {
+      throw new NotFoundException('Fleur introuvable.');
+    }
+    return flower;
   }
 }

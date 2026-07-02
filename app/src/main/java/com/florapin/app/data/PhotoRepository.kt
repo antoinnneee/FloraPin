@@ -58,6 +58,17 @@ class PhotoRepository(
     suspend fun markSynced(localId: Long, serverId: String) =
         dao.markSynced(localId, serverId)
 
+    /** Toutes les photos d'une fleur, y compris marquées supprimées (purge). */
+    suspend fun allForFlower(flowerLocalId: Long): List<PhotoEntity> =
+        dao.allForFlower(flowerLocalId)
+
+    /** Photos synchronisées dont l'upload d'image doit être retenté (I9). */
+    suspend fun pendingImageUploads(): List<PhotoEntity> = dao.pendingImageUploads()
+
+    /** Pose/lève le marqueur d'upload d'image en souffrance (I9). */
+    suspend fun setImagePendingUpload(localId: Long, pending: Boolean) =
+        dao.setImagePendingUpload(localId, pending)
+
     /** Renseigne le chemin local après mise en cache d'une image distante. */
     suspend fun cacheImagePath(localId: Long, path: String) =
         dao.setImagePath(localId, path)

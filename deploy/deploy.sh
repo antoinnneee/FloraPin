@@ -110,6 +110,17 @@ remote_sync() {
     # $1 = source locale (avec / final pour le contenu), $2 = sous-dossier distant
     rsync -az --delete -e "ssh -o ControlPath=$SSH_MUX_SOCKET" "$@"
 }
+# Exécute une commande distante nécessitant les droits root. Le mot de passe est
+# transmis à `sudo -S` par le canal stdin de SSH (le master multiplexé est déjà
+# authentifié, il ne consomme pas ce stdin) : il n'apparaît JAMAIS dans la ligne
+# de commande distante — contrairement à `echo '$PW' | sudo -S ...`, visible dans
+# `ps`/les logs d'audit du VPS. La commande passée doit invoquer `sudo -S -p ''`.
+# NB : une seule invocation sudo par appel (le mot de passe stdin n'est lu qu'une
+# fois) ; à terme, migrer vers clé SSH + sudoers NOPASSWD ciblé sur docker.
+remote_sudo() {
+    printf '%s\n' "$REMOTE_PASSWORD" \
+        | ssh -o "ControlPath=$SSH_MUX_SOCKET" "$REMOTE_USER@$REMOTE_HOST" "$1"
+}
 
 # S'assurer que les dossiers distants existent.
 remote_ssh "mkdir -p '$REMOTE_DIR/backend' '$REMOTE_DIR/landing' '$REMOTE_DIR/deploy'"
@@ -196,12 +207,22 @@ if ! remote_ssh "test -f '$REMOTE_DIR/deploy/.env'"; then
     exit 1
 fi
 
+# Refuse de (re)démarrer la prod avec des secrets par défaut non modifiés :
+# .env.example contient des marqueurs « change-me » (JWT_ACCESS_SECRET,
+# DATABASE_PASSWORD, MINIO_*…). Les laisser en place exposerait la stack.
+if remote_ssh "grep -q 'change-me' '$REMOTE_DIR/deploy/.env'"; then
+    echo "❌ $REMOTE_DIR/deploy/.env contient encore des secrets par défaut « change-me »."
+    echo "   Éditez-le (JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, DATABASE_PASSWORD,"
+    echo "   MINIO_ROOT_PASSWORD, …) avec de vraies valeurs, puis relancez ce script."
+    exit 1
+fi
+
 # --- Build de la vitrine dans un conteneur Docker (sur le VPS) ---
 # node:22-alpine avec landing/ monté : npm ci + npm run build -> landing/dist
 # (que Caddy sert via le montage défini dans docker-compose.yml). Aucun Node
 # requis sur l'hôte ; le build tourne sous Linux (binaires natifs corrects).
 echo "🏗️  Build de la vitrine (Astro) dans un conteneur Docker sur le VPS..."
-if ! remote_ssh "cd '$REMOTE_DIR' && echo '$REMOTE_PASSWORD' | sudo -S docker run --rm -v '$REMOTE_DIR/landing':/app -w /app node:22-alpine sh -c 'npm ci && npm run build'"; then
+if ! remote_sudo "cd '$REMOTE_DIR' && sudo -S -p '' docker run --rm -v '$REMOTE_DIR/landing':/app -w /app node:22-alpine sh -c 'npm ci && npm run build'"; then
     echo "❌ Échec du build de la vitrine (conteneur Docker)."
     exit 1
 fi
@@ -213,7 +234,7 @@ fi
 echo "🔄 (Re)construction de l'API et démarrage de la stack docker compose..."
 # --wait : bloque jusqu'à ce que db + minio soient *healthy* (healthchecks), pour
 # que l'application du schéma ci-dessous tape sur une base prête.
-if ! remote_ssh "cd '$REMOTE_DIR/deploy' && echo '$REMOTE_PASSWORD' | sudo -S docker compose -f docker-compose.yml up -d --build --wait"; then
+if ! remote_sudo "cd '$REMOTE_DIR/deploy' && sudo -S -p '' docker compose -f docker-compose.yml up -d --build --wait"; then
     echo "❌ Erreur lors du build/démarrage de la stack docker compose."
     exit 1
 fi
@@ -233,13 +254,15 @@ echo "🗄️  Application du schéma (migrations idempotentes) à la base..."
 # remplace l'inode du fichier hôte, mais un conteneur db créé lors d'un déploiement
 # antérieur garde l'ANCIEN inode monté → il verrait un schéma périmé. La copie
 # garantit que psql applique bien la version à jour.
-if ! remote_ssh "cd '$REMOTE_DIR/deploy' && echo '$REMOTE_PASSWORD' | sudo -S docker compose -f docker-compose.yml cp '$REMOTE_DIR/backend/db/schema.sql' db:/tmp/schema.sql && echo '$REMOTE_PASSWORD' | sudo -S docker compose -f docker-compose.yml exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -f /tmp/schema.sql'"; then
+if ! { remote_sudo "cd '$REMOTE_DIR/deploy' && sudo -S -p '' docker compose -f docker-compose.yml cp '$REMOTE_DIR/backend/db/schema.sql' db:/tmp/schema.sql" \
+    && remote_sudo "cd '$REMOTE_DIR/deploy' && sudo -S -p '' docker compose -f docker-compose.yml exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -f /tmp/schema.sql'"; }; then
     echo "❌ Échec de l'application du schéma à la base (voir docker compose logs db)."
     exit 1
 fi
 echo "✅ Schéma à jour (colonnes/tables manquantes ajoutées si besoin)."
 # Recharge le catalogue d'espèces (idempotent) — non bloquant. Même précaution (cp).
-if remote_ssh "cd '$REMOTE_DIR/deploy' && echo '$REMOTE_PASSWORD' | sudo -S docker compose -f docker-compose.yml cp '$REMOTE_DIR/backend/db/seed-species.sql' db:/tmp/seed-species.sql && echo '$REMOTE_PASSWORD' | sudo -S docker compose -f docker-compose.yml exec -T db sh -c 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -f /tmp/seed-species.sql'" >/dev/null 2>&1; then
+if remote_sudo "cd '$REMOTE_DIR/deploy' && sudo -S -p '' docker compose -f docker-compose.yml cp '$REMOTE_DIR/backend/db/seed-species.sql' db:/tmp/seed-species.sql" >/dev/null 2>&1 \
+    && remote_sudo "cd '$REMOTE_DIR/deploy' && sudo -S -p '' docker compose -f docker-compose.yml exec -T db sh -c 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -f /tmp/seed-species.sql'" >/dev/null 2>&1; then
     echo "✅ Catalogue d'espèces rechargé (seed idempotent)."
 else
     echo "ℹ️  Seed d'espèces non rejoué (non bloquant)."
@@ -247,7 +270,7 @@ fi
 
 sleep 3
 echo "🩺 Vérification de l'état des services..."
-if remote_ssh "cd '$REMOTE_DIR/deploy' && echo '$REMOTE_PASSWORD' | sudo -S docker compose -f docker-compose.yml ps"; then
+if remote_sudo "cd '$REMOTE_DIR/deploy' && sudo -S -p '' docker compose -f docker-compose.yml ps"; then
     echo "✅ Déploiement terminé ! Stack FloraPin (re)démarrée sur $REMOTE_HOST."
     echo "   Vitrine : https://<DOMAIN>/   ·   API : https://<DOMAIN>/api/v1   ·   Swagger : /api/docs"
 else

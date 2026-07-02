@@ -18,6 +18,8 @@ private class FakePhotoDao : PhotoDao {
         store.values.find { it.serverId == serverId }
     override suspend fun forFlower(flowerLocalId: Long) =
         store.values.filter { it.flowerLocalId == flowerLocalId && it.deletedAt == null }
+    override suspend fun allForFlower(flowerLocalId: Long) =
+        store.values.filter { it.flowerLocalId == flowerLocalId }
     override suspend fun insert(photo: PhotoEntity): Long {
         val id = ++seq; store[id] = photo.copy(id = id); return id
     }
@@ -31,6 +33,13 @@ private class FakePhotoDao : PhotoDao {
     }
     override suspend fun setImagePath(id: Long, path: String) {
         store[id]?.let { store[id] = it.copy(imagePath = path) }
+    }
+    override suspend fun pendingImageUploads() =
+        store.values.filter {
+            it.imagePendingUpload && it.serverId != null && it.deletedAt == null
+        }
+    override suspend fun setImagePendingUpload(id: Long, pending: Boolean) {
+        store[id]?.let { store[id] = it.copy(imagePendingUpload = pending) }
     }
 }
 

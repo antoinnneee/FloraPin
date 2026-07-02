@@ -25,6 +25,7 @@ import {
   SearchFlowersQueryDto,
   UpdateFlowerDto,
 } from './dto/flower.dto';
+import { imageUploadOptions } from './image-upload.options';
 import { FlowersService } from './flowers.service';
 
 @ApiTags('flowers')
@@ -64,7 +65,7 @@ export class FlowersController {
    */
   @Post(':id/image')
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', imageUploadOptions))
   uploadImage(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,

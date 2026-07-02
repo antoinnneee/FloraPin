@@ -19,6 +19,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ReorderPhotosDto } from './dto/photo.dto';
+import { imageUploadOptions } from './image-upload.options';
 import { FlowerPhotosService } from './flower-photos.service';
 
 @ApiTags('flowers')
@@ -39,7 +40,7 @@ export class FlowerPhotosController {
   /** Téléverse le binaire d'une photo (multipart `file`), réencodé en WebP. */
   @Post(':photoId/image')
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', imageUploadOptions))
   uploadImage(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) flowerId: string,

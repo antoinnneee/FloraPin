@@ -2,6 +2,7 @@ package com.florapin.app.data
 
 import android.content.Context
 import com.florapin.app.location.GeoPoint
+import java.io.File
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -98,7 +99,33 @@ class FlowerRepository(private val dao: FlowerDao) {
     fun observeBySpecies(speciesId: String?, scientificName: String?) =
         dao.observeBySpecies(speciesId, scientificName)
 
-    suspend fun delete(flower: FlowerEntity) = dao.delete(flower)
+    /**
+     * Suppression demandée par l'utilisateur (C3). Si la fleur est connue du
+     * serveur, on pose une suppression logique (deletedAt + PENDING) : le
+     * prochain push la propagera puis purgera la ligne et ses fichiers. Si elle
+     * n'a jamais été synchronisée (serverId null), suppression physique
+     * immédiate (fichier image compris).
+     */
+    suspend fun delete(flower: FlowerEntity) {
+        if (flower.serverId == null) {
+            dao.delete(flower)
+            if (flower.imagePath.isNotEmpty()) {
+                runCatching { File(flower.imagePath).delete() }
+            }
+        } else {
+            val now = System.currentTimeMillis()
+            dao.update(
+                flower.copy(
+                    deletedAt = now,
+                    updatedAt = now,
+                    syncState = SyncState.PENDING.name,
+                ),
+            )
+        }
+    }
+
+    /** Purge physique d'une ligne (après propagation de la suppression). */
+    suspend fun hardDelete(flower: FlowerEntity) = dao.delete(flower)
 
     /** Purge toutes les fleurs locales (déconnexion / changement de compte). */
     suspend fun deleteAll() = dao.deleteAll()
@@ -108,14 +135,27 @@ class FlowerRepository(private val dao: FlowerDao) {
     /** Fleurs locales restant à synchroniser. */
     suspend fun pendingSync(): List<FlowerEntity> = dao.pendingSync()
 
-    /** Marque une fleur comme synchronisée et associe son id serveur. */
+    /**
+     * Marque une fleur comme synchronisée et associe son id serveur.
+     * [expectedUpdatedAt] est le `updatedAt` lu au moment du push : si la fleur
+     * a été rééditée entre-temps, elle reste PENDING (seul le serverId est
+     * persisté) et sera repoussée au prochain sync.
+     */
     suspend fun markSynced(
         localId: Long,
         serverId: String,
-        updatedAt: Long = System.currentTimeMillis(),
-    ) = dao.markSynced(localId, serverId, updatedAt)
+        updatedAt: Long,
+        expectedUpdatedAt: Long,
+    ) = dao.markSynced(localId, serverId, updatedAt, expectedUpdatedAt)
 
     suspend fun markFailed(localId: Long) = dao.markFailed(localId)
+
+    /** Fleurs synchronisées dont l'upload d'image doit être retenté (I9). */
+    suspend fun pendingImageUploads(): List<FlowerEntity> = dao.pendingImageUploads()
+
+    /** Pose/lève le marqueur d'upload d'image en souffrance (I9). */
+    suspend fun setImagePendingUpload(localId: Long, pending: Boolean) =
+        dao.setImagePendingUpload(localId, pending)
 
     /**
      * Renseigne le chemin local après mise en cache d'une image distante : Coil

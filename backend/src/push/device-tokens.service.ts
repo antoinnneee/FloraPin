@@ -29,8 +29,21 @@ export class DeviceTokensService {
     return this.devices.save(this.devices.create({ userId, token, platform }));
   }
 
-  /** Supprime un jeton (déconnexion / désinstallation). */
-  async unregister(token: string): Promise<void> {
+  /**
+   * Supprime un jeton (déconnexion / désinstallation). Restreint au
+   * propriétaire du jeton : un utilisateur ne peut pas désenregistrer
+   * l'appareil d'un autre compte (idempotent si le jeton est absent).
+   */
+  async unregister(userId: string, token: string): Promise<void> {
+    await this.devices.delete({ token, userId });
+  }
+
+  /**
+   * Purge interne d'un jeton signalé invalide par le fournisseur push (FCM),
+   * quel que soit son propriétaire. À ne PAS exposer via l'API : les clients
+   * passent par unregister(userId, token).
+   */
+  async purgeToken(token: string): Promise<void> {
     await this.devices.delete({ token });
   }
 

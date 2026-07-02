@@ -7,6 +7,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from './current-user.decorator';
 import { AuthenticatedUser } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -25,13 +26,17 @@ import {
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
+  /** Création de compte : 3 tentatives/min par IP (anti-spam). */
   @Post('register')
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
   register(@Body() dto: RegisterDto) {
     return this.auth.register(dto.email, dto.password, dto.displayName);
   }
 
+  /** Connexion : 5 tentatives/min par IP (anti brute-force). */
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto.email, dto.password);
   }
@@ -54,6 +59,8 @@ export class AuthController {
    */
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
+  // 3 demandes / 15 min par IP (anti-spam d'emails de réinitialisation).
+  @Throttle({ default: { limit: 3, ttl: 900_000 } })
   async forgotPassword(
     @Body() dto: ForgotPasswordDto,
   ): Promise<{ message: string }> {
@@ -82,6 +89,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard)
+  // 3 demandes / 15 min par IP (anti-spam d'emails de vérification).
+  @Throttle({ default: { limit: 3, ttl: 900_000 } })
   async requestEmailVerification(
     @CurrentUser() current: AuthenticatedUser,
   ): Promise<{ message: string }> {

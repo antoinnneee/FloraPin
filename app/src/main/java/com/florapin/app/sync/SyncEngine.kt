@@ -1,6 +1,8 @@
 package com.florapin.app.sync
 
+import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.FlowerRepository
+import com.florapin.app.data.SyncState
 import com.florapin.app.data.applyTo
 import com.florapin.app.data.toEntity
 import com.florapin.app.data.toPushItem
@@ -52,6 +54,11 @@ class SyncEngine(
 
     /** Envoie créations, mises à jour et suppressions locales en attente. */
     suspend fun push() {
+        // Retente d'abord les uploads d'image restés en souffrance (I9) : fleurs
+        // créées côté serveur lors d'un sync précédent mais dont l'envoi du
+        // fichier avait échoué après markSynced.
+        retryPendingImageUploads()
+
         val pending = repository.pendingSync()
         val created = pending.filter { it.serverId == null && it.deletedAt == null }
         val updated = pending.filter { it.serverId != null && it.deletedAt == null }
@@ -70,11 +77,17 @@ class SyncEngine(
                 // le serveur en créerait un doublon (fleur « grise » au pull).
                 val serverUpdatedAt = runCatching { isoToMillis(result.flower.updatedAt) }
                     .getOrDefault(now())
-                repository.markSynced(local.id, result.flower.id, serverUpdatedAt)
+                repository.markSynced(
+                    local.id, result.flower.id, serverUpdatedAt, local.updatedAt,
+                )
                 if (local.imagePath.isNotEmpty()) {
-                    runCatching {
+                    val uploaded = runCatching {
                         uploadFlowerImage(result.flower.id, File(local.imagePath))
-                    }
+                    }.isSuccess
+                    // Échec d'upload APRÈS markSynced : sans marqueur, l'image
+                    // serait perdue (fleur « grise » côté serveur). On la
+                    // retentera aux syncs suivantes (I9).
+                    if (!uploaded) repository.setImagePendingUpload(local.id, true)
                 }
             }
         }
@@ -92,20 +105,54 @@ class SyncEngine(
                         tags = flower.tags,
                     ),
                 )
-                repository.markSynced(flower.id, flower.serverId, now())
+                repository.markSynced(flower.id, flower.serverId, now(), flower.updatedAt)
             } catch (e: Exception) {
-                handlePushFailure(flower.id, flower.serverId!!, e)
+                handlePushFailure(flower, e)
             }
         }
 
         deleted.forEach { flower ->
             try {
                 flowersApi.delete(flower.serverId!!)
-                repository.markSynced(flower.id, flower.serverId, now())
+                purgeLocal(flower)
             } catch (e: Exception) {
-                handlePushFailure(flower.id, flower.serverId!!, e)
+                if (e is HttpException && e.code() == 404) {
+                    // Déjà supprimée côté serveur : même issue qu'un succès.
+                    purgeLocal(flower)
+                } else {
+                    handlePushFailure(flower, e)
+                }
             }
         }
+    }
+
+    /** Retente les uploads d'image marqués en souffrance (I9), best-effort. */
+    private suspend fun retryPendingImageUploads() {
+        repository.pendingImageUploads().forEach { flower ->
+            val serverId = flower.serverId ?: return@forEach
+            if (flower.imagePath.isEmpty()) {
+                // Plus de fichier local à envoyer : rien à retenter.
+                repository.setImagePendingUpload(flower.id, false)
+                return@forEach
+            }
+            runCatching {
+                uploadFlowerImage(serverId, File(flower.imagePath))
+                repository.setImagePendingUpload(flower.id, false)
+            }
+        }
+    }
+
+    /**
+     * Purge une fleur dont la suppression a été propagée au serveur (C3) : la
+     * ligne locale, son fichier image et ses photos additionnelles (lignes +
+     * fichiers) ne servent plus à rien.
+     */
+    private suspend fun purgeLocal(flower: FlowerEntity) {
+        photoSync?.purgeForFlower(flower.id)
+        if (flower.imagePath.isNotEmpty()) {
+            runCatching { File(flower.imagePath).delete() }
+        }
+        repository.hardDelete(flower)
     }
 
     /**
@@ -114,14 +161,13 @@ class SyncEngine(
      * pour réessayer plus tard.
      */
     private suspend fun handlePushFailure(
-        localId: Long,
-        serverId: String,
+        flower: FlowerEntity,
         error: Exception,
     ) {
         if (error is HttpException && error.code() == 409) {
-            repository.markSynced(localId, serverId, now())
+            repository.markSynced(flower.id, flower.serverId!!, now(), flower.updatedAt)
         } else {
-            repository.markFailed(localId)
+            repository.markFailed(flower.id)
         }
     }
 
@@ -131,6 +177,10 @@ class SyncEngine(
         response.flowers.forEach { dto ->
             val existing = repository.findByServerId(dto.id)
             if (existing != null) {
+                // Fleur en cours d'édition/suppression locale non poussée : on ne
+                // l'écrase pas (last-write-wins côté push, comme
+                // AlbumSyncEngine.pull). Elle sera réconciliée une fois poussée.
+                if (existing.syncState != SyncState.SYNCED.name) return@forEach
                 repository.update(dto.applyTo(existing))
                 // Met en cache l'image localement si on n'en a pas de copie (fleur
                 // tirée d'un autre appareil) : l'affichage ne dépendra plus de

@@ -29,6 +29,15 @@ export class Flower {
   @Column({ name: 'owner_id', type: 'uuid' })
   ownerId: string;
 
+  /**
+   * Identifiant local stable généré par le client (sync push, NODE-19). Rend la
+   * création idempotente : un re-push (réponse perdue / retry) retombe sur la
+   * fleur existante au lieu d'en créer un doublon. Nullable : les fleurs créées
+   * via l'API standard (POST /flowers) n'en ont pas. Cf. `albums.client_id`.
+   */
+  @Column({ name: 'client_id', type: 'text', nullable: true })
+  clientId: string | null;
+
   /** Clé de l'objet image (pleine résolution) dans le stockage (MinIO). */
   @Column({ name: 'image_key' })
   imageKey: string;

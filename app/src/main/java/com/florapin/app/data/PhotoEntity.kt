@@ -38,6 +38,13 @@ data class PhotoEntity(
     val isCover: Boolean = false,
     val syncState: String = SyncState.PENDING.name,
     val deletedAt: Long? = null,
+
+    /**
+     * Vrai si l'upload du fichier a échoué après la création côté serveur (I9) :
+     * la photo est SYNCED (serverId connu) mais son image doit être retentée au
+     * prochain sync.
+     */
+    val imagePendingUpload: Boolean = false,
 )
 
 /** Source d'image à fournir à Coil pour une photo : fichier local sinon URL. */

@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -16,6 +17,8 @@ class FlowerRepositoryTest {
 
     private class FakeFlowerDao : FlowerDao {
         var lastInserted: FlowerEntity? = null
+        var lastUpdated: FlowerEntity? = null
+        var lastDeleted: FlowerEntity? = null
 
         override fun observeAll(): Flow<List<FlowerEntity>> = flowOf(emptyList())
         override suspend fun getById(id: Long): FlowerEntity? = null
@@ -29,18 +32,28 @@ class FlowerRepositoryTest {
             return 42L
         }
 
-        override suspend fun update(flower: FlowerEntity) = Unit
-        override suspend fun delete(flower: FlowerEntity) = Unit
+        override suspend fun update(flower: FlowerEntity) {
+            lastUpdated = flower
+        }
+        override suspend fun delete(flower: FlowerEntity) {
+            lastDeleted = flower
+        }
         override suspend fun deleteAll() = Unit
         override suspend fun pendingSync(): List<FlowerEntity> = emptyList()
-        override suspend fun markSynced(id: Long, serverId: String, updatedAt: Long) =
-            Unit
+        override suspend fun markSynced(
+            id: Long,
+            serverId: String,
+            updatedAt: Long,
+            expectedUpdatedAt: Long,
+        ) = Unit
         override suspend fun markFailed(id: Long) = Unit
         override suspend fun setImagePath(id: Long, path: String) = Unit
         override suspend fun findByServerId(serverId: String): FlowerEntity? = null
         override suspend fun findLocalTwin(createdAt: Long): FlowerEntity? = null
         override suspend fun softDeleteByServerId(serverId: String, deletedAt: Long) =
             Unit
+        override suspend fun pendingImageUploads(): List<FlowerEntity> = emptyList()
+        override suspend fun setImagePendingUpload(id: Long, pending: Boolean) = Unit
     }
 
     @Test
@@ -84,5 +97,46 @@ class FlowerRepositoryTest {
         assertNull(saved.longitude)
         assertNull(saved.accuracyMeters)
         assertEquals("/p.jpg", saved.imagePath)
+    }
+
+    @Test
+    fun delete_neverSyncedFlower_hardDeletes() = runBlocking {
+        val dao = FakeFlowerDao()
+        val repository = FlowerRepository(dao)
+        val flower = FlowerEntity(
+            id = 1L,
+            imagePath = "", // pas de fichier à supprimer dans ce test
+            createdAt = 1_000L,
+            serverId = null,
+        )
+
+        repository.delete(flower)
+
+        // Jamais synchronisée : suppression physique immédiate.
+        assertEquals(flower, dao.lastDeleted)
+        assertNull(dao.lastUpdated)
+    }
+
+    @Test
+    fun delete_syncedFlower_softDeletesAndMarksPending() = runBlocking {
+        val dao = FakeFlowerDao()
+        val repository = FlowerRepository(dao)
+        val flower = FlowerEntity(
+            id = 1L,
+            imagePath = "/p.jpg",
+            createdAt = 1_000L,
+            serverId = "srv-1",
+            syncState = SyncState.SYNCED.name,
+            updatedAt = 1_000L,
+        )
+
+        repository.delete(flower)
+
+        // Connue du serveur : soft-delete à propager au prochain push (C3).
+        assertNull(dao.lastDeleted)
+        val updated = dao.lastUpdated!!
+        assertEquals(SyncState.PENDING.name, updated.syncState)
+        assertNotNull(updated.deletedAt)
+        assertEquals(updated.deletedAt, updated.updatedAt)
     }
 }

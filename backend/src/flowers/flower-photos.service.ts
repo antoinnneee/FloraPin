@@ -65,16 +65,20 @@ export class FlowerPhotosService {
     await this.storage.putObject(imageKey, full, 'image/webp');
     await this.storage.putObject(thumbnailKey, thumbnail, 'image/webp');
 
-    const oldKey = photo.imageKey;
+    // Inclut l'ancienne miniature : sans ça, un ré-upload de photo laissait un
+    // thumbnail orphelin (écrasé en base, jamais supprimé de MinIO).
+    const oldKeys = [photo.imageKey, photo.thumbnailKey];
     photo.imageKey = imageKey;
     photo.thumbnailKey = thumbnailKey;
     await this.photos.save(photo);
     if (photo.isCover) {
       await this.flowers.update(flowerId, { imageKey, thumbnailKey });
     }
-    if (oldKey && oldKey !== imageKey) {
-      await this.storage.delete(oldKey).catch(() => undefined);
-    }
+    await Promise.all(
+      oldKeys
+        .filter((k): k is string => !!k && k !== imageKey && k !== thumbnailKey)
+        .map((k) => this.storage.delete(k).catch(() => undefined)),
+    );
     return this.toResponse(photo);
   }
 
@@ -87,6 +91,14 @@ export class FlowerPhotosService {
     const photo = await this.requirePhoto(flowerId, photoId);
     await this.photos.remove(photo);
 
+    // Purge les objets MinIO de la photo supprimée (image + miniature) : sinon
+    // ils fuient définitivement (RGPD + stockage). Best-effort.
+    await Promise.all(
+      [photo.imageKey, photo.thumbnailKey]
+        .filter((k): k is string => !!k)
+        .map((k) => this.storage.delete(k).catch(() => undefined)),
+    );
+
     // Si on retire la couverture, en promouvoir une autre (la première restante).
     if (photo.isCover) {
       const remaining = await this.photos.find({
@@ -97,7 +109,12 @@ export class FlowerPhotosService {
       if (next) {
         next.isCover = true;
         await this.photos.save(next);
-        await this.flowers.update(flowerId, { imageKey: next.imageKey });
+        // Synchronise image_key ET thumbnail_key de la fleur avec la nouvelle
+        // couverture (sinon la miniature de couverture restait désynchronisée).
+        await this.flowers.update(flowerId, {
+          imageKey: next.imageKey,
+          thumbnailKey: next.thumbnailKey,
+        });
       }
     }
   }
@@ -133,7 +150,11 @@ export class FlowerPhotosService {
     const photo = await this.requirePhoto(flowerId, photoId);
     await this.photos.update({ flowerId }, { isCover: false });
     await this.photos.update(photo.id, { isCover: true });
-    await this.flowers.update(flowerId, { imageKey: photo.imageKey });
+    // Synchronise image_key ET thumbnail_key avec la nouvelle couverture.
+    await this.flowers.update(flowerId, {
+      imageKey: photo.imageKey,
+      thumbnailKey: photo.thumbnailKey,
+    });
     return this.list(flowerId);
   }
 

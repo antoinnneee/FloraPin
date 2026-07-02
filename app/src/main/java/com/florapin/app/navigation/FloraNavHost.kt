@@ -39,6 +39,7 @@ import com.florapin.app.gallery.GalleryScreen
 import com.florapin.app.identify.IdentifyScreen
 import com.florapin.app.map.MapScreen
 import com.florapin.app.network.auth.EncryptedTokenStore
+import com.florapin.app.permission.RequestNotificationPermissionOnce
 import com.florapin.app.profile.ProfileScreen
 import com.florapin.app.push.PushTokenRegistrar
 import com.florapin.app.sync.SyncPreferences
@@ -211,6 +212,9 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
         }
 
         composable(Routes.GALLERY) {
+            // Android 13+ : demande la permission notifications une seule fois,
+            // à l'arrivée sur l'écran principal d'un utilisateur connecté (I11).
+            RequestNotificationPermissionOnce()
             GalleryScreen(
                 onCapture = { navController.navigate(Routes.CAPTURE) },
                 onFlowerClick = { id -> navController.navigate(Routes.detail(id)) },

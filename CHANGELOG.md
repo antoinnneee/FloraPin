@@ -10,7 +10,7 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
-## [Non publié]
+## [1.8.0] — 2026-07-02
 
 ### Sécurité
 - **Backend — limites d'upload.** Les endpoints d'upload d'image (`POST

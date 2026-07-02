@@ -87,13 +87,49 @@ object NetworkModule {
     )
 
     /**
+     * Instance authentifiée **partagée** pour toute l'application (voir
+     * [createAuthenticated]). `@Volatile` + double-checked locking pour une
+     * initialisation thread-safe.
+     */
+    @Volatile
+    private var authenticatedApis: FloraApis? = null
+
+    /**
      * Services authentifiés : ajoute l'en-tête Bearer et le refresh automatique
      * sur 401. Le refresh utilise un AuthApi « nu » (sans authenticator) pour
      * éviter toute récursion.
+     *
+     * Renvoie une instance **unique et partagée** : un seul OkHttpClient — donc
+     * un seul [TokenAuthenticator] et un seul verrou — pour toute l'app. Sans ce
+     * partage, chaque ViewModel (et le SyncWorker) créait son propre client ;
+     * quand l'access token expirait, deux clients pouvaient rafraîchir EN
+     * PARALLÈLE le même refresh token. La rotation en révoque un : le second
+     * refresh recevait alors 401 → purge de session → 401 sur l'écran (bug du
+     * feed « Partagées avec moi »). Avec un client unique, les refresh se
+     * sérialisent et les 401 concurrents rejouent avec le token déjà rafraîchi.
+     * (OkHttpClient est explicitement conçu pour être partagé.)
+     *
+     * Tous les appelants passent un [EncryptedTokenStore] adossé aux mêmes
+     * SharedPreferences : réutiliser le premier est donc cohérent. L'intercepteur
+     * et l'authenticator relisent le store à chaque requête, l'instance reste
+     * donc valide au travers des cycles login/logout.
      */
     fun createAuthenticated(
         tokenStore: TokenStore,
         baseUrl: String = BuildConfig.API_BASE_URL,
+    ): FloraApis {
+        authenticatedApis?.let { return it }
+        return synchronized(this) {
+            authenticatedApis
+                ?: buildAuthenticated(tokenStore, baseUrl).also {
+                    authenticatedApis = it
+                }
+        }
+    }
+
+    private fun buildAuthenticated(
+        tokenStore: TokenStore,
+        baseUrl: String,
     ): FloraApis {
         val moshi = moshi()
         val bareAuthApi = retrofit(baseUrl, okHttpClient(), moshi)
@@ -105,6 +141,11 @@ object NetworkModule {
             .addInterceptor(loggingInterceptor())
             .build()
         return create(retrofit(baseUrl, client, moshi))
+    }
+
+    /** Réinitialise le client authentifié partagé. Usage tests uniquement. */
+    internal fun resetAuthenticatedForTest() {
+        authenticatedApis = null
     }
 
     fun sessionManager(

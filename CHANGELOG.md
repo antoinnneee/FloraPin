@@ -10,6 +10,17 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
+## [Non publié]
+
+### Corrigé
+- **Erreur 401 / déconnexions intempestives (feed « Partagées avec moi » et
+  autres écrans).** Chaque ViewModel construisait son propre client réseau ;
+  quand le token d'accès expirait, deux clients pouvaient rafraîchir en parallèle
+  le même refresh token. La rotation en révoquait un, dont le refresh échouait
+  alors en 401 et purgeait la session. Le client authentifié est désormais
+  **partagé** dans toute l'app (un seul authenticator) : les refresh se
+  sérialisent et les requêtes concurrentes rejouent avec le token rafraîchi.
+
 ## [1.10.0] — 2026-07-02
 
 ### Ajouté

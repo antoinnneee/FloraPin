@@ -10,6 +10,14 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
+## [Non publié]
+
+### Modifié
+- **Commentaires — invitation à synchroniser.** Sur l'écran détail d'une fleur
+  non synchronisée, la section commentaires n'est plus masquée silencieusement :
+  elle affiche un message invitant à se connecter et activer la synchronisation
+  pour lancer la discussion (les commentaires vivent côté serveur).
+
 ## [1.8.0] — 2026-07-02
 
 ### Sécurité

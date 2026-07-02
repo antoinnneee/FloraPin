@@ -378,9 +378,13 @@ private fun DetailContent(
             )
 
             // Fil de discussion : disponible une fois la fleur synchronisée
-            // (les commentaires vivent côté serveur, comme les cœurs).
+            // (les commentaires vivent côté serveur, comme les cœurs). Tant que
+            // ce n'est pas le cas, on affiche une invitation à synchroniser
+            // plutôt que de masquer la section.
             if (flower.serverId != null) {
                 CommentsSection(viewModel = commentsVm)
+            } else {
+                CommentsLockedNotice()
             }
         }
     }

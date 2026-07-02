@@ -223,6 +223,30 @@ fun CommentsSection(
     }
 }
 
+/**
+ * Affiché à la place du fil quand la fleur n'est pas encore synchronisée : les
+ * commentaires vivent côté serveur, on invite donc l'utilisateur à synchroniser
+ * plutôt que de masquer silencieusement la section.
+ */
+@Composable
+fun CommentsLockedNotice(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "Commentaires",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            text = "Synchronisez cette fleur pour lancer la discussion : " +
+                "connectez-vous et activez la synchronisation dans les réglages.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 @Composable
 private fun CommentCard(
     comment: FlowerCommentDto,

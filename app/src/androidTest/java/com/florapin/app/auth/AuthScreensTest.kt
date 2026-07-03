@@ -28,6 +28,7 @@ class AuthScreensTest {
                 error = null,
                 onLogin = { email, password -> submitted = email to password },
                 onSwitchToRegister = {},
+                onForgotPassword = {},
             )
         }
 
@@ -50,6 +51,7 @@ class AuthScreensTest {
                 error = "Identifiants invalides.",
                 onLogin = { _, _ -> },
                 onSwitchToRegister = {},
+                onForgotPassword = {},
             )
         }
         compose.onNodeWithText("Identifiants invalides.").assertExists()
@@ -61,7 +63,7 @@ class AuthScreensTest {
             RegisterScreen(
                 isLoading = false,
                 error = null,
-                onRegister = { _, _, _ -> },
+                onRegister = { _, _, _, _ -> },
                 onSwitchToLogin = {},
             )
         }
@@ -81,7 +83,7 @@ class AuthScreensTest {
             RegisterScreen(
                 isLoading = false,
                 error = null,
-                onRegister = { _, _, displayName -> name = displayName },
+                onRegister = { _, _, displayName, _ -> name = displayName },
                 onSwitchToLogin = {},
             )
         }

@@ -12,7 +12,43 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## Non publié
 
+### Sécurité
+- **Backend — en-têtes & surface d'API.** Ajout de `helmet` (en-têtes de sécurité
+  HTTP : `nosniff`, HSTS, anti-clickjacking…). Le CORS n'autorise plus toutes les
+  origines par défaut : il se restreint à la liste `CORS_ORIGINS` (vide = aucune
+  origine navigateur, l'app Android n'étant pas concernée). La documentation
+  Swagger (`/api/docs`) est masquée en production sauf `SWAGGER_ENABLED=true`. Le
+  conteneur API ne tourne plus en root (`USER node`).
+- **Backend — JWT d'un compte supprimé.** Un jeton d'accès encore valide après
+  suppression du compte renvoie désormais un `401` propre au lieu d'un `500`
+  (violation de clé étrangère) : la stratégie JWT vérifie l'existence du compte.
+- **Backend — recherche d'espèces.** Les jokers `%`, `_` et `\` d'un terme de
+  recherche/rapprochement d'espèce sont échappés : « R_sa » ne peut plus matcher
+  « Rosa » par accident (et rattacher la fleur à la mauvaise espèce).
+
+### Corrigé
+- **Backend — actions plus robustes.** Un échec d'envoi de notification (partage,
+  commentaire, demande d'ami, demande d'identification) ne renvoie plus un `500`
+  alors que l'action a bien été effectuée : la notification devient best-effort
+  (journalisée si elle échoue).
+- **Backend — anti-spam d'identification.** Redemander une identification sur une
+  fleur déjà « à identifier » est désormais idempotent : les amis ne sont plus
+  re-notifiés à chaque nouvel appel.
+- **Backend — synchronisation.** Le pull renseigne à nouveau `likedByMe` sur les
+  fleurs tirées (le propriétaire voyait toujours `false` sur ses propres cœurs).
+- **Android — renvoi de l'email de vérification.** `POST /auth/email/verification`
+  exige un JWT mais l'intercepteur excluait tous les chemins `/auth/` : la requête
+  échouait systématiquement en `401`. Le jeton n'est plus retiré que sur les
+  endpoints d'authentification réellement publics.
+
 ### Modifié
+- **Synchronisation cloud désactivée par défaut (device-first).** Le nouveau
+  défaut est **OFF** : l'app reste 100 % locale tant que l'utilisateur n'active
+  pas explicitement la sync (l'interrupteur de l'inscription est décoché par
+  défaut ; réglable à tout moment dans Profil). Une **migration** préserve les
+  installations existantes : lors d'une mise à jour, un appareil déjà connecté
+  qui n'avait jamais réglé l'option conserve son ancien comportement (sync ON) —
+  seules les nouvelles installations prennent le défaut OFF.
 - **Refonte visuelle de la landing page.** Nouvelle identité « sous-bois » :
   palette encre de forêt / tilleul / rose églantine / jaune pollen (exit les
   verts Tailwind), typographies Fraunces (titres) + Karla (texte) + IBM Plex

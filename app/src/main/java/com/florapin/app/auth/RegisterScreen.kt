@@ -44,8 +44,9 @@ fun RegisterScreen(
     var displayName by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     // Choix de la sauvegarde cloud, fait dès l'inscription (réglage par appareil,
-    // modifiable ensuite dans Profil). Activé par défaut.
-    var syncEnabled by rememberSaveable { mutableStateOf(true) }
+    // modifiable ensuite dans Profil). Décoché par défaut : l'app est device-first
+    // (100 % locale tant que l'utilisateur n'active pas explicitement la sync).
+    var syncEnabled by rememberSaveable { mutableStateOf(false) }
 
     val passwordTooShort = password.isNotEmpty() && password.length < 8
     val canSubmit = email.isNotBlank() &&

@@ -272,7 +272,8 @@ sleep 3
 echo "🩺 Vérification de l'état des services..."
 if remote_sudo "cd '$REMOTE_DIR/deploy' && sudo -S -p '' docker compose -f docker-compose.yml ps"; then
     echo "✅ Déploiement terminé ! Stack FloraPin (re)démarrée sur $REMOTE_HOST."
-    echo "   Vitrine : https://<DOMAIN>/   ·   API : https://<DOMAIN>/api/v1   ·   Swagger : /api/docs"
+    echo "   Vitrine : https://<DOMAIN>/   ·   API : https://<DOMAIN>/api/v1"
+    echo "   (Swagger /api/docs masqué en prod — SWAGGER_ENABLED=true pour l'exposer.)"
 else
     echo "⚠️  Déploiement copié mais l'état des services n'a pu être lu."
     echo "   Vérifier : cd $REMOTE_DIR/deploy && docker compose logs -f"

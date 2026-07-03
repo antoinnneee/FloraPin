@@ -81,8 +81,9 @@ export class SharesService {
       }),
     );
 
-    // Notifie le destinataire du partage (NODE-56).
-    await this.notifications.create(dto.friendId, 'flower_shared', {
+    // Notifie le destinataire du partage (NODE-56) — best-effort : le partage est
+    // déjà créé, un échec de notification ne doit pas renvoyer un 500.
+    await this.notifications.createSafe(dto.friendId, 'flower_shared', {
       shareId: share.id,
       fromUserId: ownerId,
       scope: share.scope,

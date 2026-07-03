@@ -1,7 +1,12 @@
 import { NotFoundException } from '@nestjs/common';
-import { Repository } from 'typeorm';
+import { FindOperator, Repository } from 'typeorm';
 import { Species } from './species.entity';
 import { SpeciesService } from './species.service';
+
+/** Lit la valeur (pattern) d'un opérateur ILike posé sur un champ. */
+function likeValue(clause: unknown, field: string): string {
+  return (clause as Record<string, FindOperator<string>>)[field].value;
+}
 
 function makeSpecies(over: Partial<Species> = {}): Species {
   return {
@@ -103,6 +108,15 @@ describe('SpeciesService', () => {
       await service.search('ros', 9999);
       expect(repo.find.mock.calls[0][0]!.take).toBe(50);
     });
+
+    it('échappe les jokers ILIKE (%, _, \\) du terme recherché', async () => {
+      repo.find.mockResolvedValue([]);
+      await service.search('R_s%');
+      const where = repo.find.mock.calls[0][0]!.where as unknown[];
+      // Les jokers du terme sont échappés ; les % englobants restent des jokers.
+      expect(likeValue(where[0], 'scientificName')).toBe('%R\\_s\\%%');
+      expect(likeValue(where[1], 'commonName')).toBe('%R\\_s\\%%');
+    });
   });
 
   describe('resolveOrCreateByName', () => {
@@ -118,6 +132,15 @@ describe('SpeciesService', () => {
       expect(res).toBe(sp);
       // Une seule lecture : le rapprochement scientifique a suffi.
       expect(repo.findOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('échappe les jokers pour le rapprochement exact (« R_sa » ≠ « Rosa »)', async () => {
+      repo.findOne.mockResolvedValue(null);
+      repo.save.mockResolvedValue(makeSpecies());
+      await service.resolveOrCreateByName('R_sa');
+      expect(likeValue(repo.findOne.mock.calls[0][0]!.where, 'scientificName')).toBe(
+        'R\\_sa',
+      );
     });
 
     it('rapproche par nom commun si le nom scientifique ne matche pas', async () => {

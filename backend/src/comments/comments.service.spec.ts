@@ -91,7 +91,12 @@ describe('CommentsService', () => {
         {
           provide: NotificationsService,
           useValue: {
+            // Le service commente désormais via createSafe (best-effort) ; les
+            // deux pointent vers le même enregistrement pour les assertions.
             create: async (userId: string, type: string) => {
+              notified.push({ userId, type });
+            },
+            createSafe: async (userId: string, type: string) => {
               notified.push({ userId, type });
             },
           },

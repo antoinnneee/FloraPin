@@ -10,7 +10,7 @@ describe('IdentificationRequestsService', () => {
   let flower: Flower | null;
   let flowers: { findOne: jest.Mock; save: jest.Mock };
   let friendships: { acceptedFriendIds: jest.Mock };
-  let notifications: { create: jest.Mock };
+  let notifications: { create: jest.Mock; createSafe: jest.Mock };
   let shares: { needsIdentificationFromFriends: jest.Mock };
   let service: IdentificationRequestsService;
 
@@ -25,7 +25,10 @@ describe('IdentificationRequestsService', () => {
       save: jest.fn(async (f: Flower) => f),
     };
     friendships = { acceptedFriendIds: jest.fn(async () => ['a', 'b']) };
-    notifications = { create: jest.fn(async () => undefined) };
+    notifications = {
+      create: jest.fn(async () => undefined),
+      createSafe: jest.fn(async () => undefined),
+    };
     shares = { needsIdentificationFromFriends: jest.fn(async () => []) };
     service = new IdentificationRequestsService(
       flowers as never,
@@ -41,19 +44,22 @@ describe('IdentificationRequestsService', () => {
 
       expect(flower!.needsIdentification).toBe(true);
       expect(flowers.save).toHaveBeenCalledTimes(1);
-      expect(notifications.create).toHaveBeenCalledTimes(2);
-      expect(notifications.create).toHaveBeenCalledWith(
+      // Notifications best-effort (createSafe) : un échec ne casse pas la demande.
+      expect(notifications.createSafe).toHaveBeenCalledTimes(2);
+      expect(notifications.createSafe).toHaveBeenCalledWith(
         'a',
         'identification_requested',
         { flowerId: FLOWER, byUserId: OWNER },
       );
     });
 
-    it('ne re-sauvegarde pas si déjà demandée, mais re-notifie', async () => {
+    it('est idempotente si déjà demandée : ni save ni nouvelle notification', async () => {
+      // Anti-spam : un re-POST sur une fleur déjà « à identifier » ne re-notifie
+      // pas le réseau (la demande reste visible tant que le drapeau est posé).
       flower!.needsIdentification = true;
       await service.request(OWNER, FLOWER);
       expect(flowers.save).not.toHaveBeenCalled();
-      expect(notifications.create).toHaveBeenCalledTimes(2);
+      expect(notifications.createSafe).not.toHaveBeenCalled();
     });
 
     it('lève NotFound si la fleur ne m’appartient pas', async () => {
@@ -61,7 +67,7 @@ describe('IdentificationRequestsService', () => {
       await expect(service.request(OWNER, FLOWER)).rejects.toBeInstanceOf(
         NotFoundException,
       );
-      expect(notifications.create).not.toHaveBeenCalled();
+      expect(notifications.createSafe).not.toHaveBeenCalled();
     });
   });
 

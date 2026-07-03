@@ -71,7 +71,8 @@ export class FriendshipsService {
     const saved = await this.friendships.save(
       this.friendships.create({ requesterId, addresseeId, status: 'pending' }),
     );
-    await this.notifications.create(addresseeId, 'friend_request', {
+    // Best-effort : la demande est créée, un échec de notification ne doit pas 500.
+    await this.notifications.createSafe(addresseeId, 'friend_request', {
       friendshipId: saved.id,
       fromUserId: requesterId,
     });
@@ -92,10 +93,12 @@ export class FriendshipsService {
     }
     friendship.status = 'accepted';
     const saved = await this.friendships.save(friendship);
-    await this.notifications.create(friendship.requesterId, 'friend_accepted', {
-      friendshipId: saved.id,
-      byUserId: userId,
-    });
+    // Best-effort : l'amitié est acceptée, un échec de notification ne doit pas 500.
+    await this.notifications.createSafe(
+      friendship.requesterId,
+      'friend_accepted',
+      { friendshipId: saved.id, byUserId: userId },
+    );
     return this.toResponse(saved, userId);
   }
 

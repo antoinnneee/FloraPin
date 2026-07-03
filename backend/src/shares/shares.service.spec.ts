@@ -162,7 +162,12 @@ describe('SharesService', () => {
           provide: FriendshipsService,
           useValue: { acceptedFriendIds: async () => acceptedFriends },
         },
-        { provide: NotificationsService, useValue: { create: notify } },
+        {
+          provide: NotificationsService,
+          // Le partage notifie via createSafe (best-effort) ; on branche les deux
+          // sur le même mock pour conserver les assertions `notify`.
+          useValue: { create: notify, createSafe: notify },
+        },
       ],
     }).compile();
     service = moduleRef.get(SharesService);

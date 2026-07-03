@@ -52,7 +52,9 @@ export class SyncService {
 
     return {
       serverTime: new Date().toISOString(),
-      flowers: await this.flowersService.toResponseMany(changed),
+      // viewerId = ownerId : sans lui, `likedByMe` retombait toujours à false sur
+      // les fleurs tirées (le propriétaire ne voyait jamais ses propres cœurs).
+      flowers: await this.flowersService.toResponseMany(changed, ownerId),
       deletedIds: deleted.map((f) => f.id),
     };
   }

@@ -28,6 +28,27 @@ export class NotificationsService {
     return saved;
   }
 
+  /**
+   * Variante best-effort de {@link create} : une notification est un effet de
+   * bord d'une action DÉJÀ réussie et committée (partage, commentaire, amitié,
+   * demande d'identification). Un échec d'insertion (destinataire supprimé
+   * entre-temps, erreur transitoire) ne doit pas renvoyer un 500 alors que
+   * l'action est faite — on journalise et on continue.
+   */
+  async createSafe(
+    userId: string,
+    type: NotificationType,
+    data: Record<string, unknown> = {},
+  ): Promise<void> {
+    try {
+      await this.create(userId, type, data);
+    } catch (error) {
+      this.logger.warn(
+        `Échec de la notification « ${type} » pour ${userId} : ${String(error)}`,
+      );
+    }
+  }
+
   /** Envoie un push best-effort vers les appareils de l'utilisateur. */
   private async dispatchPush(
     userId: string,

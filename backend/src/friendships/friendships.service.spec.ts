@@ -92,7 +92,10 @@ describe('FriendshipsService', () => {
         { provide: UsersService, useValue: users },
         {
           provide: NotificationsService,
-          useValue: { create: async () => undefined },
+          useValue: {
+            create: async () => undefined,
+            createSafe: async () => undefined,
+          },
         },
       ],
     }).compile();

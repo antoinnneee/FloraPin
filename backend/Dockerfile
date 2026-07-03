@@ -19,5 +19,10 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
 
+# Ne pas tourner en root : l'image node fournit déjà un utilisateur `node`
+# non privilégié. L'API ne persiste rien sur le disque (stockage → MinIO), une
+# arborescence /app en lecture seule suffit.
+USER node
+
 EXPOSE 3000
 CMD ["node", "dist/main.js"]

@@ -26,6 +26,11 @@ export class IdentificationRequestsService {
   /**
    * Marque la fleur « à identifier » et notifie les amis acceptés du
    * propriétaire (notification in-app + push best-effort).
+   *
+   * Les amis ne sont notifiés QUE lors de la transition « pas encore ouverte » →
+   * « ouverte » : un re-POST sur une fleur déjà à identifier est idempotent et ne
+   * re-spamme pas le réseau (la demande reste visible côté ami tant que le flag
+   * est posé).
    */
   async request(ownerId: string, flowerId: string): Promise<void> {
     const flower = await this.flowers.findOne({
@@ -35,15 +40,17 @@ export class IdentificationRequestsService {
       throw new NotFoundException('Fleur introuvable.');
     }
 
-    if (!flower.needsIdentification) {
-      flower.needsIdentification = true;
-      await this.flowers.save(flower);
+    if (flower.needsIdentification) {
+      return; // déjà ouverte : rien à faire, pas de nouvelle notification.
     }
+
+    flower.needsIdentification = true;
+    await this.flowers.save(flower);
 
     const friendIds = await this.friendships.acceptedFriendIds(ownerId);
     await Promise.all(
       friendIds.map((friendId) =>
-        this.notifications.create(friendId, 'identification_requested', {
+        this.notifications.createSafe(friendId, 'identification_requested', {
           flowerId,
           byUserId: ownerId,
         }),

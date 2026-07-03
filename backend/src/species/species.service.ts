@@ -12,6 +12,17 @@ const MAX_PAGE_SIZE = 200;
 const DEFAULT_SEARCH_LIMIT = 10;
 const MAX_SEARCH_LIMIT = 50;
 
+/**
+ * Échappe les métacaractères LIKE/ILIKE (`\`, `%`, `_`) d'un terme utilisateur
+ * pour qu'ils soient recherchés littéralement (échappement par `\`, défaut
+ * Postgres). Sans ça, « R_sa » matcherait « Rosa » et rattacherait la fleur au
+ * mauvais `speciesId`. Le paramètre reste lié (pas d'injection SQL) ; on neutralise
+ * seulement l'interprétation des jokers.
+ */
+function escapeLike(term: string): string {
+  return term.replace(/[\\%_]/g, '\\$&');
+}
+
 /** Encyclopédie des espèces (NODE-125) : liste, autocomplétion, fiche. */
 @Injectable()
 export class SpeciesService {
@@ -45,7 +56,7 @@ export class SpeciesService {
     const term = q.trim();
     if (!term) return [];
     const safeLimit = Math.min(Math.max(1, limit), MAX_SEARCH_LIMIT);
-    const pattern = `%${term}%`;
+    const pattern = `%${escapeLike(term)}%`;
     const rows = await this.species.find({
       where: [
         { scientificName: ILike(pattern) },
@@ -84,11 +95,14 @@ export class SpeciesService {
     const term = name.trim();
     if (!term) return null;
 
+    // Rapprochement exact insensible à la casse : on échappe les jokers pour que
+    // « Rosa % » ou « R_sa » ne matchent pas des espèces voisines par accident.
+    const exact = escapeLike(term);
     const existing =
       (await this.species.findOne({
-        where: { scientificName: ILike(term) },
+        where: { scientificName: ILike(exact) },
       })) ??
-      (await this.species.findOne({ where: { commonName: ILike(term) } }));
+      (await this.species.findOne({ where: { commonName: ILike(exact) } }));
     if (existing) return existing;
 
     try {
@@ -103,7 +117,7 @@ export class SpeciesService {
       );
     } catch {
       // Course possible sur l'unicité de scientific_name : on relit.
-      return this.species.findOne({ where: { scientificName: ILike(term) } });
+      return this.species.findOne({ where: { scientificName: ILike(exact) } });
     }
   }
 

@@ -53,9 +53,10 @@ export class CommentsService {
       this.comments.create({ flowerId, authoredBy: authorId, body }),
     );
 
-    // Notifie le propriétaire (sauf auto-commentaire).
+    // Notifie le propriétaire (sauf auto-commentaire) — best-effort : le
+    // commentaire est déjà persisté, un échec de notification ne doit pas 500.
     if (flower.ownerId !== authorId) {
-      await this.notifications.create(flower.ownerId, 'flower_commented', {
+      await this.notifications.createSafe(flower.ownerId, 'flower_commented', {
         flowerId,
         commentId: saved.id,
         byUserId: authorId,

@@ -1,24 +1,24 @@
 ---
+// Cadres en attente des vraies captures ; chaque écran garde une légère
+// inclinaison, comme des photos posées sur une table.
 const screens = [
-  { label: 'Galerie',       icon: '🖼️' },
-  { label: 'Carte',         icon: '🗺️' },
-  { label: 'Détail fleur',  icon: '🌸' },
-  { label: 'Partage',       icon: '👥' },
+  { label: 'Galerie',      icon: '🖼️', tilt: -2.5 },
+  { label: 'Carte',        icon: '🗺️', tilt: 1.5 },
+  { label: 'Détail fleur', icon: '🌸', tilt: -1 },
+  { label: 'Partage',      icon: '👥', tilt: 2.5 },
 ];
 ---
 
 <section class="screenshots">
   <div class="container">
-    <div class="section-header">
+    <div class="section-header reveal">
       <span class="eyebrow">Aperçu</span>
-      <h2>L'app en images</h2>
-      <p class="note">
-        Captures d'écran à venir avant le lancement de la bêta.
-      </p>
+      <h2>L'app <em>en images</em></h2>
+      <p class="note">Captures d'écran à venir avant le lancement de la bêta.</p>
     </div>
     <div class="gallery">
-      {screens.map(s => (
-        <div class="screen-frame">
+      {screens.map((s, i) => (
+        <div class="screen-frame reveal" style={`--tilt:${s.tilt}deg; transition-delay:${i * 0.08}s`}>
           <div class="notch"></div>
           <div class="screen-inner">
             <span class="screen-icon">{s.icon}</span>
@@ -33,50 +33,60 @@ const screens = [
 <style>
   .screenshots {
     padding: var(--section-py) 0;
-    background: var(--gray-50);
+    background: var(--tilleul);
   }
 
   .section-header .note {
-    margin-top: 10px;
+    margin-top: 12px;
     font-size: 0.88rem;
-    color: var(--gray-600);
+    color: var(--texte-doux);
   }
 
   .gallery {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
+    gap: clamp(18px, 3vw, 32px);
     align-items: start;
   }
 
   .screen-frame {
-    background: var(--green-900);
-    border-radius: 24px;
+    background: var(--encre);
+    border-radius: 26px;
     padding: 8px;
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.16);
+    box-shadow: 0 20px 48px rgba(19, 42, 29, 0.22);
     aspect-ratio: 9 / 18;
     display: flex;
     flex-direction: column;
+    rotate: var(--tilt);
+    transition: rotate 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.7s ease, box-shadow 0.3s;
+  }
+
+  .screen-frame:hover {
+    rotate: 0deg;
+    transform: translateY(-6px);
+    box-shadow: 0 28px 60px rgba(19, 42, 29, 0.3);
   }
 
   .notch {
     width: 40px;
     height: 4px;
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(237, 243, 227, 0.18);
     border-radius: 3px;
-    margin: 0 auto 6px;
+    margin: 6px auto;
   }
 
   .screen-inner {
     flex: 1;
-    background: var(--green-100);
-    border-radius: 18px;
+    background: var(--papier);
+    border-radius: 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    border: 2px dashed var(--green-200);
+    gap: 12px;
+    border: 2px dashed var(--tilleul-2);
   }
 
   .screen-icon {
@@ -85,11 +95,12 @@ const screens = [
   }
 
   .screen-label {
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: var(--green-700);
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 500;
+    color: var(--feuille);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.12em;
   }
 
   @media (max-width: 720px) {

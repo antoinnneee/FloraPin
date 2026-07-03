@@ -54,16 +54,38 @@ const ogImage = new URL(image, siteUrl);
     <!-- Favicon -->
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 
-    <!-- Font : Inter via Google Fonts -->
+    <!-- Fonts : Fraunces (display) · Karla (texte) · IBM Plex Mono (coordonnées) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,560;0,9..144,640;1,9..144,460;1,9..144,560&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
   </head>
   <body>
     <slot />
+
+    <script>
+      // Révélation au scroll — désactivée si l'utilisateur préfère moins d'animations.
+      const els = document.querySelectorAll('.reveal');
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduced || !('IntersectionObserver' in window)) {
+        els.forEach((el) => el.classList.add('is-visible'));
+      } else {
+        const io = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((e) => {
+              if (e.isIntersecting) {
+                e.target.classList.add('is-visible');
+                io.unobserve(e.target);
+              }
+            });
+          },
+          { threshold: 0.15, rootMargin: '0px 0px -40px 0px' }
+        );
+        els.forEach((el) => io.observe(el));
+      }
+    </script>
   </body>
 </html>
 
@@ -75,39 +97,45 @@ const ogImage = new URL(image, siteUrl);
   }
 
   :root {
-    --green-900: #14532d;
-    --green-800: #166534;
-    --green-700: #15803d;
-    --green-600: #16a34a;
-    --green-500: #22c55e;
-    --green-200: #bbf7d0;
-    --green-100: #dcfce7;
-    --green-50:  #f0fdf4;
-    --pink-500:  #ec4899;
-    --pink-100:  #fce7f3;
-    --white:     #ffffff;
-    --gray-50:   #f9fafb;
-    --gray-100:  #f3f4f6;
-    --gray-200:  #e5e7eb;
-    --gray-600:  #4b5563;
-    --gray-900:  #111827;
+    /* Palette « sous-bois » */
+    --encre:      #132a1d;   /* encre de forêt — texte & fonds profonds */
+    --sapin:      #1c4230;   /* fond du hero */
+    --feuille:    #2e6647;   /* vert vif d'accent */
+    --mousse:     #6f9478;   /* vert doux, textes secondaires sur sombre */
+    --tilleul:    #edf3e3;   /* fond clair teinté de vert */
+    --tilleul-2:  #e2ecd3;   /* tilleul plus soutenu, bordures */
+    --papier:     #f9faf4;   /* cartes claires */
+    --rose:       #d5548c;   /* rose églantine — la fleur FloraPin */
+    --rose-doux:  #f3d7e4;
+    --pollen:     #efc94c;   /* jaune pollen — CTA */
+    --pollen-2:   #e0b52e;
 
-    --font:      'Inter', system-ui, -apple-system, sans-serif;
-    --max-w:     1120px;
-    --section-py: clamp(64px, 8vw, 112px);
-    --radius:    16px;
+    --texte:      #26382d;   /* corps de texte sur clair */
+    --texte-doux: #5a6c5f;
+
+    --font-display: 'Fraunces', Georgia, serif;
+    --font-body:    'Karla', system-ui, sans-serif;
+    --font-mono:    'IBM Plex Mono', ui-monospace, monospace;
+
+    --max-w:      1160px;
+    --section-py: clamp(72px, 9vw, 128px);
+    --radius:     18px;
   }
 
   html {
     scroll-behavior: smooth;
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
+
   body {
-    font-family: var(--font);
-    color: var(--gray-900);
-    background: var(--white);
+    font-family: var(--font-body);
+    color: var(--texte);
+    background: var(--tilleul);
     -webkit-font-smoothing: antialiased;
-    line-height: 1.6;
+    line-height: 1.65;
   }
 
   img {
@@ -127,27 +155,79 @@ const ogImage = new URL(image, siteUrl);
     text-decoration: none;
   }
 
+  :focus-visible {
+    outline: 3px solid var(--pollen);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  /* Œilleton en coordonnées — la signature typographique de la page */
   .eyebrow {
-    display: inline-block;
-    color: var(--green-700);
-    font-weight: 600;
-    font-size: 0.8rem;
-    letter-spacing: 0.1em;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    margin-bottom: 12px;
+    color: var(--feuille);
+    margin-bottom: 16px;
+  }
+
+  .eyebrow::before {
+    content: '';
+    width: 26px;
+    height: 1.5px;
+    background: var(--rose);
   }
 
   .section-header {
     text-align: center;
-    margin-bottom: 56px;
+    margin-bottom: clamp(44px, 6vw, 72px);
+  }
+
+  .section-header .eyebrow::after {
+    content: '';
+    width: 26px;
+    height: 1.5px;
+    background: var(--rose);
   }
 
   .section-header h2 {
-    font-size: clamp(1.6rem, 3vw, 2.4rem);
-    font-weight: 700;
-    color: var(--green-900);
-    line-height: 1.25;
-    max-width: 560px;
+    font-family: var(--font-display);
+    font-size: clamp(1.9rem, 3.6vw, 2.9rem);
+    font-weight: 560;
+    color: var(--encre);
+    line-height: 1.18;
+    letter-spacing: -0.01em;
+    max-width: 640px;
     margin: 0 auto;
+  }
+
+  .section-header h2 em {
+    font-style: italic;
+    font-weight: 460;
+    color: var(--rose);
+  }
+
+  /* Révélation au scroll */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
   }
 </style>

@@ -3,24 +3,38 @@
 
 <section class="privacy">
   <div class="container">
-    <div class="card">
-      <div class="card-deco" aria-hidden="true">🔒</div>
+    <div class="card reveal">
+      <!-- Courbes de niveau, en écho au hero -->
+      <svg class="card-contours" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <g fill="none" stroke="rgba(237, 243, 227, 0.06)" stroke-width="1.5">
+          <path d="M-20 320 C 160 260, 300 340, 460 290 S 720 220, 820 270" />
+          <path d="M-20 240 C 180 180, 320 260, 480 210 S 740 140, 820 190" />
+          <path d="M-20 160 C 200 100, 340 180, 500 130 S 760 60, 820 110" />
+          <path d="M-20 80 C 220 20, 360 100, 520 50 S 780 -20, 820 30" />
+        </g>
+      </svg>
+
       <div class="card-body">
-        <h2>Vos spots restent secrets</h2>
+        <span class="eyebrow eyebrow-dark">Vie privée</span>
+        <h2>Vos spots restent <em>secrets</em></h2>
         <p>
           Un coin rare que vous voulez garder pour vous ? À chaque partage, un simple bouton décide
           si les coordonnées GPS sont incluses ou non. Vos lieux ne quittent votre téléphone
           que si vous le décidez.
         </p>
-        <div class="demo" aria-label="Exemple de contrôle de partage GPS">
-          <div class="demo-row">
-            <span class="demo-label">📍 Partager la localisation</span>
-            <div class="toggle" role="switch" aria-checked="false" aria-label="Localisation désactivée">
-              <div class="thumb"></div>
-            </div>
+      </div>
+
+      <div class="demo" aria-label="Exemple de contrôle de partage GPS">
+        <div class="demo-row">
+          <span class="demo-label">Partager la localisation</span>
+          <div class="toggle" role="switch" aria-checked="false" aria-label="Localisation désactivée">
+            <div class="thumb"></div>
           </div>
-          <p class="demo-hint">✓ La photo est partagée, pas l'endroit</p>
         </div>
+        <div class="demo-coords">
+          <span class="coord-masked">●●.●●●° N · ●.●●●° E</span>
+        </div>
+        <p class="demo-hint">✓ La photo est partagée, pas l'endroit</p>
       </div>
     </div>
   </div>
@@ -29,109 +43,123 @@
 <style>
   .privacy {
     padding: var(--section-py) 0;
-    background: var(--white);
+    background: var(--papier);
   }
 
   .card {
-    background: linear-gradient(135deg, var(--green-900) 0%, #0e3b20 100%);
-    border-radius: 24px;
+    position: relative;
+    background: linear-gradient(150deg, var(--sapin) 0%, var(--encre) 90%);
+    border-radius: 28px;
     padding: clamp(40px, 6vw, 72px);
     display: flex;
-    gap: 40px;
+    gap: clamp(32px, 5vw, 64px);
     align-items: center;
+    justify-content: space-between;
     overflow: hidden;
-    position: relative;
   }
 
-  .card::after {
-    content: '';
+  .card-contours {
     position: absolute;
-    top: -80px;
-    right: -80px;
-    width: 360px;
-    height: 360px;
-    background: radial-gradient(circle, rgba(236, 72, 153, 0.1) 0%, transparent 65%);
-    pointer-events: none;
-  }
-
-  .card-deco {
-    font-size: 4rem;
-    flex-shrink: 0;
-    filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.3));
+    inset: 0;
+    width: 100%;
+    height: 100%;
   }
 
   .card-body {
-    color: var(--white);
     position: relative;
     z-index: 1;
+    color: var(--tilleul);
+    max-width: 520px;
+  }
+
+  .eyebrow-dark {
+    color: var(--pollen);
   }
 
   h2 {
-    font-size: clamp(1.3rem, 2.5vw, 2rem);
-    font-weight: 700;
-    margin-bottom: 14px;
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 2.8vw, 2.2rem);
+    font-weight: 560;
+    line-height: 1.2;
+    margin-bottom: 16px;
   }
 
-  p {
+  h2 em {
+    font-style: italic;
+    font-weight: 460;
+    color: var(--rose);
+  }
+
+  .card-body p {
     font-size: 0.98rem;
     line-height: 1.75;
-    opacity: 0.82;
-    max-width: 520px;
-    margin-bottom: 28px;
+    color: var(--mousse);
   }
 
   /* Démo toggle */
   .demo {
-    display: inline-block;
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 12px;
-    padding: 16px 20px;
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+    background: rgba(249, 250, 244, 0.07);
+    border: 1px solid rgba(249, 250, 244, 0.14);
+    border-radius: 16px;
+    padding: 22px 26px;
+    color: var(--tilleul);
   }
 
   .demo-row {
     display: flex;
     align-items: center;
-    gap: 16px;
-    margin-bottom: 10px;
+    gap: 18px;
+    margin-bottom: 14px;
   }
 
   .demo-label {
     font-size: 0.88rem;
-    font-weight: 500;
-    opacity: 0.9;
+    font-weight: 700;
   }
 
   .toggle {
-    width: 44px;
-    height: 24px;
-    background: rgba(255, 255, 255, 0.18);
+    width: 46px;
+    height: 26px;
+    background: rgba(249, 250, 244, 0.2);
     border-radius: 100px;
-    padding: 2px;
+    padding: 3px;
     flex-shrink: 0;
   }
 
   .thumb {
     width: 20px;
     height: 20px;
-    background: var(--white);
+    background: var(--tilleul);
     border-radius: 50%;
-    opacity: 0.7;
+    opacity: 0.85;
+  }
+
+  .demo-coords {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    color: var(--mousse);
+    background: rgba(19, 42, 29, 0.4);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
   }
 
   .demo-hint {
     font-size: 0.78rem;
-    opacity: 0.65;
+    color: var(--pollen);
     margin: 0;
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 760px) {
     .card {
       flex-direction: column;
-      gap: 24px;
-      text-align: center;
+      align-items: flex-start;
     }
 
-    .demo { text-align: left; }
+    .demo { align-self: stretch; }
   }
 </style>

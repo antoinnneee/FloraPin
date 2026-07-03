@@ -10,7 +10,7 @@ interface Props {
   note?: boolean;
 }
 
-const { label = "⬇️ Télécharger l'app (Android)", note = true } = Astro.props;
+const { label = "Télécharger l'app (Android)", note = true } = Astro.props;
 
 // Lien externe (Play Store) → nouvel onglet ; APK local → attribut download.
 const isExternal = DOWNLOAD_URL.startsWith('http');
@@ -24,6 +24,9 @@ const isExternal = DOWNLOAD_URL.startsWith('http');
       ? { target: '_blank', rel: 'noopener' }
       : { download: DOWNLOAD_FILENAME })}
   >
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M8 1v9m0 0L4.5 6.5M8 10l3.5-3.5M2 13.5h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
     {label}
   </a>
   {note && <p class="dl-note">{DOWNLOAD_NOTE}</p>}
@@ -34,33 +37,38 @@ const isExternal = DOWNLOAD_URL.startsWith('http');
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
+    gap: 10px;
   }
 
   .btn-download {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    background: var(--green-700);
-    color: var(--white);
+    gap: 10px;
+    background: var(--pollen);
+    color: var(--encre);
     font-weight: 700;
     font-size: 1rem;
-    padding: 14px 28px;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(21, 128, 61, 0.28);
+    padding: 15px 30px;
+    border-radius: 100px;
+    box-shadow: 0 6px 26px rgba(239, 201, 76, 0.35);
     transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
   }
 
   .btn-download:hover {
-    background: var(--green-800);
+    background: var(--pollen-2);
     transform: translateY(-2px);
-    box-shadow: 0 6px 24px rgba(21, 128, 61, 0.36);
+    box-shadow: 0 10px 32px rgba(239, 201, 76, 0.45);
   }
 
   .dl-note {
     font-size: 0.76rem;
-    color: var(--gray-600);
+    color: inherit;
+    opacity: 0.75;
     margin: 0;
     max-width: 320px;
+  }
+
+  @media (max-width: 720px) {
+    .download { align-items: center; text-align: center; }
   }
 </style>

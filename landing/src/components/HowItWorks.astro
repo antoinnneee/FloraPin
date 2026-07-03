@@ -1,20 +1,17 @@
 ---
 const steps = [
   {
-    number: '01',
-    icon: '📷',
+    number: '1',
     title: 'Photographier',
     desc: "Ouvrez l'app et prenez une photo de la fleur.",
   },
   {
-    number: '02',
-    icon: '📍',
+    number: '2',
     title: 'Localiser',
     desc: 'Sa position est enregistrée automatiquement et apparaît sur votre carte.',
   },
   {
-    number: '03',
-    icon: '🤝',
+    number: '3',
     title: 'Partager',
     desc: 'Publiez vos trouvailles dans le flux de vos amis, recevez leurs cœurs et leur aide pour identifier les espèces.',
   },
@@ -23,23 +20,32 @@ const steps = [
 
 <section class="how">
   <div class="container">
-    <div class="section-header">
+    <div class="section-header reveal">
       <span class="eyebrow">Comment ça marche</span>
-      <h2>En trois étapes simples</h2>
+      <h2>Le même sentier, <em>en trois haltes</em></h2>
     </div>
-    <div class="steps">
-      {steps.map((step, i) => (
-        <>
-          <div class="step">
-            <div class="step-num">{step.number}</div>
-            <div class="step-icon">{step.icon}</div>
-            <h3>{step.title}</h3>
-            <p>{step.desc}</p>
+
+    <div class="steps reveal">
+      <!-- Le sentier pointillé du hero relie les trois étapes -->
+      <svg class="path" viewBox="0 0 1000 60" preserveAspectRatio="none" aria-hidden="true">
+        <path
+          d="M60 40 C 260 5, 380 55, 500 32 S 780 8, 940 36"
+          fill="none"
+          stroke="var(--pollen)"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-dasharray="2 12"
+        />
+      </svg>
+
+      {steps.map((step) => (
+        <div class="step">
+          <div class="marker">
+            <span class="marker-num">{step.number}</span>
           </div>
-          {i < steps.length - 1 && (
-            <div class="arrow" aria-hidden="true">→</div>
-          )}
-        </>
+          <h3>{step.title}</h3>
+          <p>{step.desc}</p>
+        </div>
       ))}
     </div>
   </div>
@@ -48,73 +54,77 @@ const steps = [
 <style>
   .how {
     padding: var(--section-py) 0;
-    background: linear-gradient(180deg, var(--green-50) 0%, var(--white) 100%);
+    background: var(--papier);
   }
 
   .steps {
+    position: relative;
     display: grid;
-    grid-template-columns: 1fr auto 1fr auto 1fr;
-    align-items: start;
-    gap: 0;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+  }
+
+  .path {
+    position: absolute;
+    top: 12px;
+    left: 0;
+    width: 100%;
+    height: 60px;
+    opacity: 0.9;
   }
 
   .step {
+    position: relative;
     text-align: center;
     padding: 0 12px;
   }
 
-  .step-num {
-    font-size: 0.68rem;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    color: var(--green-600);
-    text-transform: uppercase;
-    margin-bottom: 16px;
-  }
-
-  .step-icon {
-    font-size: 2.2rem;
-    width: 68px;
-    height: 68px;
-    background: var(--white);
-    border: 2px solid var(--green-200);
-    border-radius: 50%;
+  /* Épingle de carte numérotée — l'ordre est une vraie séquence */
+  .marker {
+    position: relative;
+    width: 58px;
+    height: 58px;
+    margin: 0 auto 22px;
+    background: var(--sapin);
+    border-radius: 50% 50% 50% 4px;
+    transform: rotate(-45deg);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 20px;
-    box-shadow: 0 4px 16px rgba(34, 197, 94, 0.1);
+    box-shadow: 0 10px 24px rgba(19, 42, 29, 0.25);
+  }
+
+  .marker-num {
+    transform: rotate(45deg);
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 560;
+    color: var(--pollen);
   }
 
   h3 {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: var(--green-900);
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 560;
+    color: var(--encre);
     margin-bottom: 8px;
   }
 
   p {
-    font-size: 0.88rem;
-    color: var(--gray-600);
+    font-size: 0.9rem;
+    color: var(--texte-doux);
     line-height: 1.7;
-    max-width: 220px;
+    max-width: 260px;
     margin: 0 auto;
-  }
-
-  .arrow {
-    font-size: 1.6rem;
-    color: var(--green-200);
-    align-self: start;
-    padding-top: 36px;
   }
 
   @media (max-width: 680px) {
     .steps {
       grid-template-columns: 1fr;
-      gap: 36px;
+      gap: 44px;
     }
 
-    .arrow { display: none; }
+    .path { display: none; }
     p { max-width: 100%; }
   }
 </style>

@@ -22,15 +22,16 @@ const year = new Date().getFullYear();
     </div>
     <div class="bottom">
       <p>© {year} FloraPin — Tous droits réservés.</p>
+      <p class="coords">Cultivé quelque part entre 41° et 51° N.</p>
     </div>
   </div>
 </footer>
 
 <style>
   .footer {
-    background: var(--green-900);
-    color: var(--white);
-    padding: 52px 0 28px;
+    background: var(--encre);
+    color: var(--tilleul);
+    padding: 56px 0 30px;
   }
 
   .top {
@@ -40,39 +41,52 @@ const year = new Date().getFullYear();
     gap: 32px;
     flex-wrap: wrap;
     padding-bottom: 40px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px dashed rgba(237, 243, 227, 0.14);
     margin-bottom: 24px;
   }
 
   .logo {
     display: block;
-    font-size: 1.1rem;
-    font-weight: 700;
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 560;
     margin-bottom: 8px;
   }
 
   .brand p {
-    font-size: 0.83rem;
-    opacity: 0.55;
+    font-size: 0.84rem;
+    color: var(--mousse);
   }
 
   .links {
     display: flex;
-    gap: 24px;
+    gap: 26px;
     flex-wrap: wrap;
     align-items: center;
   }
 
   .links a {
-    font-size: 0.83rem;
-    opacity: 0.65;
-    transition: opacity 0.15s;
+    font-size: 0.84rem;
+    color: var(--mousse);
+    transition: color 0.15s;
   }
 
-  .links a:hover { opacity: 1; }
+  .links a:hover { color: var(--pollen); }
+
+  .bottom {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
 
   .bottom p {
-    font-size: 0.77rem;
-    opacity: 0.38;
+    font-size: 0.76rem;
+    color: rgba(237, 243, 227, 0.4);
+  }
+
+  .bottom .coords {
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
   }
 </style>

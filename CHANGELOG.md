@@ -10,6 +10,21 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
+## Non publié
+
+### Modifié
+- **Refonte visuelle de la landing page.** Nouvelle identité « sous-bois » :
+  palette encre de forêt / tilleul / rose églantine / jaune pollen (exit les
+  verts Tailwind), typographies Fraunces (titres) + Karla (texte) + IBM Plex
+  Mono (coordonnées GPS décoratives qui structurent la page). Hero « carte
+  vivante » plein écran : courbes de niveau, sentier pointillé, épingles-fleurs
+  qui éclosent en séquence et bulle de commentaire d'ami (« Une anémone
+  sylvie ! ») pour incarner le côté social. Cartes de fonctionnalités façon
+  planches d'herbier (tampon de coordonnées), étapes reliées par le même
+  sentier, encart vie privée avec coordonnées masquées, mockups inclinés,
+  révélations au scroll (`prefers-reduced-motion` respecté). La copy validée de
+  `CONTENT.md` est inchangée.
+
 ## [1.11.0] — 2026-07-02
 
 ### Modifié

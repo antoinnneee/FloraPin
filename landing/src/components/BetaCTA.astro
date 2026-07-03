@@ -4,9 +4,18 @@ import DownloadButton from './DownloadButton.astro';
 
 <section id="beta" class="beta-cta">
   <div class="container">
-    <div class="inner">
-      <span class="hero-emoji" aria-hidden="true">🌸</span>
-      <h2>Prêt à cataloguer vos fleurs ?</h2>
+    <div class="inner reveal">
+      <svg class="bloom" viewBox="0 0 44 44" width="64" height="64" aria-hidden="true">
+        <g>
+          <ellipse cx="22" cy="13" rx="6" ry="10" fill="var(--rose)" transform="rotate(0 22 22)" />
+          <ellipse cx="22" cy="13" rx="6" ry="10" fill="var(--rose)" transform="rotate(72 22 22)" />
+          <ellipse cx="22" cy="13" rx="6" ry="10" fill="var(--rose)" transform="rotate(144 22 22)" />
+          <ellipse cx="22" cy="13" rx="6" ry="10" fill="var(--rose)" transform="rotate(216 22 22)" />
+          <ellipse cx="22" cy="13" rx="6" ry="10" fill="var(--rose)" transform="rotate(288 22 22)" />
+          <circle cx="22" cy="22" r="5.5" fill="var(--pollen)" />
+        </g>
+      </svg>
+      <h2>Prêt à cataloguer <em>vos fleurs</em> ?</h2>
       <p>Rejoignez la bêta et soyez parmi les premiers à essayer FloraPin.</p>
 
       <div class="dl-wrap">
@@ -19,38 +28,60 @@ import DownloadButton from './DownloadButton.astro';
 <style>
   .beta-cta {
     padding: var(--section-py) 0;
-    background: linear-gradient(140deg, var(--green-50) 0%, #fff3fa 100%);
+    background: var(--papier);
   }
 
   .inner {
     text-align: center;
-    max-width: 560px;
+    max-width: 580px;
     margin: 0 auto;
   }
 
-  .hero-emoji {
-    font-size: 3.2rem;
+  .bloom {
     display: block;
-    margin-bottom: 20px;
-    line-height: 1;
+    margin: 0 auto 24px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .bloom g {
+      transform-origin: 22px 22px;
+      animation: turn 24s linear infinite;
+    }
+
+    @keyframes turn {
+      to { transform: rotate(360deg); }
+    }
   }
 
   h2 {
-    font-size: clamp(1.6rem, 3vw, 2.4rem);
-    font-weight: 700;
-    color: var(--green-900);
-    margin-bottom: 12px;
+    font-family: var(--font-display);
+    font-size: clamp(1.8rem, 3.4vw, 2.7rem);
+    font-weight: 560;
+    color: var(--encre);
+    line-height: 1.18;
+    margin-bottom: 14px;
+  }
+
+  h2 em {
+    font-style: italic;
+    font-weight: 460;
+    color: var(--rose);
   }
 
   p {
-    font-size: 1rem;
-    color: var(--gray-600);
-    margin-bottom: 32px;
+    font-size: 1.02rem;
+    color: var(--texte-doux);
+    margin-bottom: 36px;
   }
 
   .dl-wrap {
     display: flex;
     justify-content: center;
-    margin-bottom: 0;
+    color: var(--texte-doux);
+  }
+
+  .dl-wrap :global(.download) {
+    align-items: center;
+    text-align: center;
   }
 </style>

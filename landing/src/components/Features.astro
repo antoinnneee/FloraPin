@@ -1,47 +1,58 @@
 ---
+// Chaque carte est étiquetée comme une planche d'herbier : un tampon de
+// coordonnées (décoratives) rappelle que tout, dans FloraPin, a un endroit.
 const features = [
   {
     icon: '📷',
+    coord: '48.858° N · 2.294° E',
     title: 'Capture géolocalisée',
     desc: "Une photo, et la fleur est automatiquement épinglée à l'endroit exact où vous l'avez trouvée.",
   },
   {
     icon: '🗺️',
+    coord: '45.764° N · 4.835° E',
     title: 'Carte des fleurs',
     desc: 'Toutes vos trouvailles réunies sur une carte interactive, regroupées intelligemment et filtrables.',
   },
   {
     icon: '🖼️',
+    coord: '43.296° N · 5.369° E',
     title: 'Galerie & détail',
     desc: 'Retrouvez chaque fleur avec sa photo, ses notes et sa mini-carte.',
   },
   {
     icon: '👥',
+    coord: '47.218° N · 1.553° O',
     title: 'Partage entre amis',
     desc: 'Choisissez ce que vous partagez : une fleur ou toute votre collection, avec ou sans localisation.',
   },
   {
     icon: '📣',
+    coord: '50.629° N · 3.057° E',
     title: "Flux d'amis",
     desc: 'Publiez vos trouvailles à tous vos amis d’un coup et suivez les leurs dans un flux dédié.',
   },
   {
     icon: '🌿',
+    coord: '44.837° N · 0.579° O',
     title: 'Identification collaborative',
     desc: "Une espèce inconnue ? Laissez-la « à identifier » et sollicitez vos amis : ils reçoivent la demande et vous proposent un nom.",
   },
   {
     icon: '💬',
+    coord: '43.604° N · 1.444° E',
     title: 'Discussion & commentaires',
     desc: 'Échangez sous chaque fleur partagée, et discutez des demandes d’identification : posez des questions, demandez une photo du feuillage…',
   },
   {
     icon: '❤️',
+    coord: '48.573° N · 7.752° E',
     title: 'Cœurs & votes',
     desc: 'Mettez un cœur aux plus belles photos et faites ressortir les meilleures trouvailles.',
   },
   {
     icon: '📴',
+    coord: 'hors réseau',
     title: 'Fonctionne hors-ligne',
     desc: 'Capture, galerie et carte marchent sans réseau ni compte. Vos données restent chez vous.',
   },
@@ -50,17 +61,20 @@ const features = [
 
 <section id="fonctionnalites" class="features">
   <div class="container">
-    <div class="section-header">
+    <div class="section-header reveal">
       <span class="eyebrow">Fonctionnalités</span>
-      <h2>Tout ce dont vous avez besoin pour cataloguer la nature</h2>
+      <h2>Tout ce qu'il faut pour <em>cataloguer</em> la nature</h2>
     </div>
     <div class="grid">
-      {features.map(f => (
-        <div class="card">
-          <div class="card-icon">{f.icon}</div>
+      {features.map((f, i) => (
+        <article class="card reveal" style={`transition-delay: ${(i % 3) * 0.08}s`}>
+          <header class="card-top">
+            <span class="card-icon" aria-hidden="true">{f.icon}</span>
+            <span class="card-coord">{f.coord}</span>
+          </header>
           <h3>{f.title}</h3>
           <p>{f.desc}</p>
-        </div>
+        </article>
       ))}
     </div>
   </div>
@@ -69,44 +83,66 @@ const features = [
 <style>
   .features {
     padding: var(--section-py) 0;
-    background: var(--white);
+    background: var(--tilleul);
   }
 
   .grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
+    gap: 22px;
   }
 
   .card {
-    background: var(--green-50);
-    border: 1px solid var(--green-100);
+    background: var(--papier);
+    border: 1px solid var(--tilleul-2);
     border-radius: var(--radius);
-    padding: 28px 24px;
-    transition: transform 0.2s, box-shadow 0.2s;
+    padding: 26px 24px 28px;
+    transition:
+      transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.25s,
+      opacity 0.7s ease;
   }
 
   .card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.07);
+    transform: translateY(-4px) rotate(-0.4deg);
+    box-shadow: 0 16px 40px rgba(19, 42, 29, 0.1);
+  }
+
+  .card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px dashed var(--tilleul-2);
   }
 
   .card-icon {
-    font-size: 2rem;
-    margin-bottom: 16px;
+    font-size: 1.7rem;
     line-height: 1;
   }
 
+  .card-coord {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--mousse);
+    white-space: nowrap;
+  }
+
   h3 {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--green-900);
+    font-family: var(--font-display);
+    font-size: 1.14rem;
+    font-weight: 560;
+    color: var(--encre);
     margin-bottom: 8px;
   }
 
   p {
-    font-size: 0.88rem;
-    color: var(--gray-600);
+    font-size: 0.89rem;
+    color: var(--texte-doux);
     line-height: 1.7;
   }
 

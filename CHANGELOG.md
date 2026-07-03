@@ -24,6 +24,9 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   sentier, encart vie privée avec coordonnées masquées, mockups inclinés,
   révélations au scroll (`prefers-reduced-motion` respecté). La copy validée de
   `CONTENT.md` est inchangée.
+- **Encart vie privée : switch interactif.** Le bouton « Partager la
+  localisation » de la démo bascule réellement : coordonnées masquées
+  (`●●.●●●° N`) ↔ révélées, texte d'aide adapté, état `aria-checked` à jour.
 
 ## [1.11.0] — 2026-07-02
 

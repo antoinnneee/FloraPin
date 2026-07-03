@@ -24,6 +24,13 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   sentier, encart vie privée avec coordonnées masquées, mockups inclinés,
   révélations au scroll (`prefers-reduced-motion` respecté). La copy validée de
   `CONTENT.md` est inchangée.
+- **Sentier continu sur toute la page.** Le chemin pointillé du hero se
+  poursuit désormais jusqu'au footer (tracé calculé selon la hauteur réelle de
+  la page, zigzag dans les marges entre les sections). Il se dessine avec le
+  défilement — lissage et vitesse plafonnée (~0,28 page/s) : un scroll éclair
+  ne révèle pas tout d'un coup, le trait rattrape en douceur — et 8 fleurs
+  éclosent au passage du trait. Masqué sur mobile (<720 px),
+  `prefers-reduced-motion` = tout visible sans animation.
 - **Encart vie privée : switch interactif.** Le bouton « Partager la
   localisation » de la démo bascule réellement : coordonnées masquées
   (`●●.●●●° N`) ↔ révélées, texte d'aide adapté, état `aria-checked` à jour.

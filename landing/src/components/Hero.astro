@@ -27,19 +27,8 @@ const pins = [
     </g>
   </svg>
 
-  <!-- Panneau de droite : le sentier et ses fleurs épinglées -->
+  <!-- Panneau de droite : les fleurs épinglées (le sentier global passe ici) -->
   <div class="scene" aria-hidden="true">
-    <svg class="trail" viewBox="0 0 600 560" fill="none">
-      <path
-        class="trail-path"
-        d="M30 430 C 120 380, 130 300, 195 260 S 320 330, 365 350 S 460 210, 455 160 S 300 80, 262 78"
-        stroke="var(--pollen)"
-        stroke-width="2.5"
-        stroke-linecap="round"
-        stroke-dasharray="2 12"
-      />
-    </svg>
-
     {pins.map((p) => (
       <div class="pin" style={`top:${p.top}%; left:${p.left}%; --bloom-delay:${p.delay}s;`}>
         <svg viewBox="0 0 44 60" width="44" height="60">
@@ -184,20 +173,6 @@ const pins = [
     pointer-events: none;
   }
 
-  .trail {
-    position: absolute;
-    top: 8%;
-    left: 22%;
-    width: 74%;
-    height: 84%;
-  }
-
-  .trail-path {
-    stroke-dashoffset: 0;
-    opacity: 0;
-    animation: trail-in 2.4s ease 0.5s forwards;
-  }
-
   .pin {
     position: absolute;
     transform: translate(-50%, -100%);
@@ -289,11 +264,6 @@ const pins = [
     to   { opacity: 1; transform: none; }
   }
 
-  @keyframes trail-in {
-    from { opacity: 0; }
-    to   { opacity: 0.85; }
-  }
-
   @keyframes bloom {
     from { opacity: 0; transform: scale(0) rotate(-40deg); }
     to   { opacity: 1; transform: scale(1) rotate(0deg); }
@@ -311,14 +281,12 @@ const pins = [
 
   @media (prefers-reduced-motion: reduce) {
     .hero-text,
-    .trail-path,
     .pin .flower,
     .cluster,
     .comment {
       animation: none;
       opacity: 1;
     }
-    .trail-path { opacity: 0.85; }
   }
 
   /* --- Responsive --- */

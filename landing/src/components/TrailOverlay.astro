@@ -1,0 +1,235 @@
+---
+// Le sentier qui traverse toute la page : un chemin pointillé continu, du hero
+// au footer, qui se dessine avec le défilement. Des fleurs éclosent au passage
+// du trait. Le tracé est calculé en JS d'après la hauteur réelle du document
+// (il zigzague dans les marges, entre les blocs de contenu).
+---
+
+<div id="trail-overlay" aria-hidden="true">
+  <svg id="trail-svg">
+    <defs>
+      <mask id="trail-mask" maskUnits="userSpaceOnUse">
+        <path id="trail-reveal" fill="none" stroke="#fff" stroke-width="34" stroke-linecap="round" />
+      </mask>
+    </defs>
+    <path
+      id="trail-line"
+      fill="none"
+      stroke="#d9ae35"
+      stroke-width="2.5"
+      stroke-linecap="round"
+      stroke-dasharray="2 12"
+      mask="url(#trail-mask)"
+    />
+  </svg>
+</div>
+
+<script>
+  const overlay = document.getElementById('trail-overlay');
+  const svg = document.getElementById('trail-svg');
+  const line = document.getElementById('trail-line');
+  const reveal = document.getElementById('trail-reveal');
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Teintes de pétales, en écho aux épingles du hero.
+  const PETALS = ['#d5548c', '#f9faf4', '#c9a3e8'];
+  const FLOWER_FRACTIONS = [0.1, 0.2, 0.32, 0.44, 0.56, 0.68, 0.8, 0.92];
+
+  let pathLen = 0;
+  let flowers = [];
+  let target = 0;
+  let cur = 0;
+  let rafId = 0;
+
+  function flowerSvg(petal) {
+    const p = (r) =>
+      `<ellipse cx="18" cy="8" rx="4.5" ry="7.5" fill="${petal}" transform="rotate(${r} 18 15)"/>`;
+    return `<svg viewBox="0 0 36 46" width="36" height="46">
+      <line x1="18" y1="24" x2="18" y2="42" stroke="rgba(90,108,95,0.55)" stroke-width="2" stroke-linecap="round"/>
+      <g class="trail-flower-head">${p(0)}${p(72)}${p(144)}${p(216)}${p(288)}
+        <circle cx="18" cy="15" r="3.8" fill="#efc94c"/></g>
+    </svg>`;
+  }
+
+  function build() {
+    if (!overlay || !svg || !line || !reveal) return;
+    const vw = document.documentElement.clientWidth;
+    const docH = document.documentElement.scrollHeight;
+
+    flowers.forEach((f) => f.el.remove());
+    flowers = [];
+
+    // Sur mobile, les marges disparaissent : pas de sentier en superposition.
+    if (vw < 720) {
+      overlay.style.display = 'none';
+      return;
+    }
+    overlay.style.display = '';
+    overlay.style.height = docH + 'px';
+    svg.setAttribute('viewBox', `0 0 ${vw} ${docH}`);
+    svg.setAttribute('width', String(vw));
+    svg.setAttribute('height', String(docH));
+
+    // Couloirs vides de part et d'autre du contenu centré (max-w 1160).
+    const lane = Math.max(34, (vw - 1160) / 4);
+    const leftX = lane;
+    const rightX = vw - lane;
+
+    const sections = [...document.querySelectorAll('body > section')];
+    if (!sections.length) return;
+    const hero = sections[0];
+    const heroH = hero.offsetHeight;
+
+    // Départ dans la scène du hero (moitié droite), puis alternance de couloirs.
+    const pts = [
+      [vw * 0.56, heroH * 0.2],
+      [vw * 0.78, heroH * 0.45],
+      [vw * 0.62, heroH * 0.78],
+    ];
+    let side = 'left';
+    for (const s of sections.slice(1)) {
+      const top = s.offsetTop;
+      const h = s.offsetHeight;
+      const x = side === 'left' ? leftX : rightX;
+      // Rester dans le couloir jusqu'au bord de la section : le changement de
+      // côté se joue dans la zone vide (paddings) entre deux sections.
+      pts.push([x, top + Math.min(150, h * 0.2)]);
+      pts.push([x, top + h - 60]);
+      side = side === 'left' ? 'right' : 'left';
+    }
+    // Fin au centre du footer.
+    pts.push([vw * 0.5, docH - 60]);
+
+    // Chaîne de courbes de Bézier à tangentes verticales : des S souples.
+    let d = `M ${pts[0][0]} ${pts[0][1]}`;
+    for (let i = 1; i < pts.length; i++) {
+      const [x0, y0] = pts[i - 1];
+      const [x1, y1] = pts[i];
+      const dy = (y1 - y0) * 0.5;
+      d += ` C ${x0} ${y0 + dy}, ${x1} ${y1 - dy}, ${x1} ${y1}`;
+    }
+    line.setAttribute('d', d);
+    reveal.setAttribute('d', d);
+
+    pathLen = line.getTotalLength();
+    reveal.setAttribute('stroke-dasharray', String(pathLen));
+    reveal.setAttribute('stroke-dashoffset', String(pathLen * (1 - cur)));
+
+    // Fleurs posées le long du tracé.
+    for (let i = 0; i < FLOWER_FRACTIONS.length; i++) {
+      const f = FLOWER_FRACTIONS[i];
+      const pt = line.getPointAtLength(pathLen * f);
+      const el = document.createElement('div');
+      el.className = 'trail-flower';
+      el.style.left = pt.x + 'px';
+      el.style.top = pt.y + 'px';
+      el.innerHTML = flowerSvg(PETALS[i % PETALS.length]);
+      overlay.appendChild(el);
+      flowers.push({ el, f });
+    }
+  }
+
+  function computeTarget() {
+    const docH = document.documentElement.scrollHeight;
+    const vh = window.innerHeight;
+    // Le trait vise le bas de l'écran visible : la portion du hero se dessine
+    // dès le chargement, la suite suit le défilement.
+    target = Math.min(1, (window.scrollY + vh * 0.9) / docH);
+  }
+
+  function apply(progress) {
+    if (!reveal) return;
+    reveal.setAttribute('stroke-dashoffset', String(pathLen * (1 - progress)));
+    for (const fl of flowers) {
+      fl.el.classList.toggle('bloomed', progress >= fl.f);
+    }
+  }
+
+  let lastTime = 0;
+  function tick(now) {
+    // Lissage exponentiel + vitesse plafonnée (indépendant du framerate) :
+    // un scroll éclair ne révèle pas tout d'un coup, le trait « rattrape »
+    // à 0,28 page/s au plus (~3,5 s pour traverser toute la page).
+    const dt = lastTime ? Math.min(0.05, (now - lastTime) / 1000) : 0.016;
+    lastTime = now;
+    const MAX_SPEED = 0.28;
+    let delta = (target - cur) * (1 - Math.exp(-3.2 * dt));
+    const maxStep = MAX_SPEED * dt;
+    delta = Math.max(-maxStep, Math.min(maxStep, delta));
+    cur += delta;
+    if (Math.abs(target - cur) < 0.0005) cur = target;
+    apply(cur);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  if (overlay && line && reveal) {
+    build();
+    computeTarget();
+    if (reduced) {
+      // Pas d'animation liée au défilement : sentier et fleurs visibles.
+      cur = 1;
+      apply(1);
+    } else {
+      window.addEventListener('scroll', computeTarget, { passive: true });
+      rafId = requestAnimationFrame(tick);
+    }
+
+    // Rebâtir quand la mise en page change (resize, chargement des fontes).
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        build();
+        computeTarget();
+        if (reduced) apply(1);
+      }, 150);
+    });
+    window.addEventListener('load', () => {
+      build();
+      computeTarget();
+      if (reduced) apply(1);
+    });
+  }
+</script>
+
+<style is:global>
+  #trail-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  #trail-line {
+    opacity: 0.8;
+  }
+
+  .trail-flower {
+    position: absolute;
+    transform: translate(-50%, -88%);
+    filter: drop-shadow(0 3px 8px rgba(19, 42, 29, 0.25));
+  }
+
+  .trail-flower .trail-flower-head {
+    transform-origin: 18px 15px;
+    transform: scale(0);
+    opacity: 0;
+    transition:
+      transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+      opacity 0.35s ease;
+  }
+
+  .trail-flower.bloomed .trail-flower-head {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .trail-flower .trail-flower-head {
+      transition: none;
+    }
+  }
+</style>

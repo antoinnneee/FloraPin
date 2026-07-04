@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 
 /** État de la feuille de partage : amis disponibles, albums, partages existants. */
 data class ShareUiState(
@@ -106,10 +107,26 @@ class ShareViewModel(
         }
     }
 
-    private fun messageOf(e: Exception): String =
-        e.message ?: "Erreur réseau. Réessayez."
+    /**
+     * Message d'erreur lisible. Pour une réponse HTTP, on extrait le champ
+     * `message` du corps JSON renvoyé par le backend (ex. « Le partage est
+     * réservé aux amis acceptés. ») plutôt que d'afficher « HTTP 4xx ».
+     */
+    private fun messageOf(e: Exception): String = when (e) {
+        is HttpException -> apiMessage(e) ?: "Erreur réseau. Réessayez."
+        else -> e.message ?: "Erreur réseau. Réessayez."
+    }
+
+    private fun apiMessage(e: HttpException): String? =
+        runCatching {
+            val body = e.response()?.errorBody()?.string() ?: return null
+            MESSAGE_REGEX.find(body)?.groupValues?.get(1)
+        }.getOrNull()
 
     companion object {
+        /** Extrait la valeur du champ JSON `message` d'un corps d'erreur NestJS. */
+        private val MESSAGE_REGEX = Regex("\"message\"\\s*:\\s*\"([^\"]*)\"")
+
         fun factory(context: Context): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")

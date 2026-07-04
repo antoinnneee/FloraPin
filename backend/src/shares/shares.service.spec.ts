@@ -114,9 +114,13 @@ class FakeShareRepo {
   async findOne(opts: { where: Partial<Share> }): Promise<Share | null> {
     return (
       [...this.store.values()].find((s) =>
-        Object.entries(opts.where).every(
-          ([k, v]) => (s as unknown as Record<string, unknown>)[k] === v,
-        ),
+        Object.entries(opts.where).every(([k, v]) => {
+          const actual = (s as unknown as Record<string, unknown>)[k];
+          // IsNull() de TypeORM arrive comme un FindOperator (objet) : on le
+          // traite comme un test « colonne IS NULL ».
+          if (v !== null && typeof v === 'object') return actual == null;
+          return actual === v;
+        }),
       ) ?? null
     );
   }
@@ -342,6 +346,33 @@ describe('SharesService', () => {
       });
       expect(await service.isVisibleTo('etranger', flower)).toBe(false);
     });
+  });
+
+  it('ré-partage le même périmètre : met à jour le GPS sans conflit', async () => {
+    const flower = flowerRepo.seed({
+      ownerId: OWNER,
+      imageKey: 'k3',
+      takenAt: new Date(),
+      location: { type: 'Point', coordinates: [2.29, 48.85] },
+      accuracyM: 5,
+    });
+    await service.create(OWNER, {
+      friendId: VIEWER,
+      scope: 'flower',
+      flowerId: flower.id,
+      includeGps: true,
+    });
+    // Re-partage identique en basculant le GPS : pas de 409, on met à jour.
+    await service.create(OWNER, {
+      friendId: VIEWER,
+      scope: 'flower',
+      flowerId: flower.id,
+      includeGps: false,
+    });
+
+    const mine = await service.listMine(OWNER);
+    expect(mine).toHaveLength(1);
+    expect(mine[0].includeGps).toBe(false);
   });
 
   it('partage une fleur avec GPS', async () => {

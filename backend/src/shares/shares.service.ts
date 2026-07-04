@@ -1,5 +1,4 @@
 import {
-  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -57,6 +56,9 @@ export class SharesService {
       albumId = album.id;
     }
 
+    // Ré-partager le même périmètre au même ami n'est pas une erreur : on met à
+    // jour le partage existant (typiquement pour basculer le GPS) plutôt que de
+    // renvoyer un 409 que l'utilisateur ne peut pas résoudre depuis l'app.
     const existing = await this.shares.findOne({
       where: {
         ownerId,
@@ -67,7 +69,8 @@ export class SharesService {
       },
     });
     if (existing) {
-      throw new ConflictException('Ce partage existe déjà.');
+      existing.includeGps = dto.includeGps ?? true;
+      return this.shares.save(existing);
     }
 
     const share = await this.shares.save(

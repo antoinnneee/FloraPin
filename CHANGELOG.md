@@ -12,6 +12,14 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Corrigé
+- **Partage d'une fleur — erreur 409 supprimée.** Re-partager une fleur (ou un
+  album / toutes ses fleurs) au même ami ne renvoie plus « Conflict » : le
+  partage existant est mis à jour (utile notamment pour basculer l'inclusion du
+  GPS) au lieu d'être rejeté. Côté app, les erreurs de partage affichent
+  désormais le message renvoyé par le serveur (ex. « Le partage est réservé aux
+  amis acceptés. ») au lieu d'un « HTTP 4xx » technique.
+
 ### Modifié
 - **Landing — sentier animé.** Le tracé suit désormais de près la position de
   défilement (au lieu de prendre près d'un écran d'avance), serpente en un

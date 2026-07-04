@@ -1,5 +1,6 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { Client } from 'pg';
@@ -87,9 +88,16 @@ describe('FloraPin API (e2e)', () => {
       PUSH_DRIVER: 'stub',
     });
 
+    // Neutralise le rate limiting pour les tests fonctionnels : ils enchaînent
+    // plusieurs inscriptions depuis la même IP (localhost) et dépasseraient sinon
+    // la limite anti-spam de /auth/register (3/min). Les seuils restent actifs en
+    // prod ; on ne teste pas le throttler ici.
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideGuard(ThrottlerGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(

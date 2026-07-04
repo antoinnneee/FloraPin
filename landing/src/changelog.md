@@ -10,7 +10,10 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
-## Non publié
+## [1.11.0] — 2026-07-04
+
+_Première version publiée sur le Google Play Store (test fermé) — versionName
+1.11.0, versionCode 19._
 
 ### Supprimé
 - **Permission `READ_MEDIA_IMAGES` / `READ_EXTERNAL_STORAGE` retirée.** Reliquat
@@ -28,6 +31,10 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   données effacées et le délai de traitement. Lien ajouté au pied de page de la
   vitrine. URL à renseigner dans la Play Console (section « Suppression de
   compte »).
+- **Page publique des nouveautés (`/changelog`).** La vitrine expose le journal
+  des modifications (rendu du `CHANGELOG.md`), avec un lien « Nouveautés » au
+  pied de page. Le fichier est copié dans la landing au déploiement (même
+  mécanique que la version affichée).
 
 ### Sécurité
 - **Backend — en-têtes & surface d'API.** Ajout de `helmet` (en-têtes de sécurité
@@ -59,6 +66,10 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   endpoints d'authentification réellement publics.
 
 ### Modifié
+- **Inscription au test fermé Google Play mise en avant sur la vitrine.** Le CTA
+  principal invite à rejoindre la bêta via le Play Store (rejoindre le groupe de
+  testeurs, puis activer l'accès) ; le téléchargement direct de l'APK passe en
+  lien discret. Bascule pilotée par `PLAY_TEST_GROUP_URL` dans `config.ts`.
 - **Synchronisation cloud désactivée par défaut (device-first).** Le nouveau
   défaut est **OFF** : l'app reste 100 % locale tant que l'utilisateur n'active
   pas explicitement la sync (l'interrupteur de l'inscription est décoché par
@@ -87,10 +98,6 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 - **Encart vie privée : switch interactif.** Le bouton « Partager la
   localisation » de la démo bascule réellement : coordonnées masquées
   (`●●.●●●° N`) ↔ révélées, texte d'aide adapté, état `aria-checked` à jour.
-
-## [1.11.0] — 2026-07-02
-
-### Modifié
 - **Interface allégée & plus lisible.** La barre du haut de l'Accueil était
   surchargée : les **Albums** rejoignent la barre de navigation du bas (nouvel
   onglet 📁, à côté de l'Accueil) et le **tri** descend dans la vue sous forme

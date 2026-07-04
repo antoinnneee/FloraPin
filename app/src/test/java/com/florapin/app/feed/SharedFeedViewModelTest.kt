@@ -233,6 +233,25 @@ class SharedFeedViewModelTest {
     }
 
     @Test
+    fun refresh_setsRefreshingThenReloadsFirstPage() = runTest {
+        val feed = FakeFeedApi(listOf(flower("fl1", "alice")))
+        val vm = SharedFeedViewModel(feed, FakeFriendshipsApi(emptyList()), FakeLikesApi())
+        advanceUntilIdle()
+
+        vm.refresh()
+        // Indicateur de tirage actif tant que la passe n'est pas terminée, sans
+        // repasser par l'écran de chargement plein écran.
+        assertEquals(true, vm.state.value.refreshing)
+        assertEquals(false, vm.state.value.loading)
+
+        advanceUntilIdle()
+        assertEquals(false, vm.state.value.refreshing)
+        // Recharge depuis la première page (curseur `before` non renseigné).
+        assertNull(feed.lastBefore)
+        assertEquals(1, vm.state.value.items.size)
+    }
+
+    @Test
     fun setSort_reloadsWithSortParam() = runTest {
         val feed = FakeFeedApi(listOf(flower("fl1", "alice")))
         val vm = SharedFeedViewModel(feed, FakeFriendshipsApi(emptyList()), FakeLikesApi())

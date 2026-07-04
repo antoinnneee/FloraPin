@@ -30,6 +30,8 @@ enum class FeedSort(val apiValue: String, val label: String) {
 
 data class SharedFeedUiState(
     val loading: Boolean = false,
+    /** Rechargement via pull-to-refresh (liste déjà visible, distinct du chargement initial). */
+    val refreshing: Boolean = false,
     /** Chargement d'une page suivante (pagination), distinct du chargement initial. */
     val loadingMore: Boolean = false,
     val items: List<SharedFlowerItem> = emptyList(),
@@ -61,9 +63,25 @@ class SharedFeedViewModel(
     }
 
     /** (Re)charge la première page du feed, en repartant de zéro. */
-    fun load() {
+    fun load() = fetchFirstPage(isRefresh = false)
+
+    /**
+     * Rechargement déclenché par le pull-to-refresh (TÂCHE 1.3) : même passe que
+     * [load], mais la liste courante reste affichée avec l'indicateur de tirage
+     * (pas d'écran « Chargement… » plein écran).
+     */
+    fun refresh() = fetchFirstPage(isRefresh = true)
+
+    private fun fetchFirstPage(isRefresh: Boolean) {
         val sort = _state.value.sort
-        _state.update { it.copy(loading = true, error = null, endReached = false) }
+        _state.update {
+            it.copy(
+                loading = !isRefresh,
+                refreshing = isRefresh,
+                error = null,
+                endReached = false,
+            )
+        }
         viewModelScope.launch {
             try {
                 val flowers = feedApi.getFeed(sort = sort.apiValue, limit = PAGE_SIZE)
@@ -79,7 +97,11 @@ class SharedFeedViewModel(
                 )
             } catch (e: Exception) {
                 _state.update {
-                    it.copy(loading = false, error = e.message ?: "Erreur réseau. Réessayez.")
+                    it.copy(
+                        loading = false,
+                        refreshing = false,
+                        error = e.message ?: "Erreur réseau. Réessayez.",
+                    )
                 }
             }
         }

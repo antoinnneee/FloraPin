@@ -20,6 +20,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -73,22 +74,30 @@ fun IdentifyScreen(
             )
         },
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+        PullToRefreshBox(
+            isRefreshing = state.refreshing,
+            onRefresh = viewModel::refresh,
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
+        ) {
             when {
                 state.loading -> Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) { Text("Chargement…") }
 
-                state.error != null -> EmptyState(
-                    title = "Erreur",
-                    message = state.error ?: "",
-                )
+                state.error != null -> RefreshableEmpty {
+                    EmptyState(
+                        title = "Erreur",
+                        message = state.error ?: "",
+                    )
+                }
 
-                state.flowers.isEmpty() -> EmptyState(
-                    title = "Rien à identifier",
-                    message = "Aucun ami ne vous a sollicité pour le moment.",
-                )
+                state.flowers.isEmpty() -> RefreshableEmpty {
+                    EmptyState(
+                        title = "Rien à identifier",
+                        message = "Aucun ami ne vous a sollicité pour le moment.",
+                    )
+                }
 
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -107,6 +116,19 @@ fun IdentifyScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Enveloppe un contenu « vide » (non défilable) dans une [LazyColumn] pleine zone,
+ * afin que le pull-to-refresh reste déclenchable même sans liste à faire défiler.
+ */
+@Composable
+private fun RefreshableEmpty(content: @Composable () -> Unit) {
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        item {
+            Box(modifier = Modifier.fillParentMaxSize()) { content() }
         }
     }
 }

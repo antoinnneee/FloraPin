@@ -9,6 +9,8 @@ import com.florapin.app.friends.FriendsBadgeStore
 import com.florapin.app.identify.IdentifyBadgeStore
 import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.auth.EncryptedTokenStore
+import com.florapin.app.sync.SyncScheduler
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -75,6 +77,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     /** Nombre de demandes d'amis entrantes non encore vues (0 = pas de badge). */
     val friendsBadge: StateFlow<Int> = _friendsBadge.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    /** Tirage manuel (pull-to-refresh) en cours (TÂCHE 1.3). */
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     /**
      * Recalcule les badges : récupère les demandes courantes (identification et
      * amitiés entrantes) et compte celles non encore vues. Appelé à l'affichage de
@@ -83,7 +89,32 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
      * dernière valeur connue).
      */
     fun refreshBadges() {
+        viewModelScope.launch { loadBadges() }
+    }
+
+    /**
+     * Pull-to-refresh de la galerie (TÂCHE 1.3). Device-first : la liste vient de
+     * Room (Flow réactif, déjà à jour) — ce geste relance seulement une passe de
+     * synchronisation cloud **si elle est activée** (jamais forcée : hors-ligne /
+     * sync OFF restent silencieux) et rafraîchit les badges de nouveautés.
+     */
+    fun refresh() {
         viewModelScope.launch {
+            _isRefreshing.value = true
+            try {
+                // No-op si la sync auto est désactivée (device-first) : n'exige
+                // jamais le réseau.
+                SyncScheduler.syncNow(getApplication())
+                loadBadges()
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
+    }
+
+    /** Recharge en parallèle les deux compteurs de badges, en attendant leur fin. */
+    private suspend fun loadBadges() = coroutineScope {
+        launch {
             try {
                 val ids = apis.identification.listToIdentify().map { it.id }
                 _identifyBadge.value = identifyBadgeStore.unseenCount(ids)
@@ -91,7 +122,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 // hors-ligne / non connecté : on garde la valeur actuelle
             }
         }
-        viewModelScope.launch {
+        launch {
             try {
                 val incomingIds = apis.friendships.list()
                     .filter { it.status == "pending" && it.direction == "incoming" }

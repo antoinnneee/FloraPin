@@ -18,6 +18,8 @@ import kotlinx.coroutines.launch
 /** État de l'écran « Fleurs à identifier » (NODE-134). */
 data class IdentifyUiState(
     val loading: Boolean = true,
+    /** Rechargement via pull-to-refresh (liste déjà visible), distinct du chargement initial. */
+    val refreshing: Boolean = false,
     val flowers: List<FlowerDto> = emptyList(),
     val error: String? = null,
     /** Fleurs pour lesquelles une proposition a été envoyée durant la session. */
@@ -45,13 +47,19 @@ class IdentifyViewModel(
         load()
     }
 
-    /** (Re)charge la liste des fleurs à identifier. */
-    fun load() {
-        _state.update { it.copy(loading = true, error = null) }
+    /**
+     * (Re)charge la liste des fleurs à identifier. Avec [isRefresh] = true
+     * (pull-to-refresh, TÂCHE 1.3), la liste courante reste affichée sous
+     * l'indicateur de tirage plutôt que de basculer sur l'écran « Chargement… ».
+     */
+    fun load(isRefresh: Boolean = false) {
+        _state.update { it.copy(loading = !isRefresh, refreshing = isRefresh, error = null) }
         viewModelScope.launch {
             try {
                 val flowers = api.listToIdentify()
-                _state.update { it.copy(loading = false, flowers = flowers, error = null) }
+                _state.update {
+                    it.copy(loading = false, refreshing = false, flowers = flowers, error = null)
+                }
                 // Ouvrir l'écran « voit » toutes les demandes courantes : le badge
                 // de la galerie revient à 0, même sans avoir proposé d'espèce.
                 badgeStore?.markSeen(flowers.map { it.id }.toSet())
@@ -59,12 +67,16 @@ class IdentifyViewModel(
                 _state.update {
                     it.copy(
                         loading = false,
+                        refreshing = false,
                         error = e.message ?: "Impossible de charger les demandes.",
                     )
                 }
             }
         }
     }
+
+    /** Rechargement déclenché par le pull-to-refresh (TÂCHE 1.3). */
+    fun refresh() = load(isRefresh = true)
 
     /** Propose une espèce pour la fleur [flowerId]. Ignore les saisies vides. */
     fun propose(flowerId: String, species: String) {

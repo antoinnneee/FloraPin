@@ -118,6 +118,24 @@ class IdentifyViewModelTest {
     }
 
     @Test
+    fun refresh_setsRefreshingThenReloads() = runTest {
+        val api = FakeIdentificationApi(flowers = listOf(flower("f1")))
+        val vm = IdentifyViewModel(api)
+        advanceUntilIdle()
+
+        // Nouvelle demande côté serveur, révélée par le tirage.
+        api.flowers = listOf(flower("f1"), flower("f2"))
+        vm.refresh()
+        // Tirage : indicateur actif, sans écran « Chargement… » plein écran.
+        assertTrue(vm.state.value.refreshing)
+        assertFalse(vm.state.value.loading)
+
+        advanceUntilIdle()
+        assertFalse(vm.state.value.refreshing)
+        assertEquals(listOf("f1", "f2"), vm.state.value.flowers.map { it.id })
+    }
+
+    @Test
     fun propose_marksFlowerProposed() = runTest {
         val api = FakeIdentificationApi(flowers = listOf(flower("f1")))
         val vm = IdentifyViewModel(api)

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -26,6 +27,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -64,6 +66,7 @@ fun GalleryScreen(
     val sort by viewModel.sort.collectAsStateWithLifecycle()
     val identifyBadge by viewModel.identifyBadge.collectAsStateWithLifecycle()
     val friendsBadge by viewModel.friendsBadge.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
 
     // Recalcule les badges à l'affichage de la galerie (lancement + retour depuis
     // les écrans « à identifier » / amis, qui auront marqué leurs demandes vues).
@@ -100,28 +103,38 @@ fun GalleryScreen(
             if (flowers.isNotEmpty()) {
                 SortChip(selected = sort, onSelect = viewModel::setSort)
             }
-            when {
-                flowers.isNotEmpty() -> LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 120.dp),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(flowers, key = { it.id }) { flower ->
-                        FlowerThumbnail(
-                            flower = flower,
-                            onClick = { onFlowerClick(flower.id) },
+            // Tirer vers le bas relance une passe de sync (si activée) et rafraîchit
+            // les badges — la grille elle-même vient de Room (déjà à jour), device-first.
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = viewModel::refresh,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                when {
+                    flowers.isNotEmpty() -> LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 120.dp),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(flowers, key = { it.id }) { flower ->
+                            FlowerThumbnail(
+                                flower = flower,
+                                onClick = { onFlowerClick(flower.id) },
+                            )
+                        }
+                    }
+
+                    query.isNotBlank() -> RefreshableEmpty {
+                        EmptyState(
+                            title = "Aucun résultat",
+                            message = "Aucune fleur ne correspond à « $query ».",
                         )
                     }
+
+                    else -> RefreshableEmpty { EmptyGallery() }
                 }
-
-                query.isNotBlank() -> EmptyState(
-                    title = "Aucun résultat",
-                    message = "Aucune fleur ne correspond à « $query ».",
-                )
-
-                else -> EmptyGallery()
             }
         }
     }
@@ -205,6 +218,20 @@ private fun SortChip(
                     },
                 )
             }
+        }
+    }
+}
+
+/**
+ * Enveloppe un contenu « vide » (non défilable) dans une [LazyColumn] qui remplit
+ * la zone, afin que le pull-to-refresh reste déclenchable même sans liste à faire
+ * défiler (le geste doit trouver un conteneur défilable).
+ */
+@Composable
+private fun RefreshableEmpty(content: @Composable () -> Unit) {
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        item {
+            Box(modifier = Modifier.fillParentMaxSize()) { content() }
         }
     }
 }

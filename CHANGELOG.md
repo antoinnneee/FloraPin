@@ -13,6 +13,14 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Tirer pour rafraîchir (pull-to-refresh).** La galerie, le feed « Partagées
+  avec moi » et l'écran « Fleurs à identifier » se rafraîchissent désormais d'un
+  simple geste de tirage vers le bas. Sur la galerie (device-first), le geste
+  relit la bibliothèque locale et ne relance une passe de synchronisation cloud
+  que si la sync est activée — jamais de réseau exigé ; il rafraîchit aussi les
+  badges de nouveautés (identifications et invitations). Sur le feed et
+  « À identifier », il recharge la première page depuis le serveur. Le geste
+  reste déclenchable même quand l'écran est vide.
 - **Pagination du feed d'amis (défilement infini).** Le flux « Partagées avec
   moi » charge désormais les fleurs par pages et complète la liste à l'approche
   du bas de l'écran, au lieu de plafonner à un lot unique. Côté serveur, une

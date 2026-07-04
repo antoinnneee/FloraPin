@@ -21,6 +21,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -72,57 +73,71 @@ fun SharedFeedScreen(
             )
         },
     ) { innerPadding ->
-        if (!state.loading && state.items.isEmpty()) {
-            EmptyState(
-                title = state.error?.let { "Oups" } ?: "Rien de partagé",
-                message = state.error
-                    ?: "Aucune fleur partagée avec vous pour l'instant.",
-                modifier = Modifier.padding(innerPadding),
-            )
-            return@Scaffold
-        }
-
-        val listState = rememberLazyListState()
-        // Déclenche le chargement de la page suivante quand on approche du bas
-        // (pagination keyset, TÂCHE 1.2). La garde loadMore() évite les doublons.
-        val shouldLoadMore by remember {
-            derivedStateOf {
-                val info = listState.layoutInfo
-                val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
-                info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - 3
-            }
-        }
-        LaunchedEffect(shouldLoadMore, state.items.size) {
-            if (shouldLoadMore) viewModel.loadMore()
-        }
-
-        LazyColumn(
-            state = listState,
+        // Tirer vers le bas recharge la première page du feed (TÂCHE 1.3).
+        PullToRefreshBox(
+            isRefreshing = state.refreshing,
+            onRefresh = viewModel::refresh,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item {
-                SortBar(selected = state.sort, onSelect = viewModel::setSort)
+            if (!state.loading && state.items.isEmpty()) {
+                // Enveloppé dans une LazyColumn pleine zone pour que le tirage
+                // reste déclenchable même sans liste à faire défiler.
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    item {
+                        Box(modifier = Modifier.fillParentMaxSize()) {
+                            EmptyState(
+                                title = state.error?.let { "Oups" } ?: "Rien de partagé",
+                                message = state.error
+                                    ?: "Aucune fleur partagée avec vous pour l'instant.",
+                            )
+                        }
+                    }
+                }
+                return@PullToRefreshBox
             }
-            items(state.items, key = { it.flower.id }) { item ->
-                SharedFlowerCard(
-                    item = item,
-                    onToggleLike = { viewModel.toggleLike(item.flower.id) },
-                    onComment = { commentsFor = item.flower.id },
-                )
+
+            val listState = rememberLazyListState()
+            // Déclenche le chargement de la page suivante quand on approche du bas
+            // (pagination keyset, TÂCHE 1.2). La garde loadMore() évite les doublons.
+            val shouldLoadMore by remember {
+                derivedStateOf {
+                    val info = listState.layoutInfo
+                    val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+                    info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - 3
+                }
             }
-            if (state.loadingMore) {
-                item(key = "loading-more") {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator()
+            LaunchedEffect(shouldLoadMore, state.items.size) {
+                if (shouldLoadMore) viewModel.loadMore()
+            }
+
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                item {
+                    SortBar(selected = state.sort, onSelect = viewModel::setSort)
+                }
+                items(state.items, key = { it.flower.id }) { item ->
+                    SharedFlowerCard(
+                        item = item,
+                        onToggleLike = { viewModel.toggleLike(item.flower.id) },
+                        onComment = { commentsFor = item.flower.id },
+                    )
+                }
+                if (state.loadingMore) {
+                    item(key = "loading-more") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator()
+                        }
                     }
                 }
             }

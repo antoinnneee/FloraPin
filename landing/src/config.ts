@@ -35,6 +35,6 @@ export const DOWNLOAD_NOTE =
 // Le lien d'opt-in ne devient actif qu'une fois une version PUBLIÉE dans le canal
 // de test fermé (sinon 404). Laisser PLAY_TEST_GROUP_URL vide masque tout le bloc
 // « Rejoindre la bêta Google Play » sur la vitrine.
-export const PLAY_TEST_GROUP_URL = ''; // ex. 'https://groups.google.com/g/florapin-testeurs'
+export const PLAY_TEST_GROUP_URL = 'https://groups.google.com/g/florapin-testeurs';
 export const PLAY_TEST_OPT_IN_URL =
   'https://play.google.com/apps/testing/com.florapin.app';

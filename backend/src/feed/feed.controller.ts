@@ -16,6 +16,12 @@ export class FeedController {
   @Get()
   get(@CurrentUser() user: AuthenticatedUser, @Query() query: FeedQueryDto) {
     const since = query.since ? new Date(query.since) : undefined;
-    return this.feed.getFeed(user.userId, since, query.limit, query.sort);
+    return this.feed.getFeed(
+      user.userId,
+      since,
+      query.limit,
+      query.sort,
+      query.before,
+    );
   }
 }

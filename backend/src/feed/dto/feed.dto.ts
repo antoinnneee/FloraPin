@@ -1,5 +1,13 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsISO8601, IsOptional, Max, Min } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsISO8601,
+  IsOptional,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
 
 export type FeedSort = 'date' | 'likes';
 
@@ -19,4 +27,20 @@ export class FeedQueryDto {
   @IsOptional()
   @IsIn(['date', 'likes'])
   sort?: FeedSort;
+
+  /**
+   * Curseur de pagination keyset descendante (TÂCHE 1.2) : ne renvoie que les
+   * fleurs *strictement plus anciennes* que ce repère. Format `<ISO8601>_<id>`,
+   * construit par le client à partir de la dernière fleur reçue (createdAt + id)
+   * — le couple (createdAt, id) garantit un ordre stable même à date égale.
+   *
+   * Réservé au tri par date : `before` est INCOMPATIBLE avec `sort=likes` (ordre
+   * par cœurs, non temporel) et provoque alors un 400. Complémentaire de `since`
+   * (borne basse du delta) : les deux peuvent coexister.
+   */
+  @IsOptional()
+  @Matches(/^.+_.+$/, {
+    message: 'before doit être au format `<ISO8601>_<id>`.',
+  })
+  before?: string;
 }

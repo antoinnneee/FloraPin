@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -20,6 +22,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,7 +82,22 @@ fun SharedFeedScreen(
             return@Scaffold
         }
 
+        val listState = rememberLazyListState()
+        // Déclenche le chargement de la page suivante quand on approche du bas
+        // (pagination keyset, TÂCHE 1.2). La garde loadMore() évite les doublons.
+        val shouldLoadMore by remember {
+            derivedStateOf {
+                val info = listState.layoutInfo
+                val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+                info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - 3
+            }
+        }
+        LaunchedEffect(shouldLoadMore, state.items.size) {
+            if (shouldLoadMore) viewModel.loadMore()
+        }
+
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
@@ -94,6 +113,18 @@ fun SharedFeedScreen(
                     onToggleLike = { viewModel.toggleLike(item.flower.id) },
                     onComment = { commentsFor = item.flower.id },
                 )
+            }
+            if (state.loadingMore) {
+                item(key = "loading-more") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
             }
         }
     }

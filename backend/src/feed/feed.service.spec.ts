@@ -93,6 +93,47 @@ describe('FeedService', () => {
     expect(result.map((f) => f.id)).toEqual(['b', 'c', 'a']);
   });
 
+  it('pagine avec le curseur `before` : ne renvoie que les plus anciennes', async () => {
+    // Curseur = fleur 'b' (2026-06-21) : on attend 'a' puis 'c' (plus anciennes).
+    const result = await feed.getFeed(
+      'viewer',
+      undefined,
+      50,
+      'date',
+      '2026-06-21T10:00:00.000Z_b',
+    );
+    expect(result.map((f) => f.id)).toEqual(['a', 'c']);
+  });
+
+  it('curseur `before` : départage les dates égales par id (id < curseur)', async () => {
+    shared = [
+      flower('a', '2026-06-20T10:00:00Z'),
+      flower('m', '2026-06-20T10:00:00Z'),
+      flower('z', '2026-06-20T10:00:00Z'),
+    ];
+    // Même date, curseur id='m' → seules les fleurs d'id < 'm' suivent : 'a'.
+    const result = await feed.getFeed(
+      'viewer',
+      undefined,
+      50,
+      'date',
+      '2026-06-20T10:00:00.000Z_m',
+    );
+    expect(result.map((f) => f.id)).toEqual(['a']);
+  });
+
+  it('refuse le curseur `before` avec sort=likes', async () => {
+    await expect(
+      feed.getFeed('viewer', undefined, 50, 'likes', '2026-06-21T10:00:00.000Z_b'),
+    ).rejects.toThrow();
+  });
+
+  it('rejette un curseur `before` malformé', async () => {
+    await expect(
+      feed.getFeed('viewer', undefined, 50, 'date', 'pas-un-curseur'),
+    ).rejects.toThrow();
+  });
+
   it('déduplique partage ciblé + broadcast en gardant la variante avec GPS', async () => {
     // Même fleur 'b' : ciblée sans GPS, diffusée avec GPS → on garde le GPS.
     shared = [flower('b', '2026-06-21T10:00:00Z', { latitude: null, longitude: null })];

@@ -14,13 +14,35 @@ import { StubStorageService } from '../storage/stub-storage.service';
 import { Share } from './share.entity';
 import { SharesService } from './shares.service';
 
-/** Détecte un opérateur TypeORM `In([...])` (porte sa valeur dans `.value`). */
-function isInOperator(value: unknown): value is { value: string[] } {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    Array.isArray((value as { value?: unknown }).value)
-  );
+/** Compare deux valeurs (Date comparées par temps) pour tri/opérateurs. */
+function cmp(a: unknown, b: unknown): number {
+  const av = a instanceof Date ? a.getTime() : a;
+  const bv = b instanceof Date ? b.getTime() : b;
+  if (av === bv) return 0;
+  return (av as number) < (bv as number) ? -1 : 1;
+}
+
+/**
+ * Teste une valeur de colonne contre une contrainte : opérateur TypeORM
+ * (In/LessThan, reconnus via leurs getters `type`/`value`), Date (égalité par
+ * temps) ou valeur brute. Couvre les besoins keyset du service (TÂCHE 1.2).
+ */
+function matchField(actual: unknown, expected: unknown): boolean {
+  if (
+    expected !== null &&
+    typeof expected === 'object' &&
+    'type' in (expected as Record<string, unknown>) &&
+    'value' in (expected as Record<string, unknown>)
+  ) {
+    const op = expected as { type: string; value: unknown };
+    if (op.type === 'in') return (op.value as unknown[]).includes(actual);
+    if (op.type === 'lessThan') return cmp(actual, op.value) < 0;
+    return false;
+  }
+  if (expected instanceof Date || actual instanceof Date) {
+    return cmp(actual, expected) === 0;
+  }
+  return actual === expected;
 }
 
 class FakeFlowerRepo {
@@ -41,20 +63,42 @@ class FakeFlowerRepo {
     this.store.set(flower.id, flower);
     return flower;
   }
+  /**
+   * Reproduit `Repository.find` pour les usages du service : `where` objet OU
+   * tableau (OR), opérateurs In/LessThan, `order` multi-colonnes et `take`.
+   */
   async find(opts: {
-    where: { ownerId?: unknown; visibility?: string };
+    where?: Record<string, unknown> | Record<string, unknown>[];
+    order?: Record<string, 'ASC' | 'DESC'>;
+    take?: number;
   }): Promise<Flower[]> {
-    const { ownerId, visibility } = opts.where;
-    return [...this.store.values()].filter((f) => {
-      const ownerOk =
-        ownerId === undefined
-          ? true
-          : isInOperator(ownerId)
-            ? ownerId.value.includes(f.ownerId)
-            : f.ownerId === ownerId;
-      const visOk = visibility === undefined || f.visibility === visibility;
-      return ownerOk && visOk;
-    });
+    const clauses = opts.where
+      ? Array.isArray(opts.where)
+        ? opts.where
+        : [opts.where]
+      : [{}];
+    let rows = [...this.store.values()].filter((f) =>
+      clauses.some((clause) =>
+        Object.entries(clause).every(([k, v]) =>
+          matchField((f as unknown as Record<string, unknown>)[k], v),
+        ),
+      ),
+    );
+    if (opts.order) {
+      const entries = Object.entries(opts.order);
+      rows = rows.sort((a, b) => {
+        for (const [k, dir] of entries) {
+          const c = cmp(
+            (a as unknown as Record<string, unknown>)[k],
+            (b as unknown as Record<string, unknown>)[k],
+          );
+          if (c !== 0) return dir === 'DESC' ? -c : c;
+        }
+        return 0;
+      });
+    }
+    if (opts.take != null) rows = rows.slice(0, opts.take);
+    return rows;
   }
   async findOne(opts: {
     where: { id?: string; ownerId?: string };
@@ -300,6 +344,57 @@ describe('SharesService', () => {
     acceptedFriends = [];
     const feed = await service.broadcastWithMe(VIEWER);
     expect(feed).toEqual([]);
+  });
+
+  it('broadcast : pagine avec curseur + limite (keyset date DESC)', async () => {
+    const FRIEND = 'friend';
+    acceptedFriends = [FRIEND];
+    const mk = (key: string, iso: string) =>
+      flowerRepo.seed({
+        ownerId: FRIEND,
+        imageKey: key,
+        takenAt: new Date(iso),
+        createdAt: new Date(iso),
+        visibility: 'friends',
+      });
+    const f1 = mk('p1', '2026-06-20T10:00:00Z');
+    const f2 = mk('p2', '2026-06-21T10:00:00Z');
+    const f3 = mk('p3', '2026-06-22T10:00:00Z');
+
+    // Page 1 : les 2 plus récentes.
+    const page1 = await service.broadcastWithMe(VIEWER, undefined, 2);
+    expect(page1.map((f) => f.id)).toEqual([f3.id, f2.id]);
+
+    // Page 2 : curseur = dernière de la page 1 → suivantes strictement plus vieilles.
+    const cursor = { createdAt: new Date('2026-06-21T10:00:00Z'), id: f2.id };
+    const page2 = await service.broadcastWithMe(VIEWER, cursor, 2);
+    expect(page2.map((f) => f.id)).toEqual([f1.id]);
+  });
+
+  it('sharedWithMe (scope all) : borne la page au curseur + limite', async () => {
+    const mk = (key: string, iso: string) =>
+      flowerRepo.seed({
+        ownerId: OWNER,
+        imageKey: key,
+        takenAt: new Date(iso),
+        createdAt: new Date(iso),
+      });
+    const f1 = mk('s1', '2026-06-20T10:00:00Z');
+    const f2 = mk('s2', '2026-06-21T10:00:00Z');
+    const f3 = mk('s3', '2026-06-22T10:00:00Z');
+    await service.create(OWNER, { friendId: VIEWER, scope: 'all' });
+
+    const cursor = { createdAt: f3.createdAt, id: f3.id };
+    const page = await service.sharedWithMe(VIEWER, cursor, 1);
+    // Curseur = f3 (la plus récente) exclue → f2 en tête, limité à 1.
+    expect(page.map((f) => f.id)).toEqual([f2.id]);
+    // Deuxième page suit f2.
+    const page2 = await service.sharedWithMe(
+      VIEWER,
+      { createdAt: new Date('2026-06-21T10:00:00Z'), id: f2.id },
+      1,
+    );
+    expect(page2.map((f) => f.id)).toEqual([f1.id]);
   });
 
   describe('isVisibleTo (périmètre commentaires/cœurs)', () => {

@@ -279,6 +279,51 @@ describe('FloraPin API (e2e)', () => {
     expect(laterShared.body.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('feed : pagination keyset descendante avec curseur `before`', async () => {
+    const owner = await register('ivan@example.com');
+    const viewer = await register('judy@example.com');
+    await befriend(owner, viewer);
+
+    // Trois fleurs diffusées au réseau, dates croissantes.
+    const isos = [
+      '2026-06-20T08:00:00.000Z',
+      '2026-06-21T08:00:00.000Z',
+      '2026-06-22T08:00:00.000Z',
+    ];
+    for (const takenAt of isos) {
+      await api()
+        .post('/api/v1/flowers')
+        .set('Authorization', `Bearer ${owner.access}`)
+        .send({ takenAt, visibility: 'friends', feedIncludeGps: true })
+        .expect(201);
+    }
+
+    // Page 1 : les 2 plus récentes (tri date DESC).
+    const page1 = await api()
+      .get('/api/v1/feed?limit=2')
+      .set('Authorization', `Bearer ${viewer.access}`)
+      .expect(200);
+    expect(page1.body).toHaveLength(2);
+    const last = page1.body[1];
+
+    // Page 2 : curseur = dernière fleur de la page 1 → la 3e, plus ancienne.
+    const cursor = `${last.createdAt}_${last.id}`;
+    const page2 = await api()
+      .get(`/api/v1/feed?limit=2&before=${encodeURIComponent(cursor)}`)
+      .set('Authorization', `Bearer ${viewer.access}`)
+      .expect(200);
+    expect(page2.body).toHaveLength(1);
+    // Aucun chevauchement entre les deux pages.
+    const ids1 = page1.body.map((f: { id: string }) => f.id);
+    expect(ids1).not.toContain(page2.body[0].id);
+
+    // `before` est incompatible avec le tri par cœurs.
+    await api()
+      .get(`/api/v1/feed?sort=likes&before=${encodeURIComponent(cursor)}`)
+      .set('Authorization', `Bearer ${viewer.access}`)
+      .expect(400);
+  });
+
   /** Crée une amitié acceptée entre [owner] et [friend]. */
   async function befriend(
     owner: { access: string },

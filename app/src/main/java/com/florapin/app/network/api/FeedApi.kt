@@ -15,5 +15,11 @@ interface FeedApi {
         @Query("limit") limit: Int? = null,
         /** 'date' (défaut) ou 'likes' (meilleures photos, NODE-140). */
         @Query("sort") sort: String? = null,
+        /**
+         * Curseur de pagination keyset (TÂCHE 1.2), format `<createdAt>_<id>`
+         * construit depuis la dernière fleur reçue. Réservé au tri par date :
+         * incompatible avec sort=likes (400 côté serveur).
+         */
+        @Query("before") before: String? = null,
     ): List<FlowerDto>
 }

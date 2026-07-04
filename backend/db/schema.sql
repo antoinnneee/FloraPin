@@ -153,6 +153,11 @@ CREATE INDEX IF NOT EXISTS idx_flowers_tags        ON flowers USING GIN (tags);
 -- Résolution du feed broadcast : fleurs des amis visibles 'friends' (NODE-136).
 CREATE INDEX IF NOT EXISTS idx_flowers_feed ON flowers(owner_id)
     WHERE visibility = 'friends';
+-- Pagination keyset descendante du feed (TÂCHE 1.2) : le tri/curseur porte sur
+-- le couple (created_at, id). Index composite DESC pour servir le keyset et la
+-- limite sans tri en mémoire, aussi bien pour le broadcast que pour le scope 'all'.
+CREATE INDEX IF NOT EXISTS idx_flowers_owner_created
+    ON flowers(owner_id, created_at DESC, id DESC);
 -- Idempotence du push (owner, client_id) : un même localId ne crée qu'une fleur
 -- par utilisateur. Index partiel : les fleurs sans client_id (API standard) sont
 -- ignorées. Sert aussi de lookup pour le dédoublonnage au re-push.

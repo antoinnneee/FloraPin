@@ -30,9 +30,13 @@ enum class FeedSort(val apiValue: String, val label: String) {
 
 data class SharedFeedUiState(
     val loading: Boolean = false,
+    /** Chargement d'une page suivante (pagination), distinct du chargement initial. */
+    val loadingMore: Boolean = false,
     val items: List<SharedFlowerItem> = emptyList(),
     val error: String? = null,
     val sort: FeedSort = FeedSort.DATE,
+    /** Toutes les pages ont été chargées : plus rien à paginer. */
+    val endReached: Boolean = false,
 )
 
 /**
@@ -49,21 +53,29 @@ class SharedFeedViewModel(
     private val _state = MutableStateFlow(SharedFeedUiState(loading = true))
     val state: StateFlow<SharedFeedUiState> = _state.asStateFlow()
 
+    /** Noms d'amis (id → nom) résolus une fois par (re)chargement, réutilisés en pagination. */
+    private var friendNames: Map<String, String> = emptyMap()
+
     init {
         load()
     }
 
+    /** (Re)charge la première page du feed, en repartant de zéro. */
     fun load() {
         val sort = _state.value.sort
-        _state.update { it.copy(loading = true, error = null) }
+        _state.update { it.copy(loading = true, error = null, endReached = false) }
         viewModelScope.launch {
             try {
-                val flowers = feedApi.getFeed(sort = sort.apiValue)
-                val names = friendshipsApi.list().associate { it.user.id to it.user.displayName }
+                val flowers = feedApi.getFeed(sort = sort.apiValue, limit = PAGE_SIZE)
+                friendNames = friendshipsApi.list()
+                    .associate { it.user.id to it.user.displayName }
                 _state.value = SharedFeedUiState(
                     loading = false,
-                    items = flowers.map { SharedFlowerItem(it, names[it.ownerId]) },
+                    items = flowers.map { SharedFlowerItem(it, friendNames[it.ownerId]) },
                     sort = sort,
+                    // Le curseur `before` ne vaut que pour le tri par date ; en tri
+                    // par cœurs on ne pagine pas (fin atteinte d'emblée).
+                    endReached = sort != FeedSort.DATE || flowers.size < PAGE_SIZE,
                 )
             } catch (e: Exception) {
                 _state.update {
@@ -73,7 +85,47 @@ class SharedFeedViewModel(
         }
     }
 
-    /** Change l'ordre du feed et recharge. */
+    /**
+     * Charge la page suivante à l'approche du bas de liste (pagination keyset,
+     * TÂCHE 1.2). No-op si un chargement est déjà en cours, si la fin est atteinte
+     * ou hors tri par date (le curseur `before` y est réservé).
+     */
+    fun loadMore() {
+        val current = _state.value
+        if (current.loading || current.loadingMore || current.endReached) return
+        if (current.sort != FeedSort.DATE) return
+        val last = current.items.lastOrNull() ?: return
+        // Curseur = repère (createdAt, id) de la dernière fleur affichée.
+        val cursor = "${last.flower.createdAt}_${last.flower.id}"
+        _state.update { it.copy(loadingMore = true, error = null) }
+        viewModelScope.launch {
+            try {
+                val flowers = feedApi.getFeed(
+                    sort = FeedSort.DATE.apiValue,
+                    limit = PAGE_SIZE,
+                    before = cursor,
+                )
+                val knownIds = current.items.map { it.flower.id }.toSet()
+                // Déduplique par sécurité (une fleur re-partagée entre-temps).
+                val newItems = flowers
+                    .filter { it.id !in knownIds }
+                    .map { SharedFlowerItem(it, friendNames[it.ownerId]) }
+                _state.update {
+                    it.copy(
+                        loadingMore = false,
+                        items = it.items + newItems,
+                        endReached = flowers.size < PAGE_SIZE,
+                    )
+                }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(loadingMore = false, error = e.message ?: "Erreur réseau. Réessayez.")
+                }
+            }
+        }
+    }
+
+    /** Change l'ordre du feed et recharge depuis la première page. */
     fun setSort(sort: FeedSort) {
         if (sort == _state.value.sort) return
         _state.update { it.copy(sort = sort) }
@@ -118,6 +170,9 @@ class SharedFeedViewModel(
     }
 
     companion object {
+        /** Taille d'une page du feed (pagination keyset, TÂCHE 1.2). */
+        private const val PAGE_SIZE = 20
+
         fun factory(context: Context): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")

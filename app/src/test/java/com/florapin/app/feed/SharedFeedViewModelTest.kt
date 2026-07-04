@@ -50,9 +50,43 @@ private fun friendship(userId: String, name: String) = FriendshipDto(
 
 private class FakeFeedApi(private val flowers: List<FlowerDto>) : FeedApi {
     var lastSort: String? = null
-    override suspend fun getFeed(since: String?, limit: Int?, sort: String?): List<FlowerDto> {
+    var lastBefore: String? = null
+    val calls = mutableListOf<String?>()
+    override suspend fun getFeed(
+        since: String?,
+        limit: Int?,
+        sort: String?,
+        before: String?,
+    ): List<FlowerDto> {
         lastSort = sort
+        lastBefore = before
+        calls += before
         return flowers
+    }
+}
+
+/**
+ * Feed paginé : sert des pages de `page` fleurs tant qu'il en reste, en filtrant
+ * par le curseur `before` (format `<createdAt>_<id>`) sur l'id, comme le keyset
+ * serveur (fleurs de même createdAt ici, l'id départage).
+ */
+private class PagingFeedApi(
+    private val all: List<FlowerDto>,
+    private val page: Int,
+) : FeedApi {
+    var callCount = 0
+    override suspend fun getFeed(
+        since: String?,
+        limit: Int?,
+        sort: String?,
+        before: String?,
+    ): List<FlowerDto> {
+        callCount++
+        val startId = before?.substringAfterLast('_')
+        val remaining =
+            if (startId == null) all
+            else all.dropWhile { it.id != startId }.drop(1)
+        return remaining.take(page)
     }
 }
 
@@ -153,6 +187,49 @@ class SharedFeedViewModelTest {
         val reverted = vm.state.value.items.first().flower
         assertEquals(false, reverted.likedByMe)
         assertEquals(2, reverted.likeCount)
+    }
+
+    @Test
+    fun loadMore_appendsNextPageAndDetectsEnd() = runTest {
+        // 25 fleurs, page = 20 → page 1 (20) puis page 2 (5) puis fin.
+        val all = (1..25).map { flower("fl%02d".format(it), "alice") }
+        val feed = PagingFeedApi(all, page = 20)
+        val vm = SharedFeedViewModel(feed, FakeFriendshipsApi(emptyList()), FakeLikesApi())
+        advanceUntilIdle()
+
+        assertEquals(20, vm.state.value.items.size)
+        assertEquals(false, vm.state.value.endReached)
+
+        vm.loadMore()
+        advanceUntilIdle()
+
+        assertEquals(25, vm.state.value.items.size)
+        assertEquals(true, vm.state.value.endReached)
+        // Pas de doublon dans la liste accumulée.
+        assertEquals(25, vm.state.value.items.map { it.flower.id }.toSet().size)
+
+        // Fin atteinte → loadMore() ne relance rien.
+        val callsBefore = feed.callCount
+        vm.loadMore()
+        advanceUntilIdle()
+        assertEquals(callsBefore, feed.callCount)
+    }
+
+    @Test
+    fun loadMore_noopForLikesSort() = runTest {
+        val feed = FakeFeedApi(listOf(flower("fl1", "alice")))
+        val vm = SharedFeedViewModel(feed, FakeFriendshipsApi(emptyList()), FakeLikesApi())
+        advanceUntilIdle()
+
+        vm.setSort(FeedSort.LIKES)
+        advanceUntilIdle()
+        feed.lastBefore = "sentinel"
+
+        // Tri par cœurs : pas de pagination (fin d'emblée), before jamais envoyé.
+        vm.loadMore()
+        advanceUntilIdle()
+        assertEquals("sentinel", feed.lastBefore)
+        assertEquals(true, vm.state.value.endReached)
     }
 
     @Test

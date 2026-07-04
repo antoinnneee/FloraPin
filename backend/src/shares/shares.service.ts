@@ -4,7 +4,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, In, IsNull, Repository } from 'typeorm';
+import {
+  FindOptionsWhere,
+  In,
+  IsNull,
+  LessThan,
+  Repository,
+} from 'typeorm';
 import { Album } from '../albums/album.entity';
 import { Flower } from '../flowers/flower.entity';
 import { FlowerResponse, FlowersService } from '../flowers/flowers.service';
@@ -12,6 +18,16 @@ import { FriendshipsService } from '../friendships/friendships.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateShareDto, ShareToAllFriendsDto } from './dto/share.dto';
 import { Share, ShareScope } from './share.entity';
+
+/**
+ * Curseur de pagination keyset du feed (TÂCHE 1.2) : repère stable (createdAt,
+ * id) appliqué en tri descendant. Une fleur est « avant » le curseur si elle est
+ * plus ancienne, ou de même date mais d'id inférieur (départage déterministe).
+ */
+export interface FeedCursor {
+  createdAt: Date;
+  id: string;
+}
 
 @Injectable()
 export class SharesService {
@@ -206,18 +222,26 @@ export class SharesService {
    * Fleurs partagées avec [viewerId], coordonnées masquées si le partage
    * correspondant désactive le GPS. Dédupliquées par id (on conserve la version
    * la plus permissive : GPS visible s'il l'est dans au moins un partage).
+   *
+   * Pagination keyset (TÂCHE 1.2) : `cursor`/`limit` bornent la page (fleurs
+   * strictement plus anciennes que le curseur, au plus `limit`). Le périmètre
+   * 'all' (potentiellement large) est borné dès le SQL ; l'ensemble fusionné est
+   * ensuite ré-ordonné et tranché à `limit` AVANT de construire les réponses,
+   * pour ne présigner/compter les cœurs que sur la page effective.
    */
-  async sharedWithMe(viewerId: string): Promise<FlowerResponse[]> {
+  async sharedWithMe(
+    viewerId: string,
+    cursor?: FeedCursor,
+    limit?: number,
+  ): Promise<FlowerResponse[]> {
     const shares = await this.sharesVisibleTo(viewerId);
 
     // Résout les fleurs de chaque partage en mémorisant, par id, la variante GPS
-    // la plus permissive (GPS visible s'il l'est dans au moins un partage). On
-    // construit ensuite les réponses en une passe batch (toResponseMany) pour
-    // éviter le N+1 photos/cœurs.
+    // la plus permissive (GPS visible s'il l'est dans au moins un partage).
     const flowerById = new Map<string, Flower>();
     const includeGpsById = new Map<string, boolean>();
     for (const share of shares) {
-      const flowers = await this.resolveFlowers(share);
+      const flowers = await this.resolveFlowers(share, cursor, limit);
       for (const flower of flowers) {
         flowerById.set(flower.id, flower);
         includeGpsById.set(
@@ -227,10 +251,10 @@ export class SharesService {
       }
     }
 
-    const responses = await this.flowersService.toResponseMany(
-      [...flowerById.values()],
-      viewerId,
-    );
+    // Applique le curseur keyset (défense en profondeur pour les scopes non
+    // bornés au SQL : album/single) puis tranche à `limit` avant le batch.
+    const page = orderAndSlice([...flowerById.values()], cursor, limit);
+    const responses = await this.flowersService.toResponseMany(page, viewerId);
     return responses.map((response) =>
       includeGpsById.get(response.id) ? response : stripGps(response),
     );
@@ -241,12 +265,23 @@ export class SharesService {
    * acceptés marquées `visibility='friends'`, sans partage ciblé. Le GPS est
    * masqué quand `feedIncludeGps` est false (option héritée des partages, NODE-22).
    */
-  async broadcastWithMe(viewerId: string): Promise<FlowerResponse[]> {
+  async broadcastWithMe(
+    viewerId: string,
+    cursor?: FeedCursor,
+    limit?: number,
+  ): Promise<FlowerResponse[]> {
     const friendIds = await this.friendships.acceptedFriendIds(viewerId);
     if (friendIds.length === 0) return [];
 
+    // Keyset SQL (TÂCHE 1.2) : filtre + tri (createdAt, id) DESC + limite côté
+    // base, plutôt qu'un chargement complet suivi d'un slice mémoire.
     const flowers = await this.flowers.find({
-      where: { ownerId: In(friendIds), visibility: 'friends' },
+      where: keysetWhere(
+        { ownerId: In(friendIds), visibility: 'friends' },
+        cursor,
+      ),
+      order: { createdAt: 'DESC', id: 'DESC' },
+      ...(limit ? { take: limit } : {}),
     });
     return this.presentFeed(flowers, viewerId);
   }
@@ -354,16 +389,39 @@ export class SharesService {
     );
   }
 
-  /** Résout les fleurs concrètes couvertes par un partage selon son périmètre. */
-  private async resolveFlowers(share: Share): Promise<Flower[]> {
+  /**
+   * Résout les fleurs concrètes couvertes par un partage selon son périmètre.
+   * Pour le périmètre 'all' (non borné), le curseur/limite du feed sont poussés
+   * au SQL (keyset). Album/single sont naturellement bornés : ils sont filtrés
+   * par le curseur en aval (orderAndSlice). Sans curseur/limite (contrôle
+   * d'accès `isVisibleTo`), on résout l'intégralité du périmètre.
+   */
+  private async resolveFlowers(
+    share: Share,
+    cursor?: FeedCursor,
+    limit?: number,
+  ): Promise<Flower[]> {
     switch (share.scope) {
       case 'all':
-        return this.flowers.find({ where: { ownerId: share.ownerId } });
+        return this.resolveAllOwnerFlowers(share.ownerId, cursor, limit);
       case 'album':
         return this.resolveAlbum(share.albumId);
       default:
         return this.resolveSingle(share.flowerId);
     }
+  }
+
+  /** Fleurs d'un propriétaire, keyset (createdAt, id) DESC borné à `limit`. */
+  private resolveAllOwnerFlowers(
+    ownerId: string,
+    cursor?: FeedCursor,
+    limit?: number,
+  ): Promise<Flower[]> {
+    return this.flowers.find({
+      where: keysetWhere({ ownerId }, cursor),
+      order: { createdAt: 'DESC', id: 'DESC' },
+      ...(limit ? { take: limit } : {}),
+    });
   }
 
   private async resolveSingle(flowerId: string | null): Promise<Flower[]> {
@@ -384,4 +442,52 @@ export class SharesService {
 
 function stripGps(flower: FlowerResponse): FlowerResponse {
   return { ...flower, latitude: null, longitude: null, accuracyM: null };
+}
+
+/**
+ * Traduit le curseur keyset (createdAt, id) descendant en clause `where` TypeORM.
+ * Sans curseur : la clause de base (première page / delta). Avec curseur : deux
+ * branches OR — plus ancien, OU même date mais id inférieur — chacune conservant
+ * les filtres de base (owner/visibilité).
+ */
+function keysetWhere(
+  base: FindOptionsWhere<Flower>,
+  cursor?: FeedCursor,
+): FindOptionsWhere<Flower> | FindOptionsWhere<Flower>[] {
+  if (!cursor) return base;
+  return [
+    { ...base, createdAt: LessThan(cursor.createdAt) },
+    { ...base, createdAt: cursor.createdAt, id: LessThan(cursor.id) },
+  ];
+}
+
+/** Vrai si (createdAt, id) est strictement « avant » le curseur (ordre DESC). */
+function isBeforeCursor(flower: Flower, cursor: FeedCursor): boolean {
+  const delta = flower.createdAt.getTime() - cursor.createdAt.getTime();
+  if (delta !== 0) return delta < 0;
+  return flower.id < cursor.id;
+}
+
+/** Compare deux fleurs pour un tri (createdAt, id) descendant. */
+function byCreatedThenId(a: Flower, b: Flower): number {
+  const delta = b.createdAt.getTime() - a.createdAt.getTime();
+  if (delta !== 0) return delta;
+  return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+}
+
+/**
+ * Ordonne des fleurs en (createdAt, id) DESC, écarte celles hors curseur, puis
+ * tranche à `limit`. Utilisé pour fusionner des périmètres bornés au SQL (scope
+ * 'all') avec ceux filtrés en mémoire (album/single).
+ */
+function orderAndSlice(
+  flowers: Flower[],
+  cursor?: FeedCursor,
+  limit?: number,
+): Flower[] {
+  const filtered = cursor
+    ? flowers.filter((f) => isBeforeCursor(f, cursor))
+    : flowers;
+  filtered.sort(byCreatedThenId);
+  return limit ? filtered.slice(0, limit) : filtered;
 }

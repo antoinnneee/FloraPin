@@ -12,6 +12,17 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+- **Pagination du feed d'amis (défilement infini).** Le flux « Partagées avec
+  moi » charge désormais les fleurs par pages et complète la liste à l'approche
+  du bas de l'écran, au lieu de plafonner à un lot unique. Côté serveur, une
+  vraie pagination *keyset* descendante s'appuie sur un curseur `before` — le
+  couple stable `(createdAt, id)` — appliqué aux deux sources du feed (partages
+  ciblés + diffusion réseau) avant fusion, puis re-tranché à la limite. Nouveau
+  paramètre `GET /feed?before=<ISO8601>_<id>`, réservé au tri par date
+  (incompatible avec `sort=likes`, qui renvoie alors un 400). Le paramètre
+  `since` (delta de synchronisation) reste inchangé.
+
 ### Interne
 - **CI unifiée sur chaque PR (`.github/workflows/ci.yml`).** Le workflow
   d'intégration continue construit et teste l'app *et* le backend à chaque

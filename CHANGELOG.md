@@ -10,6 +10,17 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
 
+## [Non publié]
+
+### Modifié
+- **Landing — sentier animé.** Le tracé suit désormais de près la position de
+  défilement (au lieu de prendre près d'un écran d'avance), serpente en un
+  méandre sinueux et continu (spline de Catmull-Rom) de haut en bas comme un
+  chemin de randonnée, se faufile _derrière_ les cartes de contenu (visible sur
+  les fonds, masqué par les cartes), et se termine par une épingle plantée juste
+  au-dessus du logo « FloraPin » du pied de page. Les tiges des fleurs ne
+  poussent qu'au passage du trait, avant l'éclosion de la corolle.
+
 ## [1.11.0] — 2026-07-04
 
 _Première version publiée sur le Google Play Store (test fermé) — versionName

@@ -1,8 +1,9 @@
 ---
 // Le sentier qui traverse toute la page : un chemin pointillé continu, du hero
 // au footer, qui se dessine avec le défilement. Des fleurs éclosent au passage
-// du trait. Le tracé est calculé en JS d'après la hauteur réelle du document
-// (il zigzague dans les marges, entre les blocs de contenu).
+// du trait et une épingle se plante au bout. Le tracé est calculé en JS d'après
+// la hauteur réelle du document : un méandre sinueux (spline de Catmull-Rom)
+// qui serpente de haut en bas comme un chemin de randonnée.
 ---
 
 <div id="trail-overlay" aria-hidden="true">
@@ -22,6 +23,7 @@
       mask="url(#trail-mask)"
     />
   </svg>
+  <img id="trail-pin" src="/pinPoint.webp" alt="" width="72" height="72" />
 </div>
 
 <script>
@@ -29,6 +31,7 @@
   const svg = document.getElementById('trail-svg');
   const line = document.getElementById('trail-line');
   const reveal = document.getElementById('trail-reveal');
+  const pin = document.getElementById('trail-pin');
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // Teintes de pétales, en écho aux épingles du hero.
@@ -45,7 +48,7 @@
     const p = (r) =>
       `<ellipse cx="18" cy="8" rx="4.5" ry="7.5" fill="${petal}" transform="rotate(${r} 18 15)"/>`;
     return `<svg viewBox="0 0 36 46" width="36" height="46">
-      <line x1="18" y1="24" x2="18" y2="42" stroke="rgba(90,108,95,0.55)" stroke-width="2" stroke-linecap="round"/>
+      <line class="trail-flower-stem" x1="18" y1="24" x2="18" y2="42" stroke="rgba(90,108,95,0.55)" stroke-width="2" stroke-linecap="round"/>
       <g class="trail-flower-head">${p(0)}${p(72)}${p(144)}${p(216)}${p(288)}
         <circle cx="18" cy="15" r="3.8" fill="#efc94c"/></g>
     </svg>`;
@@ -80,33 +83,71 @@
     const hero = sections[0];
     const heroH = hero.offsetHeight;
 
-    // Départ dans la scène du hero (moitié droite), puis alternance de couloirs.
-    const pts = [
-      [vw * 0.56, heroH * 0.2],
-      [vw * 0.78, heroH * 0.45],
-      [vw * 0.62, heroH * 0.78],
-    ];
-    let side = 'left';
-    for (const s of sections.slice(1)) {
-      const top = s.offsetTop;
-      const h = s.offsetHeight;
-      const x = side === 'left' ? leftX : rightX;
-      // Rester dans le couloir jusqu'au bord de la section : le changement de
-      // côté se joue dans la zone vide (paddings) entre deux sections.
-      pts.push([x, top + Math.min(150, h * 0.2)]);
-      pts.push([x, top + h - 60]);
-      side = side === 'left' ? 'right' : 'left';
+    // Fin : au-dessus du logo « FloraPin » du footer (sinon centre bas).
+    const brand = document.querySelector('.footer .logo');
+    let endX, plantY;
+    if (brand) {
+      // Cibler le texte lui-même (le <span> est en display:block, sa boîte
+      // déborde à droite) pour centrer l'épingle pile au-dessus de « FloraPin ».
+      const range = document.createRange();
+      range.selectNodeContents(brand);
+      const r = range.getBoundingClientRect();
+      endX = r.left + r.width / 2 + window.scrollX;
+      plantY = r.top + window.scrollY - 6;
+    } else {
+      endX = vw * 0.5;
+      plantY = docH - 60;
     }
-    // Fin au centre du footer.
-    pts.push([vw * 0.5, docH - 60]);
 
-    // Chaîne de courbes de Bézier à tangentes verticales : des S souples.
-    let d = `M ${pts[0][0]} ${pts[0][1]}`;
-    for (let i = 1; i < pts.length; i++) {
-      const [x0, y0] = pts[i - 1];
-      const [x1, y1] = pts[i];
-      const dy = (y1 - y0) * 0.5;
-      d += ` C ${x0} ${y0 + dy}, ${x1} ${y1 - dy}, ${x1} ${y1}`;
+    // Un sentier de randonnée : méandre continu qui serpente de haut en bas,
+    // ses extrêmes venant lécher les couloirs latéraux. Deux harmoniques de
+    // sinus donnent un balancement organique plutôt qu'une vague régulière.
+    const center = (leftX + rightX) / 2;
+    const amp = (rightX - leftX) / 2;
+    const startY = heroH * 0.22;
+    const meanderEndY = plantY - 80;
+    const span = Math.max(1, meanderEndY - startY);
+    const waves = Math.max(4, Math.round(span / 470));
+    const steps = Math.max(16, waves * 5);
+
+    // Profil « créneau adouci » : tanh(k·sin) aplatit le tracé près des bords
+    // (il longe le côté et descend un peu) puis traverse plus franchement vers
+    // l'autre côté, au lieu de longues diagonales. k règle la fermeté du virage.
+    const K = 2.2;
+    const tanhK = Math.tanh(K);
+
+    // Départ dans la scène du hero (moitié droite).
+    const pts = [[center + amp * 0.5, startY]];
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const y = startY + span * t;
+      const swing = Math.tanh(K * Math.sin(t * Math.PI * waves - 0.35)) / tanhK;
+      let x =
+        center +
+        amp * (0.94 * swing + 0.06 * Math.sin(t * Math.PI * waves * 2.3 + 1.1));
+      // Sur le dernier sixième, rejoindre en douceur la colonne du logo.
+      const approach = Math.max(0, (t - 0.83) / 0.17);
+      x += (endX - x) * approach;
+      x = Math.max(leftX, Math.min(rightX, x));
+      pts.push([x, y]);
+    }
+    // Courte descente verticale pour planter l'épingle bien droite.
+    pts.push([endX, plantY]);
+
+    // Spline de Catmull-Rom convertie en Bézier : passage lisse et continu par
+    // tous les points, sans cassure d'angle — un tracé qui coule.
+    const f = (n) => n.toFixed(1);
+    let d = `M ${f(pts[0][0])} ${f(pts[0][1])}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] || pts[i];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = pts[i + 2] || p2;
+      const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+      const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+      const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      d += ` C ${f(c1x)} ${f(c1y)}, ${f(c2x)} ${f(c2y)}, ${f(p2[0])} ${f(p2[1])}`;
     }
     line.setAttribute('d', d);
     reveal.setAttribute('d', d);
@@ -127,14 +168,24 @@
       overlay.appendChild(el);
       flowers.push({ el, f });
     }
+
+    // Épingle plantée au tout bout du sentier (centre du footer).
+    if (pin) {
+      const end = line.getPointAtLength(pathLen);
+      pin.style.left = end.x + 'px';
+      pin.style.top = end.y + 'px';
+    }
   }
 
   function computeTarget() {
     const docH = document.documentElement.scrollHeight;
     const vh = window.innerHeight;
-    // Le trait vise le bas de l'écran visible : la portion du hero se dessine
-    // dès le chargement, la suite suit le défilement.
-    target = Math.min(1, (window.scrollY + vh * 0.9) / docH);
+    // La pointe du trait suit la position de lecture (~milieu haut de l'écran)
+    // plutôt que le bas : le sentier reste au niveau du regard et se dessine au
+    // rythme du défilement, sans prendre une longueur d'avance.
+    const lead = vh * 0.45;
+    // Dénominateur réduit d'autant : la pointe atteint 100 % pile en bas de page.
+    target = Math.min(1, (window.scrollY + lead) / Math.max(1, docH - vh + lead));
   }
 
   function apply(progress) {
@@ -143,6 +194,8 @@
     for (const fl of flowers) {
       fl.el.classList.toggle('bloomed', progress >= fl.f);
     }
+    // L'épingle se plante quand le trait arrive tout au bout.
+    if (pin) pin.classList.toggle('dropped', progress >= 0.995);
   }
 
   let lastTime = 0;
@@ -200,6 +253,16 @@
     width: 100%;
     overflow: hidden;
     pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Le sentier passe DERRIÈRE les cartes de contenu : on remonte le contenu des
+     sections (hors hero, où le tracé doit rester au premier plan) au-dessus du
+     tracé. Les zones transparentes laissent voir le sentier ; les cartes opaques
+     le masquent — d'où l'effet « chemin qui se faufile entre les blocs ». */
+  body > section:not(.hero) > .container,
+  body > footer > .container {
+    position: relative;
     z-index: 2;
   }
 
@@ -213,13 +276,52 @@
     filter: drop-shadow(0 3px 8px rgba(19, 42, 29, 0.25));
   }
 
+  #trail-pin {
+    position: absolute;
+    /* La pointe de l'épingle (bas-centre de l'image) tombe pile sur le bout du trait. */
+    transform: translate(-50%, -100%) scale(0.6);
+    transform-origin: 50% 100%;
+    opacity: 0;
+    filter: drop-shadow(0 4px 10px rgba(19, 42, 29, 0.3));
+    transition:
+      transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1),
+      opacity 0.3s ease;
+  }
+
+  #trail-pin.dropped {
+    transform: translate(-50%, -100%) scale(0.9);
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #trail-pin {
+      transition: none;
+    }
+  }
+
+  /* La tige pousse d'abord (du sol vers le haut)… */
+  .trail-flower .trail-flower-stem {
+    transform-origin: 18px 42px;
+    transform: scaleY(0);
+    opacity: 0;
+    transition:
+      transform 0.4s ease-out,
+      opacity 0.2s ease;
+  }
+
+  .trail-flower.bloomed .trail-flower-stem {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+
+  /* …puis la corolle éclot, avec un léger retard. */
   .trail-flower .trail-flower-head {
     transform-origin: 18px 15px;
     transform: scale(0);
     opacity: 0;
     transition:
-      transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
-      opacity 0.35s ease;
+      transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.18s,
+      opacity 0.35s ease 0.18s;
   }
 
   .trail-flower.bloomed .trail-flower-head {
@@ -228,6 +330,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .trail-flower .trail-flower-stem,
     .trail-flower .trail-flower-head {
       transition: none;
     }

@@ -1,5 +1,6 @@
 ---
 import DownloadButton from './DownloadButton.astro';
+import { PLAY_TEST_GROUP_URL, PLAY_TEST_OPT_IN_URL } from '../config';
 ---
 
 <section id="beta" class="beta-cta">
@@ -21,6 +22,27 @@ import DownloadButton from './DownloadButton.astro';
       <div class="dl-wrap">
         <DownloadButton />
       </div>
+
+      {PLAY_TEST_GROUP_URL && (
+        <div class="play-test">
+          <span class="sep"><span>ou rejoignez le test sur Google Play</span></span>
+          <p class="pt-lead">En deux étapes, testez la version officielle du Play Store :</p>
+          <ol class="pt-steps">
+            <li>
+              <a href={PLAY_TEST_GROUP_URL} target="_blank" rel="noopener">
+                Rejoindre le groupe de testeurs
+              </a>
+              <span class="pt-hint">— autorise votre adresse Google</span>
+            </li>
+            <li>
+              <a href={PLAY_TEST_OPT_IN_URL} target="_blank" rel="noopener">
+                Activer l'accès bêta
+              </a>
+              <span class="pt-hint">— puis installez depuis le Play Store</span>
+            </li>
+          </ol>
+        </div>
+      )}
     </div>
   </div>
 </section>
@@ -83,5 +105,84 @@ import DownloadButton from './DownloadButton.astro';
   .dl-wrap :global(.download) {
     align-items: center;
     text-align: center;
+  }
+
+  /* Bloc test fermé Google Play */
+  .play-test {
+    margin-top: 40px;
+  }
+
+  .sep {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0 auto 24px;
+    max-width: 420px;
+    color: var(--texte-doux);
+    font-size: 0.82rem;
+  }
+
+  .sep::before,
+  .sep::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--tilleul-2);
+  }
+
+  .pt-lead {
+    font-size: 0.95rem;
+    color: var(--texte);
+    margin-bottom: 16px;
+  }
+
+  .pt-steps {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 460px;
+    margin: 0 auto;
+    padding: 0;
+    counter-reset: step;
+  }
+
+  .pt-steps li {
+    counter-increment: step;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .pt-steps li::before {
+    content: counter(step);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    flex: none;
+    align-self: center;
+    background: var(--feuille);
+    color: var(--papier);
+    border-radius: 50%;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  .pt-steps a {
+    color: var(--feuille);
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .pt-steps a:hover { color: var(--rose); }
+
+  .pt-hint {
+    font-size: 0.82rem;
+    color: var(--texte-doux);
   }
 </style>

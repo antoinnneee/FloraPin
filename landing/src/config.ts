@@ -25,3 +25,16 @@ export const DOWNLOAD_FILENAME = `florapin_${APP_VERSION}.apk`;
 // Mention affichée sous le bouton (retirée une fois le Play Store actif).
 export const DOWNLOAD_NOTE =
   `Version bêta ${APP_VERSION} — Android 8+ · autoriser les « sources inconnues » à l’installation.`;
+
+// --- Test fermé Google Play (bêta) ---
+// Pour permettre l'auto-inscription depuis la vitrine, la liste de testeurs du
+// canal de test fermé est un Google Groupe. Le parcours testeur :
+//   1. rejoindre le Google Groupe (PLAY_TEST_GROUP_URL) → l'e-mail est autorisé ;
+//   2. activer l'accès bêta via le lien d'opt-in web (PLAY_TEST_OPT_IN_URL,
+//      déterministe : play.google.com/apps/testing/<applicationId>).
+// Le lien d'opt-in ne devient actif qu'une fois une version PUBLIÉE dans le canal
+// de test fermé (sinon 404). Laisser PLAY_TEST_GROUP_URL vide masque tout le bloc
+// « Rejoindre la bêta Google Play » sur la vitrine.
+export const PLAY_TEST_GROUP_URL = ''; // ex. 'https://groups.google.com/g/florapin-testeurs'
+export const PLAY_TEST_OPT_IN_URL =
+  'https://play.google.com/apps/testing/com.florapin.app';

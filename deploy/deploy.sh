@@ -187,6 +187,19 @@ else
     echo "ℹ️  app/build.gradle.kts absent ; version.json inchangé (valeur commitée conservée)."
 fi
 
+# --- Changelog pour la vitrine ---
+# La page /changelog affiche le CHANGELOG.md (racine du repo). Ce fichier N'EST
+# PAS dans landing/, donc invisible du build Astro sur le VPS. On en copie une
+# version dans landing/src/ (comme version.json) AVANT le rsync de landing/.
+CHANGELOG_SRC="$REPO_ROOT/CHANGELOG.md"
+CHANGELOG_DEST="$REPO_ROOT/landing/src/changelog.md"
+if [ -f "$CHANGELOG_SRC" ]; then
+    cp "$CHANGELOG_SRC" "$CHANGELOG_DEST"
+    echo "📄 Changelog copié dans la vitrine (landing/src/changelog.md)."
+else
+    echo "ℹ️  CHANGELOG.md absent ; changelog de la vitrine inchangé (copie commitée conservée)."
+fi
+
 echo "📦 Synchronisation de landing/ (sources + APK)..."
 remote_sync --exclude 'node_modules/' --exclude 'dist/' \
     "$REPO_ROOT/landing/" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/landing/" || exit 1

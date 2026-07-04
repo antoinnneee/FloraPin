@@ -1,0 +1,131 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Footer from '../components/Footer.astro';
+import { Content as Changelog } from '../changelog.md';
+---
+
+<Layout
+  title="Journal des modifications — FloraPin"
+  description="Toutes les nouveautés et corrections de FloraPin, version par version."
+>
+  <main class="changelog-page">
+    <div class="container">
+      <a class="back" href="/">← Retour à l'accueil</a>
+      <span class="eyebrow">Journal des modifications</span>
+      <article class="changelog-content">
+        <Changelog />
+      </article>
+    </div>
+  </main>
+  <Footer />
+</Layout>
+
+<style>
+  .changelog-page {
+    padding: clamp(64px, 9vw, 112px) 0 clamp(40px, 6vw, 72px);
+    background: var(--tilleul);
+  }
+
+  .back {
+    display: inline-block;
+    color: var(--feuille);
+    font-weight: 700;
+    margin-bottom: 24px;
+  }
+
+  .back:hover { color: var(--rose); }
+
+  .changelog-content {
+    max-width: 760px;
+  }
+
+  /* Le contenu vient du markdown rendu (<Content />) : styles globaux ciblés. */
+  .changelog-content :global(h1) {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4.4vw, 2.9rem);
+    font-weight: 560;
+    color: var(--encre);
+    line-height: 1.16;
+    letter-spacing: -0.01em;
+    margin-bottom: 12px;
+  }
+
+  /* Paragraphes d'intro sous le titre principal. */
+  .changelog-content :global(h1) + :global(p),
+  .changelog-content :global(h1) ~ :global(p) {
+    color: var(--texte-doux);
+  }
+
+  /* Versions (## [1.11.0] — date). */
+  .changelog-content :global(h2) {
+    font-family: var(--font-display);
+    font-size: clamp(1.4rem, 2.6vw, 1.8rem);
+    font-weight: 560;
+    color: var(--encre);
+    margin-top: 52px;
+    padding-top: 24px;
+    border-top: 1px dashed var(--tilleul-2);
+    scroll-margin-top: 24px;
+  }
+
+  /* Catégories (### Ajouté / Corrigé / Sécurité…). */
+  .changelog-content :global(h3) {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--feuille);
+    margin-top: 28px;
+    margin-bottom: 10px;
+  }
+
+  .changelog-content :global(p) {
+    color: var(--texte);
+    margin: 12px 0;
+  }
+
+  .changelog-content :global(ul) {
+    padding-left: 22px;
+    color: var(--texte);
+    margin: 8px 0;
+  }
+
+  .changelog-content :global(li) {
+    margin-bottom: 10px;
+  }
+
+  .changelog-content :global(strong) {
+    color: var(--encre);
+    font-weight: 700;
+  }
+
+  .changelog-content :global(a) {
+    color: var(--feuille);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .changelog-content :global(a:hover) { color: var(--rose); }
+
+  .changelog-content :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--papier);
+    border: 1px solid var(--tilleul-2);
+    border-radius: 5px;
+    padding: 1px 5px;
+  }
+
+  /* La note interne de maintenance (« À tenir à jour… ») ne concerne pas les
+     utilisateurs finaux : masquée sur la vitrine publique. */
+  .changelog-content :global(blockquote) {
+    display: none;
+  }
+
+  /* Liens de comparaison de versions en bas du fichier (référence markdown). */
+  .changelog-content :global(hr) {
+    display: none;
+  }
+</style>

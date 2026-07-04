@@ -1,7 +1,9 @@
 package com.florapin.app
 
 import android.app.Application
+import com.florapin.app.data.FloraDatabase
 import com.florapin.app.network.auth.EncryptedTokenStore
+import com.florapin.app.onboarding.OnboardingPrefs
 import com.florapin.app.push.PushTokenRegistrar
 import com.florapin.app.sync.ConnectivityObserver
 import com.florapin.app.sync.SyncPreferences
@@ -31,6 +33,13 @@ class FlorapinApp : Application() {
         // existantes (session présente) pour qu'une mise à jour ne coupe pas leur
         // sync. Sans effet sur les nouvelles installations (nouveau défaut OFF).
         SyncPreferences(this).migrateDefaultForExistingInstall(hasSession)
+
+        // Introduction de l'onboarding : une mise à jour ne doit pas le ré-afficher
+        // à une installation existante. On la détecte à moindre coût (sans requête
+        // Room sur le thread principal) : session active ou base locale déjà créée
+        // (le fichier n'existe qu'après une première utilisation de l'app).
+        val hasExistingData = hasSession || getDatabasePath(FloraDatabase.DB_NAME).exists()
+        OnboardingPrefs(this).markSeenForExistingInstall(hasExistingData)
 
         // Si déjà connecté au démarrage : planifie la sync périodique + une passe
         // immédiate, et (ré)enregistre le jeton push.

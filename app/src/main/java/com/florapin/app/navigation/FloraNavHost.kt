@@ -41,6 +41,8 @@ import com.florapin.app.gallery.GalleryScreen
 import com.florapin.app.identify.IdentifyScreen
 import com.florapin.app.map.MapScreen
 import com.florapin.app.network.auth.EncryptedTokenStore
+import com.florapin.app.onboarding.OnboardingPrefs
+import com.florapin.app.onboarding.OnboardingScreen
 import com.florapin.app.permission.RequestNotificationPermissionOnce
 import com.florapin.app.profile.ProfileScreen
 import com.florapin.app.push.PushTokenRegistrar
@@ -49,6 +51,7 @@ import com.florapin.app.sync.SyncScheduler
 
 /** Destinations de l'application. */
 private object Routes {
+    const val ONBOARDING = "onboarding"
     const val LOGIN = "login"
     const val NETWORK_OPTIONS = "network-options"
     const val REGISTER = "register"
@@ -77,6 +80,7 @@ private object Routes {
  * applique pas : on y laisse la gestion du retour par défaut.
  */
 private val authRoutes: Set<String> = setOf(
+    Routes.ONBOARDING,
     Routes.LOGIN,
     Routes.NETWORK_OPTIONS,
     Routes.REGISTER,
@@ -97,7 +101,15 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
     val loggedIn = remember {
         EncryptedTokenStore(context).refreshToken() != null
     }
-    val startDestination = if (loggedIn) Routes.GALLERY else Routes.LOGIN
+    // L'onboarding s'insère avant le choix Login/Galerie, uniquement à la première
+    // installation (drapeau figé à vrai pour les installs existantes, cf.
+    // OnboardingPrefs.markSeenForExistingInstall dans FlorapinApp).
+    val onboardingDone = remember { OnboardingPrefs(context).isDone() }
+    val startDestination = when {
+        !onboardingDone -> Routes.ONBOARDING
+        loggedIn -> Routes.GALLERY
+        else -> Routes.LOGIN
+    }
 
     val currentRoute by navController.currentBackStackEntryAsState()
     val currentRouteStr = currentRoute?.destination?.route
@@ -144,6 +156,17 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
             startDestination = startDestination,
             modifier = Modifier.padding(innerPadding),
         ) {
+        composable(Routes.ONBOARDING) {
+            OnboardingScreen(
+                onFinish = {
+                    // Ne plus ré-afficher l'onboarding, puis rejoindre le flux normal :
+                    // galerie si déjà connecté (rare : nouvelle install), sinon Login.
+                    OnboardingPrefs(context).setDone()
+                    if (loggedIn) navController.goToGallery() else navController.goToLogin()
+                },
+            )
+        }
+
         composable(Routes.LOGIN) {
             val authViewModel: AuthViewModel =
                 viewModel(factory = AuthViewModel.factory(context))

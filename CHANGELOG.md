@@ -13,6 +13,16 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Onboarding en trois écrans (première installation).** Au tout premier
+  lancement, FloraPin présente sa promesse sociale (capture géolocalisée →
+  partage → identification par les amis), explique les accès caméra et
+  localisation *avant* de les demander (permissions contextualisées), puis
+  propose le choix de synchronisation cloud en réutilisant l'écran « Options
+  réseau » (device-first : sync OFF par défaut, choix par appareil). L'onboarding
+  s'insère avant l'aiguillage Login/Galerie et ne s'affiche qu'une fois : le
+  drapeau « déjà vu » est figé à vrai pour les installations existantes (session
+  active ou base locale déjà créée), afin qu'une simple mise à jour ne le
+  ré-affiche pas. Nouveau fichier de préférences dédié `florapin_onboarding`.
 - **Tirer pour rafraîchir (pull-to-refresh).** La galerie, le feed « Partagées
   avec moi » et l'écran « Fleurs à identifier » se rafraîchissent désormais d'un
   simple geste de tirage vers le bas. Sur la galerie (device-first), le geste

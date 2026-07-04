@@ -33,7 +33,8 @@ abstract class FloraDatabase : RoomDatabase() {
     abstract fun photoDao(): PhotoDao
 
     companion object {
-        private const val DB_NAME = "florapin.db"
+        /** Nom du fichier SQLite local (aussi utilisé pour détecter un install existant). */
+        const val DB_NAME = "florapin.db"
 
         /** v1 → v2 : champs de synchronisation (NODE-43). */
         val MIGRATION_1_2 = object : Migration(1, 2) {

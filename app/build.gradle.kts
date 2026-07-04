@@ -107,6 +107,12 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            // Symboles de débogage natifs (libs tierces avec code natif, ex.
+            // SQLite/MapLibre) inclus dans le bundle pour un déobfuscation
+            // correcte des plantages natifs côté Play Console.
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",

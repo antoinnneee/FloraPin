@@ -12,6 +12,17 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Interne
+- **CI unifiée sur chaque PR (`.github/workflows/ci.yml`).** Le workflow
+  d'intégration continue construit et teste l'app *et* le backend à chaque
+  push/pull request : job Android (lint, `testDebugUnitTest`, `assembleDebug`
+  en debug uniquement, APK publié en artefact) et job Backend (`npm ci`,
+  `npm run build`, `npm test`, puis `npm run test:e2e` via Testcontainers sur
+  le démon Docker d'`ubuntu-latest`). Un `google-services.json` factice est
+  injecté pour satisfaire le plugin `google-services`, et `MAPTILER_API_KEY`
+  retombe sur une valeur vide (aucune clé requise pour compiler). Fichier
+  renommé depuis `android-ci.yml` pour refléter sa couverture app + backend.
+
 ## [1.12.0] — 2026-07-04
 
 _versionName 1.12.0, versionCode 20._

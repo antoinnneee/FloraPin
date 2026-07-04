@@ -27,6 +27,7 @@ import com.florapin.app.albums.AlbumsScreen
 import com.florapin.app.auth.EmailVerifyViewModel
 import com.florapin.app.auth.ForgotPasswordScreen
 import com.florapin.app.auth.LoginScreen
+import com.florapin.app.auth.NetworkOptionsScreen
 import com.florapin.app.auth.PasswordResetViewModel
 import com.florapin.app.auth.RegisterScreen
 import com.florapin.app.auth.ResetPasswordScreen
@@ -49,6 +50,7 @@ import com.florapin.app.sync.SyncScheduler
 /** Destinations de l'application. */
 private object Routes {
     const val LOGIN = "login"
+    const val NETWORK_OPTIONS = "network-options"
     const val REGISTER = "register"
     const val FORGOT_PASSWORD = "forgot-password"
     const val RESET_PASSWORD = "reset-password?token={token}"
@@ -76,6 +78,7 @@ private object Routes {
  */
 private val authRoutes: Set<String> = setOf(
     Routes.LOGIN,
+    Routes.NETWORK_OPTIONS,
     Routes.REGISTER,
     Routes.FORGOT_PASSWORD,
     Routes.RESET_PASSWORD,
@@ -145,9 +148,10 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
             val authViewModel: AuthViewModel =
                 viewModel(factory = AuthViewModel.factory(context))
             val state by authViewModel.state.collectAsStateWithLifecycle()
+            // Après connexion, on passe par l'écran « Options réseau » qui amorce
+            // (ou non) la synchronisation selon le choix de l'utilisateur.
             OnAuthSuccess(state) {
-                startSync(context)
-                navController.goToGallery()
+                navController.goToNetworkOptions()
             }
 
             LoginScreen(
@@ -156,6 +160,19 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
                 onLogin = authViewModel::login,
                 onSwitchToRegister = { navController.navigate(Routes.REGISTER) },
                 onForgotPassword = { navController.navigate(Routes.FORGOT_PASSWORD) },
+            )
+        }
+
+        composable(Routes.NETWORK_OPTIONS) {
+            NetworkOptionsScreen(
+                initialEnabled = remember { SyncPreferences(context).isEnabled() },
+                onContinue = { enabled ->
+                    // Mémorise le choix (par appareil) puis amorce la sync :
+                    // startSync est no-op si la sync est désactivée.
+                    SyncPreferences(context).setEnabled(enabled)
+                    startSync(context)
+                    navController.goToGallery()
+                },
             )
         }
 
@@ -367,6 +384,17 @@ private fun NavHostController.navigateToTab(route: String) {
         popUpTo(graph.findStartDestination().id) { saveState = true }
         launchSingleTop = true
         restoreState = true
+    }
+}
+
+/**
+ * Va à l'écran « Options réseau » après connexion, en vidant la back-stack : le
+ * retour hardware ne doit pas ramener à l'écran de login.
+ */
+private fun NavHostController.goToNetworkOptions() {
+    navigate(Routes.NETWORK_OPTIONS) {
+        popUpTo(0) { inclusive = true }
+        launchSingleTop = true
     }
 }
 

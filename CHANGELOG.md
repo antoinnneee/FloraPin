@@ -12,6 +12,14 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+- **Écran « Options réseau » après connexion.** Après une connexion par
+  email/mot de passe, une page présente la synchronisation cloud (sauvegarde des
+  fleurs sur le serveur, multi-appareils, partage avec les amis) et laisse
+  l'activer via un interrupteur unique — pré-coché sur le choix courant de
+  l'appareil (device-first : désactivé par défaut). Le choix est enregistré puis
+  la synchronisation est amorcée si activée. Reste modifiable dans Profil.
+
 ### Corrigé
 - **Partage d'une fleur — erreur 409 supprimée.** Re-partager une fleur (ou un
   album / toutes ses fleurs) au même ami ne renvoie plus « Conflict » : le

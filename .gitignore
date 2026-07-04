@@ -25,6 +25,10 @@ local.properties
 # Réglages/état de l'assistant (local à la machine)
 .claude/
 
+# Docs de travail locales (générées, non versionnées)
+FEATURES.md
+UI_INTERACTIONS.md
+
 # Logs / OS
 *.log
 .DS_Store

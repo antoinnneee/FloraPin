@@ -33,11 +33,23 @@ data class CreateShareRequest(
     val includeGps: Boolean? = null,
 )
 
+/** Partage d'un périmètre avec tous les amis acceptés (sans destinataire). */
+@JsonClass(generateAdapter = true)
+data class ShareToAllFriendsRequest(
+    val scope: String,
+    val flowerId: String? = null,
+    val albumId: String? = null,
+    val includeGps: Boolean? = null,
+)
+
 @JsonClass(generateAdapter = true)
 data class ShareDto(
     val id: String,
     val ownerId: String,
-    val sharedWith: String,
+    /** null quand audience = "all_friends" (partage à tout le réseau). */
+    val sharedWith: String? = null,
+    /** "friend" (ami précis) ou "all_friends" (réseau, amis présents et futurs). */
+    val audience: String = "friend",
     val scope: String,
     val flowerId: String? = null,
     val albumId: String? = null,

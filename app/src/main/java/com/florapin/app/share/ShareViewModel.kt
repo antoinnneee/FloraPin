@@ -13,6 +13,7 @@ import com.florapin.app.network.dto.AlbumDto
 import com.florapin.app.network.dto.CreateShareRequest
 import com.florapin.app.network.dto.FriendUserDto
 import com.florapin.app.network.dto.ShareDto
+import com.florapin.app.network.dto.ShareToAllFriendsRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -83,6 +84,34 @@ class ShareViewModel(
                 sharesApi.create(
                     CreateShareRequest(
                         friendId = friendId,
+                        scope = scope,
+                        flowerId = if (scope == "flower") flowerId else null,
+                        albumId = if (scope == "album") albumId else null,
+                        includeGps = includeGps,
+                    ),
+                )
+                load()
+            } catch (e: Exception) {
+                _state.update { it.copy(error = messageOf(e)) }
+            }
+        }
+    }
+
+    /**
+     * Partage le périmètre avec *tous* les amis acceptés en une requête
+     * ([SharesApi.createForAllFriends]). [flowerId]/[albumId] suivent la même
+     * règle que [createShare] selon le périmètre.
+     */
+    fun createShareForAll(
+        scope: String,
+        includeGps: Boolean,
+        flowerId: String?,
+        albumId: String? = null,
+    ) {
+        viewModelScope.launch {
+            try {
+                sharesApi.createForAllFriends(
+                    ShareToAllFriendsRequest(
                         scope = scope,
                         flowerId = if (scope == "flower") flowerId else null,
                         albumId = if (scope == "album") albumId else null,

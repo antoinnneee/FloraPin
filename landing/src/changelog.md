@@ -12,6 +12,39 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.12.0] — 2026-07-04
+
+_versionName 1.12.0, versionCode 20._
+
+### Ajouté
+- **Partage à tout son réseau d'amis (présents et futurs).** Nouveau mode de
+  partage « 👥 Tous mes amis » : le périmètre choisi (une fleur, un album ou
+  toutes mes fleurs) est partagé avec l'ensemble du réseau d'amis en un seul
+  partage persistant. Contrairement à un partage figé, **un ami ajouté plus tard
+  y accède automatiquement**, sans avoir à re-partager (nouvel endpoint
+  `POST /shares/all-friends`, audience `all_friends`).
+- **Sélection des amis plus visible.** La liste des amis n'est plus cachée dans
+  un menu déroulant : elle s'affiche directement sous forme de puces
+  sélectionnables, avec l'option « 👥 Tous mes amis » en tête.
+- **Destinataire affiché dans le récap des partages.** Chaque partage existant
+  indique désormais son destinataire, en plus du périmètre et de l'état du GPS :
+  un badge coloré distinctif « 👥 Tous mes amis » pour un partage réseau, ou le
+  nom de l'ami pour un partage ciblé.
+- **Écran « Options réseau » après connexion.** Après une connexion par
+  email/mot de passe, une page présente la synchronisation cloud (sauvegarde des
+  fleurs sur le serveur, multi-appareils, partage avec les amis) et laisse
+  l'activer via un interrupteur unique — pré-coché sur le choix courant de
+  l'appareil (device-first : désactivé par défaut). Le choix est enregistré puis
+  la synchronisation est amorcée si activée. Reste modifiable dans Profil.
+
+### Corrigé
+- **Partage d'une fleur — erreur 409 supprimée.** Re-partager une fleur (ou un
+  album / toutes ses fleurs) au même ami ne renvoie plus « Conflict » : le
+  partage existant est mis à jour (utile notamment pour basculer l'inclusion du
+  GPS) au lieu d'être rejeté. Côté app, les erreurs de partage affichent
+  désormais le message renvoyé par le serveur (ex. « Le partage est réservé aux
+  amis acceptés. ») au lieu d'un « HTTP 4xx » technique.
+
 ### Modifié
 - **Landing — sentier animé.** Le tracé suit désormais de près la position de
   défilement (au lieu de prendre près d'un écran d'avance), serpente en un

@@ -238,4 +238,60 @@ describe('FloraPin API (e2e)', () => {
     expect(shared.body.length).toBeGreaterThanOrEqual(1);
     expect(shared.body[0].latitude).toBeNull();
   });
+
+  it('partage réseau : les amis présents ET futurs voient la fleur', async () => {
+    const owner = await register('frank@example.com');
+    const early = await register('grace@example.com');
+    const later = await register('heidi@example.com');
+
+    await api()
+      .post('/api/v1/flowers')
+      .set('Authorization', `Bearer ${owner.access}`)
+      .send({ takenAt: '2026-06-22T11:00:00.000Z', latitude: 45.0, longitude: 1.0 })
+      .expect(201);
+
+    // Amitié établie AVANT le partage.
+    await befriend(owner, early);
+
+    // Un seul partage réseau (audience='all_friends'), pas un par ami.
+    const res = await api()
+      .post('/api/v1/shares/all-friends')
+      .set('Authorization', `Bearer ${owner.access}`)
+      .send({ scope: 'all', includeGps: true })
+      .expect(201);
+    expect(res.body.id).toBeDefined();
+    expect(res.body.audience).toBe('all_friends');
+    expect(res.body.sharedWith).toBeNull();
+
+    // L'ami présent au moment du partage voit la fleur.
+    const earlyShared = await api()
+      .get('/api/v1/shared')
+      .set('Authorization', `Bearer ${early.access}`)
+      .expect(200);
+    expect(earlyShared.body.length).toBeGreaterThanOrEqual(1);
+
+    // Amitié établie APRÈS le partage : l'ami doit tout de même voir la fleur.
+    await befriend(owner, later);
+    const laterShared = await api()
+      .get('/api/v1/shared')
+      .set('Authorization', `Bearer ${later.access}`)
+      .expect(200);
+    expect(laterShared.body.length).toBeGreaterThanOrEqual(1);
+  });
+
+  /** Crée une amitié acceptée entre [owner] et [friend]. */
+  async function befriend(
+    owner: { access: string },
+    friend: { id: string; access: string },
+  ): Promise<void> {
+    const reqRes = await api()
+      .post('/api/v1/friendships')
+      .set('Authorization', `Bearer ${owner.access}`)
+      .send({ addresseeId: friend.id })
+      .expect(201);
+    await api()
+      .post(`/api/v1/friendships/${reqRes.body.id}/accept`)
+      .set('Authorization', `Bearer ${friend.access}`)
+      .expect(200);
+  }
 });

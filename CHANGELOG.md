@@ -12,7 +12,24 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.12.0] — 2026-07-04
+
+_versionName 1.12.0, versionCode 20._
+
 ### Ajouté
+- **Partage à tout son réseau d'amis (présents et futurs).** Nouveau mode de
+  partage « 👥 Tous mes amis » : le périmètre choisi (une fleur, un album ou
+  toutes mes fleurs) est partagé avec l'ensemble du réseau d'amis en un seul
+  partage persistant. Contrairement à un partage figé, **un ami ajouté plus tard
+  y accède automatiquement**, sans avoir à re-partager (nouvel endpoint
+  `POST /shares/all-friends`, audience `all_friends`).
+- **Sélection des amis plus visible.** La liste des amis n'est plus cachée dans
+  un menu déroulant : elle s'affiche directement sous forme de puces
+  sélectionnables, avec l'option « 👥 Tous mes amis » en tête.
+- **Destinataire affiché dans le récap des partages.** Chaque partage existant
+  indique désormais son destinataire, en plus du périmètre et de l'état du GPS :
+  un badge coloré distinctif « 👥 Tous mes amis » pour un partage réseau, ou le
+  nom de l'ami pour un partage ciblé.
 - **Écran « Options réseau » après connexion.** Après une connexion par
   email/mot de passe, une page présente la synchronisation cloud (sauvegarde des
   fleurs sur le serveur, multi-appareils, partage avec les amis) et laisse

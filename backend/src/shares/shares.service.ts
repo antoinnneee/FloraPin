@@ -4,14 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Repository } from 'typeorm';
+import { FindOptionsWhere, In, IsNull, Repository } from 'typeorm';
 import { Album } from '../albums/album.entity';
 import { Flower } from '../flowers/flower.entity';
 import { FlowerResponse, FlowersService } from '../flowers/flowers.service';
 import { FriendshipsService } from '../friendships/friendships.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { CreateShareDto } from './dto/share.dto';
-import { Share } from './share.entity';
+import { CreateShareDto, ShareToAllFriendsDto } from './dto/share.dto';
+import { Share, ShareScope } from './share.entity';
 
 @Injectable()
 export class SharesService {
@@ -36,8 +36,82 @@ export class SharesService {
       );
     }
 
-    let flowerId: string | null = null;
-    let albumId: string | null = null;
+    const { flowerId, albumId } = await this.resolveScope(ownerId, dto);
+    return this.upsertShare(
+      ownerId,
+      dto.friendId,
+      dto.scope,
+      flowerId,
+      albumId,
+      dto.includeGps ?? true,
+    );
+  }
+
+  /**
+   * Partage le périmètre avec *tout le réseau d'amis* (NODE-71) : un unique
+   * partage `audience='all_friends'`, sans destinataire figé. L'audience est
+   * résolue dynamiquement à chaque lecture (cf. sharedWithMe/isVisibleTo), si
+   * bien qu'un ami ajouté PLUS TARD y accède automatiquement, sans re-partage.
+   * Ré-partager le même périmètre met à jour le partage réseau existant.
+   */
+  async createForAllFriends(
+    ownerId: string,
+    dto: ShareToAllFriendsDto,
+  ): Promise<Share> {
+    const { flowerId, albumId } = await this.resolveScope(ownerId, dto);
+    const includeGps = dto.includeGps ?? true;
+
+    const existing = await this.shares.findOne({
+      where: {
+        ownerId,
+        audience: 'all_friends',
+        scope: dto.scope,
+        flowerId: flowerId ?? IsNull(),
+        albumId: albumId ?? IsNull(),
+      },
+    });
+    if (existing) {
+      existing.includeGps = includeGps;
+      return this.shares.save(existing);
+    }
+
+    const share = await this.shares.save(
+      this.shares.create({
+        ownerId,
+        sharedWith: null,
+        audience: 'all_friends',
+        scope: dto.scope,
+        flowerId,
+        albumId,
+        includeGps,
+      }),
+    );
+
+    // Notifie les amis ACTUELS (best-effort). Les futurs amis, eux, découvriront
+    // le partage via leur feed/liste sans notification dédiée à ce stade.
+    const friendIds = await this.friendships.acceptedFriendIds(ownerId);
+    for (const friendId of friendIds) {
+      await this.notifications.createSafe(friendId, 'flower_shared', {
+        shareId: share.id,
+        fromUserId: ownerId,
+        scope: share.scope,
+        flowerId: share.flowerId,
+        albumId: share.albumId,
+      });
+    }
+
+    return share;
+  }
+
+  /**
+   * Résout et valide le périmètre d'un partage : retourne les ids concrets
+   * (flowerId/albumId) après avoir vérifié que la fleur/l'album appartient bien
+   * à [ownerId]. Pour le périmètre 'all', les deux sont null.
+   */
+  private async resolveScope(
+    ownerId: string,
+    dto: { scope: string; flowerId?: string; albumId?: string },
+  ): Promise<{ flowerId: string | null; albumId: string | null }> {
     if (dto.scope === 'flower') {
       const flower = await this.flowers.findOne({
         where: { id: dto.flowerId, ownerId },
@@ -45,48 +119,64 @@ export class SharesService {
       if (!flower) {
         throw new NotFoundException('Fleur introuvable.');
       }
-      flowerId = flower.id;
-    } else if (dto.scope === 'album') {
+      return { flowerId: flower.id, albumId: null };
+    }
+    if (dto.scope === 'album') {
       const album = await this.albums.findOne({
         where: { id: dto.albumId, ownerId },
       });
       if (!album) {
         throw new NotFoundException('Album introuvable.');
       }
-      albumId = album.id;
+      return { flowerId: null, albumId: album.id };
     }
+    return { flowerId: null, albumId: null };
+  }
 
-    // Ré-partager le même périmètre au même ami n'est pas une erreur : on met à
-    // jour le partage existant (typiquement pour basculer le GPS) plutôt que de
-    // renvoyer un 409 que l'utilisateur ne peut pas résoudre depuis l'app.
+  /**
+   * Crée (ou met à jour) le partage d'un périmètre donné vers un ami et le
+   * notifie. Ré-partager le même périmètre au même ami n'est pas une erreur : on
+   * met à jour le partage existant (typiquement pour basculer le GPS) plutôt que
+   * de renvoyer un 409 que l'utilisateur ne peut pas résoudre depuis l'app.
+   */
+  private async upsertShare(
+    ownerId: string,
+    friendId: string,
+    scope: ShareScope,
+    flowerId: string | null,
+    albumId: string | null,
+    includeGps: boolean,
+  ): Promise<Share> {
     const existing = await this.shares.findOne({
       where: {
         ownerId,
-        sharedWith: dto.friendId,
-        scope: dto.scope,
+        sharedWith: friendId,
+        audience: 'friend',
+        scope,
         flowerId: flowerId ?? IsNull(),
         albumId: albumId ?? IsNull(),
       },
     });
     if (existing) {
-      existing.includeGps = dto.includeGps ?? true;
+      existing.includeGps = includeGps;
       return this.shares.save(existing);
     }
 
     const share = await this.shares.save(
       this.shares.create({
         ownerId,
-        sharedWith: dto.friendId,
-        scope: dto.scope,
+        sharedWith: friendId,
+        audience: 'friend',
+        scope,
         flowerId,
         albumId,
-        includeGps: dto.includeGps ?? true,
+        includeGps,
       }),
     );
 
     // Notifie le destinataire du partage (NODE-56) — best-effort : le partage est
     // déjà créé, un échec de notification ne doit pas renvoyer un 500.
-    await this.notifications.createSafe(dto.friendId, 'flower_shared', {
+    await this.notifications.createSafe(friendId, 'flower_shared', {
       shareId: share.id,
       fromUserId: ownerId,
       scope: share.scope,
@@ -118,9 +208,7 @@ export class SharesService {
    * la plus permissive : GPS visible s'il l'est dans au moins un partage).
    */
   async sharedWithMe(viewerId: string): Promise<FlowerResponse[]> {
-    const shares = await this.shares.find({
-      where: { sharedWith: viewerId },
-    });
+    const shares = await this.sharesVisibleTo(viewerId);
 
     // Résout les fleurs de chaque partage en mémorisant, par id, la variante GPS
     // la plus permissive (GPS visible s'il l'est dans au moins un partage). On
@@ -183,8 +271,8 @@ export class SharesService {
         return true;
       }
     }
-    // Partages ciblés reçus : la fleur figure-t-elle dans l'un d'eux ?
-    const shares = await this.shares.find({ where: { sharedWith: viewerId } });
+    // Partages reçus (ciblés + réseau 'all_friends' des amis) : la fleur y figure-t-elle ?
+    const shares = await this.sharesVisibleTo(viewerId);
     for (const share of shares) {
       const flowers = await this.resolveFlowers(share);
       if (flowers.some((f) => f.id === flower.id)) {
@@ -192,6 +280,21 @@ export class SharesService {
       }
     }
     return false;
+  }
+
+  /**
+   * Partages dont [viewerId] est destinataire : les partages ciblés reçus
+   * (`sharedWith = viewerId`) ET les partages réseau (`audience='all_friends'`)
+   * des amis acceptés du viewer. Ces derniers sont résolus dynamiquement, si
+   * bien qu'un viewer devenu ami APRÈS la création du partage y accède aussitôt.
+   */
+  private async sharesVisibleTo(viewerId: string): Promise<Share[]> {
+    const friendIds = await this.friendships.acceptedFriendIds(viewerId);
+    const where: FindOptionsWhere<Share>[] = [{ sharedWith: viewerId }];
+    if (friendIds.length > 0) {
+      where.push({ ownerId: In(friendIds), audience: 'all_friends' });
+    }
+    return this.shares.find({ where });
   }
 
   /**

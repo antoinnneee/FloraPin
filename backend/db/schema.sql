@@ -249,7 +249,10 @@ CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id
 CREATE TABLE IF NOT EXISTS shares (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    shared_with UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    -- NULL pour audience='all_friends' (partage à tout le réseau).
+    shared_with UUID REFERENCES users(id) ON DELETE CASCADE,
+    audience    TEXT NOT NULL DEFAULT 'friend'
+                CHECK (audience IN ('friend', 'all_friends')),
     scope       TEXT NOT NULL DEFAULT 'all'
                 CHECK (scope IN ('all', 'flower', 'album')),
     flower_id   UUID REFERENCES flowers(id) ON DELETE CASCADE,
@@ -258,7 +261,9 @@ CREATE TABLE IF NOT EXISTS shares (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     -- cohérence scope/flower_id et scope/album_id
     CHECK ((scope = 'flower') = (flower_id IS NOT NULL)),
-    CHECK ((scope = 'album')  = (album_id  IS NOT NULL))
+    CHECK ((scope = 'album')  = (album_id  IS NOT NULL)),
+    -- destinataire précis ssi audience='friend'
+    CHECK ((audience = 'friend') = (shared_with IS NOT NULL))
 );
 -- Migration des bases existantes (NODE-101) : partage par album. `album_id` ne
 -- vit que dans le CREATE TABLE ci-dessus → absent des bases créées avant NODE-101.
@@ -270,6 +275,18 @@ ALTER TABLE shares ADD COLUMN IF NOT EXISTS album_id UUID
 ALTER TABLE shares DROP CONSTRAINT IF EXISTS shares_scope_check;
 ALTER TABLE shares ADD CONSTRAINT shares_scope_check
     CHECK (scope IN ('all', 'flower', 'album'));
+
+-- Partage à tout le réseau d'amis, présents ET futurs (audience='all_friends').
+-- `shared_with` devient optionnel (NULL pour ce mode) et une nouvelle colonne
+-- `audience` distingue le partage ciblé du partage réseau. Idempotent.
+ALTER TABLE shares ADD COLUMN IF NOT EXISTS audience TEXT NOT NULL DEFAULT 'friend';
+ALTER TABLE shares DROP CONSTRAINT IF EXISTS shares_audience_check;
+ALTER TABLE shares ADD CONSTRAINT shares_audience_check
+    CHECK (audience IN ('friend', 'all_friends'));
+ALTER TABLE shares ALTER COLUMN shared_with DROP NOT NULL;
+ALTER TABLE shares DROP CONSTRAINT IF EXISTS shares_recipient_check;
+ALTER TABLE shares ADD CONSTRAINT shares_recipient_check
+    CHECK ((audience = 'friend') = (shared_with IS NOT NULL));
 
 CREATE INDEX IF NOT EXISTS idx_shares_owner ON shares(owner_id);
 CREATE INDEX IF NOT EXISTS idx_shares_user  ON shares(shared_with);

@@ -14,7 +14,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CreateShareDto } from './dto/share.dto';
+import { CreateShareDto, ShareToAllFriendsDto } from './dto/share.dto';
 import { SharesService } from './shares.service';
 
 @ApiTags('shares')
@@ -28,6 +28,15 @@ export class SharesController {
   @Post('shares')
   create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateShareDto) {
     return this.shares.create(user.userId, dto);
+  }
+
+  /** Partage le périmètre avec tout mon réseau d'amis (présents et futurs). */
+  @Post('shares/all-friends')
+  createForAllFriends(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ShareToAllFriendsDto,
+  ) {
+    return this.shares.createForAllFriends(user.userId, dto);
   }
 
   /** Mes partages sortants. */

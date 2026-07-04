@@ -9,6 +9,7 @@ import com.florapin.app.network.dto.CreateShareRequest
 import com.florapin.app.network.dto.FriendUserDto
 import com.florapin.app.network.dto.FriendshipDto
 import com.florapin.app.network.dto.ShareDto
+import com.florapin.app.network.dto.ShareToAllFriendsRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -40,13 +41,19 @@ private class FakeFriendshipsApi(private val data: List<FriendshipDto>) : Friend
 
 private class FakeSharesApi : SharesApi {
     var created: CreateShareRequest? = null
+    var createdForAll: ShareToAllFriendsRequest? = null
     var revoked: String? = null
     val shares = mutableListOf<ShareDto>()
 
     override suspend fun create(body: CreateShareRequest): ShareDto {
         created = body
-        return ShareDto("s1", "owner", body.friendId, body.scope, body.flowerId,
-            body.albumId, true, "2026-06-21T09:00:00Z")
+        return ShareDto("s1", "owner", body.friendId, "friend", body.scope,
+            body.flowerId, body.albumId, true, "2026-06-21T09:00:00Z")
+    }
+    override suspend fun createForAllFriends(body: ShareToAllFriendsRequest): ShareDto {
+        createdForAll = body
+        return ShareDto("s1", "owner", null, "all_friends", body.scope,
+            body.flowerId, body.albumId, true, "2026-06-21T09:00:00Z")
     }
     override suspend fun listMine() = shares
     override suspend fun revoke(id: String): Response<Unit> {
@@ -154,6 +161,20 @@ class ShareViewModelTest {
         assertEquals("album", sharesApi.created?.scope)
         assertEquals("a1", sharesApi.created?.albumId)
         assertNull(sharesApi.created?.flowerId)
+    }
+
+    @Test
+    fun createShareForAll_allScope_sendsScopeWithoutFlowerId() = runTest {
+        val sharesApi = FakeSharesApi()
+        val vm = ShareViewModel(FakeFriendshipsApi(emptyList()), sharesApi, FakeAlbumsApi())
+        advanceUntilIdle()
+
+        vm.createShareForAll("all", includeGps = false, flowerId = "srv-1")
+        advanceUntilIdle()
+
+        assertEquals("all", sharesApi.createdForAll?.scope)
+        assertEquals(false, sharesApi.createdForAll?.includeGps)
+        assertNull(sharesApi.createdForAll?.flowerId)
     }
 
     @Test

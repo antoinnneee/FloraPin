@@ -14,7 +14,16 @@ import {
  */
 export type ShareScope = 'all' | 'flower' | 'album';
 
-/** Partage paramétrable d'un propriétaire vers un ami. */
+/**
+ * Destinataire d'un partage.
+ * - `friend`      : un ami précis (`sharedWith`).
+ * - `all_friends` : tout le réseau d'amis acceptés, présents ET futurs. Aucun
+ *   `sharedWith` : l'audience est résolue dynamiquement à chaque lecture contre
+ *   la liste d'amis courante, si bien qu'un ami ajouté plus tard en hérite.
+ */
+export type ShareAudience = 'friend' | 'all_friends';
+
+/** Partage paramétrable d'un propriétaire vers un ami (ou tout son réseau). */
 @Entity('shares')
 export class Share {
   @PrimaryGeneratedColumn('uuid')
@@ -24,9 +33,13 @@ export class Share {
   @Column({ name: 'owner_id', type: 'uuid' })
   ownerId: string;
 
+  /** Destinataire précis (audience='friend') ; null si audience='all_friends'. */
   @Index()
-  @Column({ name: 'shared_with', type: 'uuid' })
-  sharedWith: string;
+  @Column({ name: 'shared_with', type: 'uuid', nullable: true })
+  sharedWith: string | null;
+
+  @Column({ type: 'text', default: 'friend' })
+  audience: ShareAudience;
 
   @Column({ type: 'text', default: 'all' })
   scope: ShareScope;

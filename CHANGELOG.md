@@ -12,6 +12,15 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## Non publié
 
+### Ajouté
+- **Page publique de suppression de compte (`/suppression-compte`).** Conformité
+  à la politique Google Play : une URL accessible sans l'app et sans connexion
+  décrit comment supprimer son compte (depuis l'app : Profil → « Supprimer mon
+  compte » ; ou par email si l'utilisateur n'a plus accès à l'app), liste les
+  données effacées et le délai de traitement. Lien ajouté au pied de page de la
+  vitrine. URL à renseigner dans la Play Console (section « Suppression de
+  compte »).
+
 ### Sécurité
 - **Backend — en-têtes & surface d'API.** Ajout de `helmet` (en-têtes de sécurité
   HTTP : `nosniff`, HSTS, anti-clickjacking…). Le CORS n'autorise plus toutes les

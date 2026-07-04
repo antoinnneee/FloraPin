@@ -1,0 +1,205 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Footer from '../components/Footer.astro';
+
+const lastUpdated = '4 juillet 2026';
+const contact = 'contact@florapin.pattounecorp.ovh';
+// Objet du mail pré-rempli pour la demande hors application.
+const mailSubject = encodeURIComponent('Demande de suppression de compte FloraPin');
+const mailBody = encodeURIComponent(
+  "Bonjour,\n\nJe souhaite supprimer définitivement mon compte FloraPin et toutes les données associées.\n\nAdresse email du compte : \n\nMerci.",
+);
+const mailto = `mailto:${contact}?subject=${mailSubject}&body=${mailBody}`;
+---
+
+<Layout
+  title="Supprimer mon compte — FloraPin"
+  description="Comment supprimer votre compte FloraPin et toutes vos données : directement dans l'application, ou par email si vous n'avez plus accès à l'app."
+>
+  <main class="page">
+    <div class="container">
+      <a class="back" href="/">← Retour à l'accueil</a>
+      <span class="eyebrow">Vos données · Vos droits</span>
+      <h1>Supprimer mon compte</h1>
+      <p class="updated">Dernière mise à jour : {lastUpdated}</p>
+
+      <p class="intro">
+        La suppression de votre compte FloraPin est <strong>définitive et
+        gratuite</strong>. Elle efface l'ensemble de vos données de nos serveurs.
+        Vous pouvez la déclencher vous-même depuis l'application, ou nous en faire
+        la demande par email si vous n'y avez plus accès.
+      </p>
+
+      <section>
+        <h2>Méthode 1 — Depuis l'application (recommandé)</h2>
+        <ol>
+          <li>Ouvrez FloraPin et connectez-vous à votre compte.</li>
+          <li>Rendez-vous dans l'onglet <strong>Profil</strong>.</li>
+          <li>Appuyez sur <strong>« Supprimer mon compte »</strong>.</li>
+          <li>
+            Confirmez en saisissant votre mot de passe. La suppression est
+            immédiate et irréversible.
+          </li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>Méthode 2 — Par email</h2>
+        <p>
+          Si vous ne pouvez plus vous connecter (appareil perdu, application
+          désinstallée…), écrivez-nous depuis l'adresse email associée à votre
+          compte :
+        </p>
+        <p>
+          <a class="cta" href={mailto}>Demander la suppression par email</a>
+        </p>
+        <p class="fine">
+          Ou écrivez directement à
+          <a href={`mailto:${contact}`}>{contact}</a> en précisant l'adresse email
+          de votre compte. Nous traitons votre demande sous <strong>30 jours</strong>
+          au maximum et vous confirmons la suppression par retour d'email.
+        </p>
+      </section>
+
+      <section>
+        <h2>Quelles données sont supprimées ?</h2>
+        <p>La suppression efface définitivement, sur nos serveurs :</p>
+        <ul>
+          <li>Votre compte et votre adresse email ;</li>
+          <li>Vos fleurs, photos et miniatures ;</li>
+          <li>Vos albums et vos notes ;</li>
+          <li>Vos partages, amitiés et propositions d'identification ;</li>
+          <li>Vos commentaires ;</li>
+          <li>Vos notifications et l'enregistrement de vos appareils.</li>
+        </ul>
+        <p>
+          Aucune de ces données n'est conservée après la suppression : l'effacement
+          est total et irréversible. Les données restées <strong>uniquement sur
+          votre téléphone</strong> (mode hors ligne) disparaissent lorsque vous
+          désinstallez l'application ou effacez ses données.
+        </p>
+      </section>
+
+      <section>
+        <h2>Données éventuellement conservées</h2>
+        <p>
+          Nous ne conservons aucune donnée personnelle après suppression. Seuls
+          des journaux techniques anonymisés (nécessaires à la sécurité et au bon
+          fonctionnement du service) peuvent subsister temporairement, sans
+          permettre de vous ré-identifier, puis sont purgés automatiquement.
+        </p>
+      </section>
+
+      <section>
+        <h2>Une question ?</h2>
+        <p>
+          Pour toute question sur la suppression ou vos données, écrivez-nous à
+          <a href={`mailto:${contact}`}>{contact}</a>. Voir aussi notre
+          <a href="/politique-de-confidentialite">politique de confidentialité</a>.
+        </p>
+      </section>
+    </div>
+  </main>
+  <Footer />
+</Layout>
+
+<style>
+  .page {
+    padding: clamp(64px, 9vw, 112px) 0 clamp(40px, 6vw, 72px);
+    background: var(--tilleul);
+  }
+
+  .back {
+    display: inline-block;
+    color: var(--feuille);
+    font-weight: 700;
+    margin-bottom: 24px;
+  }
+
+  .back:hover { color: var(--rose); }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4.4vw, 2.9rem);
+    font-weight: 560;
+    color: var(--encre);
+    line-height: 1.16;
+    letter-spacing: -0.01em;
+  }
+
+  .updated {
+    color: var(--texte-doux);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    margin-top: 10px;
+  }
+
+  .intro {
+    margin-top: 26px;
+    font-size: 1.08rem;
+    color: var(--texte);
+    max-width: 720px;
+  }
+
+  section {
+    margin-top: 44px;
+    max-width: 720px;
+  }
+
+  section h2 {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 560;
+    color: var(--encre);
+    margin-bottom: 14px;
+  }
+
+  section p {
+    color: var(--texte);
+    margin-bottom: 12px;
+  }
+
+  section ul,
+  section ol {
+    padding-left: 24px;
+    color: var(--texte);
+  }
+
+  section li {
+    margin-bottom: 10px;
+  }
+
+  section a {
+    color: var(--feuille);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  section a:hover { color: var(--rose); }
+
+  .cta {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 13px 22px;
+    background: var(--pollen);
+    color: var(--encre) !important;
+    font-family: var(--font-body);
+    font-weight: 700;
+    border-radius: 999px;
+    text-decoration: none !important;
+    transition: background 0.15s, transform 0.15s;
+  }
+
+  .cta:hover {
+    background: var(--pollen-2);
+    transform: translateY(-1px);
+  }
+
+  .fine {
+    font-size: 0.92rem;
+    color: var(--texte-doux);
+    margin-top: 14px;
+  }
+</style>

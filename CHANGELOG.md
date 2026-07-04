@@ -12,6 +12,14 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## Non publié
 
+### Supprimé
+- **Permission `READ_MEDIA_IMAGES` / `READ_EXTERNAL_STORAGE` retirée.** Reliquat
+  du POC : l'app ne lit jamais la galerie de l'appareil (les photos sont prises
+  par la caméra et écrites dans le répertoire privé). La permission était déclarée
+  mais aucun code ne l'utilisait, ce qui déclenchait un avertissement Play Console
+  sur les autorisations photos/vidéos. Manifeste et enum `AppPermission.MEDIA_IMAGES`
+  nettoyés.
+
 ### Ajouté
 - **Page publique de suppression de compte (`/suppression-compte`).** Conformité
   à la politique Google Play : une URL accessible sans l'app et sans connexion

@@ -11,14 +11,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Stockage : les photos prises par l'app vont dans son répertoire privé
-         (aucune permission requise). Ces permissions ne servent qu'à LIRE des
-         images existantes de la galerie (import). -->
-    <!-- Android 13+ (API 33+) : accès média granulaire. -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <!-- Android 12 et moins : ancien modèle de stockage partagé. -->
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
+         (aucune permission requise). L'app ne lit pas la galerie de l'appareil ;
+         aucune permission READ_MEDIA_IMAGES / READ_EXTERNAL_STORAGE n'est requise. -->
 
     <uses-feature
         android:name="android.hardware.camera"

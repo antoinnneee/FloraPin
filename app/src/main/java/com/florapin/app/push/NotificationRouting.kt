@@ -36,3 +36,40 @@ object NotificationRouting {
         return NotificationTarget(type, flowerId)
     }
 }
+
+/**
+ * Regroupement des notifications système (TÂCHE 2.4). Toute l'app pousse ses
+ * notifications sous une clé de groupe stable — par FLEUR quand une fleur est
+ * concernée (une même fleur = une même conversation : cœur, commentaire,
+ * proposition… se regroupent), sinon par TYPE (demandes d'ami…). À chaque ajout,
+ * on reposte le résumé du groupe (`setGroupSummary`) pour que le système collapse
+ * les notifications d'une même fleur au lieu de les empiler.
+ *
+ * Les ids de notification sont DÉTERMINISTES : un nouveau push d'un même
+ * (type, fleur) réutilise le même id et MET À JOUR la notification existante
+ * plutôt que d'en empiler une nouvelle. Les préfixes garantissent qu'un id
+ * d'enfant et un id de résumé ne se télescopent jamais.
+ *
+ * Logique pure (sans dépendance Android) pour rester testable en unit test.
+ */
+object NotificationGrouping {
+
+    /**
+     * Clé de groupe : par fleur si une fleur est concernée (regroupe toute la
+     * « conversation » autour d'elle), sinon par type.
+     */
+    fun groupKey(type: String?, flowerId: String?): String =
+        flowerId?.takeIf { it.isNotBlank() }?.let { "florapin.group.flower.$it" }
+            ?: "florapin.group.type.${type?.takeIf { it.isNotBlank() } ?: "unknown"}"
+
+    /**
+     * Id stable de la notification enfant, par (type, fleur) : un re-push du même
+     * couple met à jour la notification plutôt que d'empiler.
+     */
+    fun childId(type: String?, flowerId: String?): Int =
+        "child|${type.orEmpty()}|${flowerId.orEmpty()}".hashCode()
+
+    /** Id stable du résumé, par groupe ; jamais confondu avec un enfant (préfixe). */
+    fun summaryId(type: String?, flowerId: String?): Int =
+        "summary|${groupKey(type, flowerId)}".hashCode()
+}

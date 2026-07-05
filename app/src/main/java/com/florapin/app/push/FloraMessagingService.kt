@@ -50,20 +50,59 @@ class FloraMessagingService : FirebaseMessagingService() {
             ensureChannels(manager)
         }
         val channelId = channelFor(type)
-        // Chaque notification doit garder son propre PendingIntent (routage
-        // distinct) : on dérive un id unique et on le partage entre le
-        // PendingIntent et le notify() pour éviter que deux notifications se
-        // recyclent le même intent.
-        val notificationId = (System.currentTimeMillis() % Int.MAX_VALUE).toInt()
+        // Regroupement (TÂCHE 2.4) : toutes les notifications d'une même fleur (ou
+        // d'un même type quand il n'y a pas de fleur) partagent une clé de groupe,
+        // pour que le système les collapse sous un résumé au lieu de les empiler.
+        val groupKey = NotificationGrouping.groupKey(type, flowerId)
+        // Id STABLE par (type, fleur) : un re-push du même couple met à jour la
+        // notification existante plutôt que d'en empiler une nouvelle. Sert aussi
+        // de requestCode pour que le PendingIntent reste propre à ce (type, fleur).
+        val notificationId = NotificationGrouping.childId(type, flowerId)
         val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
+            .setGroup(groupKey)
             .setContentIntent(contentIntent(notificationId, type, flowerId))
             .build()
         manager.notify(notificationId, notification)
+        // Le résumé doit être (re)posté à CHAQUE ajout pour que le groupe reflète
+        // l'état courant et se collapse dès la 2ᵉ notification.
+        postGroupSummary(manager, channelId, groupKey, type, flowerId)
     }
+
+    /**
+     * (Re)poste la notification « résumé » du groupe. Reposté à chaque ajout : le
+     * système l'utilise pour collapser les notifications d'une même fleur /
+     * conversation. Son id est stable par groupe (distinct des enfants) afin de la
+     * mettre à jour plutôt que d'en créer une nouvelle.
+     */
+    private fun postGroupSummary(
+        manager: NotificationManager,
+        channelId: String,
+        groupKey: String,
+        type: String?,
+        flowerId: String?,
+    ) {
+        val summaryId = NotificationGrouping.summaryId(type, flowerId)
+        val summary = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(summaryTitleFor(flowerId))
+            .setAutoCancel(true)
+            .setGroup(groupKey)
+            .setGroupSummary(true)
+            // Le tap sur le résumé route comme une notification du groupe (même
+            // fleur / même type) ; requestCode dédié pour ne pas recycler l'intent
+            // d'un enfant.
+            .setContentIntent(contentIntent(summaryId, type, flowerId))
+            .build()
+        manager.notify(summaryId, summary)
+    }
+
+    /** Titre du résumé : par fleur (conversation) ou générique par type. */
+    private fun summaryTitleFor(flowerId: String?): String =
+        if (flowerId != null) "Activité sur une fleur" else "FloraPin"
 
     /**
      * Crée (idempotent) les canaux par type. Android ignore un `createNotificationChannel`

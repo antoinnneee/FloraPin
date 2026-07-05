@@ -13,6 +13,14 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Regroupement des notifications par fleur / conversation.** Les push sont
+  désormais regroupés côté système : toutes les notifications concernant une même
+  fleur (cœur, commentaire, proposition d'espèce, demande d'identification…) sont
+  collapsées sous un résumé unique — « Activité sur une fleur » — au lieu de
+  s'empiler ; les notifications sans fleur (demandes d'ami…) se regroupent par
+  type. Les ids de notification sont stables par (type, fleur) : un nouveau push
+  du même couple met à jour la notification existante plutôt que d'en créer une
+  nouvelle, et le résumé est reposté à chaque ajout.
 - **Canaux de notification par type.** Les push sont désormais rangés dans des
   canaux Android dédiés — Cœurs (`florapin_likes`), Commentaires
   (`florapin_comments`), Amis (`florapin_friends`) et Identification

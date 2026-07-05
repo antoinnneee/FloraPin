@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -77,31 +79,88 @@ import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
 
 /**
- * Détail d'une fleur (NODE-10) : photo, coordonnées, mini-carte, notes éditables
- * et suppression.
+ * Détail d'une fleur avec navigation par balayage (TÂCHE 6.10) : un
+ * [HorizontalPager] permet de passer d'une fleur à l'autre en glissant
+ * horizontalement, dans l'ordre de la galerie. On ne navigue pas fleur par
+ * fleur : la liste ordonnée d'ids est fournie d'un bloc au pager (device-first,
+ * même source que la galerie), et chaque page observe sa propre fleur.
+ *
+ * Tant que la liste n'est pas chargée (ou si la fleur n'y figure pas), on affiche
+ * directement la page seule — le balayage s'active dès que la liste est prête.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailScreen(
     flowerId: Long,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     onOpenSpecies: (String) -> Unit = {},
-    viewModel: DetailViewModel = viewModel(),
-    photosViewModel: PhotosViewModel = viewModel(),
+    pagerViewModel: DetailPagerViewModel = viewModel(),
+) {
+    val orderedIds by pagerViewModel.orderedIds.collectAsStateWithLifecycle()
+    val startIndex = orderedIds.indexOf(flowerId)
+
+    if (startIndex < 0) {
+        // Liste pas encore chargée depuis Room (ou fleur absente) : page unique.
+        // Les ViewModels par fleur sont keyés sur l'id, donc l'instance créée ici
+        // est réutilisée telle quelle par la page correspondante du pager.
+        FlowerDetailPage(
+            flowerId = flowerId,
+            onBack = onBack,
+            onOpenSpecies = onOpenSpecies,
+            modifier = modifier,
+        )
+        return
+    }
+
+    val pagerState = rememberPagerState(initialPage = startIndex) { orderedIds.size }
+    HorizontalPager(
+        state = pagerState,
+        modifier = modifier.fillMaxSize(),
+        // Clé stable par fleur : le pager survit aux évolutions de la liste
+        // (capture, suppression synchronisée…) sans mélanger les pages.
+        key = { page -> orderedIds[page] },
+    ) { page ->
+        FlowerDetailPage(
+            flowerId = orderedIds[page],
+            onBack = onBack,
+            onOpenSpecies = onOpenSpecies,
+        )
+    }
+}
+
+/**
+ * Détail d'une fleur (NODE-10) : photo, coordonnées, mini-carte, notes éditables
+ * et suppression. Une page du pager du détail (TÂCHE 6.10) : les ViewModels par
+ * fleur sont keyés sur [flowerId] pour que chaque page conserve son propre état,
+ * y compris lorsque deux pages coexistent pendant un balayage.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FlowerDetailPage(
+    flowerId: Long,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    onOpenSpecies: (String) -> Unit = {},
+    viewModel: DetailViewModel = viewModel(key = "detail-$flowerId"),
+    photosViewModel: PhotosViewModel = viewModel(key = "photos-$flowerId"),
     speciesPicker: SpeciesPickerViewModel = viewModel(
+        key = "species-$flowerId",
         factory = SpeciesPickerViewModel.factory(LocalContext.current),
     ),
     identificationVm: IdentificationRequestViewModel = viewModel(
+        key = "identify-$flowerId",
         factory = IdentificationRequestViewModel.factory(LocalContext.current),
     ),
     proposalsVm: ReceivedProposalsViewModel = viewModel(
+        key = "proposals-$flowerId",
         factory = ReceivedProposalsViewModel.factory(LocalContext.current),
     ),
     likeVm: LikeViewModel = viewModel(
+        key = "like-$flowerId",
         factory = LikeViewModel.factory(LocalContext.current),
     ),
     commentsVm: CommentsViewModel = viewModel(
+        key = "comments-$flowerId",
         factory = CommentsViewModel.factory(LocalContext.current),
     ),
 ) {

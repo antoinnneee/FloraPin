@@ -21,6 +21,14 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Balayage entre fleurs dans le détail (TÂCHE 6.10).** L'écran de détail est
+  désormais enveloppé dans un `HorizontalPager` : on passe d'une fleur à l'autre
+  d'un simple glissement horizontal, dans l'ordre par défaut de la galerie (plus
+  récentes d'abord). La liste ordonnée d'ids provient de la même source Room que
+  la galerie (`DetailPagerViewModel`) et transite d'un bloc vers le pager — pas de
+  navigation fleur par fleur. Chaque page conserve son propre état (ViewModels
+  keyés sur l'id de la fleur). Tant que la liste n'est pas chargée, la fleur ciblée
+  s'affiche seule, le balayage s'activant dès que la liste est prête (device-first).
 - **États vides soignés (TÂCHE 6.9).** Le composant réutilisable `EmptyState`
   (galerie, feed, albums, notifications…) gagne une illustration mise en valeur
   dans une pastille circulaire teintée et un bouton d'action optionnel

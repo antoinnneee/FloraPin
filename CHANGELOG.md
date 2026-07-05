@@ -21,6 +21,14 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Partage externe de la photo (TÂCHE 6.12).** Le menu de débordement (⋮) du
+  détail propose « 📷 Partager la photo » : la photo de couverture est partagée
+  vers une autre application via un `Intent.ACTION_SEND` (`image/jpeg`). Les
+  photos vivant en stockage privé (`filesDir/photos`), un `FileProvider`
+  (authority `${applicationId}.fileprovider`, `file_paths.xml`) concède un accès
+  temporaire en lecture (`content://`, `FLAG_GRANT_READ_URI_PERMISSION`).
+  Device-first : sans fichier local (fleur seulement distante), un message
+  prévient au lieu d'échouer.
 - **Ouvrir dans Maps / copier les coordonnées (TÂCHE 6.11).** La mini-carte du
   détail expose un menu de débordement (⋮) superposé à son coin : « Ouvrir dans
   Maps » lance un Intent `geo:lat,lng?q=lat,lng` (repère sur la position, message

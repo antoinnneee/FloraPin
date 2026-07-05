@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Chemins exposés par le FileProvider (TÂCHE 6.12) pour le partage externe des
+     photos. Les photos vivent dans le stockage privé (filesDir/photos, voir
+     PhotoStorage) : on n'expose que ce sous-répertoire, et rien d'autre. -->
+<paths>
+    <files-path
+        name="photos"
+        path="photos/" />
+</paths>

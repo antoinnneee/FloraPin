@@ -58,6 +58,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.florapin.app.BuildConfig
 import com.florapin.app.R
@@ -84,6 +85,7 @@ import com.florapin.app.ui.components.FullscreenPhotoViewer
 import com.florapin.app.util.formatCaptureDate
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
+import java.io.File
 
 /**
  * Détail d'une fleur avec navigation par balayage (TÂCHE 6.10) : un
@@ -211,6 +213,7 @@ fun FlowerDetailPage(
                 actions = {
                     val current = flower
                     if (current != null) {
+                        val context = LocalContext.current
                         IconButton(onClick = { showAddToAlbum = true }) { Text("📁") }
                         IconButton(onClick = { showShare = true }) { Text("📤") }
                         // Suppression (destructive) reléguée dans un menu de
@@ -223,6 +226,15 @@ fun FlowerDetailPage(
                                 expanded = menuOpen,
                                 onDismissRequest = { menuOpen = false },
                             ) {
+                                // Partage externe de la photo (TÂCHE 6.12) vers
+                                // une autre application (via FileProvider).
+                                DropdownMenuItem(
+                                    text = { Text("📷 Partager la photo") },
+                                    onClick = {
+                                        menuOpen = false
+                                        shareFlowerPhoto(context, current)
+                                    },
+                                )
                                 DropdownMenuItem(
                                     text = { Text("🗑️ Supprimer") },
                                     onClick = {
@@ -885,6 +897,44 @@ private fun openPointInMaps(context: Context, point: GeoPoint) {
         context.startActivity(Intent(Intent.ACTION_VIEW, uri))
     } catch (_: ActivityNotFoundException) {
         Toast.makeText(context, "Aucune application de cartes", Toast.LENGTH_SHORT).show()
+    }
+}
+
+/**
+ * Partage externe de la photo de couverture (TÂCHE 6.12) vers une autre
+ * application (messagerie, réseaux…). Les photos vivant en stockage privé
+ * (PhotoStorage → filesDir/photos), on passe par le [FileProvider] déclaré au
+ * manifeste pour concéder un accès temporaire en lecture (URI content://).
+ *
+ * Device-first : sans fichier local (fleur seulement distante, non mise en
+ * cache), rien à partager — on prévient plutôt que d'échouer silencieusement.
+ */
+private fun shareFlowerPhoto(context: Context, flower: FlowerEntity) {
+    val path = flower.imagePath
+    if (path.isEmpty()) {
+        Toast.makeText(context, "Photo non disponible hors-ligne", Toast.LENGTH_SHORT).show()
+        return
+    }
+    val file = File(path)
+    if (!file.exists()) {
+        Toast.makeText(context, "Photo introuvable", Toast.LENGTH_SHORT).show()
+        return
+    }
+    val uri: Uri = try {
+        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    } catch (_: IllegalArgumentException) {
+        Toast.makeText(context, "Partage impossible", Toast.LENGTH_SHORT).show()
+        return
+    }
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "image/jpeg"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    try {
+        context.startActivity(Intent.createChooser(intent, "Partager la photo"))
+    } catch (_: ActivityNotFoundException) {
+        Toast.makeText(context, "Aucune application de partage", Toast.LENGTH_SHORT).show()
     }
 }
 

@@ -168,6 +168,9 @@ class FlowerRepository(private val dao: FlowerDao) {
     suspend fun findByServerId(serverId: String): FlowerEntity? =
         dao.findByServerId(serverId)
 
+    /** Toutes les fleurs actives (dump de sauvegarde locale — export/import ZIP). */
+    suspend fun allForBackup(): List<FlowerEntity> = dao.allActive()
+
     /** Capture locale (image présente) à une date de capture donnée, ou null. */
     suspend fun findLocalTwin(createdAt: Long): FlowerEntity? =
         dao.findLocalTwin(createdAt)

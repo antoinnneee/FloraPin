@@ -33,6 +33,7 @@ private class FakeDao : FlowerDao {
     override suspend fun getById(id: Long) = store[id]
     override suspend fun findByServerId(serverId: String) =
         store.values.find { it.serverId == serverId }
+    override suspend fun allActive() = store.values.filter { it.deletedAt == null }
     override suspend fun findLocalTwin(createdAt: Long) =
         store.values.find {
             it.createdAt == createdAt && it.imagePath.isNotEmpty() && it.deletedAt == null

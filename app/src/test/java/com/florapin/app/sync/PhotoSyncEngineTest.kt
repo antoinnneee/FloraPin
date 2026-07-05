@@ -31,6 +31,7 @@ class MemPhotoDao : PhotoDao {
         store.values.filter { it.flowerLocalId == flowerLocalId && it.deletedAt == null }
     override suspend fun allForFlower(flowerLocalId: Long) =
         store.values.filter { it.flowerLocalId == flowerLocalId }
+    override suspend fun allActive() = store.values.filter { it.deletedAt == null }
     override suspend fun insert(photo: PhotoEntity): Long {
         val id = ++seq; store[id] = photo.copy(id = id); return id
     }

@@ -90,6 +90,17 @@ class AlbumRepository(
 
     suspend fun allActive(): List<AlbumEntity> = dao.allActive()
 
+    /** Toutes les appartenances fleur ↔ album (dump de sauvegarde locale). */
+    suspend fun allCrossRefsForBackup(): List<FlowerAlbumCrossRef> = dao.allCrossRefs()
+
+    /**
+     * Recrée une appartenance à l'import d'une sauvegarde, sans repasser l'album
+     * en attente de sync (contrairement à [addFlower]) : la sauvegarde restaure
+     * un état déjà synchronisé, on ne veut pas le re-pousser.
+     */
+    suspend fun addCrossRefForBackup(albumId: Long, flowerLocalId: Long) =
+        dao.addCrossRef(FlowerAlbumCrossRef(albumId, flowerLocalId))
+
     suspend fun findByServerId(serverId: String): AlbumEntity? =
         dao.findByServerId(serverId)
 

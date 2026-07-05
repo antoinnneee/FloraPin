@@ -49,6 +49,7 @@ class FlowerRepositoryTest {
         override suspend fun markFailed(id: Long) = Unit
         override suspend fun setImagePath(id: Long, path: String) = Unit
         override suspend fun findByServerId(serverId: String): FlowerEntity? = null
+        override suspend fun allActive(): List<FlowerEntity> = emptyList()
         override suspend fun findLocalTwin(createdAt: Long): FlowerEntity? = null
         override suspend fun softDeleteByServerId(serverId: String, deletedAt: Long) =
             Unit

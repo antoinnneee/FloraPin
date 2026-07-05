@@ -44,6 +44,7 @@ private class MemAlbumDao : AlbumDao {
     override suspend fun memberFlowerIds(albumId: Long) =
         refs.filter { it.first == albumId }.map { it.second }
     override suspend fun memberFlowerServerIds(albumId: Long) = emptyList<String>()
+    override suspend fun allCrossRefs() = refs.map { FlowerAlbumCrossRef(it.first, it.second) }
     override suspend fun deleteAllCrossRefs() { refs.clear() }
 }
 

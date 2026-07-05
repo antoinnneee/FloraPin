@@ -38,6 +38,7 @@ private class MemFlowerDao : FlowerDao {
     override suspend fun getById(id: Long) = store[id]
     override suspend fun findByServerId(serverId: String) =
         store.values.find { it.serverId == serverId }
+    override suspend fun allActive() = store.values.filter { it.deletedAt == null }
     override suspend fun findLocalTwin(createdAt: Long) =
         store.values.find {
             it.createdAt == createdAt && it.imagePath.isNotEmpty() && it.deletedAt == null
@@ -109,6 +110,7 @@ private class MemAlbumDao(private val flowers: MemFlowerDao) : AlbumDao {
     override suspend fun memberFlowerServerIds(albumId: Long) =
         refs.filter { it.first == albumId }
             .mapNotNull { flowers.store[it.second]?.serverId }
+    override suspend fun allCrossRefs() = refs.map { FlowerAlbumCrossRef(it.first, it.second) }
     override suspend fun deleteAllCrossRefs() { refs.clear() }
 }
 

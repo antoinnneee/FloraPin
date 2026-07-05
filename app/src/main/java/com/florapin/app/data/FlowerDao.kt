@@ -36,6 +36,10 @@ interface FlowerDao {
     @Query("SELECT * FROM flowers WHERE serverId = :serverId LIMIT 1")
     suspend fun findByServerId(serverId: String): FlowerEntity?
 
+    /** Toutes les fleurs non supprimées (dump de sauvegarde locale). */
+    @Query("SELECT * FROM flowers WHERE deletedAt IS NULL ORDER BY createdAt ASC")
+    suspend fun allActive(): List<FlowerEntity>
+
     /**
      * Cherche une capture locale (image présente, non supprimée) à la date de
      * capture donnée. Sert à détecter, au pull, qu'une fleur distante « inconnue »

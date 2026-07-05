@@ -62,6 +62,9 @@ class PhotoRepository(
     suspend fun allForFlower(flowerLocalId: Long): List<PhotoEntity> =
         dao.allForFlower(flowerLocalId)
 
+    /** Toutes les photos actives (dump de sauvegarde locale — export/import ZIP). */
+    suspend fun allForBackup(): List<PhotoEntity> = dao.allActive()
+
     /** Photos synchronisées dont l'upload d'image doit être retenté (I9). */
     suspend fun pendingImageUploads(): List<PhotoEntity> = dao.pendingImageUploads()
 

@@ -13,6 +13,20 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Sauvegarde locale — export/import ZIP (device-first).** Le profil propose
+  désormais d'exporter toute la bibliothèque (fleurs, albums, appartenances et
+  photos) dans une archive ZIP choisie via le sélecteur de documents (SAF), puis
+  de la réimporter — entièrement hors ligne, filet de sécurité du mode 100 %
+  local. L'export sérialise un dump JSON via les DAO (jamais le `.db` à chaud,
+  pour éviter les incohérences WAL) et copie les images en flux (aucune image ni
+  archive entière chargée en mémoire). L'import est une **fusion idempotente**
+  sans écrasement : dédoublonnage des albums par `clientId`, des fleurs par
+  `serverId` (sinon date de capture) et des photos par `serverId` (sinon couple
+  fleur/position) ; les identifiants locaux sont remappés pour reconstruire les
+  relations, et les champs de synchronisation (`serverId`, `syncState`,
+  `updatedAt`…) sont restaurés tels quels afin qu'une bibliothèque déjà
+  synchronisée ne soit pas re-poussée en double. Nouveaux composants
+  `BackupExporter`/`BackupImporter` (paquet `data/backup`).
 - **Onboarding en trois écrans (première installation).** Au tout premier
   lancement, FloraPin présente sa promesse sociale (capture géolocalisée →
   partage → identification par les amis), explique les accès caméra et

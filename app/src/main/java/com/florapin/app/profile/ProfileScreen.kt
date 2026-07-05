@@ -2,6 +2,8 @@ package com.florapin.app.profile
 
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -171,6 +173,13 @@ fun ProfileScreen(
 
             SyncSettingsSection()
 
+            LocalBackupSection(
+                running = state.backupRunning,
+                message = state.backupMessage,
+                onExport = viewModel::exportBackup,
+                onImport = viewModel::importBackup,
+            )
+
             Button(
                 onClick = onLogout,
                 modifier = Modifier.fillMaxWidth(),
@@ -334,6 +343,90 @@ private fun SyncSettingsSection() {
             )
         }
     }
+}
+
+/**
+ * Section « Sauvegarde locale » (TÂCHE 1.5) : filet de sécurité du mode 100 %
+ * local. « Exporter » écrit un ZIP (données + photos) via le sélecteur de
+ * documents ; « Importer » restaure une archive (fusion sans écrasement). Aucun
+ * réseau requis — device-first.
+ */
+@Composable
+private fun LocalBackupSection(
+    running: Boolean,
+    message: String?,
+    onExport: (Uri) -> Unit,
+    onImport: (Uri) -> Unit,
+) {
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip"),
+    ) { uri -> uri?.let(onExport) }
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri -> uri?.let(onImport) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "Sauvegarde locale",
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text(
+                text = "Exportez toutes vos fleurs et photos dans un fichier ZIP que " +
+                    "vous gardez où vous voulez, puis réimportez-le pour les " +
+                    "retrouver. Fonctionne entièrement hors ligne.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(
+                    onClick = { exportLauncher.launch(defaultBackupFileName()) },
+                    enabled = !running,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Exporter")
+                }
+                OutlinedButton(
+                    onClick = {
+                        importLauncher.launch(
+                            arrayOf("application/zip", "application/octet-stream"),
+                        )
+                    },
+                    enabled = !running,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Importer")
+                }
+            }
+
+            if (running) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                )
+            }
+            message?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
+
+/** Nom de fichier suggéré pour l'export : `florapin-sauvegarde-AAAAMMJJ.zip`. */
+private fun defaultBackupFileName(): String {
+    val date = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US)
+        .format(java.util.Date())
+    return "florapin-sauvegarde-$date.zip"
 }
 
 /**

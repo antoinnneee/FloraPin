@@ -78,6 +78,10 @@ interface AlbumDao {
     @Query("SELECT flowerId FROM flower_album_cross_ref WHERE albumId = :albumId")
     suspend fun memberFlowerIds(albumId: Long): List<Long>
 
+    /** Toutes les appartenances (dump de sauvegarde locale). */
+    @Query("SELECT * FROM flower_album_cross_ref")
+    suspend fun allCrossRefs(): List<FlowerAlbumCrossRef>
+
     /** serverId des fleurs membres de l'album (celles déjà synchronisées). */
     @Query(
         "SELECT f.serverId FROM flowers f " +

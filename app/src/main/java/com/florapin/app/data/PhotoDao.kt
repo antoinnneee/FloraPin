@@ -32,6 +32,10 @@ interface PhotoDao {
     @Query("SELECT * FROM flower_photos WHERE flowerLocalId = :flowerLocalId")
     suspend fun allForFlower(flowerLocalId: Long): List<PhotoEntity>
 
+    /** Toutes les photos non supprimées (dump de sauvegarde locale). */
+    @Query("SELECT * FROM flower_photos WHERE deletedAt IS NULL ORDER BY position ASC")
+    suspend fun allActive(): List<PhotoEntity>
+
     @Insert
     suspend fun insert(photo: PhotoEntity): Long
 

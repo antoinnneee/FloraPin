@@ -1,6 +1,7 @@
 package com.florapin.app.profile
 
 import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -35,6 +36,10 @@ data class ProfileUiState(
     val emailError: String? = null,
     /** Nombre de mes propositions d'espèce acceptées par des amis, ou null si non chargé. */
     val acceptedProposals: Int? = null,
+    /** Export/import de sauvegarde locale en cours (TÂCHE 1.5). */
+    val backupRunning: Boolean = false,
+    /** Message de résultat de la dernière sauvegarde/restauration (succès ou échec). */
+    val backupMessage: String? = null,
 )
 
 /**
@@ -46,6 +51,7 @@ class ProfileViewModel(
     tokenStore: TokenStore,
     private val session: SessionManager,
     private val identification: IdentificationApi,
+    private val backup: ProfileBackup = ProfileBackup.NOOP,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -161,6 +167,53 @@ class ProfileViewModel(
         else -> "Modification impossible. Réessayez."
     }
 
+    /**
+     * Exporte la bibliothèque locale (données + photos) dans le document ZIP
+     * choisi par l'utilisateur (TÂCHE 1.5). Filet de sécurité du mode 100 %
+     * local : n'exige aucun réseau.
+     */
+    fun exportBackup(destination: Uri) {
+        _state.update { it.copy(backupRunning = true, backupMessage = null) }
+        viewModelScope.launch {
+            _state.value = try {
+                val result = backup.export(destination)
+                _state.value.copy(
+                    backupRunning = false,
+                    backupMessage = "Sauvegarde créée : ${result.flowers} fleur(s), " +
+                        "${result.imageFiles} photo(s).",
+                )
+            } catch (e: Exception) {
+                _state.value.copy(
+                    backupRunning = false,
+                    backupMessage = "Échec de la sauvegarde. Réessayez.",
+                )
+            }
+        }
+    }
+
+    /**
+     * Restaure une sauvegarde ZIP dans la base locale (fusion idempotente, sans
+     * écrasement — TÂCHE 1.5).
+     */
+    fun importBackup(source: Uri) {
+        _state.update { it.copy(backupRunning = true, backupMessage = null) }
+        viewModelScope.launch {
+            _state.value = try {
+                val result = backup.import(source)
+                _state.value.copy(
+                    backupRunning = false,
+                    backupMessage = "Restauration terminée : ${result.flowersAdded} " +
+                        "fleur(s) ajoutée(s), ${result.flowersSkipped} déjà présente(s).",
+                )
+            } catch (e: Exception) {
+                _state.value.copy(
+                    backupRunning = false,
+                    backupMessage = "Échec de la restauration : archive illisible ?",
+                )
+            }
+        }
+    }
+
     companion object {
         /** Factory câblant le stockage chiffré + les services authentifiés. */
         fun factory(context: Context): ViewModelProvider.Factory =
@@ -176,6 +229,7 @@ class ProfileViewModel(
                         tokenStore,
                         session,
                         apis.identification,
+                        ProfileBackup.from(context),
                     ) as T
                 }
             }

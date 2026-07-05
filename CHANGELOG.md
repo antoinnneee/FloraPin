@@ -21,6 +21,11 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **États vides soignés (TÂCHE 6.9).** Le composant réutilisable `EmptyState`
+  (galerie, feed, albums, notifications…) gagne une illustration mise en valeur
+  dans une pastille circulaire teintée et un bouton d'action optionnel
+  (call-to-action). La galerie vide propose désormais « 📷 Capturer une fleur »
+  et l'écran Albums vide « ➕ Créer un album », menant directement au bon geste.
 - **Densité de grille réglable (TÂCHE 6.8).** Une pastille « Densité » dans la
   galerie, à côté du tri, permet de choisir la taille des vignettes (Compacte /
   Confort / Grande) : la grille adaptative resserre ou élargit ses colonnes en

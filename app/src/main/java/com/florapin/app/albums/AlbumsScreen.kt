@@ -70,8 +70,11 @@ fun AlbumsScreen(
         if (albums.isEmpty()) {
             EmptyState(
                 title = "Aucun album",
-                message = "Appuyez sur ➕ pour créer votre premier album.",
+                message = "Regroupez vos fleurs par thème, saison ou lieu pour " +
+                    "les retrouver facilement.",
                 modifier = Modifier.padding(innerPadding),
+                actionLabel = "➕ Créer un album",
+                onAction = { showCreate = true },
             )
         } else {
             LazyColumn(

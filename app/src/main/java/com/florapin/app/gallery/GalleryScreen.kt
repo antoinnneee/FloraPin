@@ -251,7 +251,7 @@ fun GalleryScreen(
                         )
                     }
 
-                    else -> RefreshableEmpty { EmptyGallery() }
+                    else -> RefreshableEmpty { EmptyGallery(onCapture = onCapture) }
                 }
             }
         }
@@ -452,11 +452,16 @@ private fun RefreshableEmpty(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun EmptyGallery(modifier: Modifier = Modifier) {
+private fun EmptyGallery(
+    modifier: Modifier = Modifier,
+    onCapture: (() -> Unit)? = null,
+) {
     EmptyState(
         title = "Aucune fleur pour l'instant",
-        message = "Appuyez sur 📷 pour capturer votre première fleur.",
+        message = "Capturez votre première fleur pour commencer votre herbier.",
         modifier = modifier,
+        actionLabel = onCapture?.let { "📷 Capturer une fleur" },
+        onAction = onCapture,
     )
 }
 

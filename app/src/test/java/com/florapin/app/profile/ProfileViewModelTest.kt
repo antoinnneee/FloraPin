@@ -118,6 +118,18 @@ private class FakeIdentificationApi(
         com.florapin.app.network.dto.ProposalStatsDto(accepted)
 }
 
+/** Passerelle « collection » factice : badges + dernières fleurs fixes. */
+private class FakeProfileCollection(
+    private val badges: Int = 4,
+    private val recent: List<RecentFlower> = listOf(
+        RecentFlower(id = 1, thumbnailModel = "img-1", label = "Coquelicot"),
+        RecentFlower(id = 2, thumbnailModel = "img-2", label = null),
+    ),
+) : ProfileCollection {
+    override suspend fun badgeCount(): Int = badges
+    override suspend fun recentFlowers(limit: Int): List<RecentFlower> = recent.take(limit)
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProfileViewModelTest {
 
@@ -163,6 +175,35 @@ class ProfileViewModelTest {
         advanceUntilIdle()
 
         assertEquals(5, vm.state.value.acceptedProposals)
+    }
+
+    @Test
+    fun loadCollection_fillsBadgeCountAndRecentFlowers() = runTest {
+        val store = MemTokenStore(displayName = "Alice")
+        val vm = ProfileViewModel(
+            store,
+            SessionManager(FakeAuthApi(), store),
+            FakeIdentificationApi(),
+            collection = FakeProfileCollection(),
+        )
+
+        advanceUntilIdle()
+
+        assertEquals(4, vm.state.value.badgeCount)
+        assertEquals(2, vm.state.value.recentFlowers.size)
+        assertEquals(1L, vm.state.value.recentFlowers.first().id)
+    }
+
+    @Test
+    fun loadCollection_default_noopKeepsEmptyPreview() = runTest {
+        val store = MemTokenStore(displayName = "Alice")
+        val vm = ProfileViewModel(store, SessionManager(FakeAuthApi(), store), FakeIdentificationApi())
+
+        advanceUntilIdle()
+
+        // NOOP par défaut : 0 badge, aucun aperçu de fleur.
+        assertEquals(0, vm.state.value.badgeCount)
+        assertTrue(vm.state.value.recentFlowers.isEmpty())
     }
 
     @Test

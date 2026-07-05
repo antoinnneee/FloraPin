@@ -56,6 +56,10 @@ data class ProfileUiState(
     val avatarUploading: Boolean = false,
     /** Message d'échec de l'upload d'avatar (succès = simple mise à jour de l'image). */
     val avatarError: String? = null,
+    /** Nombre de badges (paliers) débloqués localement (TÂCHE 5.1), ou null si non chargé. */
+    val badgeCount: Int? = null,
+    /** Aperçu des dernières fleurs capturées, plus récentes d'abord (TÂCHE 5.1). */
+    val recentFlowers: List<RecentFlower> = emptyList(),
 )
 
 /**
@@ -69,6 +73,7 @@ class ProfileViewModel(
     private val identification: IdentificationApi,
     private val backup: ProfileBackup = ProfileBackup.NOOP,
     private val avatar: ProfileAvatar = ProfileAvatar.NOOP,
+    private val collection: ProfileCollection = ProfileCollection.NOOP,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -79,6 +84,7 @@ class ProfileViewModel(
     init {
         refresh()
         loadStats()
+        loadCollection()
     }
 
     /** Charge les statistiques collaboratives (best-effort, n'altère pas le profil). */
@@ -87,6 +93,20 @@ class ProfileViewModel(
             runCatching { identification.proposalStats() }.onSuccess { stats ->
                 _state.update { it.copy(acceptedProposals = stats.acceptedProposals) }
             }
+        }
+    }
+
+    /**
+     * Charge l'aperçu « collection » local de l'onglet ① Profil (TÂCHE 5.1) :
+     * nombre de badges débloqués + dernières fleurs. Best-effort (device-first,
+     * n'altère pas l'identité affichée en cas d'échec).
+     */
+    private fun loadCollection() {
+        viewModelScope.launch {
+            val count = runCatching { collection.badgeCount() }.getOrNull()
+            val recent = runCatching { collection.recentFlowers(RECENT_FLOWERS_LIMIT) }
+                .getOrDefault(emptyList())
+            _state.update { it.copy(badgeCount = count, recentFlowers = recent) }
         }
     }
 
@@ -342,6 +362,9 @@ class ProfileViewModel(
     }
 
     companion object {
+        /** Nombre de fleurs affichées dans l'aperçu « Dernières fleurs » (TÂCHE 5.1). */
+        private const val RECENT_FLOWERS_LIMIT = 6
+
         /** Factory câblant le stockage chiffré + les services authentifiés. */
         fun factory(context: Context): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
@@ -358,6 +381,7 @@ class ProfileViewModel(
                         apis.identification,
                         ProfileBackup.from(context),
                         ProfileAvatar.from(context, session),
+                        ProfileCollection.from(context),
                     ) as T
                 }
             }

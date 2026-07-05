@@ -41,6 +41,15 @@ interface FlowerDao {
     suspend fun allActive(): List<FlowerEntity>
 
     /**
+     * Les [limit] fleurs actives les plus récentes (aperçu « Dernières fleurs »
+     * de l'onglet Profil — TÂCHE 5.1). Device-first : lecture locale seule.
+     */
+    @Query(
+        "SELECT * FROM flowers WHERE deletedAt IS NULL ORDER BY createdAt DESC LIMIT :limit",
+    )
+    suspend fun recentActive(limit: Int): List<FlowerEntity>
+
+    /**
      * Cherche une capture locale (image présente, non supprimée) à la date de
      * capture donnée. Sert à détecter, au pull, qu'une fleur distante « inconnue »
      * fait en réalité doublon avec une de nos fleurs déjà synchronisée.

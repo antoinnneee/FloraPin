@@ -382,6 +382,7 @@ fun FloraNavHost(
                 viewModel(factory = AuthViewModel.factory(context))
             ProfileScreen(
                 onOpenHerbier = { navController.navigate(Routes.HERBIER) },
+                onOpenFlower = { fid -> navController.navigate(Routes.detail(fid)) },
                 onLogout = {
                     // Désenregistre le push tant que les jetons sont valides,
                     // puis déconnecte.

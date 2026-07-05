@@ -21,6 +21,15 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Onglet Profil complété — nb de badges + dernières fleurs (TÂCHE 5.1).**
+  L'onglet ① Profil affiche désormais, en plus de l'avatar et des statistiques
+  d'entraide, un **compteur de badges débloqués** (raccourci vers l'onglet
+  Badges) et un **aperçu horizontal des dernières fleurs** capturées (un tap
+  ouvre le détail). Les deux sont calculés **100 % localement** (device-first,
+  disponibles hors-ligne) via une passerelle `profile/ProfileCollection.kt` :
+  nombre de paliers de la table Room `badges` (recalcul idempotent au passage) et
+  6 dernières fleurs actives (`FlowerDao.recentActive`). Complète la refonte en
+  trois onglets sans toucher au flux de déconnexion.
 - **Mon herbier — stats de collection (TÂCHE 5.6).** Nouvel écran « Mon herbier »
   accessible depuis l'onglet Profil : espèces distinctes, nombre de fleurs et
   regroupement par **familles botaniques** (cartes dépliables, tap sur une espèce

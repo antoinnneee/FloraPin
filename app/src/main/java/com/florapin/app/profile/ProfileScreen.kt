@@ -15,8 +15,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -68,6 +71,7 @@ fun ProfileScreen(
     onLogout: () -> Unit,
     onAccountDeleted: () -> Unit,
     onOpenHerbier: () -> Unit = {},
+    onOpenFlower: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = viewModel(
         factory = ProfileViewModel.factory(androidx.compose.ui.platform.LocalContext.current),
@@ -155,6 +159,8 @@ fun ProfileScreen(
                     onVerify = viewModel::requestEmailVerification,
                     onChangeEmail = viewModel::changeEmail,
                     onOpenHerbier = onOpenHerbier,
+                    onOpenBadges = { selectedTab = 1 },
+                    onOpenFlower = onOpenFlower,
                 )
 
                 1 -> BadgesTab()
@@ -184,6 +190,8 @@ private fun ProfileTab(
     onVerify: () -> Unit,
     onChangeEmail: (String) -> Unit,
     onOpenHerbier: () -> Unit,
+    onOpenBadges: () -> Unit,
+    onOpenFlower: (Long) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -245,6 +253,33 @@ private fun ProfileTab(
             }
         }
 
+        // Nombre de badges débloqués (TÂCHE 5.1) : raccourci vers l'onglet Badges.
+        state.badgeCount?.let { count ->
+            Card(
+                modifier = Modifier.fillMaxWidth().clickable { onOpenBadges() },
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(text = "🏅", style = MaterialTheme.typography.headlineSmall)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (count == 1) "1 badge débloqué" else "$count badges débloqués",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            text = "Voir ma collection de badges",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(text = "›", style = MaterialTheme.typography.headlineSmall)
+                }
+            }
+        }
+
         // Accès à l'herbier (TÂCHE 5.6) : espèces distinctes regroupées par famille.
         Card(
             modifier = Modifier.fillMaxWidth().clickable { onOpenHerbier() },
@@ -268,6 +303,14 @@ private fun ProfileTab(
                 }
                 Text(text = "›", style = MaterialTheme.typography.headlineSmall)
             }
+        }
+
+        // Aperçu des dernières fleurs (TÂCHE 5.1) : device-first, toujours local.
+        if (state.recentFlowers.isNotEmpty()) {
+            RecentFlowersSection(
+                flowers = state.recentFlowers,
+                onOpenFlower = onOpenFlower,
+            )
         }
 
         // Statistiques collaboratives : nombre de mes propositions acceptées.
@@ -317,6 +360,42 @@ private fun ProfileTab(
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
             )
+        }
+    }
+}
+
+/**
+ * Section « Dernières fleurs » de l'onglet Profil (TÂCHE 5.1) : rangée
+ * horizontale des captures les plus récentes ; un tap ouvre le détail de la
+ * fleur. 100 % local (device-first), toujours disponible hors-ligne.
+ */
+@Composable
+private fun RecentFlowersSection(
+    flowers: List<RecentFlower>,
+    onOpenFlower: (Long) -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "Dernières fleurs",
+                style = MaterialTheme.typography.titleSmall,
+            )
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(flowers, key = { it.id }) { flower ->
+                    AsyncImage(
+                        model = flower.thumbnailModel,
+                        contentDescription = flower.label ?: "Fleur",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onOpenFlower(flower.id) },
+                    )
+                }
+            }
         }
     }
 }

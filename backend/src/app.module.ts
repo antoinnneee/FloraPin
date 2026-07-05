@@ -33,6 +33,10 @@ import { UsersModule } from './users/users.module';
     // @Throttle() dans AuthController.
     ThrottlerModule.forRoot({
       throttlers: [{ ttl: 60_000, limit: 100 }],
+      // Permet de désactiver entièrement le rate limiting (y compris les limites
+      // @Throttle strictes) dans les tests e2e qui enchaînent des inscriptions
+      // depuis la même IP. Reste actif en prod.
+      skipIf: () => process.env.DISABLE_THROTTLE === 'true',
     }),
     ObservabilityModule,
     TypeOrmModule.forRootAsync({

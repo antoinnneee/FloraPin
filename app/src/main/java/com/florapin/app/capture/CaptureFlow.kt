@@ -33,14 +33,24 @@ import coil.compose.AsyncImage
 import com.florapin.app.data.FlowerRepository
 import com.florapin.app.data.PhotoRepository
 import com.florapin.app.location.GeoPoint
+import com.florapin.app.location.GpsFixState
 import com.florapin.app.location.LocationProvider
 import com.florapin.app.permission.AppPermission
 import com.florapin.app.permission.PermissionsScreen
 import com.florapin.app.permission.isGranted
 import com.florapin.app.permission.rememberMultiplePermissionsState
 import com.florapin.app.sync.SyncScheduler
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
+
+/**
+ * Intervalle de sondage de la position pendant la visée (indicateur de fix GPS).
+ * Assez court pour refléter rapidement l'obtention d'un fix, sans marteler le
+ * FusedLocationProvider.
+ */
+private const val GPS_PROBE_INTERVAL_MS = 3_000L
 
 /**
  * État de la récupération GPS pour la capture courante.
@@ -105,6 +115,21 @@ fun CaptureFlow(
     // Photo actuellement en revue (null => on affiche la caméra).
     var captured: Captured? by remember { mutableStateOf(null) }
     var locationState: LocationState by remember { mutableStateOf(LocationState.Loading) }
+    // État du fix GPS affiché pendant la visée : permet d'avertir *avant* la
+    // prise si aucune position n'est disponible (et non après coup).
+    var gpsFix: GpsFixState by remember { mutableStateOf(GpsFixState.Searching) }
+
+    // Sonde la position en continu tant que l'aperçu caméra est visible (permission
+    // caméra accordée et aucune photo en revue). On coupe le sondage dès qu'on
+    // quitte la visée pour ne pas solliciter le GPS inutilement.
+    LaunchedEffect(cameraGranted, captured) {
+        if (!cameraGranted || captured != null) return@LaunchedEffect
+        while (isActive) {
+            val point = runCatching { locationProvider.currentLocation() }.getOrNull()
+            gpsFix = if (point != null) GpsFixState.Fixed(point) else GpsFixState.Unavailable
+            delay(GPS_PROBE_INTERVAL_MS)
+        }
+    }
 
     // Persiste la photo prise : crée la fleur (couverture) à la première, sinon
     // rattache une photo additionnelle au groupe.
@@ -118,7 +143,10 @@ fun CaptureFlow(
         val existing = flowerId
         if (existing == null) {
             locationState = LocationState.Loading
-            val point = runCatching { locationProvider.currentLocation() }.getOrNull()
+            // Réutilise le fix déjà obtenu pendant la visée si disponible, sinon
+            // tente une dernière acquisition ponctuelle.
+            val point = (gpsFix as? GpsFixState.Fixed)?.point
+                ?: runCatching { locationProvider.currentLocation() }.getOrNull()
             locationState = if (point != null) {
                 LocationState.Available(point)
             } else {
@@ -156,6 +184,7 @@ fun CaptureFlow(
         captured == null -> {
             CameraScreen(
                 onPhotoSaved = { uri -> pendingUri = uri },
+                gpsFix = gpsFix,
                 modifier = modifier,
             )
         }

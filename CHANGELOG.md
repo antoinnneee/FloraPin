@@ -21,6 +21,14 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Indicateur de fix GPS (TÂCHE 6.5).** L'écran de capture affiche désormais,
+  en haut à gauche, une pastille d'état de la position GPS sondée en continu
+  pendant la visée (`📡 GPS…` en recherche, `📍 GPS ±N m` une fois fixée,
+  `⚠️ GPS indisponible` sinon). Quand aucune position n'est disponible, un
+  avertissement s'affiche juste au-dessus de l'obturateur *avant* la prise (« la
+  photo sera enregistrée sans localisation »), et non après coup. Le fix déjà
+  obtenu pendant la visée est réutilisé au moment d'enregistrer la fleur, ce qui
+  évite une seconde attente de localisation après le déclenchement.
 - **Déclencheur au volume (TÂCHE 6.4).** Sur l'écran de capture, les touches de
   volume (haut ou bas) déclenchent la prise de photo, comme l'obturateur à
   l'écran. L'interception n'est active que lorsque l'aperçu caméra est visible :

@@ -18,6 +18,7 @@ import androidx.camera.core.ZoomState
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
@@ -46,6 +48,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -55,6 +58,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import com.florapin.app.MainActivity
+import com.florapin.app.location.GpsFixState
 import com.florapin.app.permission.findActivity
 import androidx.lifecycle.compose.LocalLifecycleOwner
 
@@ -73,6 +77,10 @@ private const val TAG = "CameraScreen"
  * - **flash** : déclenchement du flash à la prise de vue (éteint par défaut) ;
  * - **torche** : éclairage LED continu pendant la visée (éteint par défaut).
  *
+ * Un **indicateur de fix GPS** ([gpsFix]) est affiché en haut à gauche pour
+ * prévenir *avant* la prise si aucune position n'est disponible (la photo sera
+ * alors enregistrée sans localisation).
+ *
  * Suppose que la permission CAMERA est déjà accordée (gérée en amont).
  */
 // setOnTouchListener sur la PreviewView : on relaie l'événement sans le consommer
@@ -81,6 +89,7 @@ private const val TAG = "CameraScreen"
 @Composable
 fun CameraScreen(
     onPhotoSaved: (Uri) -> Unit,
+    gpsFix: GpsFixState = GpsFixState.Searching,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -232,6 +241,16 @@ fun CameraScreen(
             CompositionGridOverlay(modifier = Modifier.fillMaxSize())
         }
 
+        // Indicateur de fix GPS en haut à gauche : renseigne l'utilisateur sur la
+        // disponibilité de la position *avant* qu'il déclenche la prise.
+        GpsFixIndicator(
+            state = gpsFix,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(16.dp),
+        )
+
         // Bascules « macro », « flash » et « torche » en haut à droite,
         // au-dessus de la barre d'état.
         Row(
@@ -289,6 +308,22 @@ fun CameraScreen(
                 )
             }
 
+            // Avertissement explicite juste au-dessus de l'obturateur quand aucune
+            // position n'est disponible : la prise reste possible, mais la fleur
+            // sera enregistrée sans localisation.
+            if (gpsFix is GpsFixState.Unavailable) {
+                Text(
+                    text = "⚠️ Position GPS indisponible — la photo sera enregistrée sans localisation.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.Black.copy(alpha = 0.55f))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
+
             Button(
                 onClick = onShutter,
                 enabled = !isCapturing,
@@ -327,6 +362,31 @@ private fun ZoomControl(
             modifier = Modifier.weight(1f),
         )
     }
+}
+
+/**
+ * Pastille d'état du fix GPS affichée pendant la visée. Fond translucide sombre
+ * pour rester lisible par-dessus l'aperçu caméra quelle que soit la scène.
+ */
+@Composable
+private fun GpsFixIndicator(
+    state: GpsFixState,
+    modifier: Modifier = Modifier,
+) {
+    val label = when (state) {
+        GpsFixState.Searching -> "📡 GPS…"
+        is GpsFixState.Fixed -> "📍 GPS ±${state.point.accuracyMeters.toInt()} m"
+        GpsFixState.Unavailable -> "⚠️ GPS indisponible"
+    }
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelMedium,
+        color = Color.White,
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.Black.copy(alpha = 0.55f))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    )
 }
 
 /**

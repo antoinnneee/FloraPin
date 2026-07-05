@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.annotation.VisibleForTesting
 import coil.compose.AsyncImage
 import com.florapin.app.data.FlowerRepository
 import com.florapin.app.data.PhotoRepository
@@ -41,8 +42,14 @@ import com.florapin.app.sync.SyncScheduler
 import kotlinx.coroutines.launch
 import java.io.File
 
-/** État de la récupération GPS pour la capture courante. */
-private sealed interface LocationState {
+/**
+ * État de la récupération GPS pour la capture courante.
+ *
+ * `internal` (et non `private`) pour permettre aux tests UI de piloter directement
+ * l'écran de revue [CapturedPhotoScreen] avec une source d'image factice, sans
+ * caméra réelle (voir `CaptureFlowTest`).
+ */
+internal sealed interface LocationState {
     data object Loading : LocationState
     data class Available(val point: GeoPoint) : LocationState
     data object Unavailable : LocationState
@@ -52,8 +59,10 @@ private sealed interface LocationState {
  * Photo qui vient d'être prise et est en cours de revue. La première photo d'un
  * groupe est la couverture (portée par la fleur) ; les suivantes sont des photos
  * additionnelles (table `flower_photos`).
+ *
+ * `internal` pour la testabilité (cf. [LocationState]).
  */
-private sealed interface Captured {
+internal sealed interface Captured {
     val uri: Uri
 
     data class Cover(override val uri: Uri) : Captured
@@ -194,9 +203,15 @@ fun CaptureFlow(
     }
 }
 
-/** Aperçu de la photo prise + actions (annuler / ajouter au groupe / terminer). */
+/**
+ * Aperçu de la photo prise + actions (annuler / ajouter au groupe / terminer).
+ *
+ * `internal` + [VisibleForTesting] : c'est le point d'entrée testable du flux de
+ * capture (l'aperçu caméra CameraX n'est pas instrumentable sur émulateur).
+ */
+@VisibleForTesting
 @Composable
-private fun CapturedPhotoScreen(
+internal fun CapturedPhotoScreen(
     captured: Captured,
     photoCount: Int,
     locationState: LocationState,

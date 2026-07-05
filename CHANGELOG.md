@@ -72,6 +72,17 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   `since` (delta de synchronisation) reste inchangé.
 
 ### Interne
+- **Tests UI Compose des flux critiques capture & partage.** Nouveaux tests
+  instrumentés `app/src/androidTest/…/capture/CaptureFlowTest` (écran de revue
+  de la photo piloté avec une source d'image factice — l'aperçu CameraX n'étant
+  pas instrumentable sur émulateur) et `…/share/ShareFlowerSheetTest` (sélection
+  d'un destinataire, partage réseau « tous mes amis », révocation, via un
+  `ShareViewModel` alimenté par des APIs factices, comme `ShareViewModelTest`).
+  L'écran de revue `CapturedPhotoScreen` (et les types `Captured`/`LocationState`)
+  passent de `private` à `internal` pour la testabilité. La CI compile désormais
+  la variante `androidTest` (`assembleDebugAndroidTest`) à chaque PR pour éviter
+  leur rot ; leur exécution réelle reste locale (`connectedDebugAndroidTest`,
+  émulateur requis).
 - **CI unifiée sur chaque PR (`.github/workflows/ci.yml`).** Le workflow
   d'intégration continue construit et teste l'app *et* le backend à chaque
   push/pull request : job Android (lint, `testDebugUnitTest`, `assembleDebug`

@@ -66,6 +66,13 @@ jobs:
       - name: Unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
 
+      # Compile les tests UI Compose instrumentés (androidTest) sur chaque PR pour
+      # empêcher leur rot. Leur exécution réelle nécessite un émulateur (device) et
+      # se fait en local via `connectedDebugAndroidTest` ; on ne l'exécute pas en CI
+      # (pas d'émulateur sur le runner) — la compilation reste la garde de non-régression.
+      - name: Compile instrumentation (UI) tests
+        run: ./gradlew assembleDebugAndroidTest --stacktrace
+
       - name: Assemble debug APK
         run: ./gradlew assembleDebug --stacktrace
 

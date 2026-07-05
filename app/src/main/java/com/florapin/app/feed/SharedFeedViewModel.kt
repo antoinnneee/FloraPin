@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Instant
 
 /** Une fleur partagée + le nom de l'ami qui la partage (si connu). */
 data class SharedFlowerItem(
@@ -39,6 +40,13 @@ data class SharedFeedUiState(
     val sort: FeedSort = FeedSort.DATE,
     /** Toutes les pages ont été chargées : plus rien à paginer. */
     val endReached: Boolean = false,
+    /**
+     * Index de la première fleur déjà présente à la dernière visite (TÂCHE 3.2) :
+     * un séparateur « Nouveau depuis votre dernière visite » se dessine juste
+     * AVANT cet index (les fleurs au-dessus sont des nouveautés). null = pas de
+     * séparateur (première visite, ou aucune nouveauté à distinguer).
+     */
+    val newSeparatorIndex: Int? = null,
 )
 
 /**
@@ -59,6 +67,14 @@ class SharedFeedViewModel(
 
     /** Noms d'amis (id → nom) résolus une fois par (re)chargement, réutilisés en pagination. */
     private var friendNames: Map<String, String> = emptyMap()
+
+    /**
+     * Horodatage de la dernière visite de l'onglet, capturé À L'OUVERTURE (avant que
+     * [fetchFirstPage] ne réécrive la visite courante) : sert de repère pour placer
+     * le séparateur « Nouveau depuis votre dernière visite » (TÂCHE 3.2). null en
+     * test (badgeStore absent) ou à la toute première ouverture.
+     */
+    private val lastVisitCutoff: String? = badgeStore?.lastVisit()
 
     init {
         load()
@@ -89,17 +105,28 @@ class SharedFeedViewModel(
                 val flowers = feedApi.getFeed(sort = sort.apiValue, limit = PAGE_SIZE)
                 friendNames = friendshipsApi.list()
                     .associate { it.user.id to it.user.displayName }
+                val items = flowers.map { SharedFlowerItem(it, friendNames[it.ownerId]) }
                 _state.value = SharedFeedUiState(
                     loading = false,
-                    items = flowers.map { SharedFlowerItem(it, friendNames[it.ownerId]) },
+                    items = items,
                     sort = sort,
                     // Le curseur `before` ne vaut que pour le tri par date ; en tri
                     // par cœurs on ne pagine pas (fin atteinte d'emblée).
                     endReached = sort != FeedSort.DATE || flowers.size < PAGE_SIZE,
+                    // Séparateur « nouveautés » : uniquement pertinent sur le tri par
+                    // date (le tri par cœurs n'est pas chronologique).
+                    newSeparatorIndex = if (sort == FeedSort.DATE) {
+                        feedNewSeparatorIndex(items, lastVisitCutoff)
+                    } else {
+                        null
+                    },
                 )
                 // Ouvrir l'onglet « voit » les fleurs courantes du feed : le badge
                 // de nouveautés de la bottom bar revient à 0.
                 badgeStore?.markSeen(flowers.map { it.id }.toSet())
+                // Mémorise cette ouverture : la PROCHAINE visite s'y comparera pour
+                // repositionner le séparateur « Nouveau depuis votre dernière visite ».
+                badgeStore?.markVisited(Instant.now().toString())
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
@@ -215,4 +242,25 @@ class SharedFeedViewModel(
                 }
             }
     }
+}
+
+/**
+ * Position du séparateur « Nouveau depuis votre dernière visite » (TÂCHE 3.2) :
+ * index de la première fleur déjà présente à la dernière visite (createdAt ≤
+ * [cutoff]). Les fleurs situées au-dessus sont les nouveautés. Renvoie null s'il
+ * n'y a pas de repère de visite ([cutoff] null → première visite) ou aucune
+ * nouveauté à isoler : première fleur déjà vue (idx == 0), ou liste entièrement
+ * nouvelle (idx == -1, rien à séparer). Le feed est trié par date décroissante :
+ * les nouveautés sont donc en tête.
+ */
+internal fun feedNewSeparatorIndex(items: List<SharedFlowerItem>, cutoff: String?): Int? {
+    val cutoffInstant = cutoff?.let { runCatching { Instant.parse(it) }.getOrNull() }
+        ?: return null
+    val idx = items.indexOfFirst { item ->
+        val created = runCatching { Instant.parse(item.flower.createdAt) }.getOrNull()
+        // Fleur antérieure ou égale à la dernière visite → déjà vue. En cas de date
+        // illisible, on la traite comme « déjà vue » (donc pas comptée en nouveauté).
+        created == null || !created.isAfter(cutoffInstant)
+    }
+    return idx.takeIf { it > 0 }
 }

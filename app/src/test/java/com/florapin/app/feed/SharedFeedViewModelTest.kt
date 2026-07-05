@@ -27,6 +27,7 @@ private fun flower(
     ownerId: String,
     likeCount: Int = 0,
     likedByMe: Boolean = false,
+    createdAt: String = "2026-06-21T09:00:00Z",
 ) = FlowerDto(
     id = id,
     ownerId = ownerId,
@@ -36,9 +37,12 @@ private fun flower(
     visibility = "friends",
     likeCount = likeCount,
     likedByMe = likedByMe,
-    createdAt = "2026-06-21T09:00:00Z",
-    updatedAt = "2026-06-21T09:00:00Z",
+    createdAt = createdAt,
+    updatedAt = createdAt,
 )
+
+private fun item(id: String, createdAt: String) =
+    SharedFlowerItem(flower(id, "alice", createdAt = createdAt), ownerName = "Alice")
 
 private fun friendship(userId: String, name: String) = FriendshipDto(
     id = "f-$userId",
@@ -249,6 +253,45 @@ class SharedFeedViewModelTest {
         // Recharge depuis la première page (curseur `before` non renseigné).
         assertNull(feed.lastBefore)
         assertEquals(1, vm.state.value.items.size)
+    }
+
+    @Test
+    fun separator_nullWithoutCutoff() {
+        // Première visite (aucun repère) → pas de séparateur.
+        val items = listOf(item("a", "2026-06-21T09:00:00Z"))
+        assertNull(feedNewSeparatorIndex(items, cutoff = null))
+    }
+
+    @Test
+    fun separator_indexOfFirstAlreadySeenFlower() {
+        // 2 nouveautés (postérieures à la visite) puis 2 déjà vues → séparateur en 2.
+        val items = listOf(
+            item("n1", "2026-06-21T12:00:00Z"),
+            item("n2", "2026-06-21T11:00:00Z"),
+            item("v1", "2026-06-21T09:00:00Z"),
+            item("v2", "2026-06-21T08:00:00Z"),
+        )
+        assertEquals(2, feedNewSeparatorIndex(items, cutoff = "2026-06-21T10:00:00Z"))
+    }
+
+    @Test
+    fun separator_nullWhenNoNewFlower() {
+        // Toutes les fleurs sont antérieures à la visite → aucune nouveauté.
+        val items = listOf(
+            item("v1", "2026-06-21T09:00:00Z"),
+            item("v2", "2026-06-21T08:00:00Z"),
+        )
+        assertNull(feedNewSeparatorIndex(items, cutoff = "2026-06-21T10:00:00Z"))
+    }
+
+    @Test
+    fun separator_nullWhenAllFlowersAreNew() {
+        // Toutes plus récentes que la visite → rien à séparer (pas de bloc « déjà vu »).
+        val items = listOf(
+            item("n1", "2026-06-21T12:00:00Z"),
+            item("n2", "2026-06-21T11:00:00Z"),
+        )
+        assertNull(feedNewSeparatorIndex(items, cutoff = "2026-06-21T10:00:00Z"))
     }
 
     @Test

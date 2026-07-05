@@ -13,6 +13,12 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Séparateur « Nouveau depuis votre dernière visite » dans le feed.** En tri par
+  date, un filet libellé s'insère juste avant la première fleur déjà présente à la
+  précédente ouverture de l'onglet 🖼️, isolant les nouveautés en tête de liste.
+  Repère de visite mémorisé par appareil dans `FeedBadgeStore` ; absent à la
+  première visite ou lorsqu'il n'y a rien à distinguer (aucune nouveauté, ou feed
+  entièrement nouveau).
 - **Badge de nouveautés sur l'onglet « Partagées ».** L'onglet 🖼️ de la barre du
   bas porte désormais un badge du nombre de fleurs non encore vues dans le feed
   d'amis. Le compteur est recalculé à chaque changement d'onglet et remis à zéro

@@ -10,12 +10,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -126,7 +127,12 @@ fun SharedFeedScreen(
                 item {
                     SortBar(selected = state.sort, onSelect = viewModel::setSort)
                 }
-                items(state.items, key = { it.flower.id }) { item ->
+                itemsIndexed(state.items, key = { _, item -> item.flower.id }) { index, item ->
+                    // Séparateur « Nouveau depuis votre dernière visite » juste avant
+                    // la première fleur déjà vue (TÂCHE 3.2).
+                    if (index == state.newSeparatorIndex) {
+                        NewSinceLastVisitSeparator()
+                    }
                     SharedFlowerCard(
                         item = item,
                         onToggleLike = { viewModel.toggleLike(item.flower.id) },
@@ -162,6 +168,27 @@ private fun SortBar(selected: FeedSort, onSelect: (FeedSort) -> Unit) {
                 label = { Text(sort.label) },
             )
         }
+    }
+}
+
+/**
+ * Séparateur « Nouveau depuis votre dernière visite » (TÂCHE 3.2) : un libellé
+ * discret encadré de deux filets, inséré avant la première fleur déjà vue.
+ */
+@Composable
+private fun NewSinceLastVisitSeparator() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        HorizontalDivider(modifier = Modifier.weight(1f))
+        Text(
+            text = "Nouveau depuis votre dernière visite",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        HorizontalDivider(modifier = Modifier.weight(1f))
     }
 }
 

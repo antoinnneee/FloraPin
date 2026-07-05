@@ -11,6 +11,7 @@ import { FeedModule } from './feed/feed.module';
 import { FlowersModule } from './flowers/flowers.module';
 import { FriendProfileModule } from './friend-profile/friend-profile.module';
 import { FriendshipsModule } from './friendships/friendships.module';
+import { GroupsModule } from './groups/groups.module';
 import { IdentificationModule } from './identification/identification.module';
 import { IdentificationRequestsModule } from './identification-requests/identification-requests.module';
 import { LikesModule } from './likes/likes.module';
@@ -54,6 +55,7 @@ import { UsersModule } from './users/users.module';
     FlowersModule,
     SpeciesModule,
     AlbumsModule,
+    GroupsModule,
     FriendshipsModule,
     NotificationsModule,
     SharesModule,

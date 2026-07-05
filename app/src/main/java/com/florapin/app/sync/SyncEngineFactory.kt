@@ -43,6 +43,9 @@ object SyncEngineFactory {
                 albums = AlbumRepository.from(context),
                 flowers = flowerRepo,
                 albumsApi = apis.albums,
+                // Distingue mes albums des albums de groupe possédés par d'autres
+                // membres (évite les conflits d'édition concurrente — TÂCHE 7.1).
+                currentUserId = tokenStore.userId(),
             ),
             photoSync = PhotoSyncEngine(
                 photos = PhotoRepository.from(context),

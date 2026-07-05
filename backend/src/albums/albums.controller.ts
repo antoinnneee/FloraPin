@@ -19,6 +19,8 @@ import { AlbumsService } from './albums.service';
 import {
   AddFlowerToAlbumDto,
   CreateAlbumDto,
+  SetAlbumGroupDto,
+  SetAlbumPermissionsDto,
   UpdateAlbumDto,
 } from './dto/album.dto';
 
@@ -63,6 +65,31 @@ export class AlbumsController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<void> {
     await this.albums.remove(user.userId, id);
+  }
+
+  /** Rattache/détache l'album à un groupe collaboratif (TÂCHE 7.1). */
+  @Patch(':id/group')
+  setGroup(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetAlbumGroupDto,
+  ) {
+    return this.albums.setGroup(
+      user.userId,
+      id,
+      dto.groupId ?? null,
+      dto.permissionMode,
+    );
+  }
+
+  /** Règle le régime de droits d'un album de groupe (TÂCHE 7.1). */
+  @Patch(':id/permissions')
+  setPermissions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetAlbumPermissionsDto,
+  ) {
+    return this.albums.setPermissions(user.userId, id, dto);
   }
 
   @Post(':id/flowers')

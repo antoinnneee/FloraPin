@@ -22,7 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SavedFlowerEntity::class,
         BadgeEntity::class,
     ],
-    version = 15,
+    version = 16,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -285,6 +285,27 @@ abstract class FloraDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v15 → v16 : albums collaboratifs = groupes (TÂCHE 7.1). Rattachement
+         * d'un album à un groupe (`groupId`), régime de droits (`permissionMode`)
+         * et droit d'édition du compte courant (`canEdit`, mémorisé pour dégrader
+         * hors-ligne). Les albums existants restent solos (groupId NULL, mode
+         * 'open', éditables par leur propriétaire).
+         */
+        val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE albums ADD COLUMN groupId TEXT")
+                db.execSQL(
+                    "ALTER TABLE albums ADD COLUMN permissionMode TEXT NOT NULL " +
+                        "DEFAULT 'open'",
+                )
+                db.execSQL(
+                    "ALTER TABLE albums ADD COLUMN canEdit INTEGER NOT NULL " +
+                        "DEFAULT 1",
+                )
+            }
+        }
+
         @Volatile
         private var instance: FloraDatabase? = null
 
@@ -314,6 +335,7 @@ abstract class FloraDatabase : RoomDatabase() {
                 MIGRATION_12_13,
                 MIGRATION_13_14,
                 MIGRATION_14_15,
+                MIGRATION_15_16,
             ).build()
     }
 }

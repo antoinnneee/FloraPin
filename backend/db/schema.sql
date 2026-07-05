@@ -235,6 +235,64 @@ CREATE TABLE IF NOT EXISTS flower_albums (
 CREATE INDEX IF NOT EXISTS idx_flower_albums_flower ON flower_albums(flower_id);
 
 -- =====================================================================
+-- Groupes collaboratifs (TÂCHE 7.1) — « albums collaboratifs = groupes »
+--   Un groupe est l'unité de collaboration autour d'un ou plusieurs albums.
+--   Créer un album collaboratif crée le groupe ; d'autres albums peuvent y être
+--   rattachés. Découplé du partage réseau (`shares`) : l'appartenance vit dans
+--   `group_members`, pas dans les amitiés.
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS groups (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL,
+    -- Idempotence de création (owner, client_id), sur le modèle des albums.
+    client_id   UUID,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_groups_owner ON groups(owner_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_groups_owner_client
+    ON groups(owner_id, client_id) WHERE client_id IS NOT NULL;
+
+-- Appartenance utilisateur ↔ groupe. role='owner'|'member',
+-- status='pending'|'accepted' (invitation en attente / acceptée).
+CREATE TABLE IF NOT EXISTS group_members (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_id    UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    user_id     UUID NOT NULL REFERENCES users(id)  ON DELETE CASCADE,
+    role        TEXT NOT NULL DEFAULT 'member'
+                CHECK (role IN ('owner', 'member')),
+    status      TEXT NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending', 'accepted')),
+    invited_by  UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (group_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_group_members_group ON group_members(group_id);
+CREATE INDEX IF NOT EXISTS idx_group_members_user  ON group_members(user_id);
+
+-- Rattachement d'un album à un groupe + régime de droits.
+--   group_id NULL       => album solo (privé au propriétaire, comportement historique).
+--   permission_mode     => 'open' (tout membre édite) | 'restricted' (au cas par cas).
+-- Idempotent pour les bases déjà créées (ADD COLUMN IF NOT EXISTS).
+ALTER TABLE albums ADD COLUMN IF NOT EXISTS group_id UUID
+    REFERENCES groups(id) ON DELETE SET NULL;
+ALTER TABLE albums ADD COLUMN IF NOT EXISTS permission_mode TEXT NOT NULL DEFAULT 'open';
+ALTER TABLE albums DROP CONSTRAINT IF EXISTS albums_permission_mode_check;
+ALTER TABLE albums ADD CONSTRAINT albums_permission_mode_check
+    CHECK (permission_mode IN ('open', 'restricted'));
+CREATE INDEX IF NOT EXISTS idx_albums_group ON albums(group_id);
+
+-- Droits « au cas par cas » d'un membre sur un album (mode 'restricted').
+CREATE TABLE IF NOT EXISTS album_permissions (
+    album_id    UUID NOT NULL REFERENCES albums(id) ON DELETE CASCADE,
+    user_id     UUID NOT NULL REFERENCES users(id)  ON DELETE CASCADE,
+    can_edit    BOOLEAN NOT NULL DEFAULT false,
+    PRIMARY KEY (album_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_album_permissions_user ON album_permissions(user_id);
+
+-- =====================================================================
 -- Amitiés (NODE-20)
 -- =====================================================================
 CREATE TABLE IF NOT EXISTS friendships (

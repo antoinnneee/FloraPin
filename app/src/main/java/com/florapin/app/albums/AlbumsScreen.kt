@@ -17,6 +17,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.data.AlbumEntity
+import com.florapin.app.ui.components.EmojiIcon
 import com.florapin.app.ui.components.EmptyState
 
 /**
@@ -48,6 +50,7 @@ fun AlbumsScreen(
     viewModel: AlbumsViewModel = viewModel(),
 ) {
     val albums by viewModel.albums.collectAsStateWithLifecycle()
+    val message by viewModel.message.collectAsStateWithLifecycle()
     var showCreate by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf<AlbumEntity?>(null) }
 
@@ -58,13 +61,17 @@ fun AlbumsScreen(
                 title = { Text("Albums") },
                 navigationIcon = {
                     if (onBack != null) {
-                        IconButton(onClick = onBack) { Text("←") }
+                        IconButton(onClick = onBack) {
+                            EmojiIcon("←", contentDescription = "Retour")
+                        }
                     }
                 },
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showCreate = true }) { Text("➕") }
+            FloatingActionButton(onClick = { showCreate = true }) {
+                EmojiIcon("➕", contentDescription = "Créer un album")
+            }
         },
     ) { innerPadding ->
         if (albums.isEmpty()) {
@@ -100,7 +107,13 @@ fun AlbumsScreen(
         AlbumNameDialog(
             title = "Nouvel album",
             initialName = "",
-            onConfirm = { viewModel.create(it); showCreate = false },
+            // TÂCHE 7.1 : proposer de créer un album collaboratif (= un groupe).
+            collaborativeOption = true,
+            onConfirm = { name, collaborative ->
+                if (collaborative) viewModel.createCollaborative(name)
+                else viewModel.create(name)
+                showCreate = false
+            },
             onDismiss = { showCreate = false },
         )
     }
@@ -108,8 +121,20 @@ fun AlbumsScreen(
         AlbumNameDialog(
             title = "Renommer l'album",
             initialName = album.name,
-            onConfirm = { viewModel.rename(album, it); renaming = null },
+            onConfirm = { name, _ -> viewModel.rename(album, name); renaming = null },
             onDismiss = { renaming = null },
+        )
+    }
+
+    // Erreur réseau (ex. création collaborative hors-ligne) — device-first.
+    message?.let { msg ->
+        AlertDialog(
+            onDismissRequest = { viewModel.clearMessage() },
+            title = { Text("Collaboration indisponible") },
+            text = { Text(msg) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.clearMessage() }) { Text("OK") }
+            },
         )
     }
 }
@@ -132,8 +157,12 @@ private fun AlbumRow(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(onClick = onRename) { Text("✏️") }
-            IconButton(onClick = onDelete) { Text("🗑️") }
+            IconButton(onClick = onRename) {
+                EmojiIcon("✏️", contentDescription = "Renommer l'album")
+            }
+            IconButton(onClick = onDelete) {
+                EmojiIcon("🗑️", contentDescription = "Supprimer l'album")
+            }
         }
     }
 }
@@ -143,24 +172,46 @@ private fun AlbumRow(
 private fun AlbumNameDialog(
     title: String,
     initialName: String,
-    onConfirm: (String) -> Unit,
+    onConfirm: (name: String, collaborative: Boolean) -> Unit,
     onDismiss: () -> Unit,
+    // Affiche l'option « album collaboratif » (création seulement — TÂCHE 7.1).
+    collaborativeOption: Boolean = false,
 ) {
     var name by remember { mutableStateOf(initialName) }
+    var collaborative by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Nom de l'album") },
-                singleLine = true,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nom de l'album") },
+                    singleLine = true,
+                )
+                if (collaborativeOption) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Switch(
+                            checked = collaborative,
+                            onCheckedChange = { collaborative = it },
+                        )
+                        Text(
+                            "Album collaboratif (invitez des amis à y contribuer)",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(name) },
+                onClick = { onConfirm(name, collaborative) },
                 enabled = name.isNotBlank(),
             ) { Text("Valider") }
         },

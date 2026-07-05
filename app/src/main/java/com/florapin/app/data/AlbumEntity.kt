@@ -33,6 +33,26 @@ data class AlbumEntity(
     /** Propriétaire serveur (null pour un album créé localement non synchronisé). */
     val ownerId: String? = null,
 
+    /**
+     * Groupe collaboratif de rattachement (TÂCHE 7.1). Null = album solo/privé
+     * (comportement historique). Un album de groupe est visible/éditable par les
+     * membres selon [permissionMode].
+     */
+    val groupId: String? = null,
+
+    /**
+     * Régime de droits d'un album de groupe : 'open' (tout membre édite) ou
+     * 'restricted' (au cas par cas). Sans effet pour un album solo.
+     */
+    val permissionMode: String = "open",
+
+    /**
+     * Le compte courant peut-il éditer cet album ? Calculé par le serveur et
+     * mémorisé pour dégrader proprement hors-ligne. Vrai par défaut pour un album
+     * local non encore synchronisé (le créateur en est propriétaire).
+     */
+    val canEdit: Boolean = true,
+
     val createdAt: Long,
     val updatedAt: Long,
     val syncState: String = SyncState.PENDING.name,

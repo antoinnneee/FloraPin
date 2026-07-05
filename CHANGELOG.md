@@ -12,6 +12,26 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+- **Albums collaboratifs = groupes (TÂCHE 7.1).** Un album peut désormais devenir
+  collaboratif : le créer coche « Album collaboratif » crée aussi un **groupe**
+  (décision actée n°1), et plusieurs albums peuvent partager le même groupe.
+  Chaque album de groupe porte un **régime de droits** — *tout ouvert* (chaque
+  membre édite) ou *au cas par cas* (droit d'édition accordé membre par membre) —
+  découplé du partage réseau. Backend : nouveau module `groups/` (entités
+  `Group`/`GroupMember`, controller/service, invitations réservées aux amis,
+  acceptation, retrait/quitter, suppression détachant les albums), colonnes
+  `albums.group_id` / `albums.permission_mode` + table `album_permissions`, DDL
+  idempotent dans `db/schema.sql`, notifications `group_invited` /
+  `group_member_joined` (push data-only), matrice de droits couverte par des
+  tests unitaires et e2e. App : API `GroupsApi` + endpoints album
+  `PATCH /albums/:id/group` et `/permissions`, migration Room 15→16
+  (`groupId`/`permissionMode`/`canEdit` sur les albums), panneau de collaboration
+  (membres, invitations d'amis, droits) dans le détail d'album, et
+  `AlbumSyncEngine` durci contre les conflits d'édition concurrente (je ne
+  renomme/supprime que mes albums, la réconciliation d'appartenance ne touche que
+  mes propres fleurs, un 403 abandonne l'édition locale).
+
 ### Modifié
 - **Feed en 2 colonnes (mosaïque).** Le fil « Partagées avec moi » s'affiche
   désormais dans une `LazyVerticalStaggeredGrid` à deux colonnes : les fleurs

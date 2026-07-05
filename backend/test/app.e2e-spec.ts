@@ -374,6 +374,141 @@ describe('FloraPin API (e2e)', () => {
       .expect(400);
   });
 
+  /** Crée une fleur pour [access] et renvoie son id. */
+  async function createFlower(access: string, takenAt: string): Promise<string> {
+    const res = await api()
+      .post('/api/v1/flowers')
+      .set('Authorization', `Bearer ${access}`)
+      .send({ takenAt })
+      .expect(201);
+    return res.body.flower.id as string;
+  }
+
+  it('groupes : album collaboratif — invitation, acceptation, contribution du membre', async () => {
+    const owner = await register('kate@example.com');
+    const friend = await register('leo@example.com');
+    const stranger = await register('mona@example.com');
+    await befriend(owner, friend);
+
+    // Créer l'album crée le groupe (décision n°1).
+    const created = await api()
+      .post('/api/v1/albums')
+      .set('Authorization', `Bearer ${owner.access}`)
+      .send({ name: 'Balade en forêt', collaborative: true })
+      .expect(201);
+    const albumId = created.body.id as string;
+    const groupId = created.body.groupId as string;
+    expect(groupId).toBeTruthy();
+    expect(created.body.permissionMode).toBe('open');
+
+    // Inviter un NON-ami est refusé.
+    await api()
+      .post(`/api/v1/groups/${groupId}/members`)
+      .set('Authorization', `Bearer ${owner.access}`)
+      .send({ userId: stranger.id })
+      .expect(403);
+
+    // Inviter l'ami : OK, puis acceptation.
+    await api()
+      .post(`/api/v1/groups/${groupId}/members`)
+      .set('Authorization', `Bearer ${owner.access}`)
+      .send({ userId: friend.id })
+      .expect(201);
+    await api()
+      .post(`/api/v1/groups/${groupId}/accept`)
+      .set('Authorization', `Bearer ${friend.access}`)
+      .expect(201);
+
+    // Le membre voit l'album collaboratif dans SA liste.
+    const friendAlbums = await api()
+      .get('/api/v1/albums')
+      .set('Authorization', `Bearer ${friend.access}`)
+      .expect(200);
+    expect(friendAlbums.body.map((a: { id: string }) => a.id)).toContain(albumId);
+
+    // En mode ouvert, le membre contribue avec SA propre fleur.
+    const friendFlower = await createFlower(friend.access, '2026-06-23T09:00:00.000Z');
+    const withFlower = await api()
+      .post(`/api/v1/albums/${albumId}/flowers`)
+      .set('Authorization', `Bearer ${friend.access}`)
+      .send({ flowerId: friendFlower })
+      .expect(201);
+    expect(withFlower.body.flowerIds).toContain(friendFlower);
+
+    // Un étranger au groupe n'a pas accès à l'album (404, on ne le révèle pas).
+    await api()
+      .get(`/api/v1/albums/${albumId}`)
+      .set('Authorization', `Bearer ${stranger.access}`)
+      .expect(404);
+  });
+
+  it('groupes : matrice de droits open vs restricted', async () => {
+    const owner = await register('nora@example.com');
+    const friend = await register('omar@example.com');
+    await befriend(owner, friend);
+
+    const created = await api()
+      .post('/api/v1/albums')
+      .set('Authorization', `Bearer ${owner.access}`)
+      .send({ name: 'Sélection', collaborative: true })
+      .expect(201);
+    const albumId = created.body.id as string;
+    const groupId = created.body.groupId as string;
+
+    await api()
+      .post(`/api/v1/groups/${groupId}/members`)
+      .set('Authorization', `Bearer ${owner.access}`)
+      .send({ userId: friend.id })
+      .expect(201);
+    await api()
+      .post(`/api/v1/groups/${groupId}/accept`)
+      .set('Authorization', `Bearer ${friend.access}`)
+      .expect(201);
+
+    // Passage en mode restreint sans droits accordés.
+    await api()
+      .patch(`/api/v1/albums/${albumId}/permissions`)
+      .set('Authorization', `Bearer ${owner.access}`)
+      .send({ mode: 'restricted', entries: [] })
+      .expect(200);
+
+    // Le membre voit encore l'album mais ne peut plus éditer.
+    const seen = await api()
+      .get(`/api/v1/albums/${albumId}`)
+      .set('Authorization', `Bearer ${friend.access}`)
+      .expect(200);
+    expect(seen.body.canEdit).toBe(false);
+
+    const flower1 = await createFlower(friend.access, '2026-06-24T09:00:00.000Z');
+    await api()
+      .post(`/api/v1/albums/${albumId}/flowers`)
+      .set('Authorization', `Bearer ${friend.access}`)
+      .send({ flowerId: flower1 })
+      .expect(403);
+
+    // Un membre ne peut pas s'auto-attribuer les droits.
+    await api()
+      .patch(`/api/v1/albums/${albumId}/permissions`)
+      .set('Authorization', `Bearer ${friend.access}`)
+      .send({ mode: 'restricted', entries: [{ userId: friend.id, canEdit: true }] })
+      .expect(403);
+
+    // Le propriétaire accorde le droit d'édition au membre.
+    await api()
+      .patch(`/api/v1/albums/${albumId}/permissions`)
+      .set('Authorization', `Bearer ${owner.access}`)
+      .send({ mode: 'restricted', entries: [{ userId: friend.id, canEdit: true }] })
+      .expect(200);
+
+    // Désormais le membre peut contribuer.
+    const withFlower = await api()
+      .post(`/api/v1/albums/${albumId}/flowers`)
+      .set('Authorization', `Bearer ${friend.access}`)
+      .send({ flowerId: flower1 })
+      .expect(201);
+    expect(withFlower.body.flowerIds).toContain(flower1);
+  });
+
   /** Crée une amitié acceptée entre [owner] et [friend]. */
   async function befriend(
     owner: { access: string },

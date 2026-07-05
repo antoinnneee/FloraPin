@@ -18,11 +18,23 @@ import retrofit2.HttpException
  *
  * Conflits : last-write-wins. Le pull ne réécrit pas un album resté PENDING
  * localement (édition non encore poussée).
+ *
+ * Albums COLLABORATIFS (TÂCHE 7.1) : la liste serveur contient aussi les albums
+ * des groupes dont je suis membre, possédés par d'autres. Le moteur en tient
+ * compte pour ne pas provoquer de conflit d'édition concurrente :
+ * - je ne renomme/supprime QUE mes propres albums ;
+ * - la réconciliation d'appartenance ne touche QUE mes propres fleurs (les
+ *   contributions des autres membres, inconnues localement, ne sont jamais
+ *   effacées) ;
+ * - un 403 (droits insuffisants sur un album de groupe) abandonne l'édition
+ *   locale et laisse le pull restaurer l'état serveur.
  */
 class AlbumSyncEngine(
     private val albums: AlbumRepository,
     private val flowers: FlowerRepository,
     private val albumsApi: AlbumsApi,
+    /** Compte courant : distingue mes albums de ceux des autres membres. */
+    private val currentUserId: String? = null,
     private val now: () -> Long = { System.currentTimeMillis() },
 ) {
     suspend fun sync() {
@@ -31,8 +43,14 @@ class AlbumSyncEngine(
     }
 
     suspend fun push() {
+        // Ensemble de MES fleurs (serverId) : borne les retraits d'appartenance
+        // pour ne pas effacer les fleurs des autres membres d'un album de groupe.
+        val myServerIds = flowers.allForBackup().mapNotNull { it.serverId }.toSet()
         for (album in albums.pendingSync()) {
             val serverId = album.serverId
+            // Un album sans propriétaire connu est local (donc mien) ; sinon on
+            // compare au compte courant.
+            val mine = album.ownerId == null || album.ownerId == currentUserId
             // Chaque album est isolé (I10) : un échec permanent (404/409…) sur
             // l'un ne bloque pas la sync des autres ni ne fait rejouer tout le
             // worker indéfiniment.
@@ -43,29 +61,54 @@ class AlbumSyncEngine(
                         // retomber sur l'album existant si un push précédent a réussi
                         // mais que markSynced n'a pas abouti (réponse perdue/crash).
                         val dto = albumsApi.create(
-                            CreateAlbumRequest(album.name, album.clientId),
+                            CreateAlbumRequest(
+                                name = album.name,
+                                clientId = album.clientId,
+                                groupId = album.groupId,
+                                permissionMode = album.groupId?.let { album.permissionMode },
+                            ),
                         )
                         albums.markSynced(album.id, dto.id, now())
-                        reconcileMembers(dto.id, albums.memberFlowerServerIds(album.id))
+                        reconcileMembers(
+                            dto.id,
+                            albums.memberFlowerServerIds(album.id),
+                            myServerIds,
+                        )
                     }
                     serverId != null && album.deletedAt != null -> {
-                        albumsApi.delete(serverId)
+                        // Propriétaire : suppression réelle. Membre : on cesse
+                        // simplement de suivre l'album de groupe (il subsiste pour
+                        // les autres). Dans les deux cas on purge la copie locale.
+                        if (mine) albumsApi.delete(serverId)
                         albums.hardDelete(album)
                     }
                     serverId != null -> {
-                        albumsApi.rename(serverId, UpdateAlbumRequest(album.name))
-                        reconcileMembers(serverId, albums.memberFlowerServerIds(album.id))
+                        // Seul le propriétaire renomme ; un membre ne pousse que
+                        // ses contributions (fleurs), jamais le nom d'autrui.
+                        if (mine) {
+                            albumsApi.rename(serverId, UpdateAlbumRequest(album.name))
+                        }
+                        reconcileMembers(
+                            serverId,
+                            albums.memberFlowerServerIds(album.id),
+                            myServerIds,
+                        )
                         albums.markSynced(album.id, serverId, now())
                     }
                 }
             } catch (e: HttpException) {
-                // 404 : l'album n'existe plus côté serveur (supprimé ailleurs).
-                // Inutile de repousser indéfiniment : on purge la copie locale
-                // (le pull ferait de même pour un album resté synchronisé).
-                if (e.code() == 404 && serverId != null) {
-                    albums.hardDelete(album)
+                when {
+                    // 404 : l'album n'existe plus côté serveur (supprimé ailleurs).
+                    // Inutile de repousser indéfiniment : on purge la copie locale
+                    // (le pull ferait de même pour un album resté synchronisé).
+                    e.code() == 404 && serverId != null -> albums.hardDelete(album)
+                    // 403 : droits insuffisants sur un album de groupe. On abandonne
+                    // l'édition locale (repasse SYNCED) et le pull restaurera l'état
+                    // serveur faisant autorité — pas de boucle de retry.
+                    e.code() == 403 && serverId != null ->
+                        albums.markSynced(album.id, serverId, now())
+                    // Autres codes : l'album reste PENDING, retenté au prochain sync.
                 }
-                // Autres codes : l'album reste PENDING, retenté au prochain sync.
             } catch (_: Exception) {
                 // Erreur transitoire (réseau…) : on continue avec les suivants,
                 // l'album reste PENDING.
@@ -73,17 +116,25 @@ class AlbumSyncEngine(
         }
     }
 
-    /** Aligne l'appartenance serveur de l'album sur l'ensemble local désiré. */
+    /**
+     * Aligne l'appartenance serveur de l'album sur l'ensemble local désiré, en ne
+     * touchant QUE mes propres fleurs (voir en-tête de classe) : ajout des fleurs
+     * miennes absentes, retrait des fleurs miennes retirées localement. Les
+     * fleurs des autres membres restent intactes.
+     */
     private suspend fun reconcileMembers(
         serverAlbumId: String,
         desiredFlowerServerIds: List<String>,
+        myServerIds: Set<String>,
     ) {
         val current = albumsApi.get(serverAlbumId).flowerIds.toSet()
         val desired = desiredFlowerServerIds.toSet()
         (desired - current).forEach {
             albumsApi.addFlower(serverAlbumId, AddFlowerToAlbumRequest(it))
         }
-        (current - desired).forEach { albumsApi.removeFlower(serverAlbumId, it) }
+        ((current - desired) intersect myServerIds).forEach {
+            albumsApi.removeFlower(serverAlbumId, it)
+        }
     }
 
     suspend fun pull() {

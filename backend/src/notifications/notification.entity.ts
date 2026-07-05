@@ -16,7 +16,9 @@ export type NotificationType =
   | 'identification_requested'
   | 'flower_liked'
   | 'flower_commented'
-  | 'comment_mention';
+  | 'comment_mention'
+  | 'group_invited'
+  | 'group_member_joined';
 
 /** Notification in-app destinée à un utilisateur. */
 @Entity('notifications')

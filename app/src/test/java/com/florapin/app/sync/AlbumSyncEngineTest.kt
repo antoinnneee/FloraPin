@@ -13,6 +13,8 @@ import com.florapin.app.network.api.AlbumsApi
 import com.florapin.app.network.dto.AddFlowerToAlbumRequest
 import com.florapin.app.network.dto.AlbumDto
 import com.florapin.app.network.dto.CreateAlbumRequest
+import com.florapin.app.network.dto.SetAlbumGroupRequest
+import com.florapin.app.network.dto.SetAlbumPermissionsRequest
 import com.florapin.app.network.dto.UpdateAlbumRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -134,8 +136,15 @@ private class FakeAlbumsApi : AlbumsApi {
         // existant au lieu d'en créer un doublon.
         server.values.find { it.clientId == body.clientId }?.let { return it }
         val id = "srv-album-${++seq}"
-        val dto = AlbumDto(id, "owner", body.name, body.clientId, emptyList(),
-            "2026-06-21T09:00:00Z")
+        val dto = AlbumDto(
+            id = id,
+            ownerId = "owner",
+            name = body.name,
+            clientId = body.clientId,
+            groupId = body.groupId,
+            flowerIds = emptyList(),
+            createdAt = "2026-06-21T09:00:00Z",
+        )
         server[id] = dto
         return dto
     }
@@ -158,6 +167,22 @@ private class FakeAlbumsApi : AlbumsApi {
         val updated = dto.copy(flowerIds = dto.flowerIds - flowerId)
         server[id] = updated
         return updated
+    }
+    override suspend fun setGroup(id: String, body: SetAlbumGroupRequest): AlbumDto {
+        val dto = server.getValue(id).copy(
+            groupId = body.groupId,
+            permissionMode = body.permissionMode ?: server.getValue(id).permissionMode,
+        )
+        server[id] = dto
+        return dto
+    }
+    override suspend fun setPermissions(
+        id: String,
+        body: SetAlbumPermissionsRequest,
+    ): AlbumDto {
+        val dto = server.getValue(id).copy(permissionMode = body.mode)
+        server[id] = dto
+        return dto
     }
 }
 
@@ -196,8 +221,14 @@ class AlbumSyncEngineTest {
         ) { 100L }
 
         val flower = flowerDao.seed(serverId = "srv-flower-9")
-        api.server["srv-a"] = AlbumDto("srv-a", "owner", "Été", "client-a",
-            listOf("srv-flower-9"), "2026-06-21T09:00:00Z")
+        api.server["srv-a"] = AlbumDto(
+            id = "srv-a",
+            ownerId = "owner",
+            name = "Été",
+            clientId = "client-a",
+            flowerIds = listOf("srv-flower-9"),
+            createdAt = "2026-06-21T09:00:00Z",
+        )
 
         engine.pull()
 

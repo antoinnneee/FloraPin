@@ -164,7 +164,8 @@ class FloraMessagingService : FirebaseMessagingService() {
     private fun channelFor(type: String?): String = when (type) {
         "flower_liked" -> CHANNEL_LIKES
         "flower_commented", "comment_mention" -> CHANNEL_COMMENTS
-        "friend_request", "friend_accepted" -> CHANNEL_FRIENDS
+        "friend_request", "friend_accepted",
+        "group_invited", "group_member_joined" -> CHANNEL_FRIENDS
         "species_proposed", "species_confirmed", "species_thanked",
         "identification_requested" -> CHANNEL_IDENTIFICATION
         else -> CHANNEL_DEFAULT
@@ -290,6 +291,8 @@ class FloraMessagingService : FirebaseMessagingService() {
         "comment_mention" -> "Vous avez été mentionné"
         "flower_liked" -> "Nouveau cœur"
         "identification_requested" -> "Aide à l'identification"
+        "group_invited" -> "Invitation à un album"
+        "group_member_joined" -> "Nouveau membre"
         else -> "FloraPin"
     }
 
@@ -339,6 +342,12 @@ class FloraMessagingService : FirebaseMessagingService() {
             "identification_requested" ->
                 byUserName?.let { "$it demande de l'aide pour identifier une fleur." }
                     ?: "Un ami demande de l'aide pour identifier une fleur."
+            "group_invited" ->
+                byUserName?.let { "$it vous invite à un album collaboratif." }
+                    ?: "Vous êtes invité à un album collaboratif."
+            "group_member_joined" ->
+                byUserName?.let { "$it a rejoint votre album collaboratif." }
+                    ?: "Un ami a rejoint votre album collaboratif."
             else -> "Ouvrez FloraPin pour en savoir plus."
         }
     }

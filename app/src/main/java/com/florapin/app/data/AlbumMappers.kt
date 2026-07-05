@@ -18,6 +18,9 @@ fun AlbumDto.toEntity(): AlbumEntity {
         clientId = clientId ?: java.util.UUID.randomUUID().toString(),
         name = name,
         ownerId = ownerId,
+        groupId = groupId,
+        permissionMode = permissionMode,
+        canEdit = canEdit,
         createdAt = created,
         updatedAt = created,
         syncState = SyncState.SYNCED.name,
@@ -31,5 +34,8 @@ fun AlbumDto.applyTo(local: AlbumEntity): AlbumEntity = local.copy(
     clientId = clientId ?: local.clientId,
     name = name,
     ownerId = ownerId,
+    groupId = groupId,
+    permissionMode = permissionMode,
+    canEdit = canEdit,
     syncState = SyncState.SYNCED.name,
 )

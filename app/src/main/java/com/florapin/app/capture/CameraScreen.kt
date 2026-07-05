@@ -17,6 +17,7 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ZoomState
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +46,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -127,6 +129,9 @@ fun CameraScreen(
     // contrôles distincts, indépendants l'un de l'autre.
     var flashEnabled by remember { mutableStateOf(false) }
     var torchEnabled by remember { mutableStateOf(false) }
+    // Grille de composition (règle des tiers) superposée à l'aperçu : simple aide
+    // au cadrage, éteinte par défaut, sans effet sur la caméra ni sur la photo.
+    var gridEnabled by remember { mutableStateOf(false) }
 
     // (Ré)applique le mode de mise au point dès que la bascule change ou que la
     // caméra devient prête.
@@ -181,6 +186,14 @@ fun CameraScreen(
             factory = { previewView },
         )
 
+        // Grille de composition (règle des tiers) superposée à l'aperçu, purement
+        // visuelle : deux traits verticaux et deux horizontaux découpant le cadre
+        // en neuf. N'intercepte aucun geste (dessin seul), donc le tap-to-focus et
+        // le pincement-zoom de la PreviewView restent actifs.
+        if (gridEnabled) {
+            CompositionGridOverlay(modifier = Modifier.fillMaxSize())
+        }
+
         // Bascules « macro », « flash » et « torche » en haut à droite,
         // au-dessus de la barre d'état.
         Row(
@@ -205,6 +218,11 @@ fun CameraScreen(
                 selected = torchEnabled,
                 onClick = { torchEnabled = !torchEnabled },
                 label = { Text(if (torchEnabled) "🔦 Torche on" else "🔦 Torche") },
+            )
+            FilterChip(
+                selected = gridEnabled,
+                onClick = { gridEnabled = !gridEnabled },
+                label = { Text(if (gridEnabled) "▦ Grille on" else "▦ Grille") },
             )
         }
 
@@ -290,6 +308,39 @@ private fun ZoomControl(
             onValueChange = onLinearZoom,
             modifier = Modifier.weight(1f),
         )
+    }
+}
+
+/**
+ * Grille de composition « règle des tiers » : deux traits verticaux et deux
+ * horizontaux aux tiers du cadre, dessinés en blanc translucide. Aide au cadrage
+ * uniquement — aucun impact sur la caméra ni sur la photo capturée.
+ */
+@Composable
+private fun CompositionGridOverlay(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val lineColor = Color.White.copy(alpha = 0.4f)
+        val strokeWidth = 1.dp.toPx()
+        // Traits verticaux aux 1/3 et 2/3 de la largeur.
+        for (i in 1..2) {
+            val x = size.width * i / 3f
+            drawLine(
+                color = lineColor,
+                start = Offset(x, 0f),
+                end = Offset(x, size.height),
+                strokeWidth = strokeWidth,
+            )
+        }
+        // Traits horizontaux aux 1/3 et 2/3 de la hauteur.
+        for (i in 1..2) {
+            val y = size.height * i / 3f
+            drawLine(
+                color = lineColor,
+                start = Offset(0f, y),
+                end = Offset(size.width, y),
+                strokeWidth = strokeWidth,
+            )
+        }
     }
 }
 

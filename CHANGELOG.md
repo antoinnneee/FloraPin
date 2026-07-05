@@ -21,6 +21,12 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Grille de composition (TÂCHE 6.3).** Une nouvelle bascule **▦ Grille** sur
+  l'écran de capture superpose une grille « règle des tiers » à l'aperçu caméra
+  (deux traits verticaux et deux horizontaux en blanc translucide), pour aider au
+  cadrage. Purement visuelle (overlay `Canvas`), éteinte par défaut, sans aucun
+  effet sur la caméra ni sur la photo prise ; le dessin n'intercepte pas les
+  gestes, donc le tap-to-focus et le pincement-zoom restent actifs.
 - **Mise au point par tap (TÂCHE 6.2).** Un appui sur l'aperçu caméra fait la
   mise au point sur le point touché : les coordonnées vue sont converties via la
   fabrique de points de mesure de la `PreviewView` (transformation vue → capteur

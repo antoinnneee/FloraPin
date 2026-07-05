@@ -108,6 +108,8 @@ private class FakeIdentificationApi(
         emptyList<com.florapin.app.network.dto.SpeciesProposalDto>()
     override suspend fun acceptProposal(flowerId: String, proposalId: String) =
         throw NotImplementedError()
+    override suspend fun thankProposal(flowerId: String, proposalId: String) =
+        throw NotImplementedError()
     override suspend fun rejectProposal(flowerId: String, proposalId: String) =
         Response.success<Unit>(null)
     override suspend fun proposalStats() =

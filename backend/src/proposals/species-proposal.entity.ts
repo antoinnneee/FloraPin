@@ -27,6 +27,14 @@ export class SpeciesProposal {
   @Column({ type: 'text', default: 'pending' })
   status: ProposalStatus;
 
+  /**
+   * Horodatage du « Merci 🌸 » envoyé par le propriétaire (TÂCHE 4.3). Null tant
+   * qu'aucun merci n'a été envoyé ; sa présence rend le merci idempotent (un
+   * seul merci par proposition).
+   */
+  @Column({ name: 'thanked_at', type: 'timestamptz', nullable: true })
+  thankedAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }

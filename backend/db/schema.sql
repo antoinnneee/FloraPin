@@ -309,6 +309,10 @@ CREATE TABLE IF NOT EXISTS species_proposals (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_species_proposals_flower ON species_proposals(flower_id);
+-- « Merci 🌸 » en un tap (TÂCHE 4.3) : le propriétaire remercie l'auteur d'une
+-- proposition. Horodatage nullable — sa présence rend le merci idempotent (un
+-- seul merci par proposition). Idempotent pour les bases déjà créées.
+ALTER TABLE species_proposals ADD COLUMN IF NOT EXISTS thanked_at TIMESTAMPTZ;
 
 -- =====================================================================
 -- Cœurs sur les fleurs (NODE-139)

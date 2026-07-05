@@ -402,6 +402,11 @@ private fun DetailContent(
                             proposalsVm.reject(sid, proposal)
                         }
                     },
+                    onThank = { proposal ->
+                        flower.serverId?.let { sid ->
+                            proposalsVm.thank(sid, proposal)
+                        }
+                    },
                 )
             }
 

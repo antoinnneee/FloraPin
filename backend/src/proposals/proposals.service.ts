@@ -23,6 +23,8 @@ export interface ProposalResponse {
   proposedByName: string;
   species: string;
   status: ProposalStatus;
+  /** Horodatage du « Merci 🌸 » du propriétaire (null si non remercié — TÂCHE 4.3). */
+  thankedAt: Date | null;
   createdAt: Date;
 }
 
@@ -113,6 +115,7 @@ export class ProposalsService {
       proposedByName: nameById.get(p.proposedBy) ?? '',
       species: p.species,
       status: p.status,
+      thankedAt: p.thankedAt ?? null,
       createdAt: p.createdAt,
     }));
   }
@@ -146,6 +149,7 @@ export class ProposalsService {
         proposedByName: nameById.get(p.proposedBy) ?? '',
         species: p.species,
         status: p.status,
+        thankedAt: p.thankedAt ?? null,
         createdAt: p.createdAt,
       };
       const list = byFlower.get(p.flowerId);
@@ -212,6 +216,40 @@ export class ProposalsService {
       flowerId,
       species: proposal.species,
       // Émetteur = le propriétaire qui confirme (« Marie a confirmé Coquelicot ») :
+      // le nom d'affichage est résolu à l'envoi côté push (TÂCHE 2.1).
+      byUserId: ownerId,
+    });
+    return saved;
+  }
+
+  /**
+   * Le propriétaire remercie l'auteur d'une proposition (« Merci 🌸 » en un tap,
+   * TÂCHE 4.3). Idempotent : un seul merci par proposition — un re-tap renvoie
+   * l'état courant sans renotifier le proposeur.
+   */
+  async thank(
+    ownerId: string,
+    flowerId: string,
+    proposalId: string,
+  ): Promise<SpeciesProposal> {
+    await this.ownedFlowerOrThrow(ownerId, flowerId);
+    const proposal = await this.proposals.findOne({
+      where: { id: proposalId, flowerId },
+    });
+    if (!proposal) {
+      throw new NotFoundException('Proposition introuvable.');
+    }
+    // Déjà remercié : on ne renotifie pas (un seul merci par proposition).
+    if (proposal.thankedAt) {
+      return proposal;
+    }
+    proposal.thankedAt = new Date();
+    const saved = await this.proposals.save(proposal);
+
+    await this.notifications.create(proposal.proposedBy, 'species_thanked', {
+      flowerId,
+      species: proposal.species,
+      // Émetteur = le propriétaire qui remercie (« Marie vous remercie ») :
       // le nom d'affichage est résolu à l'envoi côté push (TÂCHE 2.1).
       byUserId: ownerId,
     });

@@ -20,6 +20,8 @@ data class SpeciesProposalDto(
     val proposedByName: String = "",
     val species: String,
     val status: String,
+    /** Horodatage du « Merci 🌸 » du propriétaire (null si non remercié — TÂCHE 4.3). */
+    val thankedAt: String? = null,
     val createdAt: String,
 )
 

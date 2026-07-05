@@ -21,6 +21,13 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **« Merci 🌸 » en un tap (identification collaborative).** Sur le détail d'une
+  fleur, le propriétaire peut désormais remercier l'auteur d'une proposition
+  d'espèce d'un simple tap, sans avoir à l'accepter. Nouvel endpoint
+  `POST /flowers/{id}/proposals/{proposalId}/thanks` (idempotent : un seul merci
+  par proposition, matérialisé par `species_proposals.thanked_at`) qui notifie le
+  proposeur (`species_thanked`, push data-only « Marie vous remercie pour …
+  🌸 »). Le bouton passe à « Merci envoyé 🌸 » une fois envoyé.
 - **Statut d'une demande d'identification (En attente / Résolue).** Une pastille
   de statut apparaît désormais des deux côtés de l'entraide : sur les cartes
   « À identifier » (côté ami), « Mes demandes » (côté propriétaire) et sur la

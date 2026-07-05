@@ -54,6 +54,13 @@ interface IdentificationApi {
         @Path("proposalId") proposalId: String,
     ): SpeciesProposalDto
 
+    /** Remercie l'auteur d'une proposition (« Merci 🌸 » en un tap ; idempotent). */
+    @POST("flowers/{id}/proposals/{proposalId}/thanks")
+    suspend fun thankProposal(
+        @Path("id") flowerId: String,
+        @Path("proposalId") proposalId: String,
+    ): SpeciesProposalDto
+
     /** Refuse une proposition : elle est retirée de ma fleur (propriétaire). */
     @DELETE("flowers/{id}/proposals/{proposalId}")
     suspend fun rejectProposal(

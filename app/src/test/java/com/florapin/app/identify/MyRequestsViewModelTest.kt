@@ -42,6 +42,10 @@ private class FakeMyRequestsApi(
         flowerId: String,
         proposalId: String,
     ): SpeciesProposalDto = throw UnsupportedOperationException()
+    override suspend fun thankProposal(
+        flowerId: String,
+        proposalId: String,
+    ): SpeciesProposalDto = throw UnsupportedOperationException()
     override suspend fun rejectProposal(
         flowerId: String,
         proposalId: String,

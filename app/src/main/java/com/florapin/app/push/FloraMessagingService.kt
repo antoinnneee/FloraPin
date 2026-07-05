@@ -165,8 +165,8 @@ class FloraMessagingService : FirebaseMessagingService() {
         "flower_liked" -> CHANNEL_LIKES
         "flower_commented", "comment_mention" -> CHANNEL_COMMENTS
         "friend_request", "friend_accepted" -> CHANNEL_FRIENDS
-        "species_proposed", "species_confirmed", "identification_requested" ->
-            CHANNEL_IDENTIFICATION
+        "species_proposed", "species_confirmed", "species_thanked",
+        "identification_requested" -> CHANNEL_IDENTIFICATION
         else -> CHANNEL_DEFAULT
     }
 
@@ -285,6 +285,7 @@ class FloraMessagingService : FirebaseMessagingService() {
         "friend_accepted" -> "Demande d'ami acceptée"
         "species_proposed" -> "Proposition d'espèce"
         "species_confirmed" -> "Espèce confirmée"
+        "species_thanked" -> "Merci 🌸"
         "flower_commented" -> "Nouveau commentaire"
         "comment_mention" -> "Vous avez été mentionné"
         "flower_liked" -> "Nouveau cœur"
@@ -330,6 +331,11 @@ class FloraMessagingService : FirebaseMessagingService() {
                         ?: "$name a confirmé votre proposition."
                 } ?: species?.let { "Votre proposition « $it » a été confirmée." }
                     ?: "Votre proposition d'espèce a été confirmée."
+            "species_thanked" ->
+                byUserName?.let { name ->
+                    species?.let { "$name vous remercie pour « $it » 🌸." }
+                        ?: "$name vous remercie pour votre proposition 🌸."
+                } ?: "Un ami vous remercie pour votre proposition 🌸."
             "identification_requested" ->
                 byUserName?.let { "$it demande de l'aide pour identifier une fleur." }
                     ?: "Un ami demande de l'aide pour identifier une fleur."

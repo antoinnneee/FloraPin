@@ -12,6 +12,7 @@ export type NotificationType =
   | 'flower_shared'
   | 'species_proposed'
   | 'species_confirmed'
+  | 'species_thanked'
   | 'identification_requested'
   | 'flower_liked'
   | 'flower_commented'

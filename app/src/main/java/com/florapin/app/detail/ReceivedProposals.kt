@@ -11,6 +11,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -41,6 +42,8 @@ data class ReceivedProposalsUiState(
     val acceptingId: String? = null,
     /** Proposition dont le refus est en cours. */
     val rejectingId: String? = null,
+    /** Proposition dont l'envoi du « Merci 🌸 » est en cours. */
+    val thankingId: String? = null,
 )
 
 /**
@@ -103,6 +106,37 @@ class ReceivedProposalsViewModel(
         }
     }
 
+    /**
+     * Envoie un « Merci 🌸 » à l'auteur de [proposal] (TÂCHE 4.3). Idempotent côté
+     * serveur (un seul merci par proposition) : la proposition remerciée est
+     * conservée dans la liste, mais marquée `thankedAt` pour désactiver le bouton.
+     */
+    fun thank(flowerServerId: String, proposal: SpeciesProposalDto) {
+        if (_state.value.thankingId != null) return
+        if (proposal.thankedAt != null) return
+        _state.update { it.copy(thankingId = proposal.id, error = null) }
+        viewModelScope.launch {
+            try {
+                val updated = api.thankProposal(flowerServerId, proposal.id)
+                _state.update {
+                    it.copy(
+                        thankingId = null,
+                        proposals = it.proposals.map { p ->
+                            if (p.id == proposal.id) updated else p
+                        },
+                    )
+                }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        thankingId = null,
+                        error = e.message ?: "Échec de l'envoi du merci.",
+                    )
+                }
+            }
+        }
+    }
+
     /** Refuse [proposal] : retirée côté serveur puis de la liste affichée. */
     fun reject(flowerServerId: String, proposal: SpeciesProposalDto) {
         if (_state.value.rejectingId != null) return
@@ -150,12 +184,14 @@ fun ReceivedProposalsSection(
     viewModel: ReceivedProposalsViewModel,
     onAccept: (SpeciesProposalDto) -> Unit,
     onReject: (SpeciesProposalDto) -> Unit,
+    onThank: (SpeciesProposalDto) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     if (state.proposals.isEmpty() && state.error == null) return
 
-    val busy = state.acceptingId != null || state.rejectingId != null
+    val busy = state.acceptingId != null || state.rejectingId != null ||
+        state.thankingId != null
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -195,6 +231,22 @@ fun ReceivedProposalsSection(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    // « Merci 🌸 » en un tap (TÂCHE 4.3) : remercie l'auteur sans
+                    // trancher la proposition. Idempotent : une fois remerciée
+                    // (thankedAt renseigné), le bouton devient un état passif.
+                    val thanked = proposal.thankedAt != null
+                    TextButton(
+                        onClick = { onThank(proposal) },
+                        enabled = !busy && !thanked,
+                    ) {
+                        Text(
+                            when {
+                                thanked -> "Merci envoyé 🌸"
+                                state.thankingId == proposal.id -> "…"
+                                else -> "Merci 🌸"
+                            },
+                        )
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),

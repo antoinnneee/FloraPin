@@ -54,6 +54,17 @@ export class ProposalsController {
     return this.proposals.accept(user.userId, flowerId, proposalId);
   }
 
+  /** Le propriétaire remercie l'auteur d'une proposition (« Merci 🌸 » en un tap). */
+  @Post(':proposalId/thanks')
+  @HttpCode(HttpStatus.OK)
+  thank(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) flowerId: string,
+    @Param('proposalId', ParseUUIDPipe) proposalId: string,
+  ) {
+    return this.proposals.thank(user.userId, flowerId, proposalId);
+  }
+
   /** Le propriétaire refuse une proposition (elle est retirée). */
   @Delete(':proposalId')
   @HttpCode(HttpStatus.NO_CONTENT)

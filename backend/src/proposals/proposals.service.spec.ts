@@ -250,6 +250,24 @@ describe('ProposalsService', () => {
     expect(await service.listForFlower(OWNER, FLOWER)).toHaveLength(0);
   });
 
+  it('le propriétaire remercie l’auteur : notification unique et idempotente', async () => {
+    flowerRepo.seed({
+      id: FLOWER,
+      ownerId: OWNER,
+      species: null,
+      needsIdentification: true,
+    });
+    const proposal = await service.propose(FRIEND, FLOWER, 'Rosa canina');
+
+    const first = await service.thank(OWNER, FLOWER, proposal.id);
+    expect(first.thankedAt).toBeInstanceOf(Date);
+    // Re-tap : idempotent, aucune seconde notification.
+    await service.thank(OWNER, FLOWER, proposal.id);
+
+    const thanks = notified.filter((n) => n.type === 'species_thanked');
+    expect(thanks).toEqual([{ userId: FRIEND, type: 'species_thanked' }]);
+  });
+
   it('compte les propositions acceptées d’un auteur', async () => {
     flowerRepo.seed({
       id: FLOWER,

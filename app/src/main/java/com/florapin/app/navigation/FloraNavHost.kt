@@ -1,6 +1,8 @@
 package com.florapin.app.navigation
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -55,6 +57,7 @@ import com.florapin.app.push.NotificationTarget
 import com.florapin.app.push.PushTokenRegistrar
 import com.florapin.app.sync.SyncPreferences
 import com.florapin.app.sync.SyncScheduler
+import com.florapin.app.ui.transition.FloraSharedScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -110,6 +113,7 @@ private val authRoutes: Set<String> = setOf(
  * Graphe de navigation principal avec garde d'authentification : démarre sur
  * Login si l'utilisateur n'est pas connecté, sinon sur la galerie.
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun FloraNavHost(
     modifier: Modifier = Modifier,
@@ -193,11 +197,17 @@ fun FloraNavHost(
             }
         },
     ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = startDestination,
-            modifier = Modifier.padding(innerPadding),
-        ) {
+        // Transitions partagées galerie ↔ détail (TÂCHE 6.17). Le
+        // SharedTransitionLayout enveloppe le NavHost pour que la vignette de la
+        // galerie et l'image du détail (même clé) s'animent d'un écran à l'autre.
+        // API expérimentale isolée dans ui/transition : voir FloraSharedScope.
+        SharedTransitionLayout {
+            val transitionScope = this
+            NavHost(
+                navController = navController,
+                startDestination = startDestination,
+                modifier = Modifier.padding(innerPadding),
+            ) {
         composable(Routes.ONBOARDING) {
             OnboardingScreen(
                 onFinish = {
@@ -349,6 +359,7 @@ fun FloraNavHost(
                 onDeletedFlowerHandled = {
                     backStackEntry.savedStateHandle[Routes.KEY_DELETED_FLOWER] = null
                 },
+                sharedScope = FloraSharedScope(transitionScope, this),
             )
         }
         composable(Routes.IDENTIFY) {
@@ -454,6 +465,7 @@ fun FloraNavHost(
             DetailScreen(
                 flowerId = id,
                 onBack = { navController.popBackStack() },
+                sharedScope = FloraSharedScope(transitionScope, this),
                 onOpenSpecies = { sid ->
                     navController.navigate(Routes.speciesDetail(sid))
                 },
@@ -480,6 +492,7 @@ fun FloraNavHost(
                 onFlowerClick = { fid -> navController.navigate(Routes.detail(fid)) },
             )
         }
+            }
         }
     }
 }

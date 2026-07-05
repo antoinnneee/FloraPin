@@ -77,6 +77,8 @@ import com.florapin.app.data.SyncState
 import com.florapin.app.data.thumbnailModel
 import com.florapin.app.notifications.NotificationBell
 import com.florapin.app.ui.components.EmptyState
+import com.florapin.app.ui.transition.FloraSharedScope
+import com.florapin.app.ui.transition.sharedFlowerImage
 import com.florapin.app.util.formatCaptureDate
 import com.florapin.app.util.formatMonthLabel
 import kotlinx.coroutines.launch
@@ -100,6 +102,9 @@ fun GalleryScreen(
     // détail, transmis au retour. Déclenche le snackbar « Annuler ».
     deletedFlowerId: Long? = null,
     onDeletedFlowerHandled: () -> Unit = {},
+    // Transitions partagées galerie ↔ détail (TÂCHE 6.17) : null hors navigation
+    // (aperçu, tests) ⇒ vignettes affichées sans animation partagée.
+    sharedScope: FloraSharedScope? = null,
     viewModel: GalleryViewModel = viewModel(),
 ) {
     val flowers by viewModel.flowers.collectAsStateWithLifecycle()
@@ -248,6 +253,7 @@ fun GalleryScreen(
                                             // Badge « en attente » seulement si la
                                             // sync auto est active (device-first).
                                             syncEnabled = syncEnabled,
+                                            sharedScope = sharedScope,
                                             // Tap : ouvre le détail hors sélection, bascule
                                             // la case en mode sélection. Appui long :
                                             // (dé)sélectionne — c'est aussi l'entrée dans le
@@ -643,6 +649,7 @@ private fun FlowerThumbnail(
     syncEnabled: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    sharedScope: FloraSharedScope? = null,
 ) {
     // Nom de l'espèce si disponible (commun → scientifique → saisie libre),
     // sinon on retombe sur la date de capture.
@@ -671,7 +678,10 @@ private fun FlowerThumbnail(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1f),
+                        .aspectRatio(1f)
+                        // Élément partagé vers l'image du détail (TÂCHE 6.17) ;
+                        // no-op sans portée de transition.
+                        .sharedFlowerImage(sharedScope, flower.id),
                 )
                 if (selected) {
                     // Pastille de sélection posée en haut à droite de la photo.

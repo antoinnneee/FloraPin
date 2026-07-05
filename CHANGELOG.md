@@ -21,6 +21,17 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Transitions partagées galerie ↔ détail (TÂCHE 6.17).** L'ouverture d'une
+  fleur depuis la galerie fait glisser/agrandir sa vignette en continu vers
+  l'image du détail (élément partagé keyé sur l'id local), et inversement au
+  retour. Le `NavHost` est enveloppé dans un `SharedTransitionLayout` et chaque
+  destination transmet sa portée via un `FloraSharedScope` nullable. L'API
+  `SharedTransitionScope` étant encore expérimentale (BOM 2024.12.01), toute la
+  mécanique est isolée dans `ui/transition/FloraSharedTransition.kt` derrière un
+  interrupteur `SHARED_TRANSITIONS_ENABLED` et un modificateur `sharedFlowerImage`
+  qui dégrade en no-op (aperçus, tests, portée absente). Seule la page ouverte au
+  démarrage du pager du détail porte l'élément partagé ; les pages voisines du
+  balayage s'affichent normalement.
 - **Erreurs réseau humaines (TÂCHE 6.16).** Un composant commun `NetworkError`
   (ui/components/) traduit les `Throwable` réseau bruts (`IOException` OkHttp,
   `HttpException` Retrofit) en messages français lisibles et, surtout, distingue

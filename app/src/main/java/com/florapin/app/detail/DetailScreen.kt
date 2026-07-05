@@ -82,6 +82,8 @@ import com.florapin.app.map.updateFlowerMarkers
 import com.florapin.app.network.dto.SpeciesDto
 import com.florapin.app.share.ShareFlowerSheet
 import com.florapin.app.ui.components.FullscreenPhotoViewer
+import com.florapin.app.ui.transition.FloraSharedScope
+import com.florapin.app.ui.transition.sharedFlowerImage
 import com.florapin.app.util.formatCaptureDate
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
@@ -107,6 +109,8 @@ fun DetailScreen(
     // l'écran précédent (galerie) propose l'annulation. Par défaut, revient en
     // arrière (compat lorsqu'aucun hôte de snackbar ne traite l'annulation).
     onDeleted: (Long) -> Unit = { onBack() },
+    // Transitions partagées galerie ↔ détail (TÂCHE 6.17) : null hors navigation.
+    sharedScope: FloraSharedScope? = null,
     pagerViewModel: DetailPagerViewModel = viewModel(),
 ) {
     val orderedIds by pagerViewModel.orderedIds.collectAsStateWithLifecycle()
@@ -121,6 +125,7 @@ fun DetailScreen(
             onBack = onBack,
             onDeleted = onDeleted,
             onOpenSpecies = onOpenSpecies,
+            sharedScope = sharedScope,
             modifier = modifier,
         )
         return
@@ -134,11 +139,16 @@ fun DetailScreen(
         // (capture, suppression synchronisée…) sans mélanger les pages.
         key = { page -> orderedIds[page] },
     ) { page ->
+        val id = orderedIds[page]
         FlowerDetailPage(
-            flowerId = orderedIds[page],
+            flowerId = id,
             onBack = onBack,
             onDeleted = onDeleted,
             onOpenSpecies = onOpenSpecies,
+            // Seule la page ouverte au démarrage (même id que la vignette
+            // tapée) porte l'élément partagé : les pages voisines du balayage
+            // n'ont pas de vis-à-vis dans la galerie et s'affichent normalement.
+            sharedScope = sharedScope.takeIf { page == startIndex },
         )
     }
 }
@@ -157,6 +167,7 @@ fun FlowerDetailPage(
     modifier: Modifier = Modifier,
     onOpenSpecies: (String) -> Unit = {},
     onDeleted: (Long) -> Unit = { onBack() },
+    sharedScope: FloraSharedScope? = null,
     viewModel: DetailViewModel = viewModel(key = "detail-$flowerId"),
     photosViewModel: PhotosViewModel = viewModel(key = "photos-$flowerId"),
     speciesPicker: SpeciesPickerViewModel = viewModel(
@@ -271,6 +282,7 @@ fun FlowerDetailPage(
             DetailContent(
                 flower = current,
                 photos = photos,
+                sharedScope = sharedScope,
                 speciesPicker = speciesPicker,
                 identificationVm = identificationVm,
                 proposalsVm = proposalsVm,
@@ -340,6 +352,7 @@ fun FlowerDetailPage(
 private fun DetailContent(
     flower: FlowerEntity,
     photos: List<PhotoEntity>,
+    sharedScope: FloraSharedScope? = null,
     speciesPicker: SpeciesPickerViewModel,
     identificationVm: IdentificationRequestViewModel,
     proposalsVm: ReceivedProposalsViewModel,
@@ -377,6 +390,9 @@ private fun DetailContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(320.dp)
+                // Élément partagé depuis la vignette de la galerie (TÂCHE 6.17) ;
+                // no-op sans portée de transition.
+                .sharedFlowerImage(sharedScope, flower.id)
                 .clickable { viewerStart = 0 },
         )
 

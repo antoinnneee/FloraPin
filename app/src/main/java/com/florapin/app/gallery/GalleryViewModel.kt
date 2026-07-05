@@ -47,6 +47,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     private val _sort = MutableStateFlow(GallerySort.DATE_DESC)
     val sort: StateFlow<GallerySort> = _sort.asStateFlow()
 
+    // Densité de la grille (TÂCHE 6.8) : store dédié, persistée par appareil.
+    private val densityStore = GalleryDensityStore(application)
+    private val _density = MutableStateFlow(densityStore.density())
+    /** Palier de densité de la grille courant (persisté). */
+    val density: StateFlow<GalleryDensity> = _density.asStateFlow()
+
     val flowers: StateFlow<List<FlowerEntity>> =
         combine(repository.flowers, _query, _sort) { flowers, query, sort ->
             flowers.filterByQuery(query).sortedByOrder(sort)
@@ -62,6 +68,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun setSort(sort: GallerySort) {
         _sort.value = sort
+    }
+
+    /** Change la densité de la grille et persiste le choix (TÂCHE 6.8). */
+    fun setDensity(density: GalleryDensity) {
+        _density.value = density
+        densityStore.setDensity(density)
     }
 
     // --- Multi-sélection par appui long (TÂCHE 6.6) ---

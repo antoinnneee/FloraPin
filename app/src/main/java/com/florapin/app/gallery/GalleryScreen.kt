@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -94,6 +95,7 @@ fun GalleryScreen(
     val flowers by viewModel.flowers.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
     val sort by viewModel.sort.collectAsStateWithLifecycle()
+    val density by viewModel.density.collectAsStateWithLifecycle()
     val identifyBadge by viewModel.identifyBadge.collectAsStateWithLifecycle()
     val friendsBadge by viewModel.friendsBadge.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
@@ -154,11 +156,16 @@ fun GalleryScreen(
                 query = query,
                 onQueryChange = viewModel::setQuery,
             )
-            // Tri rendu visible directement dans la vue, sous forme de pastille
-            // affichant le critère courant en toutes lettres (façon badge). N'a de
-            // sens que s'il y a des fleurs à trier.
+            // Tri + densité rendus visibles directement dans la vue, sous forme de
+            // pastilles (façon badge). N'ont de sens que s'il y a des fleurs à
+            // afficher.
             if (flowers.isNotEmpty()) {
-                SortChip(selected = sort, onSelect = viewModel::setSort)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SortChip(selected = sort, onSelect = viewModel::setSort)
+                    DensityChip(selected = density, onSelect = viewModel::setDensity)
+                }
             }
             // Regroupement par mois (TÂCHE 6.7) : n'a de sens que quand la liste est
             // triée par date. Pour le tri par espèce, on reste en grille à plat.
@@ -184,7 +191,7 @@ fun GalleryScreen(
                     flowers.isNotEmpty() -> {
                         LazyVerticalGrid(
                             state = gridState,
-                            columns = GridCells.Adaptive(minSize = 120.dp),
+                            columns = GridCells.Adaptive(minSize = density.minCellSize),
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(12.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -386,6 +393,42 @@ private fun SortChip(
                     },
                     onClick = {
                         onSelect(order)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Pastille de densité de la grille (TÂCHE 6.8), posée dans la vue à côté du tri.
+ * Elle affiche le palier courant et ouvre le menu de sélection au clic ; le choix
+ * est persisté (store dédié) via le ViewModel.
+ */
+@Composable
+private fun DensityChip(
+    selected: GalleryDensity,
+    onSelect: (GalleryDensity) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(
+        modifier = Modifier.padding(end = 12.dp, bottom = 4.dp),
+    ) {
+        AssistChip(
+            onClick = { expanded = true },
+            leadingIcon = { Text("▦") },
+            label = { Text("Densité : ${selected.label}") },
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            GalleryDensity.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = {
+                        val mark = if (option == selected) "✓ " else ""
+                        Text("$mark${option.label}")
+                    },
+                    onClick = {
+                        onSelect(option)
                         expanded = false
                     },
                 )

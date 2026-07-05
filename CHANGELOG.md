@@ -21,6 +21,11 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Densité de grille réglable (TÂCHE 6.8).** Une pastille « Densité » dans la
+  galerie, à côté du tri, permet de choisir la taille des vignettes (Compacte /
+  Confort / Grande) : la grille adaptative resserre ou élargit ses colonnes en
+  conséquence. Le choix est persisté par appareil dans un store dédié
+  (`florapin_gallery`) et réappliqué au prochain lancement.
 - **En-têtes par mois + fast scroller (TÂCHE 6.7).** La galerie regroupe les
   vignettes par mois de **capture** (`createdAt`), avec un en-tête pleine largeur
   introduisant chaque mois (ex. « Juin 2026 ») lorsqu'elle est triée par date. Une

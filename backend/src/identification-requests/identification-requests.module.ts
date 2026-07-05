@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Flower } from '../flowers/flower.entity';
+import { FlowersModule } from '../flowers/flowers.module';
 import { FriendshipsModule } from '../friendships/friendships.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { ProposalsModule } from '../proposals/proposals.module';
 import { SharesModule } from '../shares/shares.module';
 import { IdentificationRequestsController } from './identification-requests.controller';
 import { IdentificationRequestsService } from './identification-requests.service';
@@ -14,6 +16,8 @@ import { IdentificationRequestsService } from './identification-requests.service
     FriendshipsModule,
     NotificationsModule,
     SharesModule,
+    FlowersModule,
+    ProposalsModule,
   ],
   controllers: [IdentificationRequestsController],
   providers: [IdentificationRequestsService],

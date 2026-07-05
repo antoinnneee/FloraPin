@@ -73,6 +73,7 @@ private class FakeAuthApi(
     override suspend fun verifyEmail(body: com.florapin.app.network.dto.VerifyEmailRequest): Response<Unit> =
         Response.success(null)
     override suspend fun changeEmail(body: com.florapin.app.network.dto.ChangeEmailRequest): UserDto = USER
+    override suspend fun updateProfile(body: com.florapin.app.network.dto.UpdateProfileRequest): UserDto = USER
     override suspend fun changePassword(
         body: com.florapin.app.network.dto.ChangePasswordRequest,
     ): TokenPair {
@@ -97,6 +98,8 @@ private class FakeIdentificationApi(
     override suspend fun request(flowerId: String) = Response.success<Unit>(null)
     override suspend fun cancel(flowerId: String) = Response.success<Unit>(null)
     override suspend fun listToIdentify() = emptyList<com.florapin.app.network.dto.FlowerDto>()
+    override suspend fun listMyRequests() =
+        emptyList<com.florapin.app.network.dto.MyIdentificationRequestDto>()
     override suspend fun propose(
         flowerId: String,
         body: com.florapin.app.network.dto.ProposeSpeciesRequest,

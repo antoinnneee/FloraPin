@@ -21,6 +21,15 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Écran « Mes demandes » (identification collaborative).** L'écran
+  d'identification propose désormais deux onglets : « À identifier » (les fleurs
+  d'amis que je peux aider à identifier, inchangé) et « Mes demandes », qui
+  montre l'état de mes propres sollicitations — mes fleurs en attente et « qui a
+  proposé quoi ». Nouvel endpoint `GET /me/identification-requests` : le serveur
+  compose mes fleurs `needsIdentification` avec les propositions reçues (auteurs
+  batchés) en une seule requête, sans composition N+1 côté client. Nouveau
+  `MyRequestsViewModel` + DTO `MyIdentificationRequestDto`. L'accept/refus d'une
+  proposition reste sur le détail de la fleur ; l'onglet est une vue d'état.
 - **Fleurs enregistrées — « Ma sélection ».** Chaque fleur d'ami du feed propose
   une étoile (⭐/☆) pour l'enregistrer en favori PRIVÉ et LOCAL, sans aucune API
   dédiée (device-first). Comme la fleur d'un ami n'existe pas en base locale, on

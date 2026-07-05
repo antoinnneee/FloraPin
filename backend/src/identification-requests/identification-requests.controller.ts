@@ -48,4 +48,13 @@ export class IdentificationRequestsController {
   listForMe(@CurrentUser() user: AuthenticatedUser) {
     return this.service.listForViewer(user.userId);
   }
+
+  /**
+   * L'état de MES demandes (TÂCHE 4.1) : mes fleurs en attente d'identification
+   * avec les propositions reçues, composées côté serveur (pas de N+1 client).
+   */
+  @Get('me/identification-requests')
+  listMine(@CurrentUser() user: AuthenticatedUser) {
+    return this.service.listMine(user.userId);
+  }
 }

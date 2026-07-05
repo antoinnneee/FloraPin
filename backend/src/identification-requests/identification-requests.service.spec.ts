@@ -8,10 +8,12 @@ const FLOWER = 'flower-1';
 
 describe('IdentificationRequestsService', () => {
   let flower: Flower | null;
-  let flowers: { findOne: jest.Mock; save: jest.Mock };
+  let flowers: { findOne: jest.Mock; save: jest.Mock; find: jest.Mock };
   let friendships: { acceptedFriendIds: jest.Mock };
   let notifications: { create: jest.Mock; createSafe: jest.Mock };
   let shares: { needsIdentificationFromFriends: jest.Mock };
+  let flowersService: { toResponseMany: jest.Mock };
+  let proposals: { listForFlowerIds: jest.Mock };
   let service: IdentificationRequestsService;
 
   beforeEach(() => {
@@ -23,6 +25,7 @@ describe('IdentificationRequestsService', () => {
     flowers = {
       findOne: jest.fn(async () => flower),
       save: jest.fn(async (f: Flower) => f),
+      find: jest.fn(async () => []),
     };
     friendships = { acceptedFriendIds: jest.fn(async () => ['a', 'b']) };
     notifications = {
@@ -30,11 +33,15 @@ describe('IdentificationRequestsService', () => {
       createSafe: jest.fn(async () => undefined),
     };
     shares = { needsIdentificationFromFriends: jest.fn(async () => []) };
+    flowersService = { toResponseMany: jest.fn(async () => []) };
+    proposals = { listForFlowerIds: jest.fn(async () => new Map()) };
     service = new IdentificationRequestsService(
       flowers as never,
       friendships as never,
       notifications as never,
       shares as never,
+      flowersService as never,
+      proposals as never,
     );
   });
 
@@ -81,6 +88,42 @@ describe('IdentificationRequestsService', () => {
 
       expect(shares.needsIdentificationFromFriends).toHaveBeenCalledWith('viewer');
       expect(result.map((f) => f.id)).toEqual(['f1']);
+    });
+  });
+
+  describe('listMine', () => {
+    it('compose mes fleurs en attente avec leurs propositions (sans N+1)', async () => {
+      flowers.find.mockResolvedValue([{ id: FLOWER } as Flower]);
+      flowersService.toResponseMany.mockResolvedValue([
+        { id: FLOWER, needsIdentification: true } as FlowerResponse,
+      ]);
+      proposals.listForFlowerIds.mockResolvedValue(
+        new Map([[FLOWER, [{ id: 'p1', species: 'Coquelicot' }]]]),
+      );
+
+      const result = await service.listMine(OWNER);
+
+      expect(flowers.find).toHaveBeenCalledWith({
+        where: { ownerId: OWNER, needsIdentification: true },
+        order: { createdAt: 'DESC' },
+      });
+      // Un seul batch des propositions pour tout le lot (pas d'appel par fleur).
+      expect(proposals.listForFlowerIds).toHaveBeenCalledTimes(1);
+      expect(proposals.listForFlowerIds).toHaveBeenCalledWith([FLOWER]);
+      expect(result).toEqual([
+        {
+          flower: { id: FLOWER, needsIdentification: true },
+          proposals: [{ id: 'p1', species: 'Coquelicot' }],
+        },
+      ]);
+    });
+
+    it('retourne une liste vide sans fleur en attente (aucun batch)', async () => {
+      flowers.find.mockResolvedValue([]);
+      const result = await service.listMine(OWNER);
+      expect(result).toEqual([]);
+      expect(flowersService.toResponseMany).not.toHaveBeenCalled();
+      expect(proposals.listForFlowerIds).not.toHaveBeenCalled();
     });
   });
 

@@ -2,10 +2,20 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Flower } from '../flowers/flower.entity';
-import { FlowerResponse } from '../flowers/flowers.service';
+import { FlowerResponse, FlowersService } from '../flowers/flowers.service';
 import { FriendshipsService } from '../friendships/friendships.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ProposalResponse, ProposalsService } from '../proposals/proposals.service';
 import { SharesService } from '../shares/shares.service';
+
+/**
+ * Une de mes demandes d'identification (TÂCHE 4.1) : ma fleur en attente et les
+ * propositions d'espèce reçues de mes amis (« qui a proposé quoi »).
+ */
+export interface MyIdentificationRequest {
+  flower: FlowerResponse;
+  proposals: ProposalResponse[];
+}
 
 /**
  * Demandes d'identification collaborative (NODE-133).
@@ -21,6 +31,8 @@ export class IdentificationRequestsService {
     private readonly friendships: FriendshipsService,
     private readonly notifications: NotificationsService,
     private readonly shares: SharesService,
+    private readonly flowersService: FlowersService,
+    private readonly proposals: ProposalsService,
   ) {}
 
   /**
@@ -66,6 +78,32 @@ export class IdentificationRequestsService {
    */
   async listForViewer(viewerId: string): Promise<FlowerResponse[]> {
     return this.shares.needsIdentificationFromFriends(viewerId);
+  }
+
+  /**
+   * L'état de MES demandes (TÂCHE 4.1) : mes fleurs `needsIdentification` avec,
+   * pour chacune, les propositions d'espèce reçues (« qui a proposé quoi »).
+   *
+   * Composé côté serveur en une requête : un chargement des fleurs, un batch des
+   * réponses (photos/cœurs via toResponseMany) et un batch des propositions +
+   * auteurs (listForFlowerIds) — pas de composition N+1 côté client.
+   */
+  async listMine(ownerId: string): Promise<MyIdentificationRequest[]> {
+    const flowers = await this.flowers.find({
+      where: { ownerId, needsIdentification: true },
+      order: { createdAt: 'DESC' },
+    });
+    if (flowers.length === 0) {
+      return [];
+    }
+    const responses = await this.flowersService.toResponseMany(flowers, ownerId);
+    const proposalsByFlower = await this.proposals.listForFlowerIds(
+      flowers.map((f) => f.id),
+    );
+    return responses.map((flower) => ({
+      flower,
+      proposals: proposalsByFlower.get(flower.id) ?? [],
+    }));
   }
 
   /** Lève la demande d'identification (propriétaire). */

@@ -17,12 +17,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -34,14 +37,18 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.detail.CommentsBottomSheet
 import com.florapin.app.network.dto.FlowerDto
+import com.florapin.app.network.dto.MyIdentificationRequestDto
 import com.florapin.app.network.dto.fullPhotoUrls
 import com.florapin.app.network.dto.previewPhotoUrls
 import com.florapin.app.ui.components.EmptyState
 import com.florapin.app.ui.components.PhotoCarousel
 
 /**
- * Écran « Fleurs à identifier » (NODE-134) : les fleurs non identifiées que mes
- * amis m'ont partagées, avec saisie d'une proposition d'espèce par fleur.
+ * Écran d'identification collaborative avec deux onglets :
+ * - « À identifier » (NODE-134) : les fleurs non identifiées que mes amis m'ont
+ *   partagées, avec saisie d'une proposition d'espèce par fleur ;
+ * - « Mes demandes » (TÂCHE 4.1) : l'état de mes propres sollicitations, mes
+ *   fleurs en attente et « qui a proposé quoi ».
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,10 +58,12 @@ fun IdentifyScreen(
     viewModel: IdentifyViewModel = viewModel(
         factory = IdentifyViewModel.factory(LocalContext.current),
     ),
+    myRequestsViewModel: MyRequestsViewModel = viewModel(
+        factory = MyRequestsViewModel.factory(LocalContext.current),
+    ),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-
     // Fleur dont le fil de discussion est ouvert (bottom sheet), ou null.
+    // Partagé par les deux onglets.
     var commentsFor by remember { mutableStateOf<String?>(null) }
     commentsFor?.let { flowerId ->
         CommentsBottomSheet(
@@ -63,57 +72,149 @@ fun IdentifyScreen(
         )
     }
 
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabs = listOf("À identifier", "Mes demandes")
+
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Fleurs à identifier") },
+                title = { Text("Identification") },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Text("←") }
                 },
             )
         },
     ) { innerPadding ->
-        PullToRefreshBox(
-            isRefreshing = state.refreshing,
-            onRefresh = viewModel::refresh,
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
-        ) {
-            when {
-                state.loading -> Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) { Text("Chargement…") }
-
-                state.error != null -> RefreshableEmpty {
-                    EmptyState(
-                        title = "Erreur",
-                        message = state.error ?: "",
+        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            TabRow(selectedTabIndex = selectedTab) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = { Text(title) },
                     )
                 }
+            }
+            when (selectedTab) {
+                0 -> ToIdentifyTab(
+                    viewModel = viewModel,
+                    onComment = { commentsFor = it },
+                )
+                else -> MyRequestsTab(
+                    viewModel = myRequestsViewModel,
+                    onComment = { commentsFor = it },
+                )
+            }
+        }
+    }
+}
 
-                state.flowers.isEmpty() -> RefreshableEmpty {
-                    EmptyState(
-                        title = "Rien à identifier",
-                        message = "Aucun ami ne vous a sollicité pour le moment.",
+/**
+ * Onglet « À identifier » (NODE-134) : les fleurs non identifiées que mes amis
+ * m'ont partagées, avec saisie d'une proposition d'espèce par fleur.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ToIdentifyTab(
+    viewModel: IdentifyViewModel,
+    onComment: (String) -> Unit,
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    PullToRefreshBox(
+        isRefreshing = state.refreshing,
+        onRefresh = viewModel::refresh,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        when {
+            state.loading -> Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) { Text("Chargement…") }
+
+            state.error != null -> RefreshableEmpty {
+                EmptyState(
+                    title = "Erreur",
+                    message = state.error ?: "",
+                )
+            }
+
+            state.flowers.isEmpty() -> RefreshableEmpty {
+                EmptyState(
+                    title = "Rien à identifier",
+                    message = "Aucun ami ne vous a sollicité pour le moment.",
+                )
+            }
+
+            else -> LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                items(state.flowers, key = { it.id }) { flower ->
+                    IdentifyCard(
+                        flower = flower,
+                        proposed = flower.id in state.proposedIds,
+                        submitting = flower.id in state.submittingIds,
+                        error = state.submitErrors[flower.id],
+                        onPropose = { species -> viewModel.propose(flower.id, species) },
+                        onComment = { onComment(flower.id) },
                     )
                 }
+            }
+        }
+    }
+}
 
-                else -> LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(state.flowers, key = { it.id }) { flower ->
-                        IdentifyCard(
-                            flower = flower,
-                            proposed = flower.id in state.proposedIds,
-                            submitting = flower.id in state.submittingIds,
-                            error = state.submitErrors[flower.id],
-                            onPropose = { species -> viewModel.propose(flower.id, species) },
-                            onComment = { commentsFor = flower.id },
-                        )
-                    }
+/**
+ * Onglet « Mes demandes » (TÂCHE 4.1) : l'état de mes propres sollicitations,
+ * mes fleurs en attente et les propositions reçues (« qui a proposé quoi »).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MyRequestsTab(
+    viewModel: MyRequestsViewModel,
+    onComment: (String) -> Unit,
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    PullToRefreshBox(
+        isRefreshing = state.refreshing,
+        onRefresh = viewModel::refresh,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        when {
+            state.loading -> Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) { Text("Chargement…") }
+
+            state.error != null -> RefreshableEmpty {
+                EmptyState(
+                    title = "Erreur",
+                    message = state.error ?: "",
+                )
+            }
+
+            state.requests.isEmpty() -> RefreshableEmpty {
+                EmptyState(
+                    title = "Aucune demande en cours",
+                    message = "Ouvrez une fleur non identifiée et demandez à vos amis " +
+                        "de vous aider à l'identifier.",
+                )
+            }
+
+            else -> LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                items(state.requests, key = { it.flower.id }) { request ->
+                    MyRequestCard(
+                        request = request,
+                        onComment = { onComment(request.flower.id) },
+                    )
                 }
             }
         }
@@ -201,6 +302,76 @@ private fun IdentifyCard(
             // Discussion autour de la demande : poser des questions sur le milieu,
             // demander une photo supplémentaire… (le fil est partagé avec le
             // propriétaire et le réseau d'amis sollicité).
+            TextButton(
+                onClick = onComment,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("💬 Discuter (environnement, photos…)")
+            }
+        }
+    }
+}
+
+/**
+ * Carte d'une de MES demandes (TÂCHE 4.1) : aperçu de ma fleur en attente et la
+ * liste des propositions reçues (« qui a proposé quoi »). Vue d'état : l'accept /
+ * refus d'une proposition se fait depuis le détail de la fleur.
+ */
+@Composable
+private fun MyRequestCard(
+    request: MyIdentificationRequestDto,
+    onComment: () -> Unit,
+) {
+    val flower = request.flower
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            PhotoCarousel(
+                previewModels = flower.previewPhotoUrls(),
+                fullModels = flower.fullPhotoUrls(),
+                contentDescription = "Ma fleur en attente d'identification",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+            )
+            if (flower.notes.isNotBlank()) {
+                Text(
+                    text = flower.notes,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+
+            val count = request.proposals.size
+            if (count == 0) {
+                Text(
+                    text = "⏳ En attente d'une proposition de vos amis…",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Text(
+                    text = if (count == 1) "1 proposition reçue" else "$count propositions reçues",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                request.proposals.forEach { proposal ->
+                    Text(
+                        text = "🌿 ${proposal.species} — proposé par ${
+                            proposal.proposedByName.ifBlank { "un ami" }
+                        }",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                Text(
+                    text = "Ouvrez la fleur pour accepter ou refuser une proposition.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             TextButton(
                 onClick = onComment,
                 modifier = Modifier.fillMaxWidth(),

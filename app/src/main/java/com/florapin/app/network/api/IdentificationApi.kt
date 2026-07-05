@@ -1,6 +1,7 @@
 package com.florapin.app.network.api
 
 import com.florapin.app.network.dto.FlowerDto
+import com.florapin.app.network.dto.MyIdentificationRequestDto
 import com.florapin.app.network.dto.ProposalStatsDto
 import com.florapin.app.network.dto.ProposeSpeciesRequest
 import com.florapin.app.network.dto.SpeciesProposalDto
@@ -30,6 +31,10 @@ interface IdentificationApi {
     /** Les fleurs « à identifier » qui me sont partagées (vue côté ami). */
     @GET("identification-requests")
     suspend fun listToIdentify(): List<FlowerDto>
+
+    /** L'état de MES demandes : mes fleurs en attente + propositions reçues (TÂCHE 4.1). */
+    @GET("me/identification-requests")
+    suspend fun listMyRequests(): List<MyIdentificationRequestDto>
 
     /** Propose une espèce pour une fleur d'un ami. */
     @POST("flowers/{id}/proposals")

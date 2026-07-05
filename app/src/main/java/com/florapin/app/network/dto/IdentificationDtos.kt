@@ -29,3 +29,13 @@ data class ProposalStatsDto(
     /** Nombre de mes propositions d'espèce acceptées par des amis. */
     val acceptedProposals: Int,
 )
+
+/**
+ * Une de mes demandes d'identification (TÂCHE 4.1) : ma fleur en attente et les
+ * propositions d'espèce reçues de mes amis (« qui a proposé quoi »).
+ */
+@JsonClass(generateAdapter = true)
+data class MyIdentificationRequestDto(
+    val flower: FlowerDto,
+    val proposals: List<SpeciesProposalDto> = emptyList(),
+)

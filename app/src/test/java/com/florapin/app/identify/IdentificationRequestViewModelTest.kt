@@ -30,6 +30,8 @@ private class StubApi(
     }
     override suspend fun cancel(flowerId: String): Response<Unit> = Response.success(null)
     override suspend fun listToIdentify(): List<FlowerDto> = emptyList()
+    override suspend fun listMyRequests():
+        List<com.florapin.app.network.dto.MyIdentificationRequestDto> = emptyList()
     override suspend fun propose(
         flowerId: String,
         body: ProposeSpeciesRequest,
@@ -91,6 +93,8 @@ class IdentificationRequestViewModelTest {
             override suspend fun cancel(flowerId: String): Response<Unit> =
                 Response.success(null)
             override suspend fun listToIdentify(): List<FlowerDto> = emptyList()
+            override suspend fun listMyRequests():
+                List<com.florapin.app.network.dto.MyIdentificationRequestDto> = emptyList()
             override suspend fun propose(
                 flowerId: String,
                 body: ProposeSpeciesRequest,

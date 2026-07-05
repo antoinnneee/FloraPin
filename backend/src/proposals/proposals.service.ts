@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Flower } from '../flowers/flower.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SharesService } from '../shares/shares.service';
@@ -115,6 +115,44 @@ export class ProposalsService {
       status: p.status,
       createdAt: p.createdAt,
     }));
+  }
+
+  /**
+   * Propositions reçues sur un lot de fleurs, regroupées par fleur (TÂCHE 4.1).
+   *
+   * Un seul chargement des propositions (In(flowerIds)) et un seul batch des
+   * auteurs pour tout le lot, afin d'éviter le N+1 lorsque l'appelant compose
+   * plusieurs fleurs (« Mes demandes ») en une requête.
+   */
+  async listForFlowerIds(
+    flowerIds: string[],
+  ): Promise<Map<string, ProposalResponse[]>> {
+    const byFlower = new Map<string, ProposalResponse[]>();
+    if (flowerIds.length === 0) {
+      return byFlower;
+    }
+    const proposals = await this.proposals.find({
+      where: { flowerId: In(flowerIds) },
+      order: { createdAt: 'DESC' },
+    });
+    const authorIds = [...new Set(proposals.map((p) => p.proposedBy))];
+    const authors = await this.users.findByIds(authorIds);
+    const nameById = new Map(authors.map((u) => [u.id, u.displayName]));
+    for (const p of proposals) {
+      const response: ProposalResponse = {
+        id: p.id,
+        flowerId: p.flowerId,
+        proposedBy: p.proposedBy,
+        proposedByName: nameById.get(p.proposedBy) ?? '',
+        species: p.species,
+        status: p.status,
+        createdAt: p.createdAt,
+      };
+      const list = byFlower.get(p.flowerId);
+      if (list) list.push(response);
+      else byFlower.set(p.flowerId, [response]);
+    }
+    return byFlower;
   }
 
   /** Le propriétaire refuse une proposition : elle est retirée de sa fleur. */

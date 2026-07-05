@@ -2,6 +2,7 @@ package com.florapin.app.identify
 
 import com.florapin.app.network.api.IdentificationApi
 import com.florapin.app.network.dto.FlowerDto
+import com.florapin.app.network.dto.MyIdentificationRequestDto
 import com.florapin.app.network.dto.ProposeSpeciesRequest
 import com.florapin.app.network.dto.SpeciesProposalDto
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +37,8 @@ private class FakeIdentificationApi(
     var flowers: List<FlowerDto> = emptyList(),
     var failList: Boolean = false,
     var failPropose: Boolean = false,
+    var myRequests: List<MyIdentificationRequestDto> = emptyList(),
+    var failMyRequests: Boolean = false,
 ) : IdentificationApi {
     val proposed = mutableListOf<Pair<String, String>>()
 
@@ -48,6 +51,11 @@ private class FakeIdentificationApi(
     override suspend fun listToIdentify(): List<FlowerDto> {
         if (failList) throw RuntimeException("réseau")
         return flowers
+    }
+
+    override suspend fun listMyRequests(): List<MyIdentificationRequestDto> {
+        if (failMyRequests) throw RuntimeException("réseau")
+        return myRequests
     }
 
     override suspend fun propose(

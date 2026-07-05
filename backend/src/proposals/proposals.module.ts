@@ -20,5 +20,6 @@ import { SpeciesProposal } from './species-proposal.entity';
   ],
   controllers: [ProposalsController, ProfileStatsController],
   providers: [ProposalsService],
+  exports: [ProposalsService],
 })
 export class ProposalsModule {}

@@ -24,14 +24,14 @@
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.27",
-    "@nestjs/swagger": "^11.4.4",
+    "@nestjs/swagger": "^11.4.5",
     "@nestjs/throttler": "^6.5.0",
-    "@nestjs/typeorm": "^11.0.2",
+    "@nestjs/typeorm": "^11.0.3",
     "@types/nodemailer": "^8.0.1",
     "bcryptjs": "^2.4.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
-    "firebase-admin": "^14.0.0",
+    "firebase-admin": "^14.1.0",
     "helmet": "^8.2.0",
     "minio": "^8.0.7",
     "nodemailer": "^9.0.1",
@@ -63,6 +63,10 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.6.2"
   },
+  "overrides": {
+    "multer": "^2.2.0",
+    "uuid": "^11.1.1"
+  },
   "jest": {
     "moduleFileExtensions": [
       "js",
@@ -79,5 +83,13 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
+  },
+  "allowScripts": {
+    "@firebase/util@1.15.1": true,
+    "@scarf/scarf@1.4.0": true,
+    "cpu-features@0.0.10": true,
+    "protobufjs@7.6.4": true,
+    "sharp@0.33.5": true,
+    "ssh2@1.17.0": true
   }
 }

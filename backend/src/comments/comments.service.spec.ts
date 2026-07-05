@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { Flower } from '../flowers/flower.entity';
 import { FlowerResponse } from '../flowers/flowers.service';
+import { FriendshipsService } from '../friendships/friendships.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SharesService } from '../shares/shares.service';
 import { UsersService } from '../users/users.service';
@@ -60,12 +61,18 @@ describe('CommentsService', () => {
   let commentRepo: FakeCommentRepo;
   let sharedWithFriend: FlowerResponse[];
   let notified: Array<{ userId: string; type: string }>;
+  // Capture enrichie (avec `data`) pour les assertions sur les mentions.
+  let notifiedData: Array<{ userId: string; type: string; data: unknown }>;
+  // Réseau d'amis acceptés par utilisateur (pour restreindre les mentions).
+  let friendsByUser: Map<string, string[]>;
 
   beforeEach(async () => {
     flowerRepo = new FakeFlowerRepo();
     commentRepo = new FakeCommentRepo();
     sharedWithFriend = [{ id: FLOWER } as FlowerResponse];
     notified = [];
+    notifiedData = [];
+    friendsByUser = new Map();
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -96,8 +103,13 @@ describe('CommentsService', () => {
             create: async (userId: string, type: string) => {
               notified.push({ userId, type });
             },
-            createSafe: async (userId: string, type: string) => {
+            createSafe: async (
+              userId: string,
+              type: string,
+              data: unknown,
+            ) => {
               notified.push({ userId, type });
+              notifiedData.push({ userId, type, data });
             },
           },
         },
@@ -108,6 +120,13 @@ describe('CommentsService', () => {
             // Batch des auteurs (évite le N+1 findById par commentaire).
             findByIds: async (ids: string[]) =>
               ids.map((id) => ({ id, displayName: `Nom ${id}` })),
+          },
+        },
+        {
+          provide: FriendshipsService,
+          useValue: {
+            acceptedFriendIds: async (userId: string) =>
+              friendsByUser.get(userId) ?? [],
           },
         },
       ],
@@ -276,5 +295,78 @@ describe('CommentsService', () => {
     await expect(
       service.listForFlower(OWNER, 'absente'),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('notifie un ami mentionné et résout son nom pour l’affichage', async () => {
+    const MENTIONED = randomUUID();
+    friendsByUser.set(OWNER, [MENTIONED]);
+    flowerRepo.seed({ id: FLOWER, ownerId: OWNER });
+
+    const comment = await service.post(
+      OWNER,
+      FLOWER,
+      `Regarde ça @[${MENTIONED}] !`,
+    );
+
+    expect(notified).toContainEqual({
+      userId: MENTIONED,
+      type: 'comment_mention',
+    });
+    const event = notifiedData.find((n) => n.type === 'comment_mention')!;
+    expect(event.data).toMatchObject({
+      flowerId: FLOWER,
+      commentId: comment.id,
+      byUserId: OWNER,
+    });
+    // Rendu par id : le nom d'affichage est résolu au moment de la réponse.
+    expect(comment.mentions).toEqual([
+      { userId: MENTIONED, displayName: `Nom ${MENTIONED}` },
+    ]);
+  });
+
+  it('ne notifie pas un mentionné hors du réseau d’amis', async () => {
+    const OUTSIDER = randomUUID();
+    friendsByUser.set(OWNER, []); // aucun ami accepté
+    flowerRepo.seed({ id: FLOWER, ownerId: OWNER });
+
+    const comment = await service.post(OWNER, FLOWER, `Coucou @[${OUTSIDER}]`);
+
+    expect(notified.some((n) => n.type === 'comment_mention')).toBe(false);
+    // La mention reste résolue pour l'affichage même sans notification.
+    expect(comment.mentions.map((m) => m.userId)).toEqual([OUTSIDER]);
+  });
+
+  it('à l’édition, ne notifie que les mentions ajoutées', async () => {
+    const A = randomUUID();
+    const B = randomUUID();
+    friendsByUser.set(FRIEND, [A, B]);
+    flowerRepo.seed({ id: FLOWER, ownerId: OWNER });
+
+    const comment = await service.post(FRIEND, FLOWER, `Salut @[${A}]`);
+    const edited = await service.update(
+      FRIEND,
+      FLOWER,
+      comment.id,
+      `Salut @[${A}] et @[${B}]`,
+    );
+
+    // A mentionné à la création, B ajouté à l'édition : chacun une seule fois.
+    const mentionEvents = notifiedData.filter(
+      (n) => n.type === 'comment_mention',
+    );
+    expect(mentionEvents.map((n) => n.userId)).toEqual([A, B]);
+    expect(edited.mentions.map((m) => m.userId)).toEqual([A, B]);
+  });
+
+  it('expose les mentions à la relecture de la liste', async () => {
+    const M = randomUUID();
+    friendsByUser.set(OWNER, [M]);
+    flowerRepo.seed({ id: FLOWER, ownerId: OWNER });
+    await service.post(OWNER, FLOWER, `Hello @[${M}]`);
+
+    const listed = await service.listForFlower(OWNER, FLOWER);
+    expect(listed[0].mentions).toEqual([
+      { userId: M, displayName: `Nom ${M}` },
+    ]);
   });
 });

@@ -6,10 +6,37 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Flower } from '../flowers/flower.entity';
+import { FriendshipsService } from '../friendships/friendships.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SharesService } from '../shares/shares.service';
 import { UsersService } from '../users/users.service';
 import { FlowerComment } from './flower-comment.entity';
+
+/**
+ * Encodage d'une mention dans le corps d'un commentaire : `@[userId]`. On stocke
+ * l'IDENTIFIANT (jamais le nom d'affichage) afin qu'un renommage (TÂCHE 1.7) ne
+ * casse pas la mention — le nom est résolu au moment de l'affichage (`mentions`).
+ * Le motif ne matche que des UUID pour ne pas confondre un texte quelconque
+ * (`@[note]`) avec une mention.
+ */
+const MENTION_PATTERN =
+  /@\[([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\]/gi;
+
+/** Ids mentionnés dans un corps, dédupliqués et dans l'ordre d'apparition. */
+export function parseMentionIds(body: string): string[] {
+  const ids: string[] = [];
+  for (const match of body.matchAll(MENTION_PATTERN)) {
+    const id = match[1].toLowerCase();
+    if (!ids.includes(id)) ids.push(id);
+  }
+  return ids;
+}
+
+/** Mention résolue : id encodé dans le corps + nom d'affichage COURANT. */
+export interface CommentMention {
+  userId: string;
+  displayName: string;
+}
 
 /** Commentaire enrichi du nom d'affichage de son auteur et des droits du lecteur. */
 export interface CommentResponse {
@@ -32,6 +59,11 @@ export interface CommentResponse {
   replyToAuthorName: string | null;
   /** Texte du commentaire cité (`null` si sans réponse). */
   replyToBody: string | null;
+  /**
+   * Personnes mentionnées (`@[userId]`) dans `body`, avec leur nom d'affichage
+   * courant — pour rendre `@Nom` côté client sans figer le nom (cf. 1.7).
+   */
+  mentions: CommentMention[];
 }
 
 /**
@@ -49,6 +81,7 @@ export class CommentsService {
     private readonly shares: SharesService,
     private readonly notifications: NotificationsService,
     private readonly users: UsersService,
+    private readonly friendships: FriendshipsService,
   ) {}
 
   /**
@@ -91,14 +124,70 @@ export class CommentsService {
       });
     }
 
+    // Mentions @ami : notifie les amis mentionnés (best-effort, comme ci-dessus).
+    const mentionIds = parseMentionIds(body);
+    await this.notifyMentions(authorId, flower, saved.id, mentionIds, []);
+
     const authorName = (await this.users.findById(authorId))?.displayName ?? '';
     const replyToAuthorName = parent
       ? ((await this.users.findById(parent.authoredBy))?.displayName ?? '')
       : null;
-    return this.buildResponse(saved, authorId, flower.ownerId, authorName, {
-      authorName: replyToAuthorName,
-      body: parent?.body ?? null,
-    });
+    const mentions = await this.resolveMentions(mentionIds);
+    return this.buildResponse(
+      saved,
+      authorId,
+      flower.ownerId,
+      authorName,
+      {
+        authorName: replyToAuthorName,
+        body: parent?.body ?? null,
+      },
+      mentions,
+    );
+  }
+
+  /**
+   * Notifie les amis mentionnés (`@[userId]`) d'un commentaire. On ne notifie que
+   * les mentions NOUVELLES ([previousIds] évite de re-pinguer à chaque édition),
+   * en excluant l'auteur et le propriétaire de la fleur (déjà averti par
+   * `flower_commented`). On restreint au réseau d'amis acceptés de l'auteur :
+   * une mention est « @ami », ce qui écarte aussi un id arbitraire injecté.
+   * Best-effort (createSafe) : le commentaire est déjà persisté.
+   */
+  private async notifyMentions(
+    authorId: string,
+    flower: Flower,
+    commentId: string,
+    mentionIds: string[],
+    previousIds: string[],
+  ): Promise<void> {
+    const fresh = mentionIds.filter(
+      (id) =>
+        !previousIds.includes(id) &&
+        id !== authorId &&
+        id !== flower.ownerId,
+    );
+    if (fresh.length === 0) return;
+    const friendIds = await this.friendships.acceptedFriendIds(authorId);
+    for (const id of fresh) {
+      if (!friendIds.includes(id)) continue;
+      await this.notifications.createSafe(id, 'comment_mention', {
+        flowerId: flower.id,
+        commentId,
+        byUserId: authorId,
+      });
+    }
+  }
+
+  /** Résout les noms d'affichage COURANTS des ids mentionnés (batch, sans N+1). */
+  private async resolveMentions(ids: string[]): Promise<CommentMention[]> {
+    if (ids.length === 0) return [];
+    const users = await this.users.findByIds(ids);
+    const nameById = new Map(users.map((u) => [u.id, u.displayName]));
+    return ids.map((id) => ({
+      userId: id,
+      displayName: nameById.get(id) ?? '',
+    }));
   }
 
   /**
@@ -137,16 +226,28 @@ export class CommentsService {
       where: { flowerId },
       order: { createdAt: 'ASC' },
     });
-    // Batch des auteurs : un seul chargement au lieu d'un users.findById par
-    // commentaire (N+1).
-    const authorIds = [...new Set(comments.map((c) => c.authoredBy))];
-    const authors = await this.users.findByIds(authorIds);
-    const nameById = new Map(authors.map((u) => [u.id, u.displayName]));
+    // Batch des utilisateurs : auteurs ET personnes mentionnées, en une requête
+    // (au lieu d'un users.findById par commentaire / mention — N+1).
+    const mentionIdsByComment = new Map(
+      comments.map((c) => [c.id, parseMentionIds(c.body)]),
+    );
+    const userIds = [
+      ...new Set([
+        ...comments.map((c) => c.authoredBy),
+        ...[...mentionIdsByComment.values()].flat(),
+      ]),
+    ];
+    const users = await this.users.findByIds(userIds);
+    const nameById = new Map(users.map((u) => [u.id, u.displayName]));
     // Résolution de la citation : le parent est forcément un commentaire de la
     // même fleur, donc déjà dans `comments` (aplatissement à un seul niveau).
     const byId = new Map(comments.map((c) => [c.id, c]));
     return comments.map((c) => {
       const parent = c.replyToId ? byId.get(c.replyToId) : undefined;
+      const mentions = (mentionIdsByComment.get(c.id) ?? []).map((id) => ({
+        userId: id,
+        displayName: nameById.get(id) ?? '',
+      }));
       return this.buildResponse(
         c,
         viewerId,
@@ -158,6 +259,7 @@ export class CommentsService {
               body: parent.body,
             }
           : null,
+        mentions,
       );
     });
   }
@@ -182,9 +284,21 @@ export class CommentsService {
     if (comment.authoredBy !== viewerId) {
       throw new ForbiddenException('Édition non autorisée.');
     }
+    // Mentions déjà présentes AVANT l'édition : on ne re-pingue pas les amis
+    // déjà mentionnés, seulement ceux ajoutés par cette modification.
+    const previousMentionIds = parseMentionIds(comment.body);
     comment.body = body;
     comment.editedAt = new Date();
     const saved = await this.comments.save(comment);
+
+    const mentionIds = parseMentionIds(body);
+    await this.notifyMentions(
+      viewerId,
+      flower,
+      comment.id,
+      mentionIds,
+      previousMentionIds,
+    );
 
     const authorName =
       (await this.users.findById(comment.authoredBy))?.displayName ?? '';
@@ -201,12 +315,14 @@ export class CommentsService {
           body: parent.body,
         }
       : null;
+    const mentions = await this.resolveMentions(mentionIds);
     return this.buildResponse(
       saved,
       viewerId,
       flower.ownerId,
       authorName,
       replyTo,
+      mentions,
     );
   }
 
@@ -243,6 +359,7 @@ export class CommentsService {
     ownerId: string,
     authorName: string,
     replyTo: { authorName: string | null; body: string | null } | null = null,
+    mentions: CommentMention[] = [],
   ): CommentResponse {
     return {
       id: c.id,
@@ -257,6 +374,7 @@ export class CommentsService {
       replyToId: c.replyToId ?? null,
       replyToAuthorName: replyTo?.authorName ?? null,
       replyToBody: replyTo?.body ?? null,
+      mentions,
     };
   }
 

@@ -43,4 +43,17 @@ data class FlowerCommentDto(
     val replyToAuthorName: String? = null,
     /** Texte du commentaire cité (`null` si sans réponse). */
     val replyToBody: String? = null,
+    /**
+     * Amis mentionnés (`@[userId]`) dans [body], avec leur nom d'affichage
+     * COURANT. Le corps encode l'identifiant (pas le nom) : un renommage ne casse
+     * pas la mention, le nom est simplement re-résolu à chaque lecture (TÂCHE 1.7).
+     */
+    val mentions: List<CommentMentionDto> = emptyList(),
+)
+
+/** Une mention résolue : identifiant encodé dans le corps + nom d'affichage. */
+@JsonClass(generateAdapter = true)
+data class CommentMentionDto(
+    val userId: String,
+    val displayName: String,
 )

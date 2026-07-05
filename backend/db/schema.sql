@@ -361,7 +361,7 @@ CREATE INDEX IF NOT EXISTS idx_flower_comments_reply_to ON flower_comments(reply
 CREATE TABLE IF NOT EXISTS notifications (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    type        TEXT NOT NULL,             -- friend_request | friend_accepted | flower_shared
+    type        TEXT NOT NULL,             -- friend_request | friend_accepted | flower_shared | flower_liked | flower_commented | comment_mention | species_* | identification_requested
     data        JSONB NOT NULL DEFAULT '{}',
     read_at     TIMESTAMPTZ,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()

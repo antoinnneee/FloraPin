@@ -1,8 +1,12 @@
 package com.florapin.app.detail
 
 import com.florapin.app.network.api.CommentsApi
+import com.florapin.app.network.api.FriendshipsApi
 import com.florapin.app.network.dto.CreateCommentRequest
+import com.florapin.app.network.dto.CreateFriendshipRequest
 import com.florapin.app.network.dto.FlowerCommentDto
+import com.florapin.app.network.dto.FriendUserDto
+import com.florapin.app.network.dto.FriendshipDto
 import com.florapin.app.network.dto.UpdateCommentRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -53,6 +57,26 @@ private class FakeCommentsApi : CommentsApi {
     override suspend fun delete(flowerId: String, commentId: String): Response<Unit> =
         Response.success(Unit)
 }
+
+/** API amis en mémoire : renvoie une liste figée d'amitiés (fake de test). */
+private class FakeFriendshipsApi(
+    private val friendships: List<FriendshipDto>,
+) : FriendshipsApi {
+    override suspend fun list(): List<FriendshipDto> = friendships
+    override suspend fun request(body: CreateFriendshipRequest): FriendshipDto =
+        throw UnsupportedOperationException()
+    override suspend fun accept(id: String): FriendshipDto =
+        throw UnsupportedOperationException()
+    override suspend fun remove(id: String): Response<Unit> = Response.success(Unit)
+}
+
+private fun acceptedFriend(id: String, name: String): FriendshipDto = FriendshipDto(
+    id = "friendship-$id",
+    status = "accepted",
+    direction = "outgoing",
+    user = FriendUserDto(id = id, displayName = name, email = "$name@ex.fr"),
+    createdAt = "2026-07-05T10:00:00Z",
+)
 
 /** Store de brouillons en mémoire, indexé par fleur (fake de test). */
 private class FakeDraftStore : CommentDraftStore {
@@ -150,4 +174,45 @@ class CommentsViewModelTest {
         assertEquals("2026-07-05T11:00:00Z", edited.editedAt)
         assertEquals(null, vm.state.value.editingId)
     }
+
+    @Test
+    fun `une saisie @ propose les amis correspondants`() = runTest(dispatcher) {
+        val friendsApi = FakeFriendshipsApi(
+            listOf(
+                acceptedFriend("u-marie", "Marie"),
+                acceptedFriend("u-marc", "Marc"),
+                acceptedFriend("u-bob", "Bob"),
+            ),
+        )
+        val vm = CommentsViewModel(FakeCommentsApi(), FakeDraftStore(), friendsApi)
+        vm.bind("flower-1")
+        advanceUntilIdle()
+
+        vm.updateDraft("Regarde @mar")
+
+        assertEquals(
+            listOf("Marie", "Marc"),
+            vm.state.value.mentionSuggestions.map { it.displayName },
+        )
+    }
+
+    @Test
+    fun `selectMention encode l'id dans le brouillon et ferme les suggestions`() =
+        runTest(dispatcher) {
+            val marie = acceptedFriend("u-marie", "Marie")
+            val friendsApi = FakeFriendshipsApi(listOf(marie))
+            val store = FakeDraftStore()
+            val vm = CommentsViewModel(FakeCommentsApi(), store, friendsApi)
+            vm.bind("flower-1")
+            advanceUntilIdle()
+            vm.updateDraft("Regarde @mar")
+
+            val newText = vm.selectMention(marie.user)
+
+            // Le brouillon encode l'IDENTIFIANT (pas le nom) — robuste au renommage.
+            assertEquals("Regarde @[u-marie] ", newText)
+            assertEquals("Regarde @[u-marie] ", vm.state.value.draft)
+            assertEquals("Regarde @[u-marie] ", store.drafts["flower-1"])
+            assertEquals(emptyList<FriendUserDto>(), vm.state.value.mentionSuggestions)
+        }
 }

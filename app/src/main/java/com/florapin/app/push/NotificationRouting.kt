@@ -94,7 +94,8 @@ object NotificationGrouping {
 object NotificationQuickActions {
 
     private val LIKE_TYPES = setOf("flower_shared")
-    private val REPLY_TYPES = setOf("flower_shared", "flower_commented", "flower_liked")
+    private val REPLY_TYPES =
+        setOf("flower_shared", "flower_commented", "flower_liked", "comment_mention")
 
     fun likeEnabled(type: String?, flowerId: String?): Boolean =
         !flowerId.isNullOrBlank() && type in LIKE_TYPES

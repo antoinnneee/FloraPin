@@ -163,7 +163,7 @@ class FloraMessagingService : FirebaseMessagingService() {
     /** Associe un type FCM à son canal ; repli sur [CHANNEL_DEFAULT] si non catégorisé. */
     private fun channelFor(type: String?): String = when (type) {
         "flower_liked" -> CHANNEL_LIKES
-        "flower_commented" -> CHANNEL_COMMENTS
+        "flower_commented", "comment_mention" -> CHANNEL_COMMENTS
         "friend_request", "friend_accepted" -> CHANNEL_FRIENDS
         "species_proposed", "species_confirmed", "identification_requested" ->
             CHANNEL_IDENTIFICATION
@@ -286,6 +286,7 @@ class FloraMessagingService : FirebaseMessagingService() {
         "species_proposed" -> "Proposition d'espèce"
         "species_confirmed" -> "Espèce confirmée"
         "flower_commented" -> "Nouveau commentaire"
+        "comment_mention" -> "Vous avez été mentionné"
         "flower_liked" -> "Nouveau cœur"
         "identification_requested" -> "Aide à l'identification"
         else -> "FloraPin"
@@ -313,6 +314,9 @@ class FloraMessagingService : FirebaseMessagingService() {
             "flower_commented" ->
                 byUserName?.let { "$it a commenté $theFlower." }
                     ?: "Quelqu'un a commenté votre fleur."
+            "comment_mention" ->
+                byUserName?.let { "$it vous a mentionné dans un commentaire." }
+                    ?: "Quelqu'un vous a mentionné dans un commentaire."
             "flower_liked" ->
                 byUserName?.let { "$it a aimé $theFlower." }
                     ?: "Quelqu'un a aimé votre fleur."

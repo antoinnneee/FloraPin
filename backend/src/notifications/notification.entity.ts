@@ -14,7 +14,8 @@ export type NotificationType =
   | 'species_confirmed'
   | 'identification_requested'
   | 'flower_liked'
-  | 'flower_commented';
+  | 'flower_commented'
+  | 'comment_mention';
 
 /** Notification in-app destinée à un utilisateur. */
 @Entity('notifications')

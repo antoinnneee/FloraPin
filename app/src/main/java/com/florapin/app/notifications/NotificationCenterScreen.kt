@@ -165,6 +165,7 @@ private fun NotificationDto.emoji(): String = when (type) {
     "identification_requested" -> "🔎"
     "flower_liked" -> "❤️"
     "flower_commented" -> "💬"
+    "comment_mention" -> "📣"
     else -> "🔔"
 }
 
@@ -187,6 +188,7 @@ private fun NotificationDto.title(): String = when (type) {
     "identification_requested" -> "Un ami a besoin d'aide pour identifier une fleur"
     "flower_liked" -> "Quelqu'un a aimé votre fleur"
     "flower_commented" -> "Nouveau commentaire sur votre fleur"
+    "comment_mention" -> "Vous avez été mentionné dans un commentaire"
     else -> "Nouvelle notification"
 }
 

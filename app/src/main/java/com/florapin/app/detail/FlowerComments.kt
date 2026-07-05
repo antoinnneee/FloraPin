@@ -27,9 +27,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -38,9 +49,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.api.CommentsApi
+import com.florapin.app.network.api.FriendshipsApi
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.network.dto.CreateCommentRequest
 import com.florapin.app.network.dto.FlowerCommentDto
+import com.florapin.app.network.dto.FriendUserDto
 import com.florapin.app.network.dto.UpdateCommentRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -66,6 +79,12 @@ data class CommentsUiState(
     val editSubmitting: Boolean = false,
     /** Commentaire auquel le brouillon répond (citation), `null` sinon. */
     val replyingTo: FlowerCommentDto? = null,
+    /** Amis acceptés (mentionnables), chargés une fois pour l'autocomplete `@`. */
+    val friends: List<FriendUserDto> = emptyList(),
+    /** Table `id → nom` des amis, pour rendre `@[id]` en `@Nom` dans la saisie. */
+    val friendNamesById: Map<String, String> = emptyMap(),
+    /** Suggestions courantes de l'autocomplete `@` (vide si pas de saisie `@…`). */
+    val mentionSuggestions: List<FriendUserDto> = emptyList(),
     val error: String? = null,
 )
 
@@ -78,6 +97,7 @@ data class CommentsUiState(
 class CommentsViewModel(
     private val api: CommentsApi,
     private val drafts: CommentDraftStore,
+    private val friendships: FriendshipsApi? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CommentsUiState())
@@ -87,6 +107,8 @@ class CommentsViewModel(
 
     /** Associe la fleur [flowerServerId] (idempotent) et charge ses commentaires. */
     fun bind(flowerServerId: String) {
+        // Amis mentionnables : indépendants de la fleur, chargés une seule fois.
+        loadFriends()
         if (serverId != flowerServerId) {
             serverId = flowerServerId
             // Nouvelle fleur : restaure le brouillon éventuellement persisté
@@ -98,6 +120,28 @@ class CommentsViewModel(
         // Même fleur : rechargement explicite uniquement si pas encore chargée.
         if (!_state.value.loading && _state.value.comments.isNotEmpty()) return
         load()
+    }
+
+    /**
+     * Charge les amis acceptés (mentionnables) une seule fois. Best-effort et
+     * device-first : sans réseau / sync, l'autocomplete reste simplement vide, la
+     * saisie de commentaires n'est pas bloquée.
+     */
+    private fun loadFriends() {
+        val friendshipsApi = friendships ?: return
+        if (_state.value.friends.isNotEmpty()) return
+        viewModelScope.launch {
+            val accepted = runCatching { friendshipsApi.list() }.getOrNull()
+                ?.filter { it.status == "accepted" }
+                ?.map { it.user }
+                ?: return@launch
+            _state.update {
+                it.copy(
+                    friends = accepted,
+                    friendNamesById = accepted.associate { u -> u.id to u.displayName },
+                )
+            }
+        }
     }
 
     /** (Re)charge les commentaires de la fleur liée. */
@@ -114,10 +158,41 @@ class CommentsViewModel(
         }
     }
 
-    /** Met à jour le brouillon du champ de saisie (et le persiste par fleur). */
+    /**
+     * Met à jour le brouillon du champ de saisie (et le persiste par fleur), puis
+     * recalcule les suggestions de mention selon la requête `@…` en cours.
+     */
     fun updateDraft(text: String) {
-        _state.update { it.copy(draft = text) }
+        _state.update { it.copy(draft = text, mentionSuggestions = suggestionsFor(text)) }
         serverId?.let { drafts.save(it, text) }
+    }
+
+    /**
+     * Insère la mention encodée de [friend] à la place de la requête `@…` en cours,
+     * ferme les suggestions et renvoie le nouveau texte (pour repositionner le
+     * curseur côté UI). Le brouillon encode l'id (`@[userId]`), pas le nom.
+     */
+    fun selectMention(friend: FriendUserDto): String {
+        val newText = MentionText.insertMention(_state.value.draft, friend.id)
+        _state.update {
+            it.copy(
+                draft = newText,
+                // L'ami vient d'être choisi : garantit que son nom est résolvable
+                // même si la liste d'amis a évolué entre-temps.
+                friendNamesById = it.friendNamesById + (friend.id to friend.displayName),
+                mentionSuggestions = emptyList(),
+            )
+        }
+        serverId?.let { drafts.save(it, newText) }
+        return newText
+    }
+
+    /** Amis dont le nom contient la requête `@…` courante (max 6), sinon vide. */
+    private fun suggestionsFor(text: String): List<FriendUserDto> {
+        val query = MentionText.activeQuery(text) ?: return emptyList()
+        return _state.value.friends
+            .filter { it.displayName.contains(query, ignoreCase = true) }
+            .take(6)
     }
 
     /** Cible [comment] pour une réponse citée (le prochain envoi lui répondra). */
@@ -147,6 +222,7 @@ class CommentsViewModel(
                         submitting = false,
                         draft = "",
                         replyingTo = null,
+                        mentionSuggestions = emptyList(),
                         comments = it.comments + created,
                     )
                 }
@@ -234,7 +310,7 @@ class CommentsViewModel(
                     val tokenStore = EncryptedTokenStore(context.applicationContext)
                     val apis = NetworkModule.createAuthenticated(tokenStore)
                     val drafts = PrefsCommentDraftStore(context.applicationContext)
-                    return CommentsViewModel(apis.comments, drafts) as T
+                    return CommentsViewModel(apis.comments, drafts, apis.friendships) as T
                 }
             }
     }
@@ -293,18 +369,51 @@ fun CommentsSection(
             ReplyBanner(target = target, onCancel = { viewModel.cancelReply() })
         }
 
+        // Champ de saisie avec autocomplete de mention @ami. On tient une valeur
+        // locale TextFieldValue pour maîtriser le curseur (placé en fin après
+        // insertion d'une mention), tout en gardant le brouillon persisté (String)
+        // dans le ViewModel.
+        val mentionColor = MaterialTheme.colorScheme.primary
+        var field by remember {
+            mutableStateOf(TextFieldValue(state.draft, TextRange(state.draft.length)))
+        }
+        LaunchedEffect(state.draft) {
+            // Resynchronise sur un changement venu du ViewModel (restauration à
+            // l'ouverture, effacement après envoi, insertion d'une mention).
+            if (field.text != state.draft) {
+                field = TextFieldValue(state.draft, TextRange(state.draft.length))
+            }
+        }
+
+        // Suggestions d'amis à mentionner, présentées au-dessus du champ.
+        state.mentionSuggestions.forEach { friend ->
+            MentionSuggestionRow(
+                name = friend.displayName.ifBlank { "Sans nom" },
+                onClick = {
+                    val newText = viewModel.selectMention(friend)
+                    field = TextFieldValue(newText, TextRange(newText.length))
+                },
+            )
+        }
+
         OutlinedTextField(
-            value = state.draft,
-            onValueChange = viewModel::updateDraft,
+            value = field,
+            onValueChange = { newValue ->
+                field = newValue
+                viewModel.updateDraft(newValue.text)
+            },
             modifier = Modifier.fillMaxWidth(),
             placeholder = {
                 Text(
                     if (state.replyingTo != null) "Écrire une réponse…"
-                    else "Ajouter un commentaire…",
+                    else "Ajouter un commentaire… (@ pour mentionner)",
                 )
             },
             enabled = !state.submitting,
             maxLines = 4,
+            visualTransformation = remember(state.friendNamesById, mentionColor) {
+                MentionVisualTransformation(state.friendNamesById, mentionColor)
+            },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = { viewModel.submit() }),
             trailingIcon = {
@@ -458,7 +567,9 @@ private fun CommentCard(
                 }
             } else {
                 Text(
-                    text = comment.body,
+                    // Rend les mentions `@[id]` en `@Nom` colorées (noms résolus
+                    // par l'API à la lecture — un renommage reste cohérent).
+                    text = commentBodyAnnotated(comment),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Row(
@@ -560,6 +671,124 @@ private fun CommentActionsMenu(
                 },
             )
         }
+    }
+}
+
+/** Ligne cliquable de suggestion d'un ami à mentionner (autocomplete `@`). */
+@Composable
+private fun MentionSuggestionRow(name: String, onClick: () -> Unit) {
+    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "@$name",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/**
+ * Construit le corps d'un commentaire en `AnnotatedString`, chaque mention
+ * `@[userId]` rendue en `@Nom` coloré. Les noms proviennent de `comment.mentions`
+ * (résolus par l'API À LA LECTURE) : un renommage reste donc cohérent, et un id
+ * inconnu (ami retiré) retombe sur « @quelqu'un ».
+ */
+@Composable
+private fun commentBodyAnnotated(comment: FlowerCommentDto): AnnotatedString {
+    val mentionColor = MaterialTheme.colorScheme.primary
+    return remember(comment.body, comment.mentions, mentionColor) {
+        val nameById = comment.mentions.associate { it.userId to it.displayName }
+        buildAnnotatedString {
+            for (segment in MentionText.segments(comment.body, nameById)) {
+                when (segment) {
+                    is MentionText.Segment.Literal -> append(segment.text)
+                    is MentionText.Segment.Mention ->
+                        withStyle(
+                            SpanStyle(color = mentionColor, fontWeight = FontWeight.Medium),
+                        ) {
+                            append(segment.display)
+                        }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Transformation visuelle du champ de saisie : affiche chaque mention encodée
+ * `@[userId]` en `@Nom` (coloré) tout en conservant le texte BRUT comme valeur
+ * réelle. Les mentions sont « atomiques » : le curseur ne se pose qu'à leurs
+ * bornes (une position intérieure est ramenée à la fin du token).
+ */
+private class MentionVisualTransformation(
+    private val nameById: Map<String, String>,
+    private val mentionColor: Color,
+) : VisualTransformation {
+
+    private data class Seg(
+        val rawStart: Int,
+        val rawEnd: Int,
+        val transStart: Int,
+        val transEnd: Int,
+        val isMention: Boolean,
+    )
+
+    override fun filter(text: AnnotatedString): TransformedText {
+        val raw = text.text
+        val segs = mutableListOf<Seg>()
+        val annotated = buildAnnotatedString {
+            var index = 0
+            for (match in MentionText.MENTION_REGEX.findAll(raw)) {
+                if (match.range.first > index) {
+                    val start = length
+                    append(raw.substring(index, match.range.first))
+                    segs.add(Seg(index, match.range.first, start, length, false))
+                }
+                val name = nameById[match.groupValues[1]].orEmpty().ifBlank { "quelqu'un" }
+                val start = length
+                withStyle(SpanStyle(color = mentionColor, fontWeight = FontWeight.Medium)) {
+                    append("@$name")
+                }
+                segs.add(Seg(match.range.first, match.range.last + 1, start, length, true))
+                index = match.range.last + 1
+            }
+            if (index < raw.length) {
+                val start = length
+                append(raw.substring(index))
+                segs.add(Seg(index, raw.length, start, length, false))
+            }
+        }
+
+        val mapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int {
+                for (seg in segs) {
+                    if (offset in seg.rawStart..seg.rawEnd) {
+                        return if (seg.isMention) {
+                            if (offset <= seg.rawStart) seg.transStart else seg.transEnd
+                        } else {
+                            seg.transStart + (offset - seg.rawStart)
+                        }
+                    }
+                }
+                return annotated.length
+            }
+
+            override fun transformedToOriginal(offset: Int): Int {
+                for (seg in segs) {
+                    if (offset in seg.transStart..seg.transEnd) {
+                        return if (seg.isMention) {
+                            if (offset <= seg.transStart) seg.rawStart else seg.rawEnd
+                        } else {
+                            seg.rawStart + (offset - seg.transStart)
+                        }
+                    }
+                }
+                return raw.length
+            }
+        }
+        return TransformedText(annotated, mapping)
     }
 }
 

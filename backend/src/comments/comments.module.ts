@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Flower } from '../flowers/flower.entity';
+import { FriendshipsModule } from '../friendships/friendships.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SharesModule } from '../shares/shares.module';
 import { UsersModule } from '../users/users.module';
@@ -14,6 +15,7 @@ import { FlowerComment } from './flower-comment.entity';
     SharesModule,
     NotificationsModule,
     UsersModule,
+    FriendshipsModule,
   ],
   controllers: [CommentsController],
   providers: [CommentsService],

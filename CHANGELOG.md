@@ -13,6 +13,18 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Mention d'un ami dans un commentaire (`@ami`).** En saisissant `@` dans le
+  fil de discussion, une liste d'amis acceptés s'affiche en autocomplete ;
+  choisir un ami insère une mention rendue « @Nom » (colorée) dans le champ.
+  La mention encode l'IDENTIFIANT de l'ami (`@[userId]`) et non son nom : un
+  renommage (1.7) ne casse donc pas la mention, le nom étant re-résolu à chaque
+  lecture (nouveau champ `mentions` sur chaque commentaire renvoyé par l'API).
+  Côté serveur, `POST`/`PATCH flowers/{id}/comments` détecte les amis mentionnés
+  et leur envoie une notification `comment_mention` (nouveau type, canal
+  « Commentaires », action rapide « Répondre »). Restreint au réseau d'amis
+  acceptés de l'auteur ; l'auteur et le propriétaire (déjà averti par
+  `flower_commented`) sont exclus, et l'édition ne re-notifie que les mentions
+  nouvellement ajoutées.
 - **Réponse à un commentaire (fil à un niveau).** Chaque commentaire propose un
   bouton « Répondre » qui ouvre une réponse citée : un bandeau « En réponse à … »
   s'affiche au-dessus de la saisie et la réponse rappelle l'auteur et le texte du

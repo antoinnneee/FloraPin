@@ -47,20 +47,15 @@ class FloraMessagingService : FirebaseMessagingService() {
     ) {
         val manager = getSystemService(NotificationManager::class.java) ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            manager.createNotificationChannel(
-                NotificationChannel(
-                    CHANNEL_ID,
-                    "FloraPin",
-                    NotificationManager.IMPORTANCE_DEFAULT,
-                ),
-            )
+            ensureChannels(manager)
         }
+        val channelId = channelFor(type)
         // Chaque notification doit garder son propre PendingIntent (routage
         // distinct) : on dérive un id unique et on le partage entre le
         // PendingIntent et le notify() pour éviter que deux notifications se
         // recyclent le même intent.
         val notificationId = (System.currentTimeMillis() % Int.MAX_VALUE).toInt()
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(body)
@@ -68,6 +63,46 @@ class FloraMessagingService : FirebaseMessagingService() {
             .setContentIntent(contentIntent(notificationId, type, flowerId))
             .build()
         manager.notify(notificationId, notification)
+    }
+
+    /**
+     * Crée (idempotent) les canaux par type. Android ignore un `createNotificationChannel`
+     * dont l'id existe déjà, donc on peut appeler cette méthode à chaque notification.
+     *
+     * ⚠️ Un canal ne peut plus être modifié après création (nom/importance figés côté
+     * système) : toute évolution de comportement passe par un NOUVEL id, pas par une
+     * retouche d'un id existant. L'ancien canal unique `florapin_default` est conservé
+     * comme repli pour les types non catégorisés (partage) et les types inconnus.
+     */
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.O)
+    private fun ensureChannels(manager: NotificationManager) {
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL_LIKES, "Cœurs", NotificationManager.IMPORTANCE_DEFAULT),
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL_COMMENTS, "Commentaires", NotificationManager.IMPORTANCE_DEFAULT),
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL_FRIENDS, "Amis", NotificationManager.IMPORTANCE_DEFAULT),
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL_IDENTIFICATION, "Identification", NotificationManager.IMPORTANCE_DEFAULT),
+        )
+        // Repli : partages et types inconnus. Réutilise l'id historique pour ne pas
+        // laisser un canal orphelin dans les réglages système des installations existantes.
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL_DEFAULT, "Général", NotificationManager.IMPORTANCE_DEFAULT),
+        )
+    }
+
+    /** Associe un type FCM à son canal ; repli sur [CHANNEL_DEFAULT] si non catégorisé. */
+    private fun channelFor(type: String?): String = when (type) {
+        "flower_liked" -> CHANNEL_LIKES
+        "flower_commented" -> CHANNEL_COMMENTS
+        "friend_request", "friend_accepted" -> CHANNEL_FRIENDS
+        "species_proposed", "species_confirmed", "identification_requested" ->
+            CHANNEL_IDENTIFICATION
+        else -> CHANNEL_DEFAULT
     }
 
     /**
@@ -151,6 +186,13 @@ class FloraMessagingService : FirebaseMessagingService() {
     }
 
     private companion object {
-        const val CHANNEL_ID = "florapin_default"
+        // Repli historique : partages et types inconnus.
+        const val CHANNEL_DEFAULT = "florapin_default"
+        // Canaux par type (TÂCHE 2.3). Ids figés : ne jamais les réutiliser pour
+        // un autre comportement — créer un nouvel id si besoin.
+        const val CHANNEL_LIKES = "florapin_likes"
+        const val CHANNEL_COMMENTS = "florapin_comments"
+        const val CHANNEL_FRIENDS = "florapin_friends"
+        const val CHANNEL_IDENTIFICATION = "florapin_identification"
     }
 }

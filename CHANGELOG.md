@@ -13,6 +13,13 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Canaux de notification par type.** Les push sont désormais rangés dans des
+  canaux Android dédiés — Cœurs (`florapin_likes`), Commentaires
+  (`florapin_comments`), Amis (`florapin_friends`) et Identification
+  (`florapin_identification`) — permettant à l'utilisateur de couper ou
+  personnaliser chaque catégorie depuis les réglages système. Les partages et
+  les types inconnus retombent sur le canal historique « Général »
+  (`florapin_default`). Le mapping type FCM → canal est fait à la réception.
 - **Tap sur une notification → contenu concerné.** Toucher une notification push
   ouvre désormais l'app directement sur le contenu visé plutôt que sur l'Accueil.
   Le `PendingIntent` (FLAG_IMMUTABLE, targetSdk 35) transporte le type et le

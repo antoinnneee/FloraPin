@@ -58,7 +58,9 @@ private const val TAG = "CameraScreen"
  *
  * Contrôles disponibles pendant la visée :
  * - **zoom** : pincement à deux doigts (actif par défaut) ou curseur, synchronisés ;
- * - **mode macro** : bascule la mise au point rapprochée pour les sujets très proches.
+ * - **mode macro** : bascule la mise au point rapprochée pour les sujets très proches ;
+ * - **flash** : déclenchement du flash à la prise de vue (éteint par défaut) ;
+ * - **torche** : éclairage LED continu pendant la visée (éteint par défaut).
  *
  * Suppose que la permission CAMERA est déjà accordée (gérée en amont).
  */
@@ -106,11 +108,32 @@ fun CameraScreen(
 
     var isCapturing by remember { mutableStateOf(false) }
     var macroEnabled by remember { mutableStateOf(false) }
+    // Flash au déclenchement (piloté à la prise via imageCaptureFlashMode) et
+    // torche continue (LED allumée pendant la visée via enableTorch) : deux
+    // contrôles distincts, indépendants l'un de l'autre.
+    var flashEnabled by remember { mutableStateOf(false) }
+    var torchEnabled by remember { mutableStateOf(false) }
 
     // (Ré)applique le mode de mise au point dès que la bascule change ou que la
     // caméra devient prête.
     androidx.compose.runtime.LaunchedEffect(macroEnabled, cameraReady) {
         if (cameraReady) applyMacroFocus(controller, macroEnabled)
+    }
+
+    // Mode de flash à la prise : ON si activé, OFF sinon. Modifie une simple
+    // propriété du contrôleur, sans attendre que la caméra soit liée.
+    androidx.compose.runtime.LaunchedEffect(flashEnabled) {
+        controller.imageCaptureFlashMode =
+            if (flashEnabled) ImageCapture.FLASH_MODE_ON else ImageCapture.FLASH_MODE_OFF
+    }
+
+    // Torche continue : n'a d'effet qu'une fois la caméra liée (cameraControl
+    // disponible). Best effort — ignoré si l'appareil n'a pas de LED.
+    androidx.compose.runtime.LaunchedEffect(torchEnabled, cameraReady) {
+        if (cameraReady) {
+            runCatching { controller.enableTorch(torchEnabled) }
+                .onFailure { Log.w(TAG, "Torche non appliquée", it) }
+        }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -123,16 +146,32 @@ fun CameraScreen(
             },
         )
 
-        // Bascule « macro » en haut à droite, au-dessus de la barre d'état.
-        FilterChip(
-            selected = macroEnabled,
-            onClick = { macroEnabled = !macroEnabled },
-            label = { Text(if (macroEnabled) "🌿 Macro activé" else "🌿 Macro") },
+        // Bascules « macro », « flash » et « torche » en haut à droite,
+        // au-dessus de la barre d'état.
+        Row(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(16.dp),
-        )
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            FilterChip(
+                selected = macroEnabled,
+                onClick = { macroEnabled = !macroEnabled },
+                label = { Text(if (macroEnabled) "🌿 Macro activé" else "🌿 Macro") },
+            )
+            FilterChip(
+                selected = flashEnabled,
+                onClick = { flashEnabled = !flashEnabled },
+                label = { Text(if (flashEnabled) "⚡ Flash on" else "⚡ Flash") },
+            )
+            FilterChip(
+                selected = torchEnabled,
+                onClick = { torchEnabled = !torchEnabled },
+                label = { Text(if (torchEnabled) "🔦 Torche on" else "🔦 Torche") },
+            )
+        }
 
         // Bloc de contrôles bas : curseur de zoom puis obturateur.
         Column(

@@ -21,6 +21,12 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Flash & torche à la capture (TÂCHE 6.1).** L'écran caméra offre deux
+  nouvelles bascules à côté du mode macro : **⚡ Flash** (déclenchement du flash
+  à la prise via `imageCaptureFlashMode`) et **🔦 Torche** (éclairage LED
+  continu pendant la visée via `enableTorch`). Les deux contrôles sont
+  indépendants, éteints par défaut, et se dégradent proprement si l'appareil n'a
+  pas de LED (best effort).
 - **Profil d'ami — amis en commun & ancienneté (TÂCHE 5.7).** Nouvel écran
   « profil d'ami » ouvert d'un tap sur un ami de l'écran **Amis** ou sur le
   « Partagée par … » d'une carte du **feed**. Il affiche l'avatar et le nom, une

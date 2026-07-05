@@ -21,6 +21,15 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **État de synchronisation visible (TÂCHE 6.14).** L'onglet Configuration
+  affiche désormais l'état de la dernière passe du worker (en cours / réussie /
+  échec + message d'erreur) et l'horodatage de la dernière synchro réussie (lu via
+  `PrefsLastSyncStore` / curseur `last_sync_at`). Le `SyncWorker` publie son
+  résultat dans un `SyncStatusStore` dédié (fichier de prefs `florapin_sync_status`,
+  disjoint de `florapin_sync`), exposé en direct à l'UI via un flux. En galerie, un
+  badge discret (« ☁️ » en attente d'envoi, « ⚠️ » en échec) surmonte les vignettes
+  non synchronisées — uniquement lorsque la sync automatique est active
+  (device-first : une fleur PENDING sync OFF est l'état de repos normal).
 - **Annuler la suppression d'une fleur (TÂCHE 6.13).** Supprimer une fleur depuis
   le détail pose désormais un soft-delete immédiat (la fleur disparaît des listes)
   puis, de retour sur la galerie, affiche un snackbar « Fleur supprimée / Annuler ».

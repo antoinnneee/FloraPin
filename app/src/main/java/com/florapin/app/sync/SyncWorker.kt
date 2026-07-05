@@ -28,10 +28,17 @@ class SyncWorker(
             return@withLock Result.success() // non connecté : rien à synchroniser
         }
 
+        // Expose l'état de la passe pour l'onglet Configuration (TÂCHE 6.14) :
+        // en cours, puis réussie / échouée (+ message). L'horodatage de la
+        // dernière synchro réussie reste porté par last_sync_at (curseur de pull).
+        val status = SyncStatusStore(applicationContext)
+        status.markRunning()
         try {
             SyncEngineFactory.create(applicationContext, tokenStore).sync()
+            status.markSuccess()
             Result.success()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            status.markError(e.message)
             Result.retry()
         }
     }

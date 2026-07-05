@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -72,6 +73,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.florapin.app.albums.AddToAlbumSheet
 import com.florapin.app.data.FlowerEntity
+import com.florapin.app.data.SyncState
 import com.florapin.app.data.thumbnailModel
 import com.florapin.app.notifications.NotificationBell
 import com.florapin.app.ui.components.EmptyState
@@ -107,6 +109,7 @@ fun GalleryScreen(
     val identifyBadge by viewModel.identifyBadge.collectAsStateWithLifecycle()
     val friendsBadge by viewModel.friendsBadge.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    val syncEnabled by viewModel.syncEnabled.collectAsStateWithLifecycle()
     val selectedIds by viewModel.selectedIds.collectAsStateWithLifecycle()
     val selectionActive = selectedIds.isNotEmpty()
 
@@ -242,6 +245,9 @@ fun GalleryScreen(
                                         FlowerThumbnail(
                                             flower = flower,
                                             selected = flower.id in selectedIds,
+                                            // Badge « en attente » seulement si la
+                                            // sync auto est active (device-first).
+                                            syncEnabled = syncEnabled,
                                             // Tap : ouvre le détail hors sélection, bascule
                                             // la case en mode sélection. Appui long :
                                             // (dé)sélectionne — c'est aussi l'entrée dans le
@@ -634,6 +640,7 @@ private fun GalleryRow.monthLabel(): String = when (this) {
 private fun FlowerThumbnail(
     flower: FlowerEntity,
     selected: Boolean,
+    syncEnabled: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -676,6 +683,23 @@ private fun FlowerThumbnail(
                             .padding(6.dp),
                     )
                 }
+                // Badge discret d'état de sync (TÂCHE 6.14), en haut à gauche : les
+                // fleurs non synchronisées (en attente d'envoi ou en échec) quand la
+                // sync auto est active. Masqué en mode sélection pour ne pas surcharger.
+                if (!selected) {
+                    flower.syncBadge(syncEnabled)?.let { badge ->
+                        Text(
+                            text = badge,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(4.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f))
+                                .padding(horizontal = 4.dp, vertical = 2.dp),
+                        )
+                    }
+                }
             }
             Text(
                 text = name ?: formatCaptureDate(flower.createdAt),
@@ -685,6 +709,21 @@ private fun FlowerThumbnail(
                 modifier = Modifier.padding(8.dp),
             )
         }
+    }
+}
+
+/**
+ * Emoji d'état de synchronisation à surimprimer sur une vignette (TÂCHE 6.14), ou
+ * null si rien à signaler. Device-first : on ne signale l'attente que si la sync
+ * auto est active ([syncEnabled]) — une fleur PENDING sync OFF est l'état de repos
+ * normal. « ☁️ » = en attente d'envoi ; « ⚠️ » = dernier envoi en échec.
+ */
+private fun FlowerEntity.syncBadge(syncEnabled: Boolean): String? {
+    if (!syncEnabled) return null
+    return when (syncState) {
+        SyncState.PENDING.name -> "☁️"
+        SyncState.FAILED.name -> "⚠️"
+        else -> null
     }
 }
 

@@ -9,6 +9,7 @@ import com.florapin.app.friends.FriendsBadgeStore
 import com.florapin.app.identify.IdentifyBadgeStore
 import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.auth.EncryptedTokenStore
+import com.florapin.app.sync.SyncPreferences
 import com.florapin.app.sync.SyncScheduler
 import com.florapin.app.util.formatMonthLabel
 import com.florapin.app.util.monthKey
@@ -180,6 +181,17 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     /** Tirage manuel (pull-to-refresh) en cours (TÂCHE 1.3). */
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
+    private val syncPrefs = SyncPreferences(application)
+    private val _syncEnabled = MutableStateFlow(syncPrefs.isEnabled())
+    /**
+     * Synchronisation automatique activée (TÂCHE 6.14). Pilote l'affichage du
+     * badge « en attente » sur les vignettes : device-first, une fleur PENDING est
+     * l'état de repos normal quand la sync est OFF — on ne la signale donc que si
+     * la sync auto est active (sinon le badge serait faux et permanent). Réévalué
+     * au (ré)affichage de la galerie via [refreshBadges].
+     */
+    val syncEnabled: StateFlow<Boolean> = _syncEnabled.asStateFlow()
+
     /**
      * Recalcule les badges : récupère les demandes courantes (identification et
      * amitiés entrantes) et compte celles non encore vues. Appelé à l'affichage de
@@ -188,6 +200,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
      * dernière valeur connue).
      */
     fun refreshBadges() {
+        // Réévalue aussi l'état de la sync auto : il a pu changer dans Profil
+        // pendant qu'on était hors de la galerie (pilote le badge « en attente »).
+        _syncEnabled.value = syncPrefs.isEnabled()
         viewModelScope.launch { loadBadges() }
     }
 

@@ -57,8 +57,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.florapin.app.BuildConfig
+import com.florapin.app.sync.PrefsLastSyncStore
+import com.florapin.app.sync.SyncOutcome
 import com.florapin.app.sync.SyncPreferences
 import com.florapin.app.sync.SyncScheduler
+import com.florapin.app.sync.SyncStatus
+import com.florapin.app.sync.SyncStatusStore
+import com.florapin.app.util.formatCaptureDate
 
 /**
  * Écran Profil (NODE-97) : nom + email de l'utilisateur courant et bouton de
@@ -607,6 +612,16 @@ private fun SyncSettingsSection() {
     var autoEnabled by remember { mutableStateOf(prefs.isEnabled()) }
     var syncRequested by remember { mutableStateOf(false) }
 
+    // État de la dernière passe de synchro (TÂCHE 6.14) : en cours / réussie /
+    // échouée, réémis en direct par le worker. L'horodatage de la dernière synchro
+    // réussie vient, lui, du curseur `last_sync_at` (PrefsLastSyncStore) : on le
+    // relit à chaque changement d'état pour capter la mise à jour post-succès.
+    val statusStore = remember(context) { SyncStatusStore(context) }
+    val status by statusStore.flow()
+        .collectAsStateWithLifecycle(initialValue = statusStore.read())
+    val lastSyncStore = remember(context) { PrefsLastSyncStore(context) }
+    val lastSyncLabel = remember(status) { formatLastSync(lastSyncStore.get()) }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -616,6 +631,8 @@ private fun SyncSettingsSection() {
                 text = "Synchronisation cloud",
                 style = MaterialTheme.typography.titleSmall,
             )
+
+            SyncStatusRow(status = status, lastSyncLabel = lastSyncLabel)
 
             Button(
                 onClick = {
@@ -667,6 +684,77 @@ private fun SyncSettingsSection() {
             )
         }
     }
+}
+
+/**
+ * Ligne d'état de la synchronisation (TÂCHE 6.14) : pastille + libellé du dernier
+ * résultat du worker (en cours / réussie / échec + message), et horodatage de la
+ * dernière synchro réussie (curseur `last_sync_at`). Device-first : à l'état
+ * initial (aucune passe encore observée), on n'affiche rien d'alarmant.
+ */
+@Composable
+private fun SyncStatusRow(status: SyncStatus, lastSyncLabel: String?) {
+    val (dot, label, color) = when (status.outcome) {
+        SyncOutcome.RUNNING -> Triple(
+            "🔄",
+            "Synchronisation en cours…",
+            MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        SyncOutcome.SUCCESS -> Triple(
+            "✅",
+            lastSyncLabel?.let { "Synchronisé le $it" } ?: "Synchronisé",
+            MaterialTheme.colorScheme.primary,
+        )
+        SyncOutcome.ERROR -> Triple(
+            "⚠️",
+            "Échec de la synchronisation",
+            MaterialTheme.colorScheme.error,
+        )
+        SyncOutcome.IDLE -> Triple(
+            "☁️",
+            lastSyncLabel?.let { "Dernière synchro le $it" } ?: "Jamais synchronisé",
+            MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(text = dot, style = MaterialTheme.typography.bodyMedium)
+            Text(text = label, style = MaterialTheme.typography.bodyMedium, color = color)
+        }
+        // Détail de l'erreur (message du worker), quand disponible.
+        if (status.outcome == SyncOutcome.ERROR) {
+            status.errorMessage?.takeIf { it.isNotBlank() }?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            // Sur échec, on rappelle la dernière synchro réussie si connue.
+            lastSyncLabel?.let {
+                Text(
+                    text = "Dernière synchro réussie le $it",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Formate le curseur `last_sync_at` (horodatage serveur ISO-8601) en date/heure
+ * locale lisible, ou null s'il est absent (jamais synchronisé) ou illisible.
+ */
+private fun formatLastSync(iso: String?): String? {
+    if (iso.isNullOrBlank()) return null
+    return runCatching {
+        formatCaptureDate(java.time.Instant.parse(iso).toEpochMilli())
+    }.getOrNull()
 }
 
 /**

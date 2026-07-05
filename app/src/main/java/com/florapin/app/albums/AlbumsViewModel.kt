@@ -41,4 +41,16 @@ class AlbumsViewModel(application: Application) : AndroidViewModel(application) 
     fun addFlowerToAlbum(albumId: Long, flowerLocalId: Long) {
         viewModelScope.launch { repository.addFlower(albumId, flowerLocalId) }
     }
+
+    /**
+     * Ajoute un lot de fleurs (ids locaux) à un album, en une seule coroutine
+     * (multi-sélection de la galerie — TÂCHE 6.6). Les appartenances déjà
+     * présentes sont ignorées (INSERT OR IGNORE côté DAO).
+     */
+    fun addFlowersToAlbum(albumId: Long, flowerLocalIds: Collection<Long>) {
+        if (flowerLocalIds.isEmpty()) return
+        viewModelScope.launch {
+            flowerLocalIds.forEach { repository.addFlower(albumId, it) }
+        }
+    }
 }

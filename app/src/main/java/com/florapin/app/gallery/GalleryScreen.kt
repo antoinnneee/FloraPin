@@ -1,6 +1,9 @@
 package com.florapin.app.gallery
 
-import androidx.compose.foundation.clickable
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,10 +16,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -34,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
@@ -41,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.florapin.app.albums.AddToAlbumSheet
 import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.thumbnailModel
 import com.florapin.app.notifications.NotificationBell
@@ -69,30 +77,55 @@ fun GalleryScreen(
     val identifyBadge by viewModel.identifyBadge.collectAsStateWithLifecycle()
     val friendsBadge by viewModel.friendsBadge.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    val selectedIds by viewModel.selectedIds.collectAsStateWithLifecycle()
+    val selectionActive = selectedIds.isNotEmpty()
+
+    var showAddToAlbum by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     // Recalcule les badges à l'affichage de la galerie (lancement + retour depuis
     // les écrans « à identifier » / amis, qui auront marqué leurs demandes vues).
     LaunchedEffect(Unit) { viewModel.refreshBadges() }
 
+    // En mode sélection, le retour arrière annule la sélection plutôt que de quitter.
+    BackHandler(enabled = selectionActive) { viewModel.clearSelection() }
+
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
-                title = { Text("🌸 FloraPin") },
-                actions = {
-                    // Topbar allégée : seules les entrées « à notifier » restent
-                    // ici (identification demandée, invitations d'amis) plus la
-                    // cloche du centre de notifications (TÂCHE 2.7). Le tri est
-                    // descendu dans la vue, les albums dans la barre du bas.
-                    BadgedEmojiAction("🔎", identifyBadge, onClick = onOpenIdentify)
-                    BadgedEmojiAction("🤝", friendsBadge, onClick = onOpenFriends)
-                    NotificationBell(onOpen = onOpenNotifications)
-                },
-            )
+            if (selectionActive) {
+                // Barre contextuelle : nombre de fleurs sélectionnées et actions
+                // groupées (ajout album, suppression). Remplace la barre normale
+                // tant que la sélection est active.
+                SelectionTopBar(
+                    count = selectedIds.size,
+                    onClose = viewModel::clearSelection,
+                    onSelectAll = viewModel::selectAll,
+                    onAddToAlbum = { showAddToAlbum = true },
+                    onDelete = { showDeleteConfirm = true },
+                )
+            } else {
+                TopAppBar(
+                    title = { Text("🌸 FloraPin") },
+                    actions = {
+                        // Topbar allégée : seules les entrées « à notifier » restent
+                        // ici (identification demandée, invitations d'amis) plus la
+                        // cloche du centre de notifications (TÂCHE 2.7). Le tri est
+                        // descendu dans la vue, les albums dans la barre du bas.
+                        BadgedEmojiAction("🔎", identifyBadge, onClick = onOpenIdentify)
+                        BadgedEmojiAction("🤝", friendsBadge, onClick = onOpenFriends)
+                        NotificationBell(onOpen = onOpenNotifications)
+                    },
+                )
+            }
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onCapture) {
-                Text("📷", style = MaterialTheme.typography.titleLarge)
+            // Le bouton de capture s'efface pendant la sélection : les actions du
+            // moment sont celles de la barre contextuelle.
+            if (!selectionActive) {
+                FloatingActionButton(onClick = onCapture) {
+                    Text("📷", style = MaterialTheme.typography.titleLarge)
+                }
             }
         },
     ) { innerPadding ->
@@ -125,7 +158,18 @@ fun GalleryScreen(
                         items(flowers, key = { it.id }) { flower ->
                             FlowerThumbnail(
                                 flower = flower,
-                                onClick = { onFlowerClick(flower.id) },
+                                selected = flower.id in selectedIds,
+                                // Tap : ouvre le détail hors sélection, bascule la
+                                // case en mode sélection. Appui long : (dé)sélectionne
+                                // — c'est aussi l'entrée dans le mode sélection.
+                                onClick = {
+                                    if (selectionActive) {
+                                        viewModel.toggleSelection(flower.id)
+                                    } else {
+                                        onFlowerClick(flower.id)
+                                    }
+                                },
+                                onLongClick = { viewModel.toggleSelection(flower.id) },
                             )
                         }
                     }
@@ -142,6 +186,67 @@ fun GalleryScreen(
             }
         }
     }
+
+    // Ajout groupé à un album : réutilise la feuille du détail en mode lot. La
+    // sélection est conservée après l'ajout (l'utilisateur peut enchaîner ou fermer).
+    if (showAddToAlbum && selectionActive) {
+        AddToAlbumSheet(
+            flowerLocalIds = selectedIds.toList(),
+            onDismiss = { showAddToAlbum = false },
+        )
+    }
+
+    if (showDeleteConfirm && selectionActive) {
+        val count = selectedIds.size
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Supprimer $count fleur${if (count > 1) "s" else ""} ?") },
+            text = {
+                Text(
+                    "Cette action retire les fleurs sélectionnées de votre galerie " +
+                        "sur tous vos appareils.",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirm = false
+                        viewModel.deleteSelected()
+                    },
+                ) { Text("Supprimer") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Annuler") }
+            },
+        )
+    }
+}
+
+/**
+ * Barre du haut contextuelle du mode multi-sélection (TÂCHE 6.6) : croix de
+ * sortie, nombre d'éléments sélectionnés et actions groupées (tout sélectionner,
+ * ajouter à un album, supprimer).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SelectionTopBar(
+    count: Int,
+    onClose: () -> Unit,
+    onSelectAll: () -> Unit,
+    onAddToAlbum: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    TopAppBar(
+        navigationIcon = {
+            IconButton(onClick = onClose) { Text("✕") }
+        },
+        title = { Text("$count sélectionnée${if (count > 1) "s" else ""}") },
+        actions = {
+            IconButton(onClick = onSelectAll) { Text("☑️") }
+            IconButton(onClick = onAddToAlbum) { Text("📁") }
+            IconButton(onClick = onDelete) { Text("🗑️") }
+        },
+    )
 }
 
 /**
@@ -249,28 +354,54 @@ private fun EmptyGallery(modifier: Modifier = Modifier) {
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FlowerThumbnail(
     flower: FlowerEntity,
+    selected: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
 ) {
     // Nom de l'espèce si disponible (commun → scientifique → saisie libre),
     // sinon on retombe sur la date de capture.
     val name = flower.displayName()
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-    ) {
+    val cardModifier = Modifier
+        .fillMaxWidth()
+        .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+        .then(
+            // Liseré primaire quand la vignette est sélectionnée.
+            if (selected) {
+                Modifier.border(
+                    width = 3.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = CardDefaults.shape,
+                )
+            } else {
+                Modifier
+            },
+        )
+    Card(modifier = cardModifier) {
         Column {
-            AsyncImage(
-                model = flower.thumbnailModel(),
-                contentDescription = name ?: "Fleur du ${formatCaptureDate(flower.createdAt)}",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f),
-            )
+            Box {
+                AsyncImage(
+                    model = flower.thumbnailModel(),
+                    contentDescription = name ?: "Fleur du ${formatCaptureDate(flower.createdAt)}",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f),
+                )
+                if (selected) {
+                    // Pastille de sélection posée en haut à droite de la photo.
+                    Text(
+                        text = "✅",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp),
+                    )
+                }
+            }
             Text(
                 text = name ?: formatCaptureDate(flower.createdAt),
                 style = MaterialTheme.typography.bodySmall,

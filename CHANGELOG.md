@@ -21,6 +21,15 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Multi-sélection par appui long (TÂCHE 6.6).** Dans la galerie, un appui long
+  sur une vignette entre en mode sélection (liseré + pastille ✅ sur les fleurs
+  cochées) ; un simple tap coche/décoche ensuite les autres. Une barre du haut
+  contextuelle affiche le nombre de fleurs sélectionnées et propose « tout
+  sélectionner » (☑️), l'ajout groupé à un album (📁, feuille `AddToAlbumSheet`
+  réutilisée en lot) et la suppression groupée (🗑️, avec confirmation). La
+  suppression reste un soft delete (deletedAt + PENDING) pour les fleurs déjà
+  synchronisées, propagé puis purgé par la sync ; la croix ✕ ou le retour arrière
+  quittent le mode. Le bouton de capture s'efface pendant la sélection.
 - **Indicateur de fix GPS (TÂCHE 6.5).** L'écran de capture affiche désormais,
   en haut à gauche, une pastille d'état de la position GPS sondée en continu
   pendant la visée (`📡 GPS…` en recherche, `📍 GPS ±N m` une fois fixée,

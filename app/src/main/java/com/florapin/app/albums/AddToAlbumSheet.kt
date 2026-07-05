@@ -28,8 +28,31 @@ fun AddToAlbumSheet(
     flowerLocalId: Long,
     onDismiss: () -> Unit,
     viewModel: AlbumsViewModel = viewModel(),
+) = AddToAlbumSheet(
+    flowerLocalIds = listOf(flowerLocalId),
+    onDismiss = onDismiss,
+    viewModel = viewModel,
+)
+
+/**
+ * Variante en lot (multi-sélection de la galerie — TÂCHE 6.6) : rattache toutes
+ * les fleurs [flowerLocalIds] à l'album choisi. Réutilise la même feuille que le
+ * cas unitaire ; le titre reflète le nombre de fleurs concernées.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddToAlbumSheet(
+    flowerLocalIds: List<Long>,
+    onDismiss: () -> Unit,
+    viewModel: AlbumsViewModel = viewModel(),
 ) {
     val albums by viewModel.albums.collectAsStateWithLifecycle()
+    val count = flowerLocalIds.size
+    val title = if (count > 1) {
+        "Ajouter $count fleurs à un album"
+    } else {
+        "Ajouter à un album"
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -39,7 +62,7 @@ fun AddToAlbumSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Ajouter à un album", style = MaterialTheme.typography.titleLarge)
+            Text(title, style = MaterialTheme.typography.titleLarge)
 
             if (albums.isEmpty()) {
                 Text(
@@ -55,7 +78,7 @@ fun AddToAlbumSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    viewModel.addFlowerToAlbum(album.id, flowerLocalId)
+                                    viewModel.addFlowersToAlbum(album.id, flowerLocalIds)
                                     onDismiss()
                                 }
                                 .padding(vertical = 12.dp),

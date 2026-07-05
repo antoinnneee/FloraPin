@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /** Ordre de tri de la galerie (NODE-120). */
@@ -59,6 +60,48 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun setSort(sort: GallerySort) {
         _sort.value = sort
+    }
+
+    // --- Multi-sélection par appui long (TÂCHE 6.6) ---
+
+    private val _selectedIds = MutableStateFlow<Set<Long>>(emptySet())
+    /**
+     * Identifiants locaux des fleurs actuellement sélectionnées. Un ensemble non
+     * vide signale le « mode sélection » (barre d'actions contextuelle) ; on entre
+     * dans ce mode par un appui long sur une vignette et on en sort dès qu'il
+     * redevient vide.
+     */
+    val selectedIds: StateFlow<Set<Long>> = _selectedIds.asStateFlow()
+
+    /** Bascule la présence d'une fleur dans la sélection (appui long / tap en mode sélection). */
+    fun toggleSelection(id: Long) {
+        _selectedIds.update { it.toggled(id) }
+    }
+
+    /** Sélectionne toutes les fleurs actuellement affichées (après filtre/tri). */
+    fun selectAll() {
+        _selectedIds.value = flowers.value.map { it.id }.toSet()
+    }
+
+    /** Quitte le mode sélection (vide la sélection). */
+    fun clearSelection() {
+        _selectedIds.value = emptySet()
+    }
+
+    /**
+     * Supprime en lot les fleurs sélectionnées. Device-first : chaque suppression
+     * passe par [FlowerRepository.delete], qui pose un soft delete (deletedAt +
+     * PENDING) pour les fleurs déjà connues du serveur — la sync propagera puis
+     * purgera — et supprime physiquement celles jamais synchronisées. La sélection
+     * est vidée une fois les suppressions demandées.
+     */
+    fun deleteSelected() {
+        val ids = _selectedIds.value.toList()
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            ids.forEach { id -> repository.getById(id)?.let { repository.delete(it) } }
+            clearSelection()
+        }
     }
 
     // --- Badges de nouveautés (demandes d'identification & d'amis non vues) ---
@@ -148,6 +191,10 @@ internal fun List<FlowerEntity>.filterByQuery(query: String): List<FlowerEntity>
             flower.tags.any { it.lowercase().contains(needle) }
     }
 }
+
+/** Ajoute ou retire [id] de l'ensemble de sélection (bascule idempotente). */
+internal fun Set<Long>.toggled(id: Long): Set<Long> =
+    if (id in this) this - id else this + id
 
 /** Trie les fleurs selon [sort] ; les espèces vides passent en dernier. */
 internal fun List<FlowerEntity>.sortedByOrder(sort: GallerySort): List<FlowerEntity> =

@@ -29,6 +29,7 @@ describe('SpeciesService', () => {
       'find' | 'findAndCount' | 'findOne' | 'create' | 'save'
     >
   >;
+  let flowersRepo: { createQueryBuilder: jest.Mock };
   let service: SpeciesService;
 
   beforeEach(() => {
@@ -39,7 +40,8 @@ describe('SpeciesService', () => {
       create: jest.fn((o) => o),
       save: jest.fn(),
     } as never;
-    service = new SpeciesService(repo as never);
+    flowersRepo = { createQueryBuilder: jest.fn() };
+    service = new SpeciesService(repo as never, flowersRepo as never);
   });
 
   describe('list', () => {
@@ -165,6 +167,103 @@ describe('SpeciesService', () => {
           family: '',
         }),
       );
+    });
+  });
+
+  describe('normalizeFamily', () => {
+    it('met en casse Titre et fusionne les variantes de casse/espaces', () => {
+      expect(SpeciesService.normalizeFamily('rosaceae')).toBe('Rosaceae');
+      expect(SpeciesService.normalizeFamily('  ROSACEAE ')).toBe('Rosaceae');
+      expect(SpeciesService.normalizeFamily('Aster   aceae')).toBe(
+        'Aster aceae',
+      );
+    });
+
+    it('renvoie une chaîne vide pour une entrée vide', () => {
+      expect(SpeciesService.normalizeFamily('   ')).toBe('');
+      expect(SpeciesService.normalizeFamily('')).toBe('');
+    });
+  });
+
+  describe('buildHerbier', () => {
+    it('regroupe par famille normalisée, trie et compte les distinctes', () => {
+      const res = SpeciesService.buildHerbier(
+        [
+          {
+            speciesId: 'sp-1',
+            scientificName: 'Rosa canina',
+            commonName: 'Églantier',
+            family: 'Rosaceae',
+            emoji: '🌹',
+            flowerCount: 3,
+          },
+          {
+            speciesId: 'sp-2',
+            scientificName: 'Prunus avium',
+            commonName: 'Merisier',
+            // Variante de casse : doit fusionner avec « Rosaceae ».
+            family: 'rosaceae',
+            emoji: '🌸',
+            flowerCount: 1,
+          },
+          {
+            speciesId: 'sp-3',
+            scientificName: 'Bellis perennis',
+            commonName: 'Pâquerette',
+            family: 'Asteraceae',
+            emoji: '🌼',
+            flowerCount: 2,
+          },
+        ],
+        [{ name: 'Fleur mystère', flowerCount: 4 }],
+      );
+
+      expect(res.distinctSpecies).toBe(4); // 3 rapprochées + 1 texte libre
+      expect(res.totalFlowers).toBe(10);
+      expect(res.familyCount).toBe(2); // Rosaceae + Asteraceae (hors « Non classées »)
+
+      // Rosaceae en tête (2 espèces), puis Asteraceae (1), « Non classées » en dernier.
+      expect(res.families.map((f) => f.family)).toEqual([
+        'Rosaceae',
+        'Asteraceae',
+        'Non classées',
+      ]);
+      const rosaceae = res.families[0];
+      expect(rosaceae.speciesCount).toBe(2);
+      expect(rosaceae.flowerCount).toBe(4);
+      // Espèces triées par nom scientifique.
+      expect(rosaceae.species.map((s) => s.scientificName)).toEqual([
+        'Prunus avium',
+        'Rosa canina',
+      ]);
+
+      const unclassified = res.families[2];
+      expect(unclassified.species[0]).toEqual({
+        id: null,
+        scientificName: 'Fleur mystère',
+        commonName: '',
+        emoji: null,
+        flowerCount: 4,
+      });
+    });
+
+    it('bascule les familles vides dans « Non classées »', () => {
+      const res = SpeciesService.buildHerbier(
+        [
+          {
+            speciesId: 'sp-x',
+            scientificName: 'Inconnue x',
+            commonName: '',
+            family: '',
+            emoji: null,
+            flowerCount: 1,
+          },
+        ],
+        [],
+      );
+      expect(res.familyCount).toBe(0);
+      expect(res.families).toHaveLength(1);
+      expect(res.families[0].family).toBe('Non classées');
     });
   });
 

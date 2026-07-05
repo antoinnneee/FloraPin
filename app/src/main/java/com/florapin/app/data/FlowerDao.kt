@@ -159,7 +159,41 @@ interface FlowerDao {
         "SELECT latitude, longitude, createdAt FROM flowers WHERE deletedAt IS NULL",
     )
     suspend fun geoTimes(): List<FlowerGeoTime>
+
+    // --- Herbier local (TÂCHE 5.6) ---
+
+    /**
+     * Espèces distinctes de la collection locale avec leur effectif, pour le volet
+     * « espèces » de l'herbier (device-first : toujours disponible, y compris
+     * hors-ligne). Une espèce est identifiée par son `speciesId` (référentiel) et,
+     * à défaut, par le nom libre `species` — même clé de regroupement que
+     * [countDistinctSpecies]. Le libellé affiché privilégie le nom saisi
+     * (`species`), puis les caches de noms résolus. Trié par effectif décroissant.
+     *
+     * Le regroupement par **famille** vit côté serveur (GET /species/herbier) :
+     * cette liste locale reste un repli à plat quand les familles sont
+     * indisponibles hors-ligne.
+     */
+    @Query(
+        "SELECT COUNT(*) AS flowerCount, " +
+            "COALESCE(NULLIF(species, ''), NULLIF(speciesScientificName, ''), " +
+            "NULLIF(speciesCommonName, '')) AS name " +
+            "FROM flowers WHERE deletedAt IS NULL " +
+            "AND COALESCE(NULLIF(speciesId, ''), NULLIF(species, '')) IS NOT NULL " +
+            "GROUP BY COALESCE(NULLIF(speciesId, ''), NULLIF(species, '')) " +
+            "ORDER BY flowerCount DESC, name ASC",
+    )
+    suspend fun speciesCounts(): List<LocalSpeciesCount>
 }
+
+/**
+ * Espèce distincte de la collection locale et son effectif (herbier hors-ligne,
+ * TÂCHE 5.6). [name] peut être null si aucun libellé n'est renseigné.
+ */
+data class LocalSpeciesCount(
+    val name: String?,
+    val flowerCount: Int,
+)
 
 /**
  * Projection légère (latitude, longitude, date de capture) d'une fleur active,

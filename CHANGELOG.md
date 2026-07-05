@@ -21,6 +21,21 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Mon herbier — stats de collection (TÂCHE 5.6).** Nouvel écran « Mon herbier »
+  accessible depuis l'onglet Profil : espèces distinctes, nombre de fleurs et
+  regroupement par **familles botaniques** (cartes dépliables, tap sur une espèce
+  rapprochée → sa fiche). Les compteurs d'en-tête et la liste des espèces sont
+  calculés **localement** (device-first, toujours disponibles, y compris
+  hors-ligne — nouvel agrégat `FlowerDao.speciesCounts()`) ; le regroupement par
+  familles est calculé **côté serveur** (la famille est portée par l'espèce) via
+  un nouvel endpoint `GET /species/herbier`, donc partiel hors-ligne : l'écran
+  retombe alors sur la liste à plat des espèces avec un bandeau explicatif. Côté
+  backend, `SpeciesService.herbierFor` agrège les fleurs de l'utilisateur (deux
+  requêtes groupées, pas de N+1) et `SpeciesService.normalizeFamily` normalise les
+  familles (casse Titre, fusion des variantes) sur le référentiel embarqué du seed
+  `seed-species.sql` ; les espèces en texte libre non rapprochées tombent sous
+  « Non classées ». Nouveaux `herbier/HerbierScreen.kt` + `HerbierViewModel.kt`,
+  route dans `FloraNavHost.kt`.
 - **Grille de badges — étoiles + progression (TÂCHE 5.5).** L'onglet Badges du
   Profil affiche désormais une **grille** de familles de badges (DA actée) :
   chaque carte porte une **rangée d'étoiles** grisées (un palier atteignable

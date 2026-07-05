@@ -32,6 +32,8 @@ private class FakeSpeciesApi(private val results: List<SpeciesDto>) : SpeciesApi
         queries += query
         return results
     }
+    override suspend fun herbier(): com.florapin.app.network.dto.HerbierDto =
+        com.florapin.app.network.dto.HerbierDto()
     override suspend fun get(id: String): SpeciesDto =
         throw UnsupportedOperationException()
 }
@@ -84,6 +86,8 @@ class SpeciesPickerViewModelTest {
             override suspend fun list(page: Int?, limit: Int?) = PaginatedSpeciesDto()
             override suspend fun search(query: String, limit: Int?): List<SpeciesDto> =
                 throw RuntimeException("réseau")
+            override suspend fun herbier(): com.florapin.app.network.dto.HerbierDto =
+                com.florapin.app.network.dto.HerbierDto()
             override suspend fun get(id: String): SpeciesDto =
                 throw UnsupportedOperationException()
         }

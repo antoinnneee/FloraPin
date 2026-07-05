@@ -61,3 +61,41 @@ export interface PaginatedSpeciesResponse {
   page: number;
   limit: number;
 }
+
+// --- Herbier / stats de collection (TÂCHE 5.6) ---
+
+/** Une espèce présente dans l'herbier de l'utilisateur. */
+export interface HerbierSpecies {
+  /** Id du référentiel, ou `null` pour une espèce en texte libre non rapprochée. */
+  id: string | null;
+  scientificName: string;
+  commonName: string;
+  emoji: string | null;
+  /** Nombre de mes fleurs (actives) de cette espèce. */
+  flowerCount: number;
+}
+
+/** Regroupement de l'herbier par famille botanique. */
+export interface HerbierFamily {
+  /**
+   * Nom canonique de la famille (normalisé), ou le libellé « Non classées » pour
+   * les espèces sans famille connue (texte libre non rapproché).
+   */
+  family: string;
+  /** Nombre d'espèces distinctes dans cette famille. */
+  speciesCount: number;
+  /** Nombre total de fleurs (actives) dans cette famille. */
+  flowerCount: number;
+  species: HerbierSpecies[];
+}
+
+/** Herbier de l'utilisateur : espèces distinctes regroupées par famille. */
+export interface HerbierResponse {
+  /** Nombre d'espèces distinctes (toutes familles confondues). */
+  distinctSpecies: number;
+  /** Nombre total de fleurs (actives) rattachées à une espèce. */
+  totalFlowers: number;
+  /** Nombre de familles réellement classées (hors « Non classées »). */
+  familyCount: number;
+  families: HerbierFamily[];
+}

@@ -67,6 +67,7 @@ import com.florapin.app.sync.SyncScheduler
 fun ProfileScreen(
     onLogout: () -> Unit,
     onAccountDeleted: () -> Unit,
+    onOpenHerbier: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = viewModel(
         factory = ProfileViewModel.factory(androidx.compose.ui.platform.LocalContext.current),
@@ -153,6 +154,7 @@ fun ProfileScreen(
                     onEditName = { showNameDialog = true },
                     onVerify = viewModel::requestEmailVerification,
                     onChangeEmail = viewModel::changeEmail,
+                    onOpenHerbier = onOpenHerbier,
                 )
 
                 1 -> BadgesTab()
@@ -181,6 +183,7 @@ private fun ProfileTab(
     onEditName: () -> Unit,
     onVerify: () -> Unit,
     onChangeEmail: (String) -> Unit,
+    onOpenHerbier: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -239,6 +242,31 @@ private fun ProfileTab(
                         color = MaterialTheme.colorScheme.primary,
                     )
                 }
+            }
+        }
+
+        // Accès à l'herbier (TÂCHE 5.6) : espèces distinctes regroupées par famille.
+        Card(
+            modifier = Modifier.fillMaxWidth().clickable { onOpenHerbier() },
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(text = "🌿", style = MaterialTheme.typography.headlineSmall)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Mon herbier",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = "Vos espèces distinctes, regroupées par famille",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(text = "›", style = MaterialTheme.typography.headlineSmall)
             }
         }
 

@@ -8,6 +8,12 @@
 -- (02-seed-species.sql), après le schéma. L'emoji suit le référentiel visuel de
 -- l'app (FlowerEmoji) : 🌸 défaut, 🌻 tournesol, 🌹 rose, 🌷 tulipe,
 -- 🌼 marguerite/composées, 🌺 hibiscus, 🌵 succulentes, 🪷 nénuphar.
+--
+-- La colonne `family` (Rosaceae, Asteraceae…) constitue le **référentiel embarqué
+-- de familles botaniques** exploité par l'herbier (TÂCHE 5.6) : le regroupement
+-- par famille et sa normalisation (SpeciesService.normalizeFamily) s'appuient sur
+-- ces libellés canoniques en casse Titre. Les familles absentes de ce seed restent
+-- « créables » : elles sont acceptées telles quelles, simplement normalisées.
 
 INSERT INTO species (scientific_name, common_name, family, emoji) VALUES
   -- Rosaceae

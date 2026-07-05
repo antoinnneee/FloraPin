@@ -68,6 +68,8 @@ private class MemFlowerDao : FlowerDao {
     override suspend fun countActive(): Int = 0
     override suspend fun countDistinctSpecies(): Int = 0
     override suspend fun geoTimes(): List<FlowerGeoTime> = emptyList()
+    override suspend fun speciesCounts(): List<com.florapin.app.data.LocalSpeciesCount> =
+        emptyList()
 }
 
 private class MemAlbumDao(private val flowers: MemFlowerDao) : AlbumDao {

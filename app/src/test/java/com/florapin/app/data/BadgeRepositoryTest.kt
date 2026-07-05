@@ -71,6 +71,7 @@ private class NoopFlowerDao : FlowerDao {
     override suspend fun countActive(): Int = 0
     override suspend fun countDistinctSpecies(): Int = 0
     override suspend fun geoTimes(): List<FlowerGeoTime> = emptyList()
+    override suspend fun speciesCounts(): List<LocalSpeciesCount> = emptyList()
 }
 
 /** FlowerDao minimal : seuls les agrégats de badges sont implémentés. */

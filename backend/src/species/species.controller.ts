@@ -7,8 +7,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { ListSpeciesQueryDto, SearchSpeciesQueryDto } from './dto/species.dto';
+import {
+  HerbierResponse,
+  ListSpeciesQueryDto,
+  SearchSpeciesQueryDto,
+} from './dto/species.dto';
 import { SpeciesService } from './species.service';
 
 /** Encyclopédie des espèces (NODE-125). */
@@ -30,6 +36,16 @@ export class SpeciesController {
   @Get('search')
   search(@Query() query: SearchSpeciesQueryDto) {
     return this.species.search(query.q, query.limit);
+  }
+
+  /**
+   * Herbier de l'utilisateur courant (TÂCHE 5.6) : espèces distinctes regroupées
+   * par famille botanique. Déclaré avant `:id` pour que /species/herbier ne soit
+   * pas pris pour un id.
+   */
+  @Get('herbier')
+  herbier(@CurrentUser() user: AuthenticatedUser): Promise<HerbierResponse> {
+    return this.species.herbierFor(user.userId);
   }
 
   /** Fiche détaillée d'une espèce. */

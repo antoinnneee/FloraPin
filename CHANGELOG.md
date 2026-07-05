@@ -13,6 +13,11 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Brouillon de commentaire conservé.** Le texte saisi dans le fil de discussion
+  d'une fleur n'est plus perdu si l'on ferme la bottom sheet (ou redémarre
+  l'appli) sans envoyer : il est persisté par fleur (`flowerServerId`) dans un
+  fichier de prefs dédié (`florapin_comment_drafts`) et restauré à la réouverture.
+  Le brouillon est effacé une fois le commentaire envoyé.
 - **Regroupement du feed par lot.** Quand un ami partage plusieurs fleurs d'un
   même geste, le feed « Partagées avec moi » les réunit en une carte-lot
   « Marie a partagé N fleurs » (aperçu de 3 miniatures) ; un tap déplie les

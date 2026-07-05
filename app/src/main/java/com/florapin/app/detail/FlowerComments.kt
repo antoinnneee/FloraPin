@@ -62,6 +62,7 @@ data class CommentsUiState(
  */
 class CommentsViewModel(
     private val api: CommentsApi,
+    private val drafts: CommentDraftStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CommentsUiState())
@@ -71,11 +72,16 @@ class CommentsViewModel(
 
     /** Associe la fleur [flowerServerId] (idempotent) et charge ses commentaires. */
     fun bind(flowerServerId: String) {
-        if (serverId == flowerServerId && !_state.value.loading) {
-            // Rechargement explicite uniquement si déjà chargé une fois.
-            if (_state.value.comments.isNotEmpty()) return
+        if (serverId != flowerServerId) {
+            serverId = flowerServerId
+            // Nouvelle fleur : restaure le brouillon éventuellement persisté
+            // (survit à la fermeture de la sheet / redémarrage de l'appli).
+            _state.update { it.copy(draft = drafts.load(flowerServerId)) }
+            load()
+            return
         }
-        serverId = flowerServerId
+        // Même fleur : rechargement explicite uniquement si pas encore chargée.
+        if (!_state.value.loading && _state.value.comments.isNotEmpty()) return
         load()
     }
 
@@ -93,9 +99,10 @@ class CommentsViewModel(
         }
     }
 
-    /** Met à jour le brouillon du champ de saisie. */
+    /** Met à jour le brouillon du champ de saisie (et le persiste par fleur). */
     fun updateDraft(text: String) {
         _state.update { it.copy(draft = text) }
+        serverId?.let { drafts.save(it, text) }
     }
 
     /** Poste le brouillon courant ; l'ajoute en fin de liste à la réussite. */
@@ -107,6 +114,8 @@ class CommentsViewModel(
         viewModelScope.launch {
             try {
                 val created = api.post(id, CreateCommentRequest(body))
+                // Envoi réussi : le brouillon persisté n'a plus lieu d'être.
+                drafts.clear(id)
                 _state.update {
                     it.copy(
                         submitting = false,
@@ -153,7 +162,8 @@ class CommentsViewModel(
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     val tokenStore = EncryptedTokenStore(context.applicationContext)
                     val apis = NetworkModule.createAuthenticated(tokenStore)
-                    return CommentsViewModel(apis.comments) as T
+                    val drafts = PrefsCommentDraftStore(context.applicationContext)
+                    return CommentsViewModel(apis.comments, drafts) as T
                 }
             }
     }

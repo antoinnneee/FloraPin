@@ -79,6 +79,13 @@ data class FlowerDto(
     val myReaction: String? = null,
     /** Nombre de commentaires reçus (TÂCHE 3.3). */
     val commentCount: Int = 0,
+    /**
+     * Partage ciblé par lequel la fleur arrive dans le feed (TÂCHE 3.6), ou null
+     * pour une diffusion réseau. Clé de regroupement en lot fiable côté client.
+     */
+    val shareId: String? = null,
+    /** Date du partage ciblé (ISO8601), ou null hors partage (TÂCHE 3.6). */
+    val sharedAt: String? = null,
     val tags: List<String> = emptyList(),
     val photos: List<PhotoDto> = emptyList(),
     val createdAt: String,

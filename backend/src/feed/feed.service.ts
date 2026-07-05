@@ -47,16 +47,24 @@ export class FeedService {
     ]);
 
     // Une fleur peut être à la fois diffusée et partagée ciblé : on déduplique
-    // par id en conservant la variante la plus permissive (GPS visible).
+    // par id en conservant la variante la plus permissive (GPS visible). Le
+    // `shareId` (TÂCHE 3.6) ne vient que du partage ciblé : on le reporte sur la
+    // variante retenue même si le GPS fait pencher pour la variante diffusée,
+    // afin de garder une clé de regroupement en lot fiable.
     const byId = new Map<string, FlowerResponse>();
     for (const flower of [...targeted, ...broadcast]) {
       const previous = byId.get(flower.id);
-      if (
-        !previous ||
-        (previous.latitude === null && flower.latitude !== null)
-      ) {
+      if (!previous) {
         byId.set(flower.id, flower);
+        continue;
       }
+      const kept =
+        previous.latitude === null && flower.latitude !== null
+          ? flower
+          : previous;
+      const shareId = previous.shareId ?? flower.shareId;
+      const sharedAt = previous.sharedAt ?? flower.sharedAt;
+      byId.set(flower.id, { ...kept, shareId, sharedAt });
     }
 
     // Tri (createdAt, id) DESC : l'id départage les ex æquo pour un ordre stable,

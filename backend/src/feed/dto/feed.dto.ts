@@ -11,6 +11,20 @@ import {
 
 export type FeedSort = 'date' | 'likes';
 
+/**
+ * Forme d'un item du feed (TÂCHE 3.6). Les items sont sérialisés depuis
+ * `FlowerResponse` (cf. flowers.service.ts) ; deux champs y servent le
+ * regroupement en lot côté client, documentés ici comme contrat du feed :
+ * - `shareId`  : partage ciblé de rattachement, ou null pour une diffusion
+ *   réseau (`visibility='friends'`). Clé de lot fiable et stable entre pages.
+ * - `sharedAt` : date du partage (`share.createdAt`, ISO8601), ou null hors
+ *   partage. Repli de fenêtre temporelle pour les fleurs sans `shareId`.
+ */
+export interface FeedItemFields {
+  shareId: string | null;
+  sharedAt: string | null;
+}
+
 export class FeedQueryDto {
   @IsOptional()
   @IsISO8601()

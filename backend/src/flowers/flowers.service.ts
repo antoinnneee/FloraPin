@@ -60,6 +60,15 @@ export interface FlowerResponse {
   myReaction: Reaction | null;
   /** Nombre de commentaires reçus (TÂCHE 3.3). */
   commentCount: number;
+  /**
+   * Identifiant du partage ciblé par lequel cette fleur apparaît dans le feed
+   * (TÂCHE 3.6), ou null pour une fleur diffusée au réseau (`visibility='friends'`)
+   * sans partage. Clé de regroupement fiable des lots côté client (« Marie a
+   * partagé N fleurs »), stable même si un lot est coupé entre deux pages.
+   */
+  shareId: string | null;
+  /** Date du partage ciblé (`share.createdAt`), ou null hors partage (TÂCHE 3.6). */
+  sharedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -446,6 +455,10 @@ export class FlowersService {
       reactionCounts,
       myReaction,
       commentCount,
+      // Renseignés par le feed des partages (SharesService.sharedWithMe) ; null
+      // par défaut hors contexte de partage ciblé (TÂCHE 3.6).
+      shareId: null,
+      sharedAt: null,
       createdAt: flower.createdAt,
       updatedAt: flower.updatedAt,
     };

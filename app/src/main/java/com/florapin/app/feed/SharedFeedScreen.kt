@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,14 +32,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.florapin.app.detail.CommentsBottomSheet
 import com.florapin.app.likes.LikeButton
 import com.florapin.app.likes.LikersBottomSheet
@@ -118,6 +124,17 @@ fun SharedFeedScreen(
             }
 
             val listState = rememberLazyListState()
+            // Regroupement en lot (TÂCHE 3.6) : dérivé de la liste plate à chaque
+            // changement. Un lot coupé entre deux pages se recompose ici dès que la
+            // page suivante est fusionnée (fusion par clé de lot, pas par position).
+            val rows = remember(state.items) { groupFeed(state.items) }
+            // Séparateur « nouveautés » (TÂCHE 3.2) traduit en index de LIGNE.
+            val separatorRow = remember(rows, state.newSeparatorIndex) {
+                separatorRowIndex(state.items, rows, state.newSeparatorIndex)
+            }
+            // Lots dépliés (par clé) : l'utilisateur a tapé la carte-lot pour l'ouvrir.
+            val expandedBatches = remember { mutableStateListOf<String>() }
+
             // Déclenche le chargement de la page suivante quand on approche du bas
             // (pagination keyset, TÂCHE 1.2). La garde loadMore() évite les doublons.
             val shouldLoadMore by remember {
@@ -140,19 +157,47 @@ fun SharedFeedScreen(
                 item {
                     SortBar(selected = state.sort, onSelect = viewModel::setSort)
                 }
-                itemsIndexed(state.items, key = { _, item -> item.flower.id }) { index, item ->
+                itemsIndexed(rows, key = { _, row -> row.key }) { index, row ->
                     // Séparateur « Nouveau depuis votre dernière visite » juste avant
-                    // la première fleur déjà vue (TÂCHE 3.2).
-                    if (index == state.newSeparatorIndex) {
+                    // la première ligne déjà vue (TÂCHE 3.2).
+                    if (index == separatorRow) {
                         NewSinceLastVisitSeparator()
                     }
-                    SharedFlowerCard(
-                        item = item,
-                        onToggleLike = { viewModel.toggleLike(item.flower.id) },
-                        onReact = { code -> viewModel.react(item.flower.id, code) },
-                        onOpenLikers = { likersFor = item.flower.id },
-                        onComment = { commentsFor = item.flower.id },
-                    )
+                    when (row) {
+                        is FeedRow.Single -> SharedFlowerCard(
+                            item = row.item,
+                            onToggleLike = { viewModel.toggleLike(row.item.flower.id) },
+                            onReact = { code -> viewModel.react(row.item.flower.id, code) },
+                            onOpenLikers = { likersFor = row.item.flower.id },
+                            onComment = { commentsFor = row.item.flower.id },
+                        )
+                        // Carte-lot « Marie a partagé N fleurs » (TÂCHE 3.6) : le tap
+                        // déplie les fleurs du lot juste en dessous, sans quitter le feed.
+                        is FeedRow.Batch -> {
+                            val expanded = row.key in expandedBatches
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                BatchHeaderCard(
+                                    row = row,
+                                    expanded = expanded,
+                                    onToggle = {
+                                        if (expanded) expandedBatches.remove(row.key)
+                                        else expandedBatches.add(row.key)
+                                    },
+                                )
+                                if (expanded) {
+                                    row.items.forEach { batchItem ->
+                                        SharedFlowerCard(
+                                            item = batchItem,
+                                            onToggleLike = { viewModel.toggleLike(batchItem.flower.id) },
+                                            onReact = { code -> viewModel.react(batchItem.flower.id, code) },
+                                            onOpenLikers = { likersFor = batchItem.flower.id },
+                                            onComment = { commentsFor = batchItem.flower.id },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 if (state.loadingMore) {
                     item(key = "loading-more") {
@@ -204,6 +249,60 @@ private fun NewSinceLastVisitSeparator() {
             color = MaterialTheme.colorScheme.primary,
         )
         HorizontalDivider(modifier = Modifier.weight(1f))
+    }
+}
+
+/**
+ * Carte-lot repliée (TÂCHE 3.6) : « Marie a partagé N fleurs » avec un aperçu de
+ * quelques miniatures. Un tap déplie (ou replie) les fleurs du lot juste en dessous.
+ */
+@Composable
+private fun BatchHeaderCard(
+    row: FeedRow.Batch,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+) {
+    val count = row.items.size
+    val who = row.ownerName ?: "Un ami"
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggle),
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            // Aperçu : jusqu'à 3 miniatures des premières fleurs du lot.
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                row.items.take(3).forEach { item ->
+                    AsyncImage(
+                        model = item.flower.previewPhotoUrls().firstOrNull(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                    )
+                }
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "$who a partagé $count fleurs",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = if (expanded) "Toucher pour réduire" else "Toucher pour ouvrir le lot",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Text(
+                text = if (expanded) "▲" else "▼",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
     }
 }
 

@@ -26,6 +26,82 @@ data class SharedFlowerItem(
     val ownerName: String?,
 )
 
+/**
+ * Une ligne du feed regroupé (TÂCHE 3.6) : soit une fleur isolée, soit un lot
+ * « Marie a partagé N fleurs » ouvrable au tap. [key] sert de clé de liste
+ * Compose stable (et de clé de regroupement) ; [items] est la (les) fleur(s).
+ */
+sealed interface FeedRow {
+    val key: String
+    val items: List<SharedFlowerItem>
+
+    data class Single(val item: SharedFlowerItem) : FeedRow {
+        override val key: String get() = "flower:${item.flower.id}"
+        override val items: List<SharedFlowerItem> get() = listOf(item)
+    }
+
+    data class Batch(
+        override val key: String,
+        val ownerName: String?,
+        override val items: List<SharedFlowerItem>,
+    ) : FeedRow
+}
+
+/** Taille minimale d'un groupe pour l'afficher comme lot (sinon fleurs isolées). */
+internal const val BATCH_MIN_SIZE = 3
+
+/**
+ * Clé de lot d'un item (TÂCHE 3.6) : le partage ciblé (`shareId`) quand il
+ * existe — repère fiable et stable entre pages — sinon un repli « propriétaire +
+ * jour de partage/publication » pour agréger les fleurs diffusées au réseau
+ * (sans partage) publiées le même jour par un même ami.
+ */
+internal fun SharedFlowerItem.batchKey(): String {
+    flower.shareId?.let { return "share:$it" }
+    val day = (flower.sharedAt ?: flower.createdAt).take(10)
+    return "owner:${flower.ownerId}:day:$day"
+}
+
+/**
+ * Regroupe le feed plat (déjà trié par date décroissante) en lignes (TÂCHE 3.6).
+ * Le regroupement se fait par CLÉ de lot, pas par position : un lot coupé entre
+ * deux pages du curseur se recompose dès que la page suivante est fusionnée dans
+ * la liste. L'ordre des lignes suit la PREMIÈRE occurrence de chaque clé (donc la
+ * fleur la plus récente du lot), préservant le tri stable par date. Un groupe d'au
+ * moins [BATCH_MIN_SIZE] fleurs devient une carte-lot ; en deçà, chaque fleur reste
+ * une ligne isolée.
+ */
+internal fun groupFeed(items: List<SharedFlowerItem>): List<FeedRow> {
+    val groups = LinkedHashMap<String, MutableList<SharedFlowerItem>>()
+    for (item in items) {
+        groups.getOrPut(item.batchKey()) { mutableListOf() }.add(item)
+    }
+    return groups.entries.flatMap { (key, group) ->
+        if (group.size >= BATCH_MIN_SIZE) {
+            listOf(FeedRow.Batch(key, group.first().ownerName, group.toList()))
+        } else {
+            group.map { FeedRow.Single(it) }
+        }
+    }
+}
+
+/**
+ * Traduit l'index-fleur du séparateur « Nouveau depuis votre dernière visite »
+ * (TÂCHE 3.2, calculé sur la liste plate par [feedNewSeparatorIndex]) en index de
+ * LIGNE dans le feed regroupé (TÂCHE 3.6) : le séparateur se dessine juste avant la
+ * ligne qui contient la première fleur déjà vue. Renvoie null s'il n'y a pas de
+ * séparateur ([itemIndex] null) ou si l'index ne retombe sur aucune ligne.
+ */
+internal fun separatorRowIndex(
+    items: List<SharedFlowerItem>,
+    rows: List<FeedRow>,
+    itemIndex: Int?,
+): Int? {
+    val idx = itemIndex ?: return null
+    val boundary = items.getOrNull(idx) ?: return null
+    return rows.indexOfFirst { row -> boundary in row.items }.takeIf { it >= 0 }
+}
+
 /** Ordre du feed (NODE-140). */
 enum class FeedSort(val apiValue: String, val label: String) {
     DATE("date", "Récentes"),

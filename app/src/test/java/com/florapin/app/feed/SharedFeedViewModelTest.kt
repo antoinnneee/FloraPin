@@ -17,6 +17,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Before
 import org.junit.Test
@@ -43,6 +44,17 @@ private fun flower(
 
 private fun item(id: String, createdAt: String) =
     SharedFlowerItem(flower(id, "alice", createdAt = createdAt), ownerName = "Alice")
+
+/** Item rattaché à un partage ciblé [shareId] (clé de lot fiable, TÂCHE 3.6). */
+private fun batchItem(id: String, shareId: String, createdAt: String) =
+    SharedFlowerItem(
+        flower(id, "alice", createdAt = createdAt).copy(shareId = shareId),
+        ownerName = "Alice",
+    )
+
+/** Item diffusé au réseau (sans partage), regroupé par owner + jour de création. */
+private fun broadcastItem(id: String, owner: String, createdAt: String) =
+    SharedFlowerItem(flower(id, owner, createdAt = createdAt), ownerName = owner)
 
 private fun friendship(userId: String, name: String) = FriendshipDto(
     id = "f-$userId",
@@ -349,6 +361,79 @@ class SharedFeedViewModelTest {
             item("n2", "2026-06-21T11:00:00Z"),
         )
         assertNull(feedNewSeparatorIndex(items, cutoff = "2026-06-21T10:00:00Z"))
+    }
+
+    @Test
+    fun groupFeed_groupsShareIntoBatchAboveThreshold() {
+        // 3 fleurs d'un même partage ciblé → une carte-lot (TÂCHE 3.6).
+        val items = listOf(
+            batchItem("a", "s1", "2026-06-21T12:00:00Z"),
+            batchItem("b", "s1", "2026-06-21T11:00:00Z"),
+            batchItem("c", "s1", "2026-06-21T10:00:00Z"),
+        )
+        val rows = groupFeed(items)
+        assertEquals(1, rows.size)
+        assertTrue(rows[0] is FeedRow.Batch)
+        assertEquals(3, rows[0].items.size)
+    }
+
+    @Test
+    fun groupFeed_smallGroupStaysSingles() {
+        // En deçà du seuil, les fleurs restent isolées (pas de carte-lot).
+        val items = listOf(
+            batchItem("a", "s1", "2026-06-21T12:00:00Z"),
+            batchItem("b", "s1", "2026-06-21T11:00:00Z"),
+        )
+        val rows = groupFeed(items)
+        assertEquals(2, rows.size)
+        assertTrue(rows.all { it is FeedRow.Single })
+    }
+
+    @Test
+    fun groupFeed_mergesBatchByKeyNotPosition() {
+        // Lot 's1' coupé par une fleur d'un autre ami (comme entre deux pages) :
+        // le regroupement se fait par clé → un seul lot, positionné à sa plus
+        // récente fleur ; l'ordre par date est préservé.
+        val items = listOf(
+            batchItem("a", "s1", "2026-06-21T12:00:00Z"),
+            broadcastItem("x", "bob", "2026-06-21T11:30:00Z"),
+            batchItem("b", "s1", "2026-06-21T11:00:00Z"),
+            batchItem("c", "s1", "2026-06-21T10:00:00Z"),
+        )
+        val rows = groupFeed(items)
+        assertEquals(2, rows.size)
+        assertTrue(rows[0] is FeedRow.Batch)
+        assertEquals(listOf("a", "b", "c"), rows[0].items.map { it.flower.id })
+        assertTrue(rows[1] is FeedRow.Single)
+        assertEquals("x", rows[1].items.first().flower.id)
+    }
+
+    @Test
+    fun groupFeed_broadcastGroupedByOwnerAndDay() {
+        // Fleurs diffusées (sans partage) d'un même ami le même jour → un lot.
+        val items = listOf(
+            broadcastItem("d1", "bob", "2026-06-21T09:00:00Z"),
+            broadcastItem("d2", "bob", "2026-06-21T08:00:00Z"),
+            broadcastItem("d3", "bob", "2026-06-21T07:00:00Z"),
+        )
+        val rows = groupFeed(items)
+        assertEquals(1, rows.size)
+        assertTrue(rows[0] is FeedRow.Batch)
+    }
+
+    @Test
+    fun separatorRowIndex_translatesItemIndexToRow() {
+        // Lot (a,b,c) puis une fleur déjà vue v1 : le séparateur (index-fleur 3)
+        // se traduit en index de LIGNE 1 (juste avant la ligne de v1).
+        val items = listOf(
+            batchItem("a", "s1", "2026-06-21T12:00:00Z"),
+            batchItem("b", "s1", "2026-06-21T11:00:00Z"),
+            batchItem("c", "s1", "2026-06-21T10:00:00Z"),
+            item("v1", "2026-06-21T09:00:00Z"),
+        )
+        val rows = groupFeed(items)
+        assertEquals(1, separatorRowIndex(items, rows, itemIndex = 3))
+        assertNull(separatorRowIndex(items, rows, itemIndex = null))
     }
 
     @Test

@@ -13,6 +13,15 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Regroupement du feed par lot.** Quand un ami partage plusieurs fleurs d'un
+  même geste, le feed « Partagées avec moi » les réunit en une carte-lot
+  « Marie a partagé N fleurs » (aperçu de 3 miniatures) ; un tap déplie les
+  fleurs du lot juste en dessous, sans quitter le feed. Le regroupement se fait
+  par clé de lot (partage ciblé `shareId`, sinon repli « ami + jour » pour les
+  fleurs diffusées au réseau), pas par position : un lot coupé entre deux pages
+  de pagination se recompose dès le chargement de la page suivante, en gardant un
+  tri stable par date. L'API du feed expose désormais `shareId`/`sharedAt` sur
+  chaque item pour un regroupement fiable côté client.
 - **Réactions enrichies sur les fleurs.** Le cœur devient un jeu de réactions :
   un appui long sur l'emoji ouvre un sélecteur (😍 🌸 🌹 🌼 🪻 🔍 👍) ; un simple
   tap pose (ou retire) la réaction par défaut ❤️. Le libellé récapitule les types

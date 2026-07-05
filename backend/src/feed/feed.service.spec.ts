@@ -31,6 +31,8 @@ function flower(
     reactionCounts: {},
     myReaction: null,
     commentCount: 0,
+    shareId: null,
+    sharedAt: null,
     createdAt: new Date(createdAt),
     updatedAt: new Date(createdAt),
     ...overrides,
@@ -146,5 +148,34 @@ describe('FeedService', () => {
     const result = await feed.getFeed('viewer');
     expect(result).toHaveLength(1);
     expect(result[0].latitude).toBe(48.85);
+  });
+
+  it('reporte le shareId du partage ciblé même si le GPS penche pour la diffusion', async () => {
+    // Fleur 'b' partagée en ciblé (shareId, sans GPS) et diffusée (avec GPS) :
+    // on garde le GPS diffusé MAIS on conserve le shareId pour grouper le lot.
+    shared = [
+      flower('b', '2026-06-21T10:00:00Z', {
+        latitude: null,
+        longitude: null,
+        shareId: 's1',
+        sharedAt: new Date('2026-06-21T09:00:00Z'),
+      }),
+    ];
+    broadcast = [
+      flower('b', '2026-06-21T10:00:00Z', { latitude: 48.85, longitude: 2.29 }),
+    ];
+    const result = await feed.getFeed('viewer');
+    expect(result).toHaveLength(1);
+    expect(result[0].latitude).toBe(48.85);
+    expect(result[0].shareId).toBe('s1');
+  });
+
+  it('conserve le shareId de chaque item pour le regroupement en lot', async () => {
+    shared = [
+      flower('a', '2026-06-20T10:00:00Z', { shareId: 's1' }),
+      flower('b', '2026-06-21T10:00:00Z', { shareId: 's1' }),
+    ];
+    const result = await feed.getFeed('viewer');
+    expect(result.map((f) => f.shareId)).toEqual(['s1', 's1']);
   });
 });

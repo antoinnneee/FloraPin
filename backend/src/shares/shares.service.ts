@@ -237,9 +237,12 @@ export class SharesService {
     const shares = await this.sharesVisibleTo(viewerId);
 
     // Résout les fleurs de chaque partage en mémorisant, par id, la variante GPS
-    // la plus permissive (GPS visible s'il l'est dans au moins un partage).
+    // la plus permissive (GPS visible s'il l'est dans au moins un partage) et le
+    // partage de rattachement (le PLUS RÉCENT quand la fleur figure dans
+    // plusieurs partages) pour un regroupement en lot fiable côté client (3.6).
     const flowerById = new Map<string, Flower>();
     const includeGpsById = new Map<string, boolean>();
+    const shareInfoById = new Map<string, { shareId: string; sharedAt: Date }>();
     for (const share of shares) {
       const flowers = await this.resolveFlowers(share, cursor, limit);
       for (const flower of flowers) {
@@ -248,6 +251,13 @@ export class SharesService {
           flower.id,
           (includeGpsById.get(flower.id) ?? false) || share.includeGps,
         );
+        const prev = shareInfoById.get(flower.id);
+        if (!prev || share.createdAt.getTime() > prev.sharedAt.getTime()) {
+          shareInfoById.set(flower.id, {
+            shareId: share.id,
+            sharedAt: share.createdAt,
+          });
+        }
       }
     }
 
@@ -255,9 +265,13 @@ export class SharesService {
     // bornés au SQL : album/single) puis tranche à `limit` avant le batch.
     const page = orderAndSlice([...flowerById.values()], cursor, limit);
     const responses = await this.flowersService.toResponseMany(page, viewerId);
-    return responses.map((response) =>
-      includeGpsById.get(response.id) ? response : stripGps(response),
-    );
+    return responses.map((response) => {
+      const info = shareInfoById.get(response.id);
+      const tagged: FlowerResponse = info
+        ? { ...response, shareId: info.shareId, sharedAt: info.sharedAt }
+        : response;
+      return includeGpsById.get(response.id) ? tagged : stripGps(tagged);
+    });
   }
 
   /**

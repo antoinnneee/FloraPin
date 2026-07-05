@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -19,6 +21,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -223,11 +226,19 @@ private fun SharedFlowerCard(
                     item.ownerName?.let {
                         Text("Partagée par $it", style = MaterialTheme.typography.bodyMedium)
                     } ?: Box(Modifier)
-                    LikeButton(
-                        liked = flower.likedByMe,
-                        count = flower.likeCount,
-                        onToggle = onToggleLike,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        LikeButton(
+                            liked = flower.likedByMe,
+                            count = flower.likeCount,
+                            onToggle = onToggleLike,
+                        )
+                        // Compteur de commentaires (TÂCHE 3.3) : 💬 à côté du cœur,
+                        // ouvre le fil au clic.
+                        CommentCount(count = flower.commentCount, onClick = onComment)
+                    }
                 }
                 flower.species?.takeIf { it.isNotBlank() }?.let {
                     Text("🌿 $it", style = MaterialTheme.typography.bodyMedium)
@@ -249,6 +260,31 @@ private fun SharedFlowerCard(
                     Text("💬 Commenter")
                 }
             }
+        }
+    }
+}
+
+/**
+ * Compteur de commentaires (TÂCHE 3.3) : puce 💬 + nombre, calquée sur
+ * `LikeButton`, à côté du cœur. Ouvre le fil de commentaires au clic.
+ */
+@Composable
+private fun CommentCount(count: Int, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        tonalElevation = 1.dp,
+        modifier = Modifier.clickable(onClick = onClick),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+        ) {
+            Text("💬")
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
     }
 }

@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { FlowerLike } from '../likes/flower-like.entity';
+import { FlowerComment } from '../comments/flower-comment.entity';
 import { StorageService } from '../storage/storage.service';
 import { StubStorageService } from '../storage/stub-storage.service';
 import { Flower } from './flower.entity';
@@ -132,6 +133,21 @@ describe('FlowersService', () => {
         {
           provide: getRepositoryToken(FlowerLike),
           useValue: { count: async () => 0, find: async () => [] },
+        },
+        {
+          provide: getRepositoryToken(FlowerComment),
+          useValue: {
+            count: async () => 0,
+            createQueryBuilder: () => ({
+              select: () => ({
+                addSelect: () => ({
+                  where: () => ({
+                    groupBy: () => ({ getRawMany: async () => [] }),
+                  }),
+                }),
+              }),
+            }),
+          },
         },
         { provide: StorageService, useClass: StubStorageService },
       ],

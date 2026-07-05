@@ -13,6 +13,10 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Compteur de commentaires sur les cartes du feed.** Chaque fleur partagée
+  affiche désormais une puce 💬 avec le nombre de commentaires reçus, à côté du
+  cœur ; un clic ouvre le fil. Le compte est renvoyé par l'API (`commentCount`)
+  et agrégé en une seule requête groupée côté backend (pas de N+1 sur la liste).
 - **Séparateur « Nouveau depuis votre dernière visite » dans le feed.** En tri par
   date, un filet libellé s'insère juste avant la première fleur déjà présente à la
   précédente ouverture de l'onglet 🖼️, isolant les nouveautés en tête de liste.

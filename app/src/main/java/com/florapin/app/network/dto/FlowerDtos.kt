@@ -73,6 +73,8 @@ data class FlowerDto(
     val likeCount: Int = 0,
     /** Le spectateur courant a-t-il liké cette fleur (NODE-139/140). */
     val likedByMe: Boolean = false,
+    /** Nombre de commentaires reçus (TÂCHE 3.3). */
+    val commentCount: Int = 0,
     val tags: List<String> = emptyList(),
     val photos: List<PhotoDto> = emptyList(),
     val createdAt: String,

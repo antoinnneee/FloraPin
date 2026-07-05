@@ -5,6 +5,7 @@ import { Flower } from '../flowers/flower.entity';
 import { FlowerPhoto } from '../flowers/flower-photo.entity';
 import { FlowersService } from '../flowers/flowers.service';
 import { FlowerLike } from '../likes/flower-like.entity';
+import { FlowerComment } from '../comments/flower-comment.entity';
 import { StorageService } from '../storage/storage.service';
 import { StubStorageService } from '../storage/stub-storage.service';
 import { SyncService } from './sync.service';
@@ -85,6 +86,21 @@ describe('SyncService', () => {
         {
           provide: getRepositoryToken(FlowerLike),
           useValue: { count: async () => 0, find: async () => [] },
+        },
+        {
+          provide: getRepositoryToken(FlowerComment),
+          useValue: {
+            count: async () => 0,
+            createQueryBuilder: () => ({
+              select: () => ({
+                addSelect: () => ({
+                  where: () => ({
+                    groupBy: () => ({ getRawMany: async () => [] }),
+                  }),
+                }),
+              }),
+            }),
+          },
         },
         { provide: StorageService, useClass: StubStorageService },
       ],

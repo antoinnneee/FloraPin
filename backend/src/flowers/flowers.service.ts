@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { FlowerLike } from '../likes/flower-like.entity';
+import { FlowerComment } from '../comments/flower-comment.entity';
 import { StorageService, PresignedUpload } from '../storage/storage.service';
 import { encodeWebp } from '../storage/image-processing';
 import { CreateFlowerDto, UpdateFlowerDto } from './dto/flower.dto';
@@ -49,6 +50,8 @@ export interface FlowerResponse {
   likeCount: number;
   /** Le spectateur courant a-t-il liké cette fleur (NODE-139). */
   likedByMe: boolean;
+  /** Nombre de commentaires reçus (TÂCHE 3.3). */
+  commentCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,6 +70,8 @@ export class FlowersService {
     private readonly photos: Repository<FlowerPhoto>,
     @InjectRepository(FlowerLike)
     private readonly likes: Repository<FlowerLike>,
+    @InjectRepository(FlowerComment)
+    private readonly comments: Repository<FlowerComment>,
     private readonly storage: StorageService,
   ) {}
 
@@ -299,7 +304,16 @@ export class FlowersService {
           where: { flowerId: flower.id, userId: viewerId },
         })) > 0
       : false;
-    return this.buildResponse(flower, photos, likeCount, likedByMe);
+    const commentCount = await this.comments.count({
+      where: { flowerId: flower.id },
+    });
+    return this.buildResponse(
+      flower,
+      photos,
+      likeCount,
+      likedByMe,
+      commentCount,
+    );
   }
 
   /**
@@ -342,6 +356,20 @@ export class FlowersService {
       if (viewerId && like.userId === viewerId) likedByViewer.add(like.flowerId);
     }
 
+    // Comptage groupé des commentaires (TÂCHE 3.3) : un seul COUNT ... GROUP BY
+    // sur la page, sans charger les corps de commentaires (évite le N+1).
+    const commentCountByFlower = new Map<string, number>();
+    const commentRows = await this.comments
+      .createQueryBuilder('c')
+      .select('c.flower_id', 'flowerId')
+      .addSelect('COUNT(*)', 'count')
+      .where('c.flower_id IN (:...flowerIds)', { flowerIds })
+      .groupBy('c.flower_id')
+      .getRawMany<{ flowerId: string; count: string }>();
+    for (const row of commentRows) {
+      commentCountByFlower.set(row.flowerId, Number(row.count));
+    }
+
     return Promise.all(
       flowers.map((flower) =>
         this.buildResponse(
@@ -349,6 +377,7 @@ export class FlowersService {
           photosByFlower.get(flower.id) ?? [],
           likeCountByFlower.get(flower.id) ?? 0,
           viewerId ? likedByViewer.has(flower.id) : false,
+          commentCountByFlower.get(flower.id) ?? 0,
         ),
       ),
     );
@@ -360,6 +389,7 @@ export class FlowersService {
     photos: FlowerPhoto[],
     likeCount: number,
     likedByMe: boolean,
+    commentCount: number,
   ): Promise<FlowerResponse> {
     const [longitude, latitude] = flower.location?.coordinates ?? [null, null];
     const photoResponses: PhotoResponse[] = await Promise.all(
@@ -400,6 +430,7 @@ export class FlowersService {
       photos: photoResponses,
       likeCount,
       likedByMe,
+      commentCount,
       createdAt: flower.createdAt,
       updatedAt: flower.updatedAt,
     };

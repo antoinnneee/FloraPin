@@ -28,6 +28,7 @@ function flower(
     photos: [],
     likeCount: 0,
     likedByMe: false,
+    commentCount: 0,
     createdAt: new Date(createdAt),
     updatedAt: new Date(createdAt),
     ...overrides,

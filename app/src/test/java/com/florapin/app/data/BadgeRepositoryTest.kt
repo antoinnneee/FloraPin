@@ -50,6 +50,7 @@ private class NoopFlowerDao : FlowerDao {
         Flow<List<FlowerEntity>> = emptyFlow()
     override suspend fun findByServerId(serverId: String): FlowerEntity? = null
     override suspend fun allActive(): List<FlowerEntity> = emptyList()
+    override suspend fun recentActive(limit: Int): List<FlowerEntity> = emptyList()
     override suspend fun findLocalTwin(createdAt: Long): FlowerEntity? = null
     override fun observeById(id: Long): Flow<FlowerEntity?> = emptyFlow()
     override suspend fun insert(flower: FlowerEntity): Long = 0

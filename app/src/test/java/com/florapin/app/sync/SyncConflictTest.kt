@@ -32,6 +32,8 @@ private class MemDao : FlowerDao {
     override suspend fun findByServerId(serverId: String) =
         store.values.find { it.serverId == serverId }
     override suspend fun allActive() = store.values.filter { it.deletedAt == null }
+    override suspend fun recentActive(limit: Int) =
+        store.values.filter { it.deletedAt == null }.sortedByDescending { it.createdAt }.take(limit)
     override suspend fun findLocalTwin(createdAt: Long) =
         store.values.find {
             it.createdAt == createdAt && it.imagePath.isNotEmpty() && it.deletedAt == null

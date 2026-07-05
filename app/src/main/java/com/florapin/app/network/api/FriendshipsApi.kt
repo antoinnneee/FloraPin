@@ -1,5 +1,6 @@
 package com.florapin.app.network.api
 
+import com.florapin.app.network.dto.AddFriendByIdRequest
 import com.florapin.app.network.dto.CreateFriendshipRequest
 import com.florapin.app.network.dto.FriendshipDto
 import retrofit2.Response
@@ -15,6 +16,10 @@ interface FriendshipsApi {
 
     @POST("friendships")
     suspend fun request(@Body body: CreateFriendshipRequest): FriendshipDto
+
+    /** Ajout d'ami par QR code (TÂCHE 4.5) : envoie l'id (UUID) scanné. */
+    @POST("friendships/by-id")
+    suspend fun requestById(@Body body: AddFriendByIdRequest): FriendshipDto
 
     @POST("friendships/{id}/accept")
     suspend fun accept(@Path("id") id: String): FriendshipDto

@@ -21,6 +21,16 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Ajout d'ami par QR code (TÂCHE 4.5).** Sur le terrain, sans lien web : depuis
+  l'écran « Amis », chacun peut afficher son QR code (« Mon QR code ») ou scanner
+  celui d'un ami (« Scanner un QR »). Le scan envoie une demande d'amitié. Le QR
+  encode l'**identifiant** (UUID) de l'utilisateur, jamais son email (vie privée).
+  Génération et décodage 100 % locaux via ZXing (`com.google.zxing:core`, aucune
+  dépendance réseau/Play Services). Nouvel endpoint `POST /friendships/by-id`
+  (corps `{ userId }`) : contrairement à l'ajout par email, l'**acceptation
+  croisée est automatique** quand chacun scanne l'autre (consentement mutuel), et
+  le re-scan (demande déjà envoyée ou déjà amis) est idempotent — pas de 409. Le
+  scan réutilise le flux de permission caméra existant (`permission/`).
 - **Relance manuelle d'une demande d'identification.** Depuis l'onglet « Mes
   demandes », un bouton « 🔔 Relancer mes amis » re-sollicite tout le réseau
   d'amis sur une fleur toujours « à identifier ». Nouvel endpoint

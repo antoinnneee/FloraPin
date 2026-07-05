@@ -48,6 +48,35 @@ fun FriendsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var invitee by remember { mutableStateOf("") }
+    var showQrSheet by remember { mutableStateOf(false) }
+    var scanning by remember { mutableStateOf(false) }
+
+    // Scan plein écran : remplace la liste tant qu'il est actif.
+    if (scanning) {
+        QrScanScreen(
+            onScanned = { payload ->
+                viewModel.addByScan(payload)
+                scanning = false
+            },
+            onBack = { scanning = false },
+            modifier = modifier,
+        )
+        return
+    }
+
+    if (showQrSheet) {
+        val selfId = viewModel.selfUserId
+        if (selfId != null) {
+            QrCodeSheet(
+                userId = selfId,
+                displayName = viewModel.selfDisplayName,
+                onDismiss = { showQrSheet = false },
+            )
+        } else {
+            // Identité locale inconnue (rare) : rien à afficher, on referme.
+            showQrSheet = false
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -73,6 +102,13 @@ fun FriendsScreen(
                         viewModel.invite(invitee)
                         invitee = ""
                     },
+                )
+            }
+
+            item {
+                QrActions(
+                    onShowMyQr = { showQrSheet = true },
+                    onScan = { scanning = true },
                 )
             }
 
@@ -166,6 +202,31 @@ private fun InviteField(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Inviter")
+        }
+    }
+}
+
+/** Deux entrées d'ajout par QR code : afficher le sien, ou scanner celui d'un ami. */
+@Composable
+private fun QrActions(
+    onShowMyQr: () -> Unit,
+    onScan: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        OutlinedButton(
+            onClick = onShowMyQr,
+            modifier = Modifier.weight(1f),
+        ) {
+            Text("Mon QR code")
+        }
+        OutlinedButton(
+            onClick = onScan,
+            modifier = Modifier.weight(1f),
+        ) {
+            Text("Scanner un QR")
         }
     }
 }

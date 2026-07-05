@@ -157,6 +157,54 @@ describe('FriendshipsService', () => {
     expect(await service.acceptedFriendIds(BOB)).toEqual([ALICE]);
   });
 
+  it('ajout par id : crée une demande en attente', async () => {
+    const res = await service.requestById(ALICE, BOB);
+    expect(res.status).toBe('pending');
+    expect(res.direction).toBe('outgoing');
+    expect(res.user.id).toBe(BOB);
+  });
+
+  it('ajout par id : refuse l’auto-ajout', async () => {
+    await expect(service.requestById(ALICE, ALICE)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it('ajout par id : refuse un utilisateur inconnu', async () => {
+    await expect(service.requestById(ALICE, 'ghost')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('ajout par id : acceptation croisée si chacun scanne l’autre', async () => {
+    // Bob a scanné le QR d'Alice → demande Bob → Alice.
+    const req = await service.requestById(BOB, ALICE);
+    expect(req.status).toBe('pending');
+    // Alice scanne à son tour le QR de Bob : consentement mutuel → accepté.
+    const res = await service.requestById(ALICE, BOB);
+    expect(res.status).toBe('accepted');
+    // Aucune relation en double : la même ligne a basculé en 'accepted'.
+    expect(repo.store.size).toBe(1);
+    expect(await service.acceptedFriendIds(ALICE)).toEqual([BOB]);
+    expect(await service.acceptedFriendIds(BOB)).toEqual([ALICE]);
+  });
+
+  it('ajout par id : re-scan de ma propre demande sortante est sans effet', async () => {
+    const first = await service.requestById(ALICE, BOB);
+    const again = await service.requestById(ALICE, BOB);
+    expect(again.id).toBe(first.id);
+    expect(again.status).toBe('pending');
+    expect(repo.store.size).toBe(1);
+  });
+
+  it('ajout par id : re-scan quand déjà amis est sans effet (pas de 409)', async () => {
+    const req = await service.requestById(ALICE, BOB);
+    await service.accept(BOB, req.id);
+    const res = await service.requestById(ALICE, BOB);
+    expect(res.status).toBe('accepted');
+    expect(repo.store.size).toBe(1);
+  });
+
   it('liste les relations avec direction', async () => {
     await service.request(ALICE, BOB);
     const aliceList = await service.list(ALICE);

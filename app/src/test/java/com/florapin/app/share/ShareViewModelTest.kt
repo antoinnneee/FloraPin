@@ -35,6 +35,8 @@ private fun friendship(id: String, status: String) = FriendshipDto(
 private class FakeFriendshipsApi(private val data: List<FriendshipDto>) : FriendshipsApi {
     override suspend fun list() = data
     override suspend fun request(body: CreateFriendshipRequest) = data.first()
+    override suspend fun requestById(body: com.florapin.app.network.dto.AddFriendByIdRequest) =
+        data.first()
     override suspend fun accept(id: String) = data.first()
     override suspend fun remove(id: String) = Response.success<Unit>(null)
 }

@@ -1,6 +1,7 @@
 package com.florapin.app.friends
 
 import com.florapin.app.network.api.FriendshipsApi
+import com.florapin.app.network.dto.AddFriendByIdRequest
 import com.florapin.app.network.dto.CreateFriendshipRequest
 import com.florapin.app.network.dto.FriendUserDto
 import com.florapin.app.network.dto.FriendshipDto
@@ -33,12 +34,17 @@ private class FakeFriendshipsApi(
     var data: MutableList<FriendshipDto> = mutableListOf(),
 ) : FriendshipsApi {
     var requested: String? = null
+    var requestedById: String? = null
     var accepted: String? = null
     var removed: String? = null
 
     override suspend fun list(): List<FriendshipDto> = data
     override suspend fun request(body: CreateFriendshipRequest): FriendshipDto {
         requested = body.email
+        return friendship("new", "pending", "outgoing")
+    }
+    override suspend fun requestById(body: AddFriendByIdRequest): FriendshipDto {
+        requestedById = body.userId
         return friendship("new", "pending", "outgoing")
     }
     override suspend fun accept(id: String): FriendshipDto {
@@ -98,6 +104,45 @@ class FriendsViewModelTest {
         advanceUntilIdle()
 
         assertEquals("ami@florapin.fr", api.requested)
+    }
+
+    @Test
+    fun addByScan_validCode_sendsRequestById() = runTest {
+        val api = FakeFriendshipsApi()
+        val vm = FriendsViewModel(api, selfUserId = "11111111-1111-1111-1111-111111111111")
+        advanceUntilIdle()
+
+        val other = "22222222-2222-2222-2222-222222222222"
+        vm.addByScan(FriendQrCodec.encode(other))
+        advanceUntilIdle()
+
+        assertEquals(other, api.requestedById)
+    }
+
+    @Test
+    fun addByScan_unknownPayload_setsErrorAndSkipsNetwork() = runTest {
+        val api = FakeFriendshipsApi()
+        val vm = FriendsViewModel(api)
+        advanceUntilIdle()
+
+        vm.addByScan("https://example.com/whatever")
+        advanceUntilIdle()
+
+        assertEquals(null, api.requestedById)
+        assertEquals("QR code non reconnu.", vm.state.value.error)
+    }
+
+    @Test
+    fun addByScan_ownCode_setsErrorAndSkipsNetwork() = runTest {
+        val self = "33333333-3333-3333-3333-333333333333"
+        val api = FakeFriendshipsApi()
+        val vm = FriendsViewModel(api, selfUserId = self)
+        advanceUntilIdle()
+
+        vm.addByScan(FriendQrCodec.encode(self))
+        advanceUntilIdle()
+
+        assertEquals(null, api.requestedById)
     }
 
     @Test

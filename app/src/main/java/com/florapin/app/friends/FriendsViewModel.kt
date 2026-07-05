@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.api.FriendshipsApi
 import com.florapin.app.network.auth.EncryptedTokenStore
+import com.florapin.app.network.dto.AddFriendByIdRequest
 import com.florapin.app.network.dto.CreateFriendshipRequest
 import com.florapin.app.network.dto.FriendshipDto
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +33,10 @@ class FriendsViewModel(
     private val api: FriendshipsApi,
     /** Suivi des demandes entrantes vues (badge). Null en test : remise à 0 ignorée. */
     private val badgeStore: FriendsBadgeStore? = null,
+    /** Id de l'utilisateur courant (encodé dans son QR — TÂCHE 4.5). Null si inconnu. */
+    val selfUserId: String? = null,
+    /** Nom affiché de l'utilisateur courant (légende du QR). */
+    val selfDisplayName: String = "",
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(FriendsUiState(loading = true))
@@ -63,6 +68,33 @@ class FriendsViewModel(
         viewModelScope.launch {
             try {
                 api.request(CreateFriendshipRequest(cleaned))
+                refresh()
+            } catch (e: Exception) {
+                _state.update { it.copy(error = messageOf(e)) }
+            }
+        }
+    }
+
+    /**
+     * Ajoute un ami à partir d'un QR code scanné (TÂCHE 4.5). Décode le contenu
+     * (extrait l'UUID) : un QR étranger ou son propre code est refusé sans appel
+     * réseau. L'acceptation croisée éventuelle est gérée côté serveur.
+     */
+    fun addByScan(payload: String) {
+        val userId = FriendQrCodec.decode(payload)
+        if (userId == null) {
+            _state.update { it.copy(error = "QR code non reconnu.") }
+            return
+        }
+        if (userId == selfUserId) {
+            _state.update {
+                it.copy(error = "C'est votre propre code : demandez à un ami de le scanner.")
+            }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                api.requestById(AddFriendByIdRequest(userId))
                 refresh()
             } catch (e: Exception) {
                 _state.update { it.copy(error = messageOf(e)) }
@@ -106,6 +138,8 @@ class FriendsViewModel(
                     return FriendsViewModel(
                         apis.friendships,
                         FriendsBadgeStore(context.applicationContext),
+                        selfUserId = tokenStore.userId(),
+                        selfDisplayName = tokenStore.displayName().orEmpty(),
                     ) as T
                 }
             }

@@ -171,6 +171,9 @@ dependencies {
     // Coil (affichage de la photo capturée)
     implementation(libs.coil.compose)
 
+    // ZXing (QR codes : génération + décodage, ajout d'ami par QR — TÂCHE 4.5)
+    implementation(libs.zxing.core)
+
     // Localisation (FusedLocationProvider)
     implementation(libs.play.services.location)
 

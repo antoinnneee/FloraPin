@@ -65,6 +65,9 @@ private class FakeFriendshipsApi(
     override suspend fun list(): List<FriendshipDto> = friendships
     override suspend fun request(body: CreateFriendshipRequest): FriendshipDto =
         throw UnsupportedOperationException()
+    override suspend fun requestById(
+        body: com.florapin.app.network.dto.AddFriendByIdRequest,
+    ): FriendshipDto = throw UnsupportedOperationException()
     override suspend fun accept(id: String): FriendshipDto =
         throw UnsupportedOperationException()
     override suspend fun remove(id: String): Response<Unit> = Response.success(Unit)

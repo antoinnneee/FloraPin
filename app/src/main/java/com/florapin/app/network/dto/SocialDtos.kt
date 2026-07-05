@@ -8,6 +8,12 @@ data class CreateFriendshipRequest(
     val email: String,
 )
 
+/** Ajout d'ami par QR code (TÂCHE 4.5) : on transmet l'id (UUID), pas l'email. */
+@JsonClass(generateAdapter = true)
+data class AddFriendByIdRequest(
+    val userId: String,
+)
+
 @JsonClass(generateAdapter = true)
 data class FriendUserDto(
     val id: String,

@@ -51,6 +51,62 @@ export class FriendshipsService {
     return this.request(requesterId, addressee.id);
   }
 
+  /**
+   * Ajout d'ami par QR code (TÂCHE 4.5) : le demandeur a scanné le QR de
+   * l'`addresseeId` (son UUID, jamais son email — vie privée).
+   *
+   * Sémantique idempotente + acceptation croisée, pour survivre au cas où
+   * chacun scanne le QR de l'autre (la contrainte unique `(requesterId,
+   * addresseeId)` interdit de créer un second `pending` symétrique) :
+   *  - déjà amis → renvoie la relation telle quelle (pas de 409) ;
+   *  - demande déjà envoyée par moi → renvoie la mienne (re-scan sans effet) ;
+   *  - demande en attente reçue de l'autre (il m'a déjà demandé) → mon scan vaut
+   *    consentement : on accepte automatiquement au lieu d'échouer ;
+   *  - sinon → nouvelle demande `pending`.
+   */
+  async requestById(
+    requesterId: string,
+    addresseeId: string,
+  ): Promise<FriendshipResponse> {
+    if (requesterId === addresseeId) {
+      throw new BadRequestException('Impossible de s’ajouter soi-même.');
+    }
+    const addressee = await this.users.findById(addresseeId);
+    if (!addressee) {
+      throw new NotFoundException('Utilisateur introuvable.');
+    }
+
+    const existing = await this.findBetween(requesterId, addresseeId);
+    if (existing) {
+      // Déjà amis, ou demande déjà émise par moi : idempotent, aucun changement.
+      if (
+        existing.status === 'accepted' ||
+        existing.requesterId === requesterId
+      ) {
+        return this.toResponse(existing, requesterId);
+      }
+      // L'autre m'avait déjà envoyé une demande et je scanne son QR :
+      // acceptation croisée (consentement mutuel).
+      existing.status = 'accepted';
+      const saved = await this.friendships.save(existing);
+      await this.notifications.createSafe(
+        existing.requesterId,
+        'friend_accepted',
+        { friendshipId: saved.id, byUserId: requesterId },
+      );
+      return this.toResponse(saved, requesterId);
+    }
+
+    const saved = await this.friendships.save(
+      this.friendships.create({ requesterId, addresseeId, status: 'pending' }),
+    );
+    await this.notifications.createSafe(addresseeId, 'friend_request', {
+      friendshipId: saved.id,
+      fromUserId: requesterId,
+    });
+    return this.toResponse(saved, requesterId);
+  }
+
   /** Crée une demande d'amitié (statut pending). */
   async request(
     requesterId: string,

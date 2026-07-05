@@ -13,6 +13,8 @@ navigationCompose = "2.8.5"
 # Caméra & images
 camerax = "1.4.1"
 coil = "2.7.0"
+# QR codes (génération + décodage, pur Java, hors-ligne)
+zxing = "3.5.3"
 
 # Localisation
 playServicesLocation = "21.3.0"
@@ -71,6 +73,10 @@ androidx-camera-view = { group = "androidx.camera", name = "camera-view", versio
 
 # Coil — chargement d'images dans Compose
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+
+# ZXing core — génération et décodage de QR codes (pur Java, aucune dépendance
+# réseau/Play Services : fonctionne hors-ligne).
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
 # Firebase Cloud Messaging (push) — versions alignées par le BOM.
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }

@@ -14,7 +14,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CreateFriendshipDto } from './dto/friendship.dto';
+import { AddFriendByIdDto, CreateFriendshipDto } from './dto/friendship.dto';
 import { FriendshipsService } from './friendships.service';
 
 @ApiTags('friendships')
@@ -35,6 +35,19 @@ export class FriendshipsController {
     @Body() dto: CreateFriendshipDto,
   ) {
     return this.friendships.requestByEmail(user.userId, dto.email);
+  }
+
+  /**
+   * Ajout d'ami par QR code (TÂCHE 4.5) : le corps porte l'id (UUID) scanné.
+   * Contrairement à l'ajout par email, l'acceptation croisée est automatique
+   * quand chacun scanne l'autre (consentement mutuel).
+   */
+  @Post('by-id')
+  requestById(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: AddFriendByIdDto,
+  ) {
+    return this.friendships.requestById(user.userId, dto.userId);
   }
 
   @Post(':id/accept')

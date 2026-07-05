@@ -55,6 +55,9 @@ class FlowerRepositoryTest {
             Unit
         override suspend fun pendingImageUploads(): List<FlowerEntity> = emptyList()
         override suspend fun setImagePendingUpload(id: Long, pending: Boolean) = Unit
+        override suspend fun countActive(): Int = 0
+        override suspend fun countDistinctSpecies(): Int = 0
+        override suspend fun geoTimes(): List<FlowerGeoTime> = emptyList()
     }
 
     @Test

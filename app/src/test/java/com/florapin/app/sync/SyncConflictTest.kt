@@ -2,6 +2,7 @@ package com.florapin.app.sync
 
 import com.florapin.app.data.FlowerDao
 import com.florapin.app.data.FlowerEntity
+import com.florapin.app.data.FlowerGeoTime
 import com.florapin.app.data.FlowerRepository
 import com.florapin.app.data.SyncState
 import com.florapin.app.network.api.FlowersApi
@@ -71,6 +72,9 @@ private class MemDao : FlowerDao {
         store[id]?.let { store[id] = it.copy(imagePath = path) }
     }
     override suspend fun softDeleteByServerId(serverId: String, deletedAt: Long) {}
+    override suspend fun countActive(): Int = 0
+    override suspend fun countDistinctSpecies(): Int = 0
+    override suspend fun geoTimes(): List<FlowerGeoTime> = emptyList()
 }
 
 private class ConflictFlowersApi : FlowersApi {

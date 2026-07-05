@@ -20,8 +20,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FlowerAlbumCrossRef::class,
         PhotoEntity::class,
         SavedFlowerEntity::class,
+        BadgeEntity::class,
     ],
-    version = 14,
+    version = 15,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -34,6 +35,8 @@ abstract class FloraDatabase : RoomDatabase() {
     abstract fun photoDao(): PhotoDao
 
     abstract fun savedFlowerDao(): SavedFlowerDao
+
+    abstract fun badgeDao(): BadgeDao
 
     companion object {
         /** Nom du fichier SQLite local (aussi utilisé pour détecter un install existant). */
@@ -263,6 +266,25 @@ abstract class FloraDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v14 → v15 : badges « collection » calculés localement (TÂCHE 5.3).
+         * Une ligne par palier débloqué `(badgeId, tier)` avec sa date et son
+         * état « vu ». Le `seen` des paliers déjà acquis à l'introduction de la
+         * fonctionnalité est initialisé « en masse » côté [BadgeRepository] (pas
+         * de pluie de célébrations), pas ici.
+         */
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS badges (" +
+                        "badgeId TEXT NOT NULL, tier INTEGER NOT NULL, " +
+                        "unlockedAt INTEGER NOT NULL, " +
+                        "seen INTEGER NOT NULL DEFAULT 0, " +
+                        "PRIMARY KEY(badgeId, tier))",
+                )
+            }
+        }
+
         @Volatile
         private var instance: FloraDatabase? = null
 
@@ -291,6 +313,7 @@ abstract class FloraDatabase : RoomDatabase() {
                 MIGRATION_11_12,
                 MIGRATION_12_13,
                 MIGRATION_13_14,
+                MIGRATION_14_15,
             ).build()
     }
 }

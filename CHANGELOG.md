@@ -21,6 +21,23 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Badges « collection » — calcul local (TÂCHE 5.3).** Nouveau
+  `badges/BadgeCalculator.kt` : dérive **100 % localement** les badges à partir
+  des fleurs de l'appareil — 🌸 Première fleur · 📚 Herbier (10/50/100/250) ·
+  🌿 Diversité (10/25/50 espèces) · 🌷☀️🍁❄️ Saisons + 🍂 Quatre saisons ·
+  🧭 Explorateur (2/5/10/15/18 régions, via `RegionResolver`) · 🏝️ Outre-mer
+  (un badge par région d'outre-mer visitée) · 📍 Lieux distincts (grille ~5 km :
+  5/15/30/50/100). Persistance en **table Room `badges`** (`data/BadgeEntity.kt`
+  + `data/BadgeDao.kt`, une ligne par palier `(badgeId, tier)` — migration
+  v14 → v15) ; agrégats ajoutés à `data/FlowerDao.kt` (`COUNT`,
+  `COUNT(DISTINCT espèce)` avec repli sur le nom libre, coordonnées + dates —
+  toujours `deletedAt IS NULL`). `data/BadgeRepository.kt` orchestre le recalcul
+  et l'état « vu » : à la **première exécution** (base potentiellement déjà
+  remplie), tous les paliers acquis sont marqués `seen = true` en masse (pas de
+  pluie de célébrations, comme l'onboarding 1.4) ; les déblocages suivants sont
+  à célébrer. Choix documentés : saisons codées **hémisphère nord** (fuseau
+  Europe/Paris), grille 5 km avec correction de la longitude par
+  `cos(latitude)`, dégradation device-first si les assets régions manquent.
 - **Mapping GPS → région hors-ligne (TÂCHE 5.2).** Nouveau
   `geo/RegionResolver.kt` : les polygones des **18 régions françaises** (13 de
   métropole + 5 d'outre-mer) sont embarqués dans `assets/regions-fr.geojson`

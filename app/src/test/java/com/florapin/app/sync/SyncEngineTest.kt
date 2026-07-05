@@ -2,6 +2,7 @@ package com.florapin.app.sync
 
 import com.florapin.app.data.FlowerDao
 import com.florapin.app.data.FlowerEntity
+import com.florapin.app.data.FlowerGeoTime
 import com.florapin.app.data.FlowerRepository
 import com.florapin.app.data.SyncState
 import com.florapin.app.network.api.FlowersApi
@@ -95,6 +96,9 @@ private class FakeDao : FlowerDao {
             store[it.id] = it.copy(deletedAt = deletedAt, syncState = SyncState.SYNCED.name)
         }
     }
+    override suspend fun countActive(): Int = 0
+    override suspend fun countDistinctSpecies(): Int = 0
+    override suspend fun geoTimes(): List<FlowerGeoTime> = emptyList()
 }
 
 private class FakeSyncApi(

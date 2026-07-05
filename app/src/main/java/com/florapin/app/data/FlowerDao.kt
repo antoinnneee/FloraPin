@@ -128,4 +128,47 @@ interface FlowerDao {
             "syncState = 'SYNCED' WHERE serverId = :serverId",
     )
     suspend fun softDeleteByServerId(serverId: String, deletedAt: Long)
+
+    // --- Agrégats pour les badges « collection » (TÂCHE 5.3) ---
+    // Toujours restreints aux fleurs non supprimées (deletedAt IS NULL).
+
+    /** Nombre de fleurs actives (badge « Herbier » : 10/50/100/250). */
+    @Query("SELECT COUNT(*) FROM flowers WHERE deletedAt IS NULL")
+    suspend fun countActive(): Int
+
+    /**
+     * Nombre d'espèces distinctes (badge « Diversité » : 10/25/50). On identifie
+     * une espèce par son `speciesId` (référentiel, NODE-128) et, à défaut, par le
+     * nom libre `species`. `COALESCE(NULLIF(...))` ignore les chaînes vides et
+     * `COUNT(DISTINCT …)` exclut les NULL (fleurs sans aucune espèce). Une même
+     * espèce saisie tantôt par référentiel, tantôt en texte libre peut compter
+     * double : approximation assumée (device-first, pas de dédoublonnage serveur).
+     */
+    @Query(
+        "SELECT COUNT(DISTINCT COALESCE(NULLIF(speciesId, ''), NULLIF(species, ''))) " +
+            "FROM flowers WHERE deletedAt IS NULL",
+    )
+    suspend fun countDistinctSpecies(): Int
+
+    /**
+     * Coordonnées + date de capture des fleurs actives, pour les badges dérivés
+     * de la géographie/temporalité (saisons, grille 5 km, régions/outre-mer). Le
+     * calcul lui-même vit dans [com.florapin.app.badges.BadgeCalculator].
+     */
+    @Query(
+        "SELECT latitude, longitude, createdAt FROM flowers WHERE deletedAt IS NULL",
+    )
+    suspend fun geoTimes(): List<FlowerGeoTime>
 }
+
+/**
+ * Projection légère (latitude, longitude, date de capture) d'une fleur active,
+ * consommée par le calcul des badges « collection ». La position peut être nulle
+ * (capture sans GPS) : ces fleurs ne comptent ni pour la grille 5 km ni pour les
+ * régions, mais comptent pour les saisons (via [createdAt]).
+ */
+data class FlowerGeoTime(
+    val latitude: Double?,
+    val longitude: Double?,
+    val createdAt: Long,
+)

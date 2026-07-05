@@ -6,6 +6,7 @@ import com.florapin.app.data.AlbumRepository
 import com.florapin.app.data.FlowerAlbumCrossRef
 import com.florapin.app.data.FlowerDao
 import com.florapin.app.data.FlowerEntity
+import com.florapin.app.data.FlowerGeoTime
 import com.florapin.app.data.FlowerRepository
 import com.florapin.app.data.PhotoDao
 import com.florapin.app.data.PhotoEntity
@@ -53,6 +54,9 @@ private class FakeFlowerDao : FlowerDao {
     override suspend fun setImagePendingUpload(id: Long, pending: Boolean) = Unit
     override suspend fun setImagePath(id: Long, path: String) = Unit
     override suspend fun softDeleteByServerId(serverId: String, deletedAt: Long) = Unit
+    override suspend fun countActive(): Int = 0
+    override suspend fun countDistinctSpecies(): Int = 0
+    override suspend fun geoTimes(): List<FlowerGeoTime> = emptyList()
 }
 
 private class FakeAlbumDao : AlbumDao {

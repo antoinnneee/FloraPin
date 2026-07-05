@@ -41,6 +41,19 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     private val repository = FlowerRepository.from(application)
 
+    init {
+        // Filet de sécurité pour l'annulation de suppression (TÂCHE 6.13) : purge
+        // les soft-deletes locaux dont la fenêtre d'annulation est écoulée mais
+        // qui n'ont jamais été finalisés (app tuée pendant la fenêtre, détail
+        // ouvert hors galerie…). Sans ça, ces fleurs jamais synchronisées
+        // resteraient masquées indéfiniment.
+        viewModelScope.launch {
+            repository.purgeExpiredLocalDeletions(
+                System.currentTimeMillis() - UNDO_WINDOW_MS,
+            )
+        }
+    }
+
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
@@ -118,6 +131,35 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    // --- Annuler la suppression d'une fleur (TÂCHE 6.13) ---
+
+    /**
+     * Annule la suppression d'une fleur (tap sur « Annuler » du snackbar) : lève
+     * le soft-delete posé depuis le détail. La fleur réapparaît immédiatement dans
+     * la galerie (flux Room réactif). Aucune sync n'ayant été déclenchée entre
+     * temps, rien n'a été propagé au serveur : la restauration reste purement
+     * locale.
+     */
+    fun undoDelete(id: Long) {
+        viewModelScope.launch { repository.restore(id) }
+    }
+
+    /**
+     * Finalise la suppression d'une fleur quand la fenêtre d'annulation s'est
+     * écoulée sans annulation (snackbar fermé/expiré). Purge physique si la fleur
+     * n'a jamais été synchronisée ; sinon, propage le soft-delete au serveur via
+     * une passe de sync (no-op si la sync est désactivée). No-op si la fleur a été
+     * restaurée entre-temps.
+     */
+    fun finalizeDelete(id: Long) {
+        viewModelScope.launch {
+            val flower = repository.getById(id) ?: return@launch
+            if (flower.deletedAt == null) return@launch
+            repository.finalizeDelete(flower)
+            SyncScheduler.syncNow(getApplication())
+        }
+    }
+
     // --- Badges de nouveautés (demandes d'identification & d'amis non vues) ---
 
     private val apis by lazy {
@@ -189,6 +231,17 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 // hors-ligne / non connecté : on garde la valeur actuelle
             }
         }
+    }
+
+    companion object {
+        /**
+         * Fenêtre d'annulation d'une suppression (TÂCHE 6.13). Sert de seuil au
+         * balayage de sécurité : un soft-delete local plus vieux que ce délai et
+         * jamais finalisé est purgé au prochain affichage de la galerie. Pris large
+         * (bien au-delà de la durée d'un snackbar) pour ne jamais purger une fleur
+         * qu'un snackbar encore visible pourrait restaurer.
+         */
+        private const val UNDO_WINDOW_MS = 60_000L
     }
 }
 

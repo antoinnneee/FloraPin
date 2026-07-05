@@ -84,6 +84,9 @@ private object Routes {
     const val NOTIFICATIONS = "notifications"
 
     fun detail(id: Long) = "detail/$id"
+
+    /** Clé savedStateHandle : id d'une fleur soft-supprimée à annuler (TÂCHE 6.13). */
+    const val KEY_DELETED_FLOWER = "deleted_flower_id"
     fun album(id: Long) = "album/$id"
     fun speciesDetail(id: String) = "species/$id"
     fun friendProfile(userId: String) = "friend/$userId"
@@ -326,16 +329,26 @@ fun FloraNavHost(
             )
         }
 
-        composable(Routes.GALLERY) {
+        composable(Routes.GALLERY) { backStackEntry ->
             // Android 13+ : demande la permission notifications une seule fois,
             // à l'arrivée sur l'écran principal d'un utilisateur connecté (I11).
             RequestNotificationPermissionOnce()
+            // Suppression annulable (TÂCHE 6.13) : le détail dépose l'id soft-
+            // supprimé dans le savedStateHandle de la galerie avant de dépiler ;
+            // la galerie propose alors l'annulation via un snackbar.
+            val deletedFlowerId by backStackEntry.savedStateHandle
+                .getStateFlow<Long?>(Routes.KEY_DELETED_FLOWER, null)
+                .collectAsStateWithLifecycle()
             GalleryScreen(
                 onCapture = { navController.navigate(Routes.CAPTURE) },
                 onFlowerClick = { id -> navController.navigate(Routes.detail(id)) },
                 onOpenFriends = { navController.navigate(Routes.FRIENDS) },
                 onOpenIdentify = { navController.navigate(Routes.IDENTIFY) },
                 onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+                deletedFlowerId = deletedFlowerId,
+                onDeletedFlowerHandled = {
+                    backStackEntry.savedStateHandle[Routes.KEY_DELETED_FLOWER] = null
+                },
             )
         }
         composable(Routes.IDENTIFY) {
@@ -443,6 +456,16 @@ fun FloraNavHost(
                 onBack = { navController.popBackStack() },
                 onOpenSpecies = { sid ->
                     navController.navigate(Routes.speciesDetail(sid))
+                },
+                onDeleted = { deletedId ->
+                    // Dépose l'id soft-supprimé pour l'écran d'où l'on vient (la
+                    // galerie l'exploite pour l'annulation) puis dépile. Si le
+                    // détail a été ouvert ailleurs (carte, album…), l'écran cible
+                    // ignore la clé : la fleur reste supprimée, sans snackbar.
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set(Routes.KEY_DELETED_FLOWER, deletedId)
+                    navController.popBackStack()
                 },
             )
         }

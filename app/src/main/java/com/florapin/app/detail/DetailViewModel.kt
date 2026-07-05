@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.FlowerRepository
 import com.florapin.app.network.dto.SpeciesDto
-import com.florapin.app.sync.SyncScheduler
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -76,16 +75,20 @@ class DetailViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun delete(onDeleted: () -> Unit) {
+    /**
+     * Supprime la fleur de façon annulable (TÂCHE 6.13) : pose un soft-delete
+     * immédiat (la fleur disparaît des listes) sans finaliser ni synchroniser, ce
+     * qui laisse une fenêtre d'annulation. [onDeleted] reçoit l'id supprimé pour
+     * que l'écran suivant (galerie) propose l'annulation via un snackbar ; c'est
+     * lui qui finalisera (purge/propagation) ou restaurera. On ne relance PAS de
+     * sync ici : tant que la passe n'a pas tourné, la suppression reste locale et
+     * annulable (pas de course).
+     */
+    fun delete(onDeleted: (Long) -> Unit) {
         val current = flower.value ?: return
         viewModelScope.launch {
-            // Soft-delete si la fleur est connue du serveur (propagée puis purgée
-            // au push), hard-delete sinon — voir FlowerRepository.delete (C3).
-            repository.delete(current)
-            // Propage sans attendre la sync périodique (no-op si sync désactivée
-            // ou utilisateur non connecté).
-            SyncScheduler.syncNow(getApplication())
-            onDeleted()
+            repository.softDelete(current)
+            onDeleted(current.id)
         }
     }
 }

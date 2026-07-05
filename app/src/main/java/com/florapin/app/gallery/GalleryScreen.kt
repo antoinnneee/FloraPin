@@ -42,6 +42,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -90,6 +94,10 @@ fun GalleryScreen(
     onOpenIdentify: () -> Unit,
     onOpenNotifications: () -> Unit,
     modifier: Modifier = Modifier,
+    // Suppression annulable (TÂCHE 6.13) : id de la fleur soft-supprimée depuis le
+    // détail, transmis au retour. Déclenche le snackbar « Annuler ».
+    deletedFlowerId: Long? = null,
+    onDeletedFlowerHandled: () -> Unit = {},
     viewModel: GalleryViewModel = viewModel(),
 ) {
     val flowers by viewModel.flowers.collectAsStateWithLifecycle()
@@ -109,11 +117,33 @@ fun GalleryScreen(
     // les écrans « à identifier » / amis, qui auront marqué leurs demandes vues).
     LaunchedEffect(Unit) { viewModel.refreshBadges() }
 
+    // Snackbar « Fleur supprimée / Annuler » (TÂCHE 6.13). La fleur est déjà
+    // masquée (soft-delete posé depuis le détail). On propose l'annulation le
+    // temps du snackbar ; à sa fermeture sans annulation, on finalise (purge ou
+    // propagation). On ne consomme l'événement (mise à null) qu'APRÈS résolution
+    // du snackbar, sinon le changement de clé annulerait l'attente en cours.
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(deletedFlowerId) {
+        val id = deletedFlowerId ?: return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar(
+            message = "Fleur supprimée",
+            actionLabel = "Annuler",
+            duration = SnackbarDuration.Short,
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.undoDelete(id)
+        } else {
+            viewModel.finalizeDelete(id)
+        }
+        onDeletedFlowerHandled()
+    }
+
     // En mode sélection, le retour arrière annule la sélection plutôt que de quitter.
     BackHandler(enabled = selectionActive) { viewModel.clearSelection() }
 
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             if (selectionActive) {
                 // Barre contextuelle : nombre de fleurs sélectionnées et actions

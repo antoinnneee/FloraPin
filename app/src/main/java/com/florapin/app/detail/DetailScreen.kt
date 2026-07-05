@@ -103,6 +103,10 @@ fun DetailScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     onOpenSpecies: (String) -> Unit = {},
+    // Suppression annulable (TÂCHE 6.13) : reçoit l'id soft-supprimé pour que
+    // l'écran précédent (galerie) propose l'annulation. Par défaut, revient en
+    // arrière (compat lorsqu'aucun hôte de snackbar ne traite l'annulation).
+    onDeleted: (Long) -> Unit = { onBack() },
     pagerViewModel: DetailPagerViewModel = viewModel(),
 ) {
     val orderedIds by pagerViewModel.orderedIds.collectAsStateWithLifecycle()
@@ -115,6 +119,7 @@ fun DetailScreen(
         FlowerDetailPage(
             flowerId = flowerId,
             onBack = onBack,
+            onDeleted = onDeleted,
             onOpenSpecies = onOpenSpecies,
             modifier = modifier,
         )
@@ -132,6 +137,7 @@ fun DetailScreen(
         FlowerDetailPage(
             flowerId = orderedIds[page],
             onBack = onBack,
+            onDeleted = onDeleted,
             onOpenSpecies = onOpenSpecies,
         )
     }
@@ -150,6 +156,7 @@ fun FlowerDetailPage(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     onOpenSpecies: (String) -> Unit = {},
+    onDeleted: (Long) -> Unit = { onBack() },
     viewModel: DetailViewModel = viewModel(key = "detail-$flowerId"),
     photosViewModel: PhotosViewModel = viewModel(key = "photos-$flowerId"),
     speciesPicker: SpeciesPickerViewModel = viewModel(
@@ -316,7 +323,7 @@ fun FlowerDetailPage(
                 TextButton(
                     onClick = {
                         showDeleteConfirm = false
-                        viewModel.delete(onDeleted = onBack)
+                        viewModel.delete(onDeleted = onDeleted)
                     },
                 ) { Text(stringResource(R.string.delete_flower_confirm)) }
             },

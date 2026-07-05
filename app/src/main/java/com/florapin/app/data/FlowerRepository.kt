@@ -124,6 +124,77 @@ class FlowerRepository(private val dao: FlowerDao) {
         }
     }
 
+    /**
+     * Suppression logique immédiate mais annulable (TÂCHE 6.13). Contrairement à
+     * [delete], on pose TOUJOURS un soft-delete (deletedAt + PENDING) — y compris
+     * pour une fleur jamais synchronisée — sans toucher au fichier image : la
+     * ligne disparaît aussitôt des listes (toutes les requêtes filtrent
+     * `deletedAt IS NULL`) tout en restant restaurable via [restore]. La
+     * finalisation (purge physique d'une fleur locale, ou propagation d'une fleur
+     * synchronisée) est différée à [finalizeDelete] une fois la fenêtre
+     * d'annulation écoulée. On ne déclenche PAS de sync ici : tant que la passe
+     * n'a pas tourné, il n'y a pas de course (le soft-delete reste local).
+     */
+    suspend fun softDelete(flower: FlowerEntity) {
+        val now = System.currentTimeMillis()
+        dao.update(
+            flower.copy(
+                deletedAt = now,
+                updatedAt = now,
+                syncState = SyncState.PENDING.name,
+            ),
+        )
+    }
+
+    /**
+     * Annule un [softDelete] (TÂCHE 6.13) : lève la suppression logique (deletedAt
+     * = null) et remet la fleur en attente de sync. La ligne réapparaît aussitôt
+     * dans les listes. Le fichier image n'ayant jamais été supprimé, la fleur est
+     * restaurée à l'identique.
+     */
+    suspend fun restore(id: Long) {
+        val flower = dao.getById(id) ?: return
+        dao.update(
+            flower.copy(
+                deletedAt = null,
+                updatedAt = System.currentTimeMillis(),
+                syncState = SyncState.PENDING.name,
+            ),
+        )
+    }
+
+    /**
+     * Finalise un [softDelete] non annulé (TÂCHE 6.13). Fleur jamais synchronisée
+     * (serverId null) : purge physique immédiate (ligne + fichier), rien à
+     * propager. Fleur connue du serveur : elle est déjà en soft-delete PENDING ;
+     * la propagation (push → purge) revient au prochain sync — l'appelant relance
+     * une passe. No-op si la fleur a entre-temps été restaurée.
+     */
+    suspend fun finalizeDelete(flower: FlowerEntity) {
+        if (flower.deletedAt == null) return
+        if (flower.serverId == null) {
+            dao.delete(flower)
+            if (flower.imagePath.isNotEmpty()) {
+                runCatching { File(flower.imagePath).delete() }
+            }
+        }
+    }
+
+    /**
+     * Filet de sécurité (TÂCHE 6.13) : purge les soft-deletes locaux (jamais
+     * synchronisés) dont la fenêtre d'annulation est écoulée mais qui n'ont pas
+     * été finalisés (annulation ratée : app tuée pendant la fenêtre, détail ouvert
+     * hors galerie…). Sans ce balayage, ces fleurs — ignorées du push car sans
+     * serverId — resteraient masquées indéfiniment (fuite de lignes/fichiers, la
+     * sync pouvant être désactivée). Les soft-deletes synchronisés ne sont pas
+     * concernés : ils attendent légitimement leur propagation.
+     */
+    suspend fun purgeExpiredLocalDeletions(olderThan: Long) {
+        dao.pendingSync()
+            .filter { it.serverId == null && (it.deletedAt ?: Long.MAX_VALUE) < olderThan }
+            .forEach { flower -> finalizeDelete(flower) }
+    }
+
     /** Purge physique d'une ligne (après propagation de la suppression). */
     suspend fun hardDelete(flower: FlowerEntity) = dao.delete(flower)
 

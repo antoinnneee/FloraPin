@@ -21,6 +21,16 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Annuler la suppression d'une fleur (TÂCHE 6.13).** Supprimer une fleur depuis
+  le détail pose désormais un soft-delete immédiat (la fleur disparaît des listes)
+  puis, de retour sur la galerie, affiche un snackbar « Fleur supprimée / Annuler ».
+  « Annuler » restaure la fleur ; à l'expiration du snackbar, la suppression est
+  finalisée (purge physique si jamais synchronisée, sinon propagation au serveur au
+  prochain sync). Aucune sync n'est déclenchée pendant la fenêtre d'annulation :
+  tant que la passe n'a pas tourné, la suppression reste locale et annulable (pas de
+  course). Un balayage de sécurité à l'ouverture de la galerie purge les
+  soft-deletes locaux jamais finalisés (app tuée pendant la fenêtre, détail ouvert
+  hors galerie…). `FlowerRepository.softDelete/restore/finalizeDelete/purgeExpiredLocalDeletions`.
 - **Partage externe de la photo (TÂCHE 6.12).** Le menu de débordement (⋮) du
   détail propose « 📷 Partager la photo » : la photo de couverture est partagée
   vers une autre application via un `Intent.ACTION_SEND` (`image/jpeg`). Les

@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
@@ -13,6 +14,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ReactionDto } from './dto/reaction.dto';
 import { LikerResponse, LikesService } from './likes.service';
 
 /** Cœurs sur les fleurs (NODE-139). */
@@ -23,17 +25,22 @@ import { LikerResponse, LikesService } from './likes.service';
 export class LikesController {
   constructor(private readonly likes: LikesService) {}
 
-  /** Pose un cœur (idempotent). */
+  /**
+   * Pose (ou met à jour) une réaction (idempotent). Le corps `{ reaction }` est
+   * optionnel : absent (anciennes apps), la réaction par défaut (cœur) est posée.
+   * Reposter avec un autre type change la réaction sans créer de doublon.
+   */
   @Post('like')
   @HttpCode(HttpStatus.NO_CONTENT)
   async like(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) flowerId: string,
+    @Body() dto: ReactionDto,
   ): Promise<void> {
-    await this.likes.like(user.userId, flowerId);
+    await this.likes.like(user.userId, flowerId, dto.reaction);
   }
 
-  /** Retire le cœur (idempotent). */
+  /** Retire la réaction (idempotent). */
   @Delete('like')
   @HttpCode(HttpStatus.NO_CONTENT)
   async unlike(

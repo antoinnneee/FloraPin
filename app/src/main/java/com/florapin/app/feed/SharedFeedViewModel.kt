@@ -10,6 +10,9 @@ import com.florapin.app.network.api.FriendshipsApi
 import com.florapin.app.network.api.LikesApi
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.network.dto.FlowerDto
+import com.florapin.app.network.dto.ReactionRequest
+import com.florapin.app.network.dto.Reactions
+import com.florapin.app.network.dto.withReaction
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -187,37 +190,43 @@ class SharedFeedViewModel(
     }
 
     /**
-     * Bascule le cœur d'une fleur avec mise à jour optimiste (NODE-140) : l'UI
-     * reflète immédiatement le nouvel état, puis l'appel réseau confirme ou,
-     * en cas d'échec, restaure l'état précédent.
+     * Tap sur le cœur : bascule la réaction par défaut (NODE-140). S'il réagissait
+     * déjà (quel que soit le type), retire ; sinon pose un cœur.
      */
     fun toggleLike(flowerId: String) {
         val current = _state.value.items.find { it.flower.id == flowerId } ?: return
-        val wasLiked = current.flower.likedByMe
-        applyLike(flowerId, liked = !wasLiked)
+        if (current.flower.myReaction != null) setReaction(flowerId, null)
+        else setReaction(flowerId, Reactions.HEART)
+    }
+
+    /** Pose (ou change) une réaction typée sur une fleur du feed (TÂCHE 3.5). */
+    fun react(flowerId: String, code: String) = setReaction(flowerId, code)
+
+    /**
+     * Applique une réaction [code] (null = retrait) avec mise à jour optimiste :
+     * l'UI reflète immédiatement le nouvel état, puis l'appel réseau confirme ou,
+     * en cas d'échec, restaure l'état précédent de la fleur.
+     */
+    private fun setReaction(flowerId: String, code: String?) {
+        val item = _state.value.items.find { it.flower.id == flowerId } ?: return
+        val previous = item.flower
+        updateFlower(flowerId) { it.withReaction(code) }
         viewModelScope.launch {
-            val response = runCatching {
-                if (wasLiked) likesApi.unlike(flowerId) else likesApi.like(flowerId)
-            }
-            val ok = response.getOrNull()?.isSuccessful == true
-            if (!ok) applyLike(flowerId, liked = wasLiked) // restaure
+            val ok = runCatching {
+                if (code == null) likesApi.unlike(flowerId)
+                else likesApi.react(flowerId, ReactionRequest(code))
+            }.getOrNull()?.isSuccessful == true
+            if (!ok) updateFlower(flowerId) { previous } // restaure
         }
     }
 
-    /** Reflète l'état liké/non-liké d'une fleur dans la liste (compteur inclus). */
-    private fun applyLike(flowerId: String, liked: Boolean) {
+    /** Remplace en place la fleur [flowerId] par [transform] appliqué à sa version courante. */
+    private fun updateFlower(flowerId: String, transform: (FlowerDto) -> FlowerDto) {
         _state.update { state ->
             state.copy(
                 items = state.items.map { item ->
-                    if (item.flower.id != flowerId) return@map item
-                    if (item.flower.likedByMe == liked) return@map item
-                    val delta = if (liked) 1 else -1
-                    item.copy(
-                        flower = item.flower.copy(
-                            likedByMe = liked,
-                            likeCount = (item.flower.likeCount + delta).coerceAtLeast(0),
-                        ),
-                    )
+                    if (item.flower.id != flowerId) item
+                    else item.copy(flower = transform(item.flower))
                 },
             )
         }

@@ -149,6 +149,7 @@ fun SharedFeedScreen(
                     SharedFlowerCard(
                         item = item,
                         onToggleLike = { viewModel.toggleLike(item.flower.id) },
+                        onReact = { code -> viewModel.react(item.flower.id, code) },
                         onOpenLikers = { likersFor = item.flower.id },
                         onComment = { commentsFor = item.flower.id },
                     )
@@ -210,6 +211,7 @@ private fun NewSinceLastVisitSeparator() {
 private fun SharedFlowerCard(
     item: SharedFlowerItem,
     onToggleLike: () -> Unit,
+    onReact: (String) -> Unit,
     onOpenLikers: () -> Unit,
     onComment: () -> Unit,
 ) {
@@ -243,9 +245,11 @@ private fun SharedFlowerCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         LikeButton(
-                            liked = flower.likedByMe,
+                            myReaction = flower.myReaction,
                             count = flower.likeCount,
                             onToggle = onToggleLike,
+                            onReact = onReact,
+                            reactionCounts = flower.reactionCounts,
                             onCountClick = onOpenLikers.takeIf { flower.likeCount > 0 },
                         )
                         // Compteur de commentaires (TÂCHE 3.3) : 💬 à côté du cœur,

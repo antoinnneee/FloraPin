@@ -69,10 +69,14 @@ data class FlowerDto(
     val needsIdentification: Boolean = false,
     /** Diffusion GPS au flux d'amis quand visibility='friends' (NODE-137). */
     val feedIncludeGps: Boolean = true,
-    /** Nombre de cœurs reçus (NODE-139/140). */
+    /** Nombre total de réactions reçues, tous types confondus (NODE-139/140). */
     val likeCount: Int = 0,
-    /** Le spectateur courant a-t-il liké cette fleur (NODE-139/140). */
+    /** Le spectateur courant a-t-il réagi à cette fleur (NODE-139/140). */
     val likedByMe: Boolean = false,
+    /** Décompte par type de réaction (codes), types absents omis (TÂCHE 3.5). */
+    val reactionCounts: Map<String, Int> = emptyMap(),
+    /** Réaction posée par le spectateur courant, ou null (TÂCHE 3.5). */
+    val myReaction: String? = null,
     /** Nombre de commentaires reçus (TÂCHE 3.3). */
     val commentCount: Int = 0,
     val tags: List<String> = emptyList(),
@@ -80,6 +84,29 @@ data class FlowerDto(
     val createdAt: String,
     val updatedAt: String,
 )
+
+/**
+ * Applique optimiste le passage à la réaction [code] (ou null = retrait) sur la
+ * fleur (TÂCHE 3.5) : ajuste `myReaction`, `likedByMe`, le total et le décompte
+ * par type. Changer de type conserve le total (retire l'ancien, ajoute le nouveau).
+ */
+fun FlowerDto.withReaction(code: String?): FlowerDto {
+    val old = myReaction
+    if (old == code) return this
+    val counts = reactionCounts.toMutableMap()
+    if (old != null) {
+        val n = (counts[old] ?: 1) - 1
+        if (n > 0) counts[old] = n else counts.remove(old)
+    }
+    if (code != null) counts[code] = (counts[code] ?: 0) + 1
+    val delta = (if (code != null) 1 else 0) - (if (old != null) 1 else 0)
+    return copy(
+        myReaction = code,
+        likedByMe = code != null,
+        likeCount = (likeCount + delta).coerceAtLeast(0),
+        reactionCounts = counts,
+    )
+}
 
 /** Photos ordonnées (couverture d'abord, puis par position). */
 private fun FlowerDto.orderedPhotos(): List<PhotoDto> =

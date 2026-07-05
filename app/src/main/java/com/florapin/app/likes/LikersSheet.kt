@@ -28,6 +28,7 @@ import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.api.LikesApi
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.network.dto.LikerDto
+import com.florapin.app.network.dto.Reactions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -148,7 +149,8 @@ fun LikersBottomSheet(
                 else -> {
                     state.likers.forEach { liker ->
                         Text(
-                            text = liker.displayName.ifBlank { "Quelqu'un" },
+                            text = "${Reactions.emoji(liker.reaction)} " +
+                                liker.displayName.ifBlank { "Quelqu'un" },
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier
                                 .fillMaxWidth()

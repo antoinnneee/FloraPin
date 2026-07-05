@@ -96,6 +96,8 @@ private class PagingFeedApi(
 
 private class FakeLikesApi(private val fail: Boolean = false) : LikesApi {
     val liked = mutableListOf<String>()
+    /** Réactions typées posées, en couples (flowerId, code de réaction). */
+    val reacted = mutableListOf<Pair<String, String>>()
     val unliked = mutableListOf<String>()
     private fun result() =
         if (fail) Response.error<Unit>(500, "x".toResponseBody()) else Response.success<Unit>(null)
@@ -103,10 +105,19 @@ private class FakeLikesApi(private val fail: Boolean = false) : LikesApi {
         liked += flowerId
         return result()
     }
+    override suspend fun react(
+        flowerId: String,
+        body: com.florapin.app.network.dto.ReactionRequest,
+    ): Response<Unit> {
+        reacted += flowerId to body.reaction
+        return result()
+    }
     override suspend fun unlike(flowerId: String): Response<Unit> {
         unliked += flowerId
         return result()
     }
+    override suspend fun likers(flowerId: String) =
+        emptyList<com.florapin.app.network.dto.LikerDto>()
 }
 
 private class FakeFriendshipsApi(private val data: List<FriendshipDto>) : FriendshipsApi {
@@ -171,8 +182,54 @@ class SharedFeedViewModelTest {
         assertEquals(3, optimistic.likeCount)
 
         advanceUntilIdle()
-        assertEquals(listOf("fl1"), likes.liked)
+        // Le tap pose la réaction par défaut (cœur) via l'endpoint typé.
+        assertEquals(listOf("fl1" to "heart"), likes.reacted)
         assertEquals(3, vm.state.value.items.first().flower.likeCount)
+    }
+
+    @Test
+    fun react_setsTypedReactionOptimistically() = runTest {
+        val likes = FakeLikesApi()
+        val vm = SharedFeedViewModel(
+            FakeFeedApi(listOf(flower("fl1", "alice", likeCount = 2, likedByMe = false))),
+            FakeFriendshipsApi(emptyList()),
+            likes,
+        )
+        advanceUntilIdle()
+
+        vm.react("fl1", "rose")
+        val optimistic = vm.state.value.items.first().flower
+        assertEquals("rose", optimistic.myReaction)
+        assertEquals(true, optimistic.likedByMe)
+        assertEquals(3, optimistic.likeCount)
+        assertEquals(1, optimistic.reactionCounts["rose"])
+
+        advanceUntilIdle()
+        assertEquals(listOf("fl1" to "rose"), likes.reacted)
+    }
+
+    @Test
+    fun react_changingTypeKeepsTotal() = runTest {
+        val likes = FakeLikesApi()
+        val vm = SharedFeedViewModel(
+            FakeFeedApi(
+                listOf(
+                    flower("fl1", "alice", likeCount = 1, likedByMe = true)
+                        .copy(myReaction = "heart", reactionCounts = mapOf("heart" to 1)),
+                ),
+            ),
+            FakeFriendshipsApi(emptyList()),
+            likes,
+        )
+        advanceUntilIdle()
+
+        vm.react("fl1", "rose")
+        val f = vm.state.value.items.first().flower
+        // Changer d'emoji ne modifie pas le total (update, pas insert).
+        assertEquals(1, f.likeCount)
+        assertEquals("rose", f.myReaction)
+        assertNull(f.reactionCounts["heart"])
+        assertEquals(1, f.reactionCounts["rose"])
     }
 
     @Test

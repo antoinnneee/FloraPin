@@ -87,6 +87,9 @@ class ApiSerializationTest {
         // Cœurs absents → 0 / false par défaut (NODE-140).
         assertEquals(0, flower.likeCount)
         assertEquals(false, flower.likedByMe)
+        // Réactions absentes → décompte vide / aucune réaction (TÂCHE 3.5).
+        assertEquals(emptyMap<String, Int>(), flower.reactionCounts)
+        assertNull(flower.myReaction)
     }
 
     @Test

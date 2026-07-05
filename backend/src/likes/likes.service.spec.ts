@@ -88,10 +88,28 @@ describe('LikesService', () => {
       });
     });
 
-    it('est idempotent : un second cœur ne crée rien', async () => {
+    it('est idempotent : une seconde réaction identique ne crée rien', async () => {
       await service.like(LIKER, FLOWER);
       await service.like(LIKER, FLOWER);
       expect(likes.save).toHaveBeenCalledTimes(1);
+      expect(notifications.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('pose la réaction par défaut (cœur) sans argument (compat ascendante)', async () => {
+      await service.like(LIKER, FLOWER);
+      expect(likeRows[0].reaction).toBe('heart');
+    });
+
+    it('pose la réaction demandée', async () => {
+      await service.like(LIKER, FLOWER, 'rose');
+      expect(likeRows[0].reaction).toBe('rose');
+    });
+
+    it('change la réaction (update, pas insert) sans re-notifier', async () => {
+      await service.like(LIKER, FLOWER, 'heart');
+      await service.like(LIKER, FLOWER, 'rose');
+      expect(likeRows[0].reaction).toBe('rose');
+      // Une seule notification : à la première réaction, pas au changement d'emoji.
       expect(notifications.create).toHaveBeenCalledTimes(1);
     });
 
@@ -144,13 +162,13 @@ describe('LikesService', () => {
   });
 
   describe('listLikers', () => {
-    it('renvoie les likers avec leur nom d’affichage', async () => {
+    it('renvoie les likers avec leur nom d’affichage et leur réaction', async () => {
       await service.like(OWNER, FLOWER);
-      await service.like(LIKER, FLOWER);
+      await service.like(LIKER, FLOWER, 'rose');
       const likers = await service.listLikers(OWNER, FLOWER);
       expect(likers).toEqual([
-        { userId: OWNER, displayName: `name-${OWNER}` },
-        { userId: LIKER, displayName: `name-${LIKER}` },
+        { userId: OWNER, displayName: `name-${OWNER}`, reaction: 'heart' },
+        { userId: LIKER, displayName: `name-${LIKER}`, reaction: 'rose' },
       ]);
     });
 

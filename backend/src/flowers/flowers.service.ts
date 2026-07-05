@@ -5,7 +5,11 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { FlowerLike } from '../likes/flower-like.entity';
+import {
+  DEFAULT_REACTION,
+  FlowerLike,
+  Reaction,
+} from '../likes/flower-like.entity';
 import { FlowerComment } from '../comments/flower-comment.entity';
 import { StorageService, PresignedUpload } from '../storage/storage.service';
 import { encodeWebp } from '../storage/image-processing';
@@ -46,10 +50,14 @@ export interface FlowerResponse {
   speciesRef: { id: string; scientificName: string; commonName: string } | null;
   tags: string[];
   photos: PhotoResponse[];
-  /** Nombre de cœurs reçus (NODE-139). */
+  /** Nombre total de réactions reçues, tous types confondus (NODE-139). */
   likeCount: number;
-  /** Le spectateur courant a-t-il liké cette fleur (NODE-139). */
+  /** Le spectateur courant a-t-il réagi à cette fleur (NODE-139). */
   likedByMe: boolean;
+  /** Décompte par type de réaction, types absents omis (TÂCHE 3.5). */
+  reactionCounts: Partial<Record<Reaction, number>>;
+  /** Réaction posée par le spectateur courant, ou null (TÂCHE 3.5). */
+  myReaction: Reaction | null;
   /** Nombre de commentaires reçus (TÂCHE 3.3). */
   commentCount: number;
   createdAt: Date;
@@ -296,14 +304,15 @@ export class FlowersService {
       where: { flowerId: flower.id },
       order: { position: 'ASC' },
     });
-    const likeCount = await this.likes.count({
+    // Toutes les réactions de la fleur en une requête : total, décompte par type
+    // et « ma réaction » se déduisent en mémoire (TÂCHE 3.5).
+    const likeRows = await this.likes.find({
       where: { flowerId: flower.id },
     });
-    const likedByMe = viewerId
-      ? (await this.likes.count({
-          where: { flowerId: flower.id, userId: viewerId },
-        })) > 0
-      : false;
+    const { likeCount, reactionCounts, myReaction } = aggregateReactions(
+      likeRows,
+      viewerId,
+    );
     const commentCount = await this.comments.count({
       where: { flowerId: flower.id },
     });
@@ -311,7 +320,8 @@ export class FlowersService {
       flower,
       photos,
       likeCount,
-      likedByMe,
+      reactionCounts,
+      myReaction,
       commentCount,
     );
   }
@@ -341,19 +351,16 @@ export class FlowersService {
       else photosByFlower.set(p.flowerId, [p]);
     }
 
-    // Un seul chargement des cœurs de la page : comptage + « liké par moi »
-    // calculés en mémoire à partir de ce jeu de lignes.
+    // Un seul chargement des réactions de la page : total, décompte par type et
+    // « ma réaction » calculés en mémoire, groupés par fleur (TÂCHE 3.5).
     const allLikes = await this.likes.find({
       where: { flowerId: In(flowerIds) },
     });
-    const likeCountByFlower = new Map<string, number>();
-    const likedByViewer = new Set<string>();
+    const likesByFlower = new Map<string, FlowerLike[]>();
     for (const like of allLikes) {
-      likeCountByFlower.set(
-        like.flowerId,
-        (likeCountByFlower.get(like.flowerId) ?? 0) + 1,
-      );
-      if (viewerId && like.userId === viewerId) likedByViewer.add(like.flowerId);
+      const list = likesByFlower.get(like.flowerId);
+      if (list) list.push(like);
+      else likesByFlower.set(like.flowerId, [like]);
     }
 
     // Comptage groupé des commentaires (TÂCHE 3.3) : un seul COUNT ... GROUP BY
@@ -371,24 +378,30 @@ export class FlowersService {
     }
 
     return Promise.all(
-      flowers.map((flower) =>
-        this.buildResponse(
+      flowers.map((flower) => {
+        const { likeCount, reactionCounts, myReaction } = aggregateReactions(
+          likesByFlower.get(flower.id) ?? [],
+          viewerId,
+        );
+        return this.buildResponse(
           flower,
           photosByFlower.get(flower.id) ?? [],
-          likeCountByFlower.get(flower.id) ?? 0,
-          viewerId ? likedByViewer.has(flower.id) : false,
+          likeCount,
+          reactionCounts,
+          myReaction,
           commentCountByFlower.get(flower.id) ?? 0,
-        ),
-      ),
+        );
+      }),
     );
   }
 
-  /** Assemble la réponse API à partir des données déjà chargées (photos/cœurs). */
+  /** Assemble la réponse API à partir des données déjà chargées (photos/réactions). */
   private async buildResponse(
     flower: Flower,
     photos: FlowerPhoto[],
     likeCount: number,
-    likedByMe: boolean,
+    reactionCounts: Partial<Record<Reaction, number>>,
+    myReaction: Reaction | null,
     commentCount: number,
   ): Promise<FlowerResponse> {
     const [longitude, latitude] = flower.location?.coordinates ?? [null, null];
@@ -429,10 +442,35 @@ export class FlowersService {
       tags: flower.tags ?? [],
       photos: photoResponses,
       likeCount,
-      likedByMe,
+      likedByMe: myReaction !== null,
+      reactionCounts,
+      myReaction,
       commentCount,
       createdAt: flower.createdAt,
       updatedAt: flower.updatedAt,
     };
   }
+}
+
+/**
+ * Agrège un jeu de réactions d'UNE fleur (TÂCHE 3.5) : total, décompte par type
+ * (types absents omis) et réaction du spectateur ([viewerId]). Robuste aux
+ * lignes historiques sans colonne `reaction` (repli sur le cœur par défaut).
+ */
+function aggregateReactions(
+  likeRows: FlowerLike[],
+  viewerId?: string,
+): {
+  likeCount: number;
+  reactionCounts: Partial<Record<Reaction, number>>;
+  myReaction: Reaction | null;
+} {
+  const reactionCounts: Partial<Record<Reaction, number>> = {};
+  let myReaction: Reaction | null = null;
+  for (const like of likeRows) {
+    const reaction = like.reaction ?? DEFAULT_REACTION;
+    reactionCounts[reaction] = (reactionCounts[reaction] ?? 0) + 1;
+    if (viewerId && like.userId === viewerId) myReaction = reaction;
+  }
+  return { likeCount: likeRows.length, reactionCounts, myReaction };
 }

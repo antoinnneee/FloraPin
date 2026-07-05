@@ -316,10 +316,21 @@ CREATE INDEX IF NOT EXISTS idx_species_proposals_flower ON species_proposals(flo
 CREATE TABLE IF NOT EXISTS flower_likes (
     flower_id   UUID NOT NULL REFERENCES flowers(id) ON DELETE CASCADE,
     user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    -- Type de réaction (TÂCHE 3.5) ; 'heart' = cœur historique (NODE-139) et
+    -- défaut d'un POST /like sans corps (anciennes apps). Une seule réaction par
+    -- (fleur, utilisateur) : changer d'emoji met à jour cette colonne.
+    reaction    TEXT NOT NULL DEFAULT 'heart',
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (flower_id, user_id)            -- un cœur par (fleur, utilisateur)
+    PRIMARY KEY (flower_id, user_id)            -- une réaction par (fleur, utilisateur)
 );
--- Comptage des cœurs par fleur + « liké par moi » (NODE-139).
+-- Réactions enrichies (TÂCHE 3.5) : ajout de la colonne `reaction` aux bases déjà
+-- créées (le CREATE TABLE IF NOT EXISTS ne la pose pas). Les cœurs existants
+-- prennent la valeur par défaut 'heart' — rétro-compatibilité assurée. Idempotent.
+ALTER TABLE flower_likes ADD COLUMN IF NOT EXISTS reaction TEXT NOT NULL DEFAULT 'heart';
+ALTER TABLE flower_likes DROP CONSTRAINT IF EXISTS flower_likes_reaction_check;
+ALTER TABLE flower_likes ADD CONSTRAINT flower_likes_reaction_check
+    CHECK (reaction IN ('heart', 'love', 'blossom', 'rose', 'daisy', 'lavender', 'magnify', 'thumbsup'));
+-- Comptage des réactions par fleur + « ma réaction » (NODE-139 / TÂCHE 3.5).
 CREATE INDEX IF NOT EXISTS idx_flower_likes_flower ON flower_likes(flower_id);
 
 -- =====================================================================

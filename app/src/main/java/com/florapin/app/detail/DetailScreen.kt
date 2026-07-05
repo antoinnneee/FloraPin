@@ -194,6 +194,7 @@ fun DetailScreen(
                 onSetFeedPublication = viewModel::setFeedPublication,
                 likeState = likeState,
                 onToggleLike = likeVm::toggle,
+                onReact = likeVm::react,
                 onOpenLikers = { showLikers = true },
                 commentsVm = commentsVm,
                 onOpenSpecies = onOpenSpecies,
@@ -262,6 +263,7 @@ private fun DetailContent(
     onSetFeedPublication: (Boolean, Boolean) -> Unit,
     likeState: com.florapin.app.likes.LikeState,
     onToggleLike: () -> Unit,
+    onReact: (String) -> Unit,
     onOpenLikers: () -> Unit,
     commentsVm: CommentsViewModel,
     onOpenSpecies: (String) -> Unit,
@@ -318,9 +320,11 @@ private fun DetailContent(
                 // Cœur disponible une fois la fleur synchronisée (NODE-140).
                 if (flower.serverId != null && likeState.loaded) {
                     LikeButton(
-                        liked = likeState.liked,
+                        myReaction = likeState.myReaction,
                         count = likeState.count,
                         onToggle = onToggleLike,
+                        onReact = onReact,
+                        reactionCounts = likeState.reactionCounts,
                         onCountClick = onOpenLikers.takeIf { likeState.count > 0 },
                     )
                 }

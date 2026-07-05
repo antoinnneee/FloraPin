@@ -13,6 +13,16 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Réactions enrichies sur les fleurs.** Le cœur devient un jeu de réactions :
+  un appui long sur l'emoji ouvre un sélecteur (😍 🌸 🌹 🌼 🪻 🔍 👍) ; un simple
+  tap pose (ou retire) la réaction par défaut ❤️. Le libellé récapitule les types
+  présents suivis du total, et la liste des likers affiche l'emoji de chacun.
+  Côté API, `POST /flowers/:id/like` accepte un corps optionnel `{ reaction }`
+  (absent = cœur, compat ascendante des anciennes apps) ; changer de réaction met
+  à jour la ligne existante (une seule réaction par fleur et par utilisateur, pas
+  de doublon). Les réponses fleur exposent désormais `reactionCounts` (décompte
+  par type) et `myReaction`, en plus de `likeCount`/`likedByMe` conservés. Colonne
+  `flower_likes.reaction` ajoutée (défaut `heart`, migration idempotente).
 - **Liste des personnes ayant liké une fleur.** Un tap sur le compteur de cœurs
   (détail comme feed « Partagées avec moi ») ouvre un bottom sheet listant les
   likers par leur nom d'affichage. Servi par un nouvel endpoint

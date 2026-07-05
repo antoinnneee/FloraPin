@@ -28,6 +28,8 @@ function flower(
     photos: [],
     likeCount: 0,
     likedByMe: false,
+    reactionCounts: {},
+    myReaction: null,
     commentCount: 0,
     createdAt: new Date(createdAt),
     updatedAt: new Date(createdAt),

@@ -343,6 +343,8 @@ CREATE TABLE IF NOT EXISTS flower_comments (
     body        TEXT NOT NULL,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Édition d'un commentaire par son auteur (NULL si jamais modifié).
+ALTER TABLE flower_comments ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;
 -- Listing chronologique des commentaires d'une fleur.
 CREATE INDEX IF NOT EXISTS idx_flower_comments_flower ON flower_comments(flower_id);
 

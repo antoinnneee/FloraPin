@@ -29,4 +29,8 @@ export class FlowerComment {
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
+
+  /** Dernière édition par l'auteur, `null` si jamais modifié. */
+  @Column({ name: 'edited_at', type: 'timestamptz', nullable: true })
+  editedAt: Date | null;
 }

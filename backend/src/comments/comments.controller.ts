@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -15,7 +16,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CommentsService } from './comments.service';
-import { CreateCommentDto } from './dto/comment.dto';
+import { CreateCommentDto, UpdateCommentDto } from './dto/comment.dto';
 
 /** Fil de discussion sur une fleur. */
 @ApiTags('comments')
@@ -42,6 +43,17 @@ export class CommentsController {
     @Param('id', ParseUUIDPipe) flowerId: string,
   ) {
     return this.comments.listForFlower(user.userId, flowerId);
+  }
+
+  /** Édite un commentaire (réservé à son auteur). */
+  @Patch(':commentId')
+  update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) flowerId: string,
+    @Param('commentId', ParseUUIDPipe) commentId: string,
+    @Body() dto: UpdateCommentDto,
+  ) {
+    return this.comments.update(user.userId, flowerId, commentId, dto.body);
   }
 
   /** Supprime un commentaire (auteur ou propriétaire de la fleur). */

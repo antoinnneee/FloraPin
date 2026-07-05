@@ -181,6 +181,35 @@ describe('CommentsService', () => {
     expect(friends.find((c) => c.body === 'Réponse')!.canDelete).toBe(false);
   });
 
+  it('l’auteur édite son commentaire et marque editedAt', async () => {
+    flowerRepo.seed({ id: FLOWER, ownerId: OWNER });
+    const comment = await service.post(FRIEND, FLOWER, 'Fôte');
+    expect(comment.editedAt).toBeNull();
+    const edited = await service.update(FRIEND, FLOWER, comment.id, 'Faute');
+    expect(edited.body).toBe('Faute');
+    expect(edited.editedAt).toBeInstanceOf(Date);
+    // Persisté : la relecture reflète l'édition.
+    const listed = await service.listForFlower(OWNER, FLOWER);
+    expect(listed[0].body).toBe('Faute');
+    expect(listed[0].editedAt).toBeInstanceOf(Date);
+  });
+
+  it('refuse l’édition par le propriétaire (non-auteur)', async () => {
+    flowerRepo.seed({ id: FLOWER, ownerId: OWNER });
+    const comment = await service.post(FRIEND, FLOWER, 'À moi');
+    await expect(
+      service.update(OWNER, FLOWER, comment.id, 'Modéré'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('refuse l’édition par un tiers', async () => {
+    flowerRepo.seed({ id: FLOWER, ownerId: OWNER });
+    const comment = await service.post(FRIEND, FLOWER, 'Intouchable');
+    await expect(
+      service.update(STRANGER, FLOWER, comment.id, 'Piraté'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('l’auteur supprime son commentaire', async () => {
     flowerRepo.seed({ id: FLOWER, ownerId: OWNER });
     const comment = await service.post(FRIEND, FLOWER, 'À retirer');

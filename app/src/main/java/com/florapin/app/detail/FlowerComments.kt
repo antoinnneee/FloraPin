@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -20,6 +22,9 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -35,6 +40,7 @@ import com.florapin.app.network.api.CommentsApi
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.network.dto.CreateCommentRequest
 import com.florapin.app.network.dto.FlowerCommentDto
+import com.florapin.app.network.dto.UpdateCommentRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,6 +57,12 @@ data class CommentsUiState(
     val submitting: Boolean = false,
     /** Commentaire dont la suppression est en cours. */
     val deletingId: String? = null,
+    /** Commentaire en cours d'édition (menu « Éditer »), `null` sinon. */
+    val editingId: String? = null,
+    /** Texte en cours d'édition pour [editingId]. */
+    val editDraft: String = "",
+    /** Édition en cours d'envoi. */
+    val editSubmitting: Boolean = false,
     val error: String? = null,
 )
 
@@ -134,6 +146,50 @@ class CommentsViewModel(
         }
     }
 
+    /** Ouvre l'édition de [comment] en pré-remplissant son texte courant. */
+    fun startEdit(comment: FlowerCommentDto) {
+        _state.update { it.copy(editingId = comment.id, editDraft = comment.body, error = null) }
+    }
+
+    /** Met à jour le texte en cours d'édition. */
+    fun updateEditDraft(text: String) {
+        _state.update { it.copy(editDraft = text) }
+    }
+
+    /** Abandonne l'édition en cours. */
+    fun cancelEdit() {
+        _state.update { it.copy(editingId = null, editDraft = "") }
+    }
+
+    /** Envoie l'édition du commentaire courant et remplace la version affichée. */
+    fun submitEdit() {
+        val id = serverId ?: return
+        val commentId = _state.value.editingId ?: return
+        val body = _state.value.editDraft.trim()
+        if (body.isEmpty() || _state.value.editSubmitting) return
+        _state.update { it.copy(editSubmitting = true, error = null) }
+        viewModelScope.launch {
+            try {
+                val updated = api.update(id, commentId, UpdateCommentRequest(body))
+                _state.update {
+                    it.copy(
+                        editSubmitting = false,
+                        editingId = null,
+                        editDraft = "",
+                        comments = it.comments.map { c -> if (c.id == updated.id) updated else c },
+                    )
+                }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        editSubmitting = false,
+                        error = e.message ?: "Échec de la modification.",
+                    )
+                }
+            }
+        }
+    }
+
     /** Supprime [comment] côté serveur puis de la liste affichée. */
     fun delete(comment: FlowerCommentDto) {
         val id = serverId ?: return
@@ -206,7 +262,14 @@ fun CommentsSection(
             CommentCard(
                 comment = comment,
                 deleting = state.deletingId == comment.id,
+                editing = state.editingId == comment.id,
+                editDraft = state.editDraft,
+                editSubmitting = state.editSubmitting,
                 onDelete = { viewModel.delete(comment) },
+                onStartEdit = { viewModel.startEdit(comment) },
+                onEditDraftChange = viewModel::updateEditDraft,
+                onSubmitEdit = { viewModel.submitEdit() },
+                onCancelEdit = { viewModel.cancelEdit() },
             )
         }
 
@@ -294,7 +357,14 @@ fun CommentsLockedNotice(modifier: Modifier = Modifier) {
 private fun CommentCard(
     comment: FlowerCommentDto,
     deleting: Boolean,
+    editing: Boolean,
+    editDraft: String,
+    editSubmitting: Boolean,
     onDelete: () -> Unit,
+    onStartEdit: () -> Unit,
+    onEditDraftChange: (String) -> Unit,
+    onSubmitEdit: () -> Unit,
+    onCancelEdit: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -314,26 +384,85 @@ private fun CommentCard(
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = relativeTime(comment.createdAt),
+                        // Suffixe « · modifié » quand l'auteur a édité son commentaire.
+                        text = relativeTime(comment.createdAt) +
+                            if (comment.editedAt != null) " · modifié" else "",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    if (comment.canDelete) {
-                        IconButton(
-                            onClick = onDelete,
-                            enabled = !deleting,
-                        ) {
-                            Text(
-                                text = "🗑️",
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
+                    if ((comment.canEdit || comment.canDelete) && !editing) {
+                        CommentActionsMenu(
+                            canEdit = comment.canEdit,
+                            canDelete = comment.canDelete,
+                            deleting = deleting,
+                            onEdit = onStartEdit,
+                            onDelete = onDelete,
+                        )
                     }
                 }
             }
-            Text(
-                text = comment.body,
-                style = MaterialTheme.typography.bodyMedium,
+            if (editing) {
+                OutlinedTextField(
+                    value = editDraft,
+                    onValueChange = onEditDraftChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !editSubmitting,
+                    maxLines = 4,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onCancelEdit, enabled = !editSubmitting) {
+                        Text("Annuler")
+                    }
+                    TextButton(
+                        onClick = onSubmitEdit,
+                        enabled = editDraft.isNotBlank() && !editSubmitting,
+                    ) {
+                        Text("Enregistrer")
+                    }
+                }
+            } else {
+                Text(
+                    text = comment.body,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+    }
+}
+
+/** Menu contextuel d'un commentaire : « Éditer » (auteur) et « Supprimer ». */
+@Composable
+private fun CommentActionsMenu(
+    canEdit: Boolean,
+    canDelete: Boolean,
+    deleting: Boolean,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    IconButton(onClick = { expanded = true }, enabled = !deleting) {
+        Text(text = "⋮", style = MaterialTheme.typography.bodyMedium)
+    }
+    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        if (canEdit) {
+            DropdownMenuItem(
+                text = { Text("Éditer") },
+                onClick = {
+                    expanded = false
+                    onEdit()
+                },
+            )
+        }
+        if (canDelete) {
+            DropdownMenuItem(
+                text = { Text("Supprimer") },
+                onClick = {
+                    expanded = false
+                    onDelete()
+                },
             )
         }
     }

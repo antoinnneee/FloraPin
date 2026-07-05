@@ -10,6 +10,12 @@ data class CreateCommentRequest(
     val body: String,
 )
 
+/** Corps de PATCH flowers/{id}/comments/{commentId} : le nouveau texte. */
+@JsonClass(generateAdapter = true)
+data class UpdateCommentRequest(
+    val body: String,
+)
+
 /** Commentaire renvoyé par l'API, enrichi du nom de l'auteur. */
 @JsonClass(generateAdapter = true)
 data class FlowerCommentDto(
@@ -21,5 +27,9 @@ data class FlowerCommentDto(
     val body: String,
     /** Le lecteur courant peut-il supprimer ce commentaire ? */
     val canDelete: Boolean = false,
+    /** Le lecteur courant peut-il éditer ce commentaire ? (auteur uniquement). */
+    val canEdit: Boolean = false,
     val createdAt: String,
+    /** Dernière édition par l'auteur, `null` si jamais modifié. */
+    val editedAt: String? = null,
 )

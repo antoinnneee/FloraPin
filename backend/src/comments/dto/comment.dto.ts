@@ -7,3 +7,11 @@ export class CreateCommentDto {
   @MaxLength(1000)
   body: string;
 }
+
+/** Corps de PATCH flowers/{id}/comments/{commentId} : le nouveau texte. */
+export class UpdateCommentDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(1000)
+  body: string;
+}

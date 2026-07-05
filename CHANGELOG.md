@@ -13,6 +13,12 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Édition d'un commentaire.** L'auteur d'un commentaire peut désormais le
+  modifier via le menu « Éditer » (⋮) du fil de discussion : le texte est
+  ré-ouvert en édition inline (Enregistrer / Annuler). Un suffixe « · modifié »
+  s'affiche à côté de l'ancienneté. Côté serveur, un `PATCH
+  flowers/{id}/comments/{commentId}` réservé à l'auteur met à jour le texte et
+  horodate la colonne `edited_at` (nouvelle sur `flower_comments`).
 - **Brouillon de commentaire conservé.** Le texte saisi dans le fil de discussion
   d'une fleur n'est plus perdu si l'on ferme la bottom sheet (ou redémarre
   l'appli) sans envoyer : il est persisté par fleur (`flowerServerId`) dans un

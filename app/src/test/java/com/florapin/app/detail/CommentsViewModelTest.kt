@@ -3,6 +3,7 @@ package com.florapin.app.detail
 import com.florapin.app.network.api.CommentsApi
 import com.florapin.app.network.dto.CreateCommentRequest
 import com.florapin.app.network.dto.FlowerCommentDto
+import com.florapin.app.network.dto.UpdateCommentRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -30,6 +31,24 @@ private class FakeCommentsApi : CommentsApi {
     }
 
     override suspend fun list(flowerId: String): List<FlowerCommentDto> = emptyList()
+
+    var lastEdited: String? = null
+    override suspend fun update(
+        flowerId: String,
+        commentId: String,
+        body: UpdateCommentRequest,
+    ): FlowerCommentDto {
+        lastEdited = body.body
+        return FlowerCommentDto(
+            id = commentId,
+            flowerId = flowerId,
+            authoredBy = "me",
+            body = body.body,
+            canEdit = true,
+            createdAt = "2026-07-05T10:00:00Z",
+            editedAt = "2026-07-05T11:00:00Z",
+        )
+    }
 
     override suspend fun delete(flowerId: String, commentId: String): Response<Unit> =
         Response.success(Unit)
@@ -106,5 +125,29 @@ class CommentsViewModelTest {
 
         assertEquals("", vm.state.value.draft)
         assertEquals(null, store.drafts["flower-1"])
+    }
+
+    @Test
+    fun `l'edition remplace le commentaire et marque editedAt`() = runTest(dispatcher) {
+        val api = FakeCommentsApi()
+        val vm = CommentsViewModel(api, FakeDraftStore())
+        vm.bind("flower-1")
+        advanceUntilIdle()
+        // Poste un commentaire pour l'avoir dans la liste.
+        vm.updateDraft("Fôte")
+        vm.submit()
+        advanceUntilIdle()
+
+        val posted = vm.state.value.comments.single()
+        vm.startEdit(posted)
+        vm.updateEditDraft("Faute")
+        vm.submitEdit()
+        advanceUntilIdle()
+
+        assertEquals("Faute", api.lastEdited)
+        val edited = vm.state.value.comments.single()
+        assertEquals("Faute", edited.body)
+        assertEquals("2026-07-05T11:00:00Z", edited.editedAt)
+        assertEquals(null, vm.state.value.editingId)
     }
 }

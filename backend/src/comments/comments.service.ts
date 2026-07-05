@@ -21,7 +21,11 @@ export interface CommentResponse {
   body: string;
   /** Le lecteur courant peut-il supprimer ce commentaire ? (auteur ou propriétaire). */
   canDelete: boolean;
+  /** Le lecteur courant peut-il éditer ce commentaire ? (auteur uniquement). */
+  canEdit: boolean;
   createdAt: Date;
+  /** Dernière édition par l'auteur, `null` si jamais modifié. */
+  editedAt: Date | null;
 }
 
 /**
@@ -92,6 +96,35 @@ export class CommentsService {
     );
   }
 
+  /** Édite un commentaire : réservé à son auteur. Marque `editedAt`. */
+  async update(
+    viewerId: string,
+    flowerId: string,
+    commentId: string,
+    body: string,
+  ): Promise<CommentResponse> {
+    const flower = await this.flowers.findOne({ where: { id: flowerId } });
+    if (!flower) {
+      throw new NotFoundException('Fleur introuvable.');
+    }
+    const comment = await this.comments.findOne({
+      where: { id: commentId, flowerId },
+    });
+    if (!comment) {
+      throw new NotFoundException('Commentaire introuvable.');
+    }
+    if (comment.authoredBy !== viewerId) {
+      throw new ForbiddenException('Édition non autorisée.');
+    }
+    comment.body = body;
+    comment.editedAt = new Date();
+    const saved = await this.comments.save(comment);
+
+    const authorName =
+      (await this.users.findById(comment.authoredBy))?.displayName ?? '';
+    return this.buildResponse(saved, viewerId, flower.ownerId, authorName);
+  }
+
   /** Supprime un commentaire : autorisé pour son auteur ou le propriétaire de la fleur. */
   async delete(
     viewerId: string,
@@ -128,7 +161,9 @@ export class CommentsService {
       authorName,
       body: c.body,
       canDelete: c.authoredBy === viewerId || ownerId === viewerId,
+      canEdit: c.authoredBy === viewerId,
       createdAt: c.createdAt,
+      editedAt: c.editedAt ?? null,
     };
   }
 

@@ -10,6 +10,8 @@ import com.florapin.app.identify.IdentifyBadgeStore
 import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.sync.SyncScheduler
+import com.florapin.app.util.formatMonthLabel
+import com.florapin.app.util.monthKey
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -195,6 +197,43 @@ internal fun List<FlowerEntity>.filterByQuery(query: String): List<FlowerEntity>
 /** Ajoute ou retire [id] de l'ensemble de sélection (bascule idempotente). */
 internal fun Set<Long>.toggled(id: Long): Set<Long> =
     if (id in this) this - id else this + id
+
+/**
+ * Une ligne de la galerie une fois aplatie (TÂCHE 6.7) : soit un en-tête de mois
+ * (occupant toute la largeur de la grille), soit une vignette de fleur. Aplatir
+ * en une seule liste garantit que l'index d'une ligne coïncide avec son index
+ * dans la [androidx.compose.foundation.lazy.grid.LazyGridState] — ce que le fast
+ * scroller exploite pour se positionner.
+ */
+sealed interface GalleryRow {
+    /** Clé de mois "yyyy-MM" de la ligne. */
+    val monthKey: String
+
+    /** En-tête introduisant un mois de capture. */
+    data class MonthHeader(override val monthKey: String, val label: String) : GalleryRow
+
+    /** Vignette d'une fleur, rattachée à son mois de capture. */
+    data class Flower(val flower: FlowerEntity, override val monthKey: String) : GalleryRow
+}
+
+/**
+ * Aplati la liste (supposée déjà triée par date) en lignes groupées par mois de
+ * **capture** ([FlowerEntity.createdAt] = date de prise de vue), en insérant un
+ * en-tête à chaque changement de mois. L'ordre des fleurs est conservé tel quel.
+ */
+internal fun List<FlowerEntity>.groupedByMonth(): List<GalleryRow> {
+    val rows = ArrayList<GalleryRow>(size + 8)
+    var currentKey: String? = null
+    for (flower in this) {
+        val key = monthKey(flower.createdAt)
+        if (key != currentKey) {
+            rows += GalleryRow.MonthHeader(key, formatMonthLabel(flower.createdAt))
+            currentKey = key
+        }
+        rows += GalleryRow.Flower(flower, key)
+    }
+    return rows
+}
 
 /** Trie les fleurs selon [sort] ; les espèces vides passent en dernier. */
 internal fun List<FlowerEntity>.sortedByOrder(sort: GallerySort): List<FlowerEntity> =

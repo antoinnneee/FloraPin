@@ -2,20 +2,31 @@ package com.florapin.app.gallery
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Badge
@@ -36,14 +47,20 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -54,6 +71,9 @@ import com.florapin.app.data.thumbnailModel
 import com.florapin.app.notifications.NotificationBell
 import com.florapin.app.ui.components.EmptyState
 import com.florapin.app.util.formatCaptureDate
+import com.florapin.app.util.formatMonthLabel
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * Galerie des fleurs capturées (NODE-9) : grille de vignettes, ou message si
@@ -140,6 +160,19 @@ fun GalleryScreen(
             if (flowers.isNotEmpty()) {
                 SortChip(selected = sort, onSelect = viewModel::setSort)
             }
+            // Regroupement par mois (TÂCHE 6.7) : n'a de sens que quand la liste est
+            // triée par date. Pour le tri par espèce, on reste en grille à plat.
+            val grouped = sort == GallerySort.DATE_DESC || sort == GallerySort.DATE_ASC
+            val rows = remember(flowers, grouped) {
+                if (grouped) {
+                    flowers.groupedByMonth()
+                } else {
+                    // Tri par espèce : pas de regroupement, la clé de mois n'est pas
+                    // utilisée (ni en-têtes ni fast scroller).
+                    flowers.map { GalleryRow.Flower(it, "") }
+                }
+            }
+            val gridState = rememberLazyGridState()
             // Tirer vers le bas relance une passe de sync (si activée) et rafraîchit
             // les badges — la grille elle-même vient de Room (déjà à jour), device-first.
             PullToRefreshBox(
@@ -148,28 +181,58 @@ fun GalleryScreen(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 when {
-                    flowers.isNotEmpty() -> LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 120.dp),
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(flowers, key = { it.id }) { flower ->
-                            FlowerThumbnail(
-                                flower = flower,
-                                selected = flower.id in selectedIds,
-                                // Tap : ouvre le détail hors sélection, bascule la
-                                // case en mode sélection. Appui long : (dé)sélectionne
-                                // — c'est aussi l'entrée dans le mode sélection.
-                                onClick = {
-                                    if (selectionActive) {
-                                        viewModel.toggleSelection(flower.id)
-                                    } else {
-                                        onFlowerClick(flower.id)
+                    flowers.isNotEmpty() -> {
+                        LazyVerticalGrid(
+                            state = gridState,
+                            columns = GridCells.Adaptive(minSize = 120.dp),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            rows.forEach { row ->
+                                when (row) {
+                                    is GalleryRow.MonthHeader -> item(
+                                        key = "month-${row.monthKey}",
+                                        // L'en-tête occupe toute la largeur de la grille.
+                                        span = { GridItemSpan(maxLineSpan) },
+                                    ) {
+                                        MonthHeader(row.label)
                                     }
-                                },
-                                onLongClick = { viewModel.toggleSelection(flower.id) },
+
+                                    is GalleryRow.Flower -> item(key = row.flower.id) {
+                                        val flower = row.flower
+                                        FlowerThumbnail(
+                                            flower = flower,
+                                            selected = flower.id in selectedIds,
+                                            // Tap : ouvre le détail hors sélection, bascule
+                                            // la case en mode sélection. Appui long :
+                                            // (dé)sélectionne — c'est aussi l'entrée dans le
+                                            // mode sélection.
+                                            onClick = {
+                                                if (selectionActive) {
+                                                    viewModel.toggleSelection(flower.id)
+                                                } else {
+                                                    onFlowerClick(flower.id)
+                                                }
+                                            },
+                                            onLongClick = { viewModel.toggleSelection(flower.id) },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        // Fast scroller : poignée latérale de défilement rapide avec
+                        // bulle du mois pointé. N'apparaît (et n'est utile) que quand la
+                        // grille groupée déborde de l'écran.
+                        val canScroll by remember {
+                            derivedStateOf { gridState.canScrollForward || gridState.canScrollBackward }
+                        }
+                        if (grouped && canScroll) {
+                            MonthFastScroller(
+                                gridState = gridState,
+                                rows = rows,
+                                modifier = Modifier.align(Alignment.CenterEnd),
                             )
                         }
                     }
@@ -352,6 +415,140 @@ private fun EmptyGallery(modifier: Modifier = Modifier) {
         message = "Appuyez sur 📷 pour capturer votre première fleur.",
         modifier = modifier,
     )
+}
+
+/**
+ * En-tête de mois (TÂCHE 6.7) : titre du mois de capture, posé en pleine largeur
+ * au-dessus des vignettes du mois correspondant.
+ */
+@Composable
+private fun MonthHeader(label: String) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 4.dp),
+    )
+}
+
+/** Hauteur de la poignée du fast scroller. */
+private val FastScrollerThumbHeight = 48.dp
+
+/**
+ * Poignée latérale de défilement rapide (TÂCHE 6.7). On la fait glisser
+ * verticalement pour parcourir la galerie ; pendant le glissement, une bulle
+ * affiche le mois pointé. La position de la poignée reflète, hors glissement,
+ * l'élément visible en tête de grille.
+ */
+@Composable
+private fun BoxScope.MonthFastScroller(
+    gridState: LazyGridState,
+    rows: List<GalleryRow>,
+    modifier: Modifier = Modifier,
+) {
+    val itemCount = rows.size
+    if (itemCount == 0) return
+    val scope = rememberCoroutineScope()
+    var dragging by remember { mutableStateOf(false) }
+    var dragFraction by remember { mutableStateOf(0f) }
+
+    // Fraction de défilement déduite de l'élément visible en tête (hors glissement).
+    val scrollFraction by remember {
+        derivedStateOf {
+            val total = gridState.layoutInfo.totalItemsCount
+            if (total <= 1) 0f else gridState.firstVisibleItemIndex.toFloat() / (total - 1)
+        }
+    }
+    val fraction = (if (dragging) dragFraction else scrollFraction).coerceIn(0f, 1f)
+
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxHeight()
+            .width(28.dp),
+    ) {
+        val density = LocalDensity.current
+        val trackHeightPx = constraints.maxHeight.toFloat()
+        val thumbHeightPx = with(density) { FastScrollerThumbHeight.toPx() }
+        val maxOffset = (trackHeightPx - thumbHeightPx).coerceAtLeast(0f)
+        val thumbOffsetPx = (fraction * maxOffset).coerceIn(0f, maxOffset)
+
+        // Mois pointé, pour la bulle : l'en-tête le plus proche de l'index visé.
+        val targetIndex = (fraction * (itemCount - 1)).roundToInt().coerceIn(0, itemCount - 1)
+        val bubbleLabel = rows.getOrNull(targetIndex)?.monthLabel()
+
+        // Applique une position (Y relatif au rail) : met à jour la fraction et
+        // défile la grille sur l'élément correspondant.
+        fun seek(y: Float) {
+            val f = if (trackHeightPx <= 0f) 0f else (y / trackHeightPx).coerceIn(0f, 1f)
+            dragFraction = f
+            val idx = (f * (itemCount - 1)).roundToInt().coerceIn(0, itemCount - 1)
+            scope.launch { gridState.scrollToItem(idx) }
+        }
+
+        // Rail plein-hauteur capturant le glissement vertical.
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(28.dp)
+                .pointerInput(itemCount, trackHeightPx) {
+                    detectVerticalDragGestures(
+                        onDragStart = { offset ->
+                            dragging = true
+                            seek(offset.y)
+                        },
+                        onDragEnd = { dragging = false },
+                        onDragCancel = { dragging = false },
+                        onVerticalDrag = { change, _ ->
+                            change.consume()
+                            seek(change.position.y)
+                        },
+                    )
+                },
+        ) {
+            // Poignée.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset { IntOffset(0, thumbOffsetPx.roundToInt()) }
+                    .padding(end = 4.dp)
+                    .width(6.dp)
+                    .height(FastScrollerThumbHeight)
+                    .clip(RoundedCornerShape(50))
+                    .background(MaterialTheme.colorScheme.primary),
+            )
+        }
+
+        // Bulle du mois pointé, à gauche de la poignée, pendant le glissement.
+        if (dragging && !bubbleLabel.isNullOrBlank()) {
+            val bubbleGapPx = with(density) { 44.dp.toPx() }.roundToInt()
+            Text(
+                text = bubbleLabel,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                maxLines = 1,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset {
+                        IntOffset(
+                            x = -bubbleGapPx,
+                            y = (thumbOffsetPx + (thumbHeightPx - with(density) { 32.dp.toPx() }) / 2f)
+                                .roundToInt(),
+                        )
+                    }
+                    .clip(RoundedCornerShape(50))
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+            )
+        }
+    }
+}
+
+/** Libellé de mois lisible d'une ligne (en-tête : son libellé ; fleur : dérivé). */
+private fun GalleryRow.monthLabel(): String = when (this) {
+    is GalleryRow.MonthHeader -> label
+    is GalleryRow.Flower -> formatMonthLabel(flower.createdAt)
 }
 
 @OptIn(ExperimentalFoundationApi::class)

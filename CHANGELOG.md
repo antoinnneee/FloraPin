@@ -21,6 +21,13 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **En-têtes par mois + fast scroller (TÂCHE 6.7).** La galerie regroupe les
+  vignettes par mois de **capture** (`createdAt`), avec un en-tête pleine largeur
+  introduisant chaque mois (ex. « Juin 2026 ») lorsqu'elle est triée par date. Une
+  poignée latérale de défilement rapide (fast scroller) apparaît dès que la grille
+  déborde de l'écran : on la fait glisser pour parcourir la galerie, et une bulle
+  affiche le mois pointé pendant le glissement. Le tri par espèce reste à plat
+  (sans en-têtes ni fast scroller).
 - **Multi-sélection par appui long (TÂCHE 6.6).** Dans la galerie, un appui long
   sur une vignette entre en mode sélection (liseré + pastille ✅ sur les fleurs
   cochées) ; un simple tap coche/décoche ensuite les autres. Une barre du haut

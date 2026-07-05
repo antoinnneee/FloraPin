@@ -1,5 +1,7 @@
 package com.florapin.app.navigation
 
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -29,20 +31,31 @@ val topLevelRoutes: Set<String> = TopLevelDestination.entries.map { it.route }.t
 
 /**
  * Barre de navigation inférieure à 4 onglets. [currentRoute] détermine l'onglet
- * actif ; [onSelect] est invoqué avec la destination choisie.
+ * actif ; [onSelect] est invoqué avec la destination choisie. [feedBadge] est le
+ * nombre de fleurs non vues du feed « Partagées » (0 = pas de badge).
  */
 @Composable
 fun FloraBottomBar(
     currentRoute: String?,
     onSelect: (TopLevelDestination) -> Unit,
+    feedBadge: Int = 0,
 ) {
     NavigationBar {
         TopLevelDestination.entries.forEach { destination ->
+            val badge = if (destination == TopLevelDestination.FEED) feedBadge else 0
             NavigationBarItem(
                 selected = currentRoute == destination.route,
                 onClick = { onSelect(destination) },
                 icon = {
-                    Text(destination.emoji, style = MaterialTheme.typography.titleLarge)
+                    BadgedBox(
+                        badge = {
+                            if (badge > 0) {
+                                Badge { Text(if (badge > 99) "99+" else "$badge") }
+                            }
+                        },
+                    ) {
+                        Text(destination.emoji, style = MaterialTheme.typography.titleLarge)
+                    }
                 },
                 label = { Text(destination.label) },
             )

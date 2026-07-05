@@ -13,6 +13,12 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Badge de nouveautés sur l'onglet « Partagées ».** L'onglet 🖼️ de la barre du
+  bas porte désormais un badge du nombre de fleurs non encore vues dans le feed
+  d'amis. Le compteur est recalculé à chaque changement d'onglet et remis à zéro
+  dès l'ouverture de l'onglet (les fleurs affichées sont marquées « vues » par
+  appareil, via `FeedBadgeStore`). Silencieux hors-ligne / non connecté (la
+  dernière valeur connue est conservée).
 - **Centre de notifications in-app.** Une cloche 🔔 dans la barre du haut de
   l'Accueil, surmontée d'un badge du nombre de non-lus, ouvre un centre de
   notifications listant les nouveautés reçues (demandes/acceptations d'ami,

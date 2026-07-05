@@ -128,6 +128,14 @@ fun FloraNavHost(
     val currentRouteStr = currentRoute?.destination?.route
     val showBottomBar = currentRouteStr in topLevelRoutes
 
+    // Badge de nouveautés sur l'onglet « Partagées » : recalculé à chaque
+    // changement d'onglet (l'ouverture du feed marque ses fleurs vues → 0).
+    val feedBadgeViewModel: com.florapin.app.feed.FeedBadgeViewModel = viewModel()
+    val feedBadge by feedBadgeViewModel.badge.collectAsStateWithLifecycle()
+    LaunchedEffect(currentRouteStr) {
+        if (loggedIn && currentRouteStr in topLevelRoutes) feedBadgeViewModel.refresh()
+    }
+
     // Gestion du retour hardware, en trois temps (hors flux d'auth) :
     //   1. Sur un écran poussé (détail fleur, espèce, albums…), on dépile pour
     //      revenir à la page courante d'où l'on venait.
@@ -172,6 +180,7 @@ fun FloraNavHost(
                 FloraBottomBar(
                     currentRoute = currentRoute?.destination?.route,
                     onSelect = { destination -> navController.navigateToTab(destination.route) },
+                    feedBadge = feedBadge,
                 )
             }
         },

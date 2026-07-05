@@ -50,6 +50,8 @@ class SharedFeedViewModel(
     private val feedApi: FeedApi,
     private val friendshipsApi: FriendshipsApi,
     private val likesApi: LikesApi,
+    /** Suivi des fleurs vues (badge onglet). Null en test : la remise à 0 est ignorée. */
+    private val badgeStore: FeedBadgeStore? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SharedFeedUiState(loading = true))
@@ -95,6 +97,9 @@ class SharedFeedViewModel(
                     // par cœurs on ne pagine pas (fin atteinte d'emblée).
                     endReached = sort != FeedSort.DATE || flowers.size < PAGE_SIZE,
                 )
+                // Ouvrir l'onglet « voit » les fleurs courantes du feed : le badge
+                // de nouveautés de la bottom bar revient à 0.
+                badgeStore?.markSeen(flowers.map { it.id }.toSet())
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
@@ -201,7 +206,12 @@ class SharedFeedViewModel(
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     val tokenStore = EncryptedTokenStore(context.applicationContext)
                     val apis = NetworkModule.createAuthenticated(tokenStore)
-                    return SharedFeedViewModel(apis.feed, apis.friendships, apis.likes) as T
+                    return SharedFeedViewModel(
+                        apis.feed,
+                        apis.friendships,
+                        apis.likes,
+                        FeedBadgeStore(context.applicationContext),
+                    ) as T
                 }
             }
     }

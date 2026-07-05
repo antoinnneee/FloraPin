@@ -20,9 +20,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.florapin.app.identify.IdentificationStatusBadge
 import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.api.IdentificationApi
 import com.florapin.app.network.auth.EncryptedTokenStore
+import com.florapin.app.network.dto.IdentificationStatus
 import com.florapin.app.network.dto.SpeciesProposalDto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -159,10 +161,20 @@ fun ReceivedProposalsSection(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            text = "Propositions de vos amis",
-            style = MaterialTheme.typography.titleMedium,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Propositions de vos amis",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f),
+            )
+            // Statut de la demande (TÂCHE 4.2) : cette section n'apparaît que tant
+            // que la fleur reste à identifier, donc la demande est « En attente ».
+            IdentificationStatusBadge(status = IdentificationStatus.PENDING)
+        }
         state.proposals.forEach { proposal ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(

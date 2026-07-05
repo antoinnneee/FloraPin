@@ -39,3 +39,37 @@ data class MyIdentificationRequestDto(
     val flower: FlowerDto,
     val proposals: List<SpeciesProposalDto> = emptyList(),
 )
+
+/**
+ * Statut d'une demande d'identification collaborative (TÂCHE 4.2), visible des
+ * deux côtés (propriétaire et ami). Dérivé sans colonne dédiée : une demande est
+ * « résolue » dès que la fleur n'attend plus d'identification et qu'une
+ * proposition a été acceptée (l'espèce est posée), « en attente » sinon.
+ */
+enum class IdentificationStatus { PENDING, RESOLVED }
+
+/**
+ * Statut d'une demande à partir de son état autoritaire : la fleur attend-elle
+ * encore une identification, et une proposition a-t-elle été acceptée (NODE-133).
+ */
+fun identificationStatusOf(
+    needsIdentification: Boolean,
+    proposals: List<SpeciesProposalDto>,
+): IdentificationStatus =
+    if (!needsIdentification && proposals.any { it.status == "accepted" }) {
+        IdentificationStatus.RESOLVED
+    } else {
+        IdentificationStatus.PENDING
+    }
+
+/** Statut de MA demande (côté propriétaire, TÂCHE 4.2). */
+fun MyIdentificationRequestDto.identificationStatus(): IdentificationStatus =
+    identificationStatusOf(flower.needsIdentification, proposals)
+
+/**
+ * Statut d'une fleur « à identifier » côté ami (TÂCHE 4.2) : l'ami n'a pas le
+ * détail des propositions, mais une fleur qui n'attend plus d'identification a
+ * été tranchée par son propriétaire (proposition acceptée ou demande levée).
+ */
+fun FlowerDto.identificationStatus(): IdentificationStatus =
+    if (needsIdentification) IdentificationStatus.PENDING else IdentificationStatus.RESOLVED

@@ -21,6 +21,14 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Statut d'une demande d'identification (En attente / Résolue).** Une pastille
+  de statut apparaît désormais des deux côtés de l'entraide : sur les cartes
+  « À identifier » (côté ami), « Mes demandes » (côté propriétaire) et sur la
+  section « Propositions de vos amis » du détail d'une fleur. Le statut est
+  entièrement *dérivé* de l'état existant — « Résolue » dès que la fleur
+  n'attend plus d'identification (`needsIdentification = false`) et qu'une
+  proposition a été acceptée, « En attente » sinon — sans nouvelle colonne ni
+  changement de schéma.
 - **Écran « Mes demandes » (identification collaborative).** L'écran
   d'identification propose désormais deux onglets : « À identifier » (les fleurs
   d'amis que je peux aider à identifier, inchangé) et « Mes demandes », qui

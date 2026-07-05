@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -17,6 +18,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -37,8 +39,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.detail.CommentsBottomSheet
 import com.florapin.app.network.dto.FlowerDto
+import com.florapin.app.network.dto.IdentificationStatus
 import com.florapin.app.network.dto.MyIdentificationRequestDto
 import com.florapin.app.network.dto.fullPhotoUrls
+import com.florapin.app.network.dto.identificationStatus
 import com.florapin.app.network.dto.previewPhotoUrls
 import com.florapin.app.ui.components.EmptyState
 import com.florapin.app.ui.components.PhotoCarousel
@@ -234,6 +238,42 @@ private fun RefreshableEmpty(content: @Composable () -> Unit) {
     }
 }
 
+/**
+ * Pastille de statut d'une demande d'identification (TÂCHE 4.2), affichée des deux
+ * côtés : « En attente » tant que le propriétaire n'a pas tranché, « Résolue » une
+ * fois qu'une proposition a été acceptée. Dérivée, sans colonne dédiée.
+ */
+@Composable
+fun IdentificationStatusBadge(
+    status: IdentificationStatus,
+    modifier: Modifier = Modifier,
+) {
+    val (container, content, label) = when (status) {
+        IdentificationStatus.PENDING -> Triple(
+            MaterialTheme.colorScheme.secondaryContainer,
+            MaterialTheme.colorScheme.onSecondaryContainer,
+            "⏳ En attente",
+        )
+        IdentificationStatus.RESOLVED -> Triple(
+            MaterialTheme.colorScheme.primaryContainer,
+            MaterialTheme.colorScheme.onPrimaryContainer,
+            "✅ Résolue",
+        )
+    }
+    Surface(
+        color = container,
+        contentColor = content,
+        shape = RoundedCornerShape(50),
+        modifier = modifier,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+        )
+    }
+}
+
 /** Carte d'une fleur à identifier : aperçu + champ de proposition d'espèce. */
 @Composable
 private fun IdentifyCard(
@@ -251,6 +291,9 @@ private fun IdentifyCard(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            // Statut de la demande (TÂCHE 4.2) : l'ami voit si elle est toujours
+            // ouverte ou déjà tranchée par le propriétaire.
+            IdentificationStatusBadge(status = flower.identificationStatus())
             // Toutes les photos de la fleur (carrousel + plein écran/zoom au clic),
             // pour mieux juger l'espèce à proposer. Repli sur la couverture seule.
             PhotoCarousel(
@@ -329,6 +372,9 @@ private fun MyRequestCard(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            // Statut de ma demande (TÂCHE 4.2), dérivé de l'état de la fleur et des
+            // propositions reçues : « En attente » ou « Résolue ».
+            IdentificationStatusBadge(status = request.identificationStatus())
             PhotoCarousel(
                 previewModels = flower.previewPhotoUrls(),
                 fullModels = flower.fullPhotoUrls(),

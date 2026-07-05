@@ -8,6 +8,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.florapin.app.MainActivity
 import com.florapin.app.R
+import com.florapin.app.sync.ImageCacher
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 
@@ -34,9 +35,13 @@ class FloraMessagingService : FirebaseMessagingService() {
         // (partage ciblé, cœur, commentaire, identification…). Absent des partages
         // 'all'/'album' → le tap retombera sur le feed / l'écran par type.
         val flowerId = data["flowerId"]?.takeIf { it.isNotBlank() }
+        // URL de la miniature de la fleur (TÂCHE 2.1) : URL présignée de lecture à
+        // longue durée (7 jours), donc utilisable telle quelle. Absente des anciens
+        // payloads et des push sans fleur → notification sans photo.
+        val imageUrl = data["thumbnailUrl"]?.takeIf { it.isNotBlank() }
         val title = message.notification?.title ?: titleFor(type)
         val body = message.notification?.body ?: bodyFor(type, byUserName, species)
-        showNotification(title, body, type, flowerId)
+        showNotification(title, body, type, flowerId, imageUrl)
     }
 
     private fun showNotification(
@@ -44,6 +49,7 @@ class FloraMessagingService : FirebaseMessagingService() {
         body: String,
         type: String?,
         flowerId: String?,
+        imageUrl: String?,
     ) {
         val manager = getSystemService(NotificationManager::class.java) ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -58,15 +64,31 @@ class FloraMessagingService : FirebaseMessagingService() {
         // notification existante plutôt que d'en empiler une nouvelle. Sert aussi
         // de requestCode pour que le PendingIntent reste propre à ce (type, fleur).
         val notificationId = NotificationGrouping.childId(type, flowerId)
-        val notification = NotificationCompat.Builder(this, channelId)
+        // Miniature de la fleur (TÂCHE 2.5) : téléchargement synchrone à timeout
+        // court, best-effort. En cas d'échec / d'absence d'URL, on retombe sur une
+        // notification classique sans image. onMessageReceived tourne hors du thread
+        // principal → bloquer brièvement ici est acceptable.
+        val bigPicture = imageUrl?.let { ImageCacher.downloadBitmap(it) }
+        val builder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
             .setGroup(groupKey)
             .setContentIntent(contentIntent(notificationId, type, flowerId))
-            .build()
-        manager.notify(notificationId, notification)
+        if (bigPicture != null) {
+            builder
+                // Vignette visible en mode replié.
+                .setLargeIcon(bigPicture)
+                .setStyle(
+                    NotificationCompat.BigPictureStyle()
+                        .bigPicture(bigPicture)
+                        // Masque la grande icône une fois la notification dépliée
+                        // (sinon la photo apparaît en double).
+                        .bigLargeIcon(null as android.graphics.Bitmap?),
+                )
+        }
+        manager.notify(notificationId, builder.build())
         // Le résumé doit être (re)posté à CHAQUE ajout pour que le groupe reflète
         // l'état courant et se collapse dès la 2ᵉ notification.
         postGroupSummary(manager, channelId, groupKey, type, flowerId)

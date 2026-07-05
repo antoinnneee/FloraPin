@@ -13,6 +13,13 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Photo de la fleur dans la notification.** Les push référençant une fleur
+  affichent désormais sa miniature (BigPictureStyle) : vignette en mode replié
+  et grande image une fois dépliée. L'URL de la miniature (présignée de lecture,
+  longue durée) est fournie dans le payload par le backend ; l'app la télécharge
+  à la réception, de façon synchrone et bornée par un timeout court (~2,5 s),
+  puis retombe proprement sur une notification sans image en cas d'échec, d'URL
+  absente ou de push sans fleur.
 - **Regroupement des notifications par fleur / conversation.** Les push sont
   désormais regroupés côté système : toutes les notifications concernant une même
   fleur (cœur, commentaire, proposition d'espèce, demande d'identification…) sont

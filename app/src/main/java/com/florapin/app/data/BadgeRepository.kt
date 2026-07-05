@@ -73,6 +73,23 @@ class BadgeRepository(
         return if (isBaseline) emptyList() else fresh
     }
 
+    /**
+     * Valeurs brutes courantes par famille (numérateurs de progression, TÂCHE 5.5) :
+     * alimente la grille Badges pour afficher « 34 / 50 » sans dériver le compteur
+     * des seuils déjà franchis. Recharge les agrégats depuis les fleurs actives.
+     */
+    suspend fun currentProgress(): BadgeCalculator.Progress {
+        val input = BadgeCalculator.Input(
+            flowerCount = flowerDao.countActive(),
+            distinctSpeciesCount = flowerDao.countDistinctSpecies(),
+            geoTimes = flowerDao.geoTimes(),
+        )
+        return calculator.progress(input)
+    }
+
+    /** Paliers pas encore « vus » (à célébrer), sans les consommer. */
+    suspend fun unseen(): List<BadgeEntity> = badgeDao.unseen()
+
     /** Marque tous les paliers comme vus (célébrations consommées à l'affichage). */
     suspend fun markAllSeen() = badgeDao.markAllSeen()
 

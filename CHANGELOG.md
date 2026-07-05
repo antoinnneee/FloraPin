@@ -21,6 +21,25 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Grille de badges — étoiles + progression (TÂCHE 5.5).** L'onglet Badges du
+  Profil affiche désormais une **grille** de familles de badges (DA actée) :
+  chaque carte porte une **rangée d'étoiles** grisées (un palier atteignable
+  chacune) qui se remplissent en or au fur et à mesure, une progression
+  chiffrée « 34 / 50 » vers le prochain palier, et grise entièrement la carte
+  tant qu'aucun palier n'est atteint. Deux sections : **Collection** (calcul
+  local, disponible hors-ligne) et **Entraide** (compteurs serveur, cartes
+  grisées hors-ligne — device-first). Les saisons (4 + « Quatre saisons ») et
+  l'outre-mer (une par région) sont regroupés en **familles à paliers**
+  (« 3 / 4 », « 2 / 5 »). Nouveau composant partagé `ui/components/BadgeCard.kt`
+  + palette d'états dans `ui/theme/Color.kt` (étoile « or » chaude, lisible en
+  clair comme en sombre) ; catalogue d'affichage `badges/BadgeCatalog.kt` ;
+  `profile/BadgesViewModel.kt` (fusion local + serveur) et `profile/BadgesTab.kt`
+  (grille). `BadgeCalculator` expose une passe `progress()` donnant les
+  numérateurs bruts (fleurs, espèces, saisons, régions, lieux) pour la
+  progression exacte, et `BadgeRepository.currentProgress()` la relaie. Un palier
+  fraîchement débloqué déclenche un **retour haptique** de célébration (cf. QOL
+  6.15, à centraliser plus tard dans un `Haptics` partagé) et un liseré sur la
+  carte concernée.
 - **Badges « entraide » — calcul serveur (TÂCHE 5.4).** Nouveau module backend
   `badges/` (`badges.module.ts` + `badges.controller.ts` + `badges.service.ts`,
   sur le modèle du module `likes` : agrégation **en lecture**, aucune table

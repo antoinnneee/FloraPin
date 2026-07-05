@@ -68,6 +68,25 @@ class BadgeCalculator(
     )
 
     /**
+     * Valeurs brutes courantes par famille (numérateurs de progression, TÂCHE 5.5).
+     * Les compteurs géographiques valent [UNAVAILABLE] quand le résolveur est absent.
+     */
+    data class Progress(
+        /** Nombre de fleurs actives (📚 Herbier). */
+        val flowerCount: Int,
+        /** Nombre d'espèces distinctes (🌿 Diversité). */
+        val distinctSpeciesCount: Int,
+        /** Nombre de saisons distinctes couvertes (🍂 Saisons, 0..4). */
+        val seasonCount: Int,
+        /** Nombre de régions françaises distinctes (🧭 Explorateur), ou [UNAVAILABLE]. */
+        val regionCount: Int,
+        /** Nombre de régions d'outre-mer distinctes (🏝️ Outre-mer), ou [UNAVAILABLE]. */
+        val overseasCount: Int,
+        /** Nombre de lieux distincts (📍 grille ~5 km). */
+        val cellCount: Int,
+    )
+
+    /**
      * Renvoie tous les paliers débloqués (badge + tier). Tous les paliers atteints
      * sont émis, pas seulement le plus haut : « Herbier 50 » implique aussi
      * « Herbier 10 » (deux lignes), ce qui permet à l'UI de compter les étoiles.
@@ -83,37 +102,76 @@ class BadgeCalculator(
         result += tiered(DIVERSITE, input.distinctSpeciesCount, DIVERSITE_TIERS)
 
         // 🌷☀️🍁❄️ Saisons + 🍂 Quatre saisons.
-        val seasons = input.geoTimes.mapTo(mutableSetOf()) { seasonOf(it.createdAt) }
+        val seasons = seasonsOf(input.geoTimes)
         for (season in seasons) result += UnlockedBadge(seasonBadgeId(season), 1)
         if (seasons.size == Season.values().size) result += UnlockedBadge(QUATRE_SAISONS, 1)
 
         // 🧭 Explorateur · 🏝️ Outre-mer (nécessitent le résolveur de régions).
-        val resolver = regionResolver
-        if (resolver != null) {
-            val regionCodes = mutableSetOf<String>()
-            val overseasCodes = mutableSetOf<String>()
-            for (gt in input.geoTimes) {
-                val lat = gt.latitude ?: continue
-                val lng = gt.longitude ?: continue
-                val region = resolver.resolve(lat, lng) ?: continue
-                regionCodes += region.code
-                if (region.overseas) overseasCodes += region.code
-            }
-            result += tiered(EXPLORATEUR, regionCodes.size, EXPLORATEUR_TIERS)
-            for (code in overseasCodes) result += UnlockedBadge(overseasBadgeId(code), 1)
+        val regions = regionsOf(input.geoTimes)
+        if (regions != null) {
+            result += tiered(EXPLORATEUR, regions.all.size, EXPLORATEUR_TIERS)
+            for (code in regions.overseas) result += UnlockedBadge(overseasBadgeId(code), 1)
         }
 
         // 📍 Lieux distincts (grille ~5 km).
+        result += tiered(LIEUX_DISTINCTS, cellsOf(input.geoTimes).size, LIEUX_TIERS)
+
+        return result
+    }
+
+    /**
+     * Valeurs **brutes** courantes par famille (TÂCHE 5.5). Là où [compute] ne
+     * renvoie que les seuils franchis, ce calcul donne le numérateur exact de la
+     * progression affichée par l'UI (« 34 / 50 ») : nombre de fleurs, d'espèces,
+     * de saisons, de régions, de régions d'outre-mer et de lieux distincts.
+     *
+     * Les compteurs géographiques valent [UNAVAILABLE] (`-1`) quand le résolveur de
+     * régions est absent (assets indisponibles) : l'UI grise alors les badges
+     * Explorateur / Outre-mer plutôt que d'afficher un faux « 0 » (device-first).
+     */
+    fun progress(input: Input): Progress {
+        val regions = regionsOf(input.geoTimes)
+        return Progress(
+            flowerCount = input.flowerCount,
+            distinctSpeciesCount = input.distinctSpeciesCount,
+            seasonCount = seasonsOf(input.geoTimes).size,
+            regionCount = regions?.all?.size ?: UNAVAILABLE,
+            overseasCount = regions?.overseas?.size ?: UNAVAILABLE,
+            cellCount = cellsOf(input.geoTimes).size,
+        )
+    }
+
+    /** Ensemble des saisons couvertes par les captures. */
+    private fun seasonsOf(geoTimes: List<FlowerGeoTime>): Set<Season> =
+        geoTimes.mapTo(mutableSetOf()) { seasonOf(it.createdAt) }
+
+    /** Régions (toutes / outre-mer) couvertes, ou `null` si le résolveur est absent. */
+    private fun regionsOf(geoTimes: List<FlowerGeoTime>): Regions? {
+        val resolver = regionResolver ?: return null
+        val all = mutableSetOf<String>()
+        val overseas = mutableSetOf<String>()
+        for (gt in geoTimes) {
+            val lat = gt.latitude ?: continue
+            val lng = gt.longitude ?: continue
+            val region = resolver.resolve(lat, lng) ?: continue
+            all += region.code
+            if (region.overseas) overseas += region.code
+        }
+        return Regions(all, overseas)
+    }
+
+    /** Cellules distinctes de la grille ~5 km couvertes par les captures géolocalisées. */
+    private fun cellsOf(geoTimes: List<FlowerGeoTime>): Set<Long> {
         val cells = mutableSetOf<Long>()
-        for (gt in input.geoTimes) {
+        for (gt in geoTimes) {
             val lat = gt.latitude ?: continue
             val lng = gt.longitude ?: continue
             cells += gridCellKey(lat, lng)
         }
-        result += tiered(LIEUX_DISTINCTS, cells.size, LIEUX_TIERS)
-
-        return result
+        return cells
     }
+
+    private data class Regions(val all: Set<String>, val overseas: Set<String>)
 
     /** Paliers d'un badge à seuils : un [UnlockedBadge] par seuil atteint. */
     private fun tiered(badgeId: String, value: Int, thresholds: IntArray): List<UnlockedBadge> =
@@ -158,6 +216,9 @@ class BadgeCalculator(
     companion object {
         /** Fuseau par défaut pour dater les saisons (France d'abord). */
         val DEFAULT_ZONE: ZoneId = ZoneId.of("Europe/Paris")
+
+        /** Compteur indisponible (résolveur de régions absent — badges géo grisés). */
+        const val UNAVAILABLE = -1
 
         // --- Identifiants de badges (stables : ne pas renommer sans migration UI) ---
         const val PREMIERE_FLEUR = "premiere_fleur"

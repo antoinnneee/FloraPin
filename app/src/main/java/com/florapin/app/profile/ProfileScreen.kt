@@ -47,7 +47,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -361,39 +360,6 @@ private fun initialsOf(displayName: String): String {
         parts.isEmpty() -> "?"
         parts.size == 1 -> parts[0].take(1).uppercase()
         else -> (parts[0].take(1) + parts[1].take(1)).uppercase()
-    }
-}
-
-/**
- * Onglet ② Badges (TÂCHE 5.1) : emplacement de la grille de badges. La collection
- * (calcul local — TÂCHE 5.3) et l'entraide (calcul serveur — TÂCHE 5.4) ainsi que
- * la DA « étoiles » (TÂCHE 5.5) arriveront ici.
- */
-@Composable
-private fun BadgesTab() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(
-            text = "🏅",
-            style = MaterialTheme.typography.displaySmall,
-        )
-        Text(
-            text = "Badges à venir",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Text(
-            text = "Vos jalons de collection et votre entraide entre amis " +
-                "s'afficheront ici prochainement.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 

@@ -86,3 +86,14 @@ val md_dark_inverseSurface = Color(0xFFE2E3DE)
 val md_dark_inverseOnSurface = Color(0xFF2F312E)
 val md_dark_inversePrimary = Color(0xFF386A53)
 val md_dark_scrim = Color(0xFF000000)
+
+// ── États des badges (TÂCHE 5.5) ─────────────────────────────────────────────
+// Palette dédiée à la grille de badges. Une étoile « or » chaude signale un
+// palier atteint et tranche volontairement sur les verts/roses de la marque ;
+// sa version « creuse » marque un palier atteignable non débloqué. L'or reste
+// lisible en clair comme en sombre (couleurs fixes, non déclinées par thème).
+// Les états entièrement grisés (badge sans aucun palier) réutilisent
+// `onSurfaceVariant` / `surfaceVariant` du thème directement dans le composant.
+val BadgeStarFilled = Color(0xFFF5B301)   // or chaud — palier atteint
+val BadgeStarEmpty = Color(0xFFB9BDB5)    // gris doux — palier atteignable
+val BadgeNewHighlight = Color(0xFFF5B301) // liseré de célébration (nouveau palier)

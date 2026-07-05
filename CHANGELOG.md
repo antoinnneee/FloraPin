@@ -21,6 +21,16 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Profil d'ami — amis en commun & ancienneté (TÂCHE 5.7).** Nouvel écran
+  « profil d'ami » ouvert d'un tap sur un ami de l'écran **Amis** ou sur le
+  « Partagée par … » d'une carte du **feed**. Il affiche l'avatar et le nom, une
+  ancienneté « **Amis depuis mai 2026** » (calculée sur `friendship.createdAt`),
+  le nombre d'**amis en commun**, les **espèces communes** et les **fleurs de
+  l'ami visibles par moi**. Côté serveur, un endpoint public **limité**
+  `GET /users/:id/profile` (module `friend-profile`) ne renvoie **que ce qui
+  m'est déjà accessible** (fleurs partagées avec moi ou diffusées au réseau) —
+  jamais les stats privées de l'ami — et n'est ouvert qu'entre amis acceptés
+  (404 anti-énumération sinon). Aucune évolution de schéma (lecture seule).
 - **Onglet Profil complété — nb de badges + dernières fleurs (TÂCHE 5.1).**
   L'onglet ① Profil affiche désormais, en plus de l'avatar et des statistiques
   d'entraide, un **compteur de badges débloqués** (raccourci vers l'onglet

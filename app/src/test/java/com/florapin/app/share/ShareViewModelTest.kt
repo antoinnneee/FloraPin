@@ -38,6 +38,8 @@ private class FakeFriendshipsApi(private val data: List<FriendshipDto>) : Friend
     override suspend fun requestById(body: com.florapin.app.network.dto.AddFriendByIdRequest) =
         data.first()
     override suspend fun accept(id: String) = data.first()
+    override suspend fun profile(id: String): com.florapin.app.network.dto.FriendProfileDto =
+        throw UnsupportedOperationException()
     override suspend fun remove(id: String) = Response.success<Unit>(null)
 }
 

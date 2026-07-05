@@ -9,6 +9,7 @@ import { BadgesModule } from './badges/badges.module';
 import { CommentsModule } from './comments/comments.module';
 import { FeedModule } from './feed/feed.module';
 import { FlowersModule } from './flowers/flowers.module';
+import { FriendProfileModule } from './friend-profile/friend-profile.module';
 import { FriendshipsModule } from './friendships/friendships.module';
 import { IdentificationModule } from './identification/identification.module';
 import { IdentificationRequestsModule } from './identification-requests/identification-requests.module';
@@ -56,6 +57,7 @@ import { UsersModule } from './users/users.module';
     FriendshipsModule,
     NotificationsModule,
     SharesModule,
+    FriendProfileModule,
     FeedModule,
     IdentificationModule,
     IdentificationRequestsModule,

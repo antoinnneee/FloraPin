@@ -195,6 +195,19 @@ export class FriendshipsService {
     );
   }
 
+  /**
+   * Amitié ACCEPTÉE entre [a] et [b] (dans un sens ou l'autre), ou null. Sert au
+   * profil d'ami (TÂCHE 5.7) : `createdAt` fournit l'ancienneté « Amis depuis… ».
+   */
+  acceptedBetween(a: string, b: string): Promise<Friendship | null> {
+    return this.friendships.findOne({
+      where: [
+        { requesterId: a, addresseeId: b, status: 'accepted' },
+        { requesterId: b, addresseeId: a, status: 'accepted' },
+      ],
+    });
+  }
+
   private findBetween(a: string, b: string): Promise<Friendship | null> {
     return this.friendships.findOne({
       where: [

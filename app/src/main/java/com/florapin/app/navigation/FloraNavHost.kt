@@ -38,6 +38,7 @@ import com.florapin.app.capture.CaptureFlow
 import com.florapin.app.detail.DetailScreen
 import com.florapin.app.detail.SpeciesDetailScreen
 import com.florapin.app.feed.SharedFeedScreen
+import com.florapin.app.friends.FriendProfileScreen
 import com.florapin.app.friends.FriendsScreen
 import com.florapin.app.gallery.GalleryScreen
 import com.florapin.app.herbier.HerbierScreen
@@ -71,6 +72,7 @@ private object Routes {
     const val CAPTURE = "capture"
     const val MAP = "map"
     const val FRIENDS = "friends"
+    const val FRIEND_PROFILE = "friend/{userId}"
     const val FEED = "feed"
     const val PROFILE = "profile"
     const val HERBIER = "herbier"
@@ -84,6 +86,7 @@ private object Routes {
     fun detail(id: Long) = "detail/$id"
     fun album(id: Long) = "album/$id"
     fun speciesDetail(id: String) = "species/$id"
+    fun friendProfile(userId: String) = "friend/$userId"
 }
 
 /**
@@ -372,10 +375,24 @@ fun FloraNavHost(
         composable(Routes.FEED) {
             SharedFeedScreen(
                 onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+                onOpenProfile = { uid -> navController.navigate(Routes.friendProfile(uid)) },
             )
         }
         composable(Routes.FRIENDS) {
-            FriendsScreen(onBack = { navController.popBackStack() })
+            FriendsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenProfile = { uid -> navController.navigate(Routes.friendProfile(uid)) },
+            )
+        }
+        composable(
+            route = Routes.FRIEND_PROFILE,
+            arguments = listOf(navArgument("userId") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
+            FriendProfileScreen(
+                userId = userId,
+                onBack = { navController.popBackStack() },
+            )
         }
         composable(Routes.PROFILE) {
             val authViewModel: AuthViewModel =

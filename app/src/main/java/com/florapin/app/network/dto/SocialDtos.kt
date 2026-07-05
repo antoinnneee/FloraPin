@@ -30,6 +30,26 @@ data class FriendshipDto(
     val createdAt: String,
 )
 
+/**
+ * Profil public limité d'un ami (TÂCHE 5.7) : identité, ancienneté (compte +
+ * amitié), amis en commun, espèces communes et fleurs de l'ami visibles par moi
+ * (partagées ou diffusées au réseau). Ne contient jamais ses stats privées.
+ */
+@JsonClass(generateAdapter = true)
+data class FriendProfileDto(
+    val id: String,
+    val displayName: String,
+    val avatarUrl: String? = null,
+    /** Inscription de l'ami (ISO8601). */
+    val memberSince: String,
+    /** Amitié acceptée depuis (ISO8601) — « Amis depuis mai 2026 ». */
+    val friendsSince: String,
+    val mutualFriendsCount: Int = 0,
+    val visibleFlowerCount: Int = 0,
+    val commonSpecies: List<String> = emptyList(),
+    val sharedFlowers: List<FlowerDto> = emptyList(),
+)
+
 @JsonClass(generateAdapter = true)
 data class CreateShareRequest(
     val friendId: String,

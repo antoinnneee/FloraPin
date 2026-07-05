@@ -2,6 +2,7 @@ package com.florapin.app.network.api
 
 import com.florapin.app.network.dto.AddFriendByIdRequest
 import com.florapin.app.network.dto.CreateFriendshipRequest
+import com.florapin.app.network.dto.FriendProfileDto
 import com.florapin.app.network.dto.FriendshipDto
 import retrofit2.Response
 import retrofit2.http.Body
@@ -26,4 +27,8 @@ interface FriendshipsApi {
 
     @DELETE("friendships/{id}")
     suspend fun remove(@Path("id") id: String): Response<Unit>
+
+    /** Profil public limité d'un ami (TÂCHE 5.7) : `id` = UUID de l'ami. */
+    @GET("users/{id}/profile")
+    suspend fun profile(@Path("id") id: String): FriendProfileDto
 }

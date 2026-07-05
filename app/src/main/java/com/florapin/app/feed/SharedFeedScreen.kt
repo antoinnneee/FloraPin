@@ -67,6 +67,7 @@ import com.florapin.app.ui.components.PhotoCarousel
 fun SharedFeedScreen(
     onOpenNotifications: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenProfile: (String) -> Unit = {},
     viewModel: SharedFeedViewModel = viewModel(
         factory = SharedFeedViewModel.factory(androidx.compose.ui.platform.LocalContext.current),
     ),
@@ -225,6 +226,7 @@ fun SharedFeedScreen(
                                 onReact = { code -> viewModel.react(row.item.flower.id, code) },
                                 onOpenLikers = { likersFor = row.item.flower.id },
                                 onComment = { commentsFor = row.item.flower.id },
+                                onOpenProfile = { onOpenProfile(row.item.flower.ownerId) },
                             )
                         }
                         // Carte-lot « Marie a partagé N fleurs » (TÂCHE 3.6) : le tap
@@ -251,6 +253,7 @@ fun SharedFeedScreen(
                                             onReact = { code -> viewModel.react(batchItem.flower.id, code) },
                                             onOpenLikers = { likersFor = batchItem.flower.id },
                                             onComment = { commentsFor = batchItem.flower.id },
+                                            onOpenProfile = { onOpenProfile(batchItem.flower.ownerId) },
                                         )
                                     }
                                 }
@@ -475,6 +478,7 @@ private fun SharedFlowerCard(
     onReact: (String) -> Unit,
     onOpenLikers: () -> Unit,
     onComment: () -> Unit,
+    onOpenProfile: () -> Unit = {},
 ) {
     val flower = item.flower
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -499,7 +503,13 @@ private fun SharedFlowerCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     item.ownerName?.let {
-                        Text("Partagée par $it", style = MaterialTheme.typography.bodyMedium)
+                        // Tap sur « Partagée par X » → profil de l'ami (TÂCHE 5.7).
+                        Text(
+                            text = "Partagée par $it",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.clickable(onClick = onOpenProfile),
+                        )
                     } ?: Box(Modifier)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,

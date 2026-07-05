@@ -51,6 +51,8 @@ private class FakeFriendshipsApi(
         accepted = id
         return friendship(id, "accepted", "incoming")
     }
+    override suspend fun profile(id: String) =
+        throw UnsupportedOperationException()
     override suspend fun remove(id: String): Response<Unit> {
         removed = id
         return Response.success(null)

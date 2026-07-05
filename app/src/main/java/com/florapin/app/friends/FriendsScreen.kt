@@ -1,5 +1,6 @@
 package com.florapin.app.friends
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,6 +43,7 @@ import com.florapin.app.network.dto.FriendshipDto
 fun FriendsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenProfile: (String) -> Unit = {},
     viewModel: FriendsViewModel = viewModel(
         factory = FriendsViewModel.factory(androidx.compose.ui.platform.LocalContext.current),
     ),
@@ -145,6 +147,8 @@ fun FriendsScreen(
                     friendship = friendship,
                     secondaryLabel = "Retirer",
                     onSecondary = { viewModel.remove(friendship.id) },
+                    // Tap sur la carte d'un ami accepté → son profil (TÂCHE 5.7).
+                    onClick = { onOpenProfile(friendship.user.id) },
                 )
             }
 
@@ -238,8 +242,14 @@ private fun FriendRow(
     onSecondary: () -> Unit,
     primaryLabel: String? = null,
     onPrimary: () -> Unit = {},
+    onClick: (() -> Unit)? = null,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    val cardModifier = if (onClick != null) {
+        Modifier.fillMaxWidth().clickable(onClick = onClick)
+    } else {
+        Modifier.fillMaxWidth()
+    }
+    Card(modifier = cardModifier) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

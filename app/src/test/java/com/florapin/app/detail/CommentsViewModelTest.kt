@@ -70,6 +70,10 @@ private class FakeFriendshipsApi(
     ): FriendshipDto = throw UnsupportedOperationException()
     override suspend fun accept(id: String): FriendshipDto =
         throw UnsupportedOperationException()
+    override suspend fun profile(
+        id: String,
+    ): com.florapin.app.network.dto.FriendProfileDto =
+        throw UnsupportedOperationException()
     override suspend fun remove(id: String): Response<Unit> = Response.success(Unit)
 }
 

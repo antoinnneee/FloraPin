@@ -21,6 +21,13 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Déclencheur au volume (TÂCHE 6.4).** Sur l'écran de capture, les touches de
+  volume (haut ou bas) déclenchent la prise de photo, comme l'obturateur à
+  l'écran. L'interception n'est active que lorsque l'aperçu caméra est visible :
+  l'écran enregistre l'action auprès de `MainActivity` à l'affichage et la retire
+  à la sortie, si bien que les touches de volume gardent partout ailleurs leur
+  comportement système normal. Un maintien de touche ne déclenche qu'une seule
+  capture (`repeatCount == 0`), et une capture déjà en cours est ignorée.
 - **Grille de composition (TÂCHE 6.3).** Une nouvelle bascule **▦ Grille** sur
   l'écran de capture superpose une grille « règle des tiers » à l'aperçu caméra
   (deux traits verticaux et deux horizontaux en blanc translucide), pour aider au

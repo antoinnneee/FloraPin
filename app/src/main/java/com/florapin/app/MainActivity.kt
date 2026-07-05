@@ -2,6 +2,7 @@ package com.florapin.app
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -18,6 +19,44 @@ class MainActivity : ComponentActivity() {
     // que le NavHost la consomme aussi bien au démarrage à froid (onCreate) que
     // lorsque l'app est déjà ouverte (onNewIntent, activité en singleTop).
     private val notificationTarget = mutableStateOf<NotificationTarget?>(null)
+
+    // Déclencheur de capture au volume : non nul uniquement quand l'écran de
+    // capture est visible (il s'enregistre/désenregistre lui-même). Tant qu'il
+    // reste nul, les touches de volume gardent leur comportement système normal.
+    private var volumeCaptureHandler: (() -> Unit)? = null
+
+    /**
+     * (Dés)enregistre le déclencheur de capture au volume. Appelé par l'écran de
+     * capture : une action à l'entrée, `null` à la sortie, pour n'intercepter les
+     * touches de volume que lorsque l'aperçu caméra est affiché.
+     */
+    fun setVolumeCaptureHandler(handler: (() -> Unit)?) {
+        volumeCaptureHandler = handler
+    }
+
+    // Interception des touches de volume (haut/bas) comme obturateur, mais
+    // seulement si l'écran de capture a enregistré un déclencheur. `repeatCount`
+    // == 0 évite les rafales quand l'utilisateur maintient la touche appuyée.
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        val handler = volumeCaptureHandler
+        if (handler != null && isVolumeKey(keyCode)) {
+            if (event == null || event.repeatCount == 0) handler()
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
+    // Consomme aussi le relâchement des touches de volume tant que le
+    // déclencheur est actif, pour empêcher l'IHM système de volume d'apparaître.
+    override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+        if (volumeCaptureHandler != null && isVolumeKey(keyCode)) {
+            return true
+        }
+        return super.onKeyUp(keyCode, event)
+    }
+
+    private fun isVolumeKey(keyCode: Int): Boolean =
+        keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

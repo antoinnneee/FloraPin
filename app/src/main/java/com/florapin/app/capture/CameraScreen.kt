@@ -54,6 +54,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
+import com.florapin.app.MainActivity
+import com.florapin.app.permission.findActivity
 import androidx.lifecycle.compose.LocalLifecycleOwner
 
 private const val TAG = "CameraScreen"
@@ -155,6 +157,42 @@ fun CameraScreen(
         }
     }
 
+    // Action d'obturateur partagée entre le bouton et les touches de volume :
+    // ignore les appels si une capture est déjà en cours.
+    val onShutter = {
+        if (!isCapturing) {
+            isCapturing = true
+            takePhoto(
+                controller = controller,
+                context = context,
+                onSaved = { uri ->
+                    isCapturing = false
+                    onPhotoSaved(uri)
+                },
+                onError = { exc ->
+                    isCapturing = false
+                    Log.e(TAG, "Échec de la capture", exc)
+                    Toast.makeText(
+                        context,
+                        "Échec de la capture : ${exc.message}",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                },
+            )
+        }
+    }
+
+    // Déclencheur au volume : on enregistre l'obturateur auprès de l'activité
+    // uniquement tant que l'écran de capture est composé (donc visible), et on le
+    // retire à la sortie. rememberUpdatedState garde une référence fraîche vers
+    // l'action sans avoir à ré-enregistrer à chaque recomposition.
+    val currentShutter = rememberUpdatedState(onShutter)
+    val activity = context.findActivity() as? MainActivity
+    androidx.compose.runtime.DisposableEffect(activity) {
+        activity?.setVolumeCaptureHandler { currentShutter.value() }
+        onDispose { activity?.setVolumeCaptureHandler(null) }
+    }
+
     // Valeur courante du mode macro, lue au moment du tap (le listener n'est
     // installé qu'une fois sur la PreviewView).
     val currentMacro = rememberUpdatedState(macroEnabled)
@@ -252,27 +290,7 @@ fun CameraScreen(
             }
 
             Button(
-                onClick = {
-                    if (isCapturing) return@Button
-                    isCapturing = true
-                    takePhoto(
-                        controller = controller,
-                        context = context,
-                        onSaved = { uri ->
-                            isCapturing = false
-                            onPhotoSaved(uri)
-                        },
-                        onError = { exc ->
-                            isCapturing = false
-                            Log.e(TAG, "Échec de la capture", exc)
-                            Toast.makeText(
-                                context,
-                                "Échec de la capture : ${exc.message}",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        },
-                    )
-                },
+                onClick = onShutter,
                 enabled = !isCapturing,
                 shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(),

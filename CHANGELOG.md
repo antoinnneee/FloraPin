@@ -21,6 +21,21 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Accessibilité — passe transverse (TÂCHE 6.18).** Les emojis servant
+  d'icônes (barre de navigation, boutons d'action, FAB, cloche de notifications,
+  flèches « retour », actions de sélection…) étaient lus littéralement par
+  TalkBack (« maison à trois étages », « visage »…). Deux composants communs
+  (`ui/components/EmojiIcon.kt`) corrigent le tir : `EmojiIcon` remplace le
+  glyphe par un `contentDescription` parlant (« Retour », « Capturer une
+  fleur », « Supprimer »…), et `DecorativeEmoji` retire de l'arbre
+  d'accessibilité les emojis purement décoratifs déjà doublés d'un libellé
+  (onglets de la bottom bar, icône de recherche, chip de style de carte). Les
+  cibles tactiles des mini-actions par photo (couverture/suppression) passent
+  de 36 à 48 dp. Le menu de débordement « ⋮ » de chaque commentaire
+  (éditer/supprimer) et le bouton « ✕ » de fermeture de la visionneuse plein
+  écran reçoivent également un `contentDescription` parlant (« Actions du
+  commentaire », « Fermer »), et la cible du bouton de fermeture passe de 40 à
+  48 dp.
 - **Transitions partagées galerie ↔ détail (TÂCHE 6.17).** L'ouverture d'une
   fleur depuis la galerie fait glisser/agrandir sa vignette en continu vers
   l'image du détail (élément partagé keyé sur l'id local), et inversement au

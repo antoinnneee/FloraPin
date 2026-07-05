@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -159,10 +160,17 @@ fun FullscreenPhotoViewer(
                     color = Color.Black.copy(alpha = 0.4f),
                     shape = CircleShape,
                     onClick = onDismiss,
-                    modifier = Modifier.size(40.dp),
+                    // Cible tactile ≥ 48 dp (TÂCHE 6.18, accessibilité).
+                    modifier = Modifier.size(48.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text("✕", color = Color.White)
+                        // Glyphe « ✕ » lu littéralement par TalkBack : libellé parlant
+                        // et masquage du caractère de l'arbre d'accessibilité.
+                        EmojiIcon(
+                            emoji = "✕",
+                            contentDescription = "Fermer",
+                            style = TextStyle(color = Color.White),
+                        )
                     }
                 }
             }

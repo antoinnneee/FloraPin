@@ -55,6 +55,7 @@ import com.florapin.app.network.dto.CreateCommentRequest
 import com.florapin.app.network.dto.FlowerCommentDto
 import com.florapin.app.network.dto.FriendUserDto
 import com.florapin.app.network.dto.UpdateCommentRequest
+import com.florapin.app.ui.components.EmojiIcon
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -650,7 +651,13 @@ private fun CommentActionsMenu(
 ) {
     var expanded by remember { mutableStateOf(false) }
     IconButton(onClick = { expanded = true }, enabled = !deleting) {
-        Text(text = "⋮", style = MaterialTheme.typography.bodyMedium)
+        // Glyphe « ⋮ » lu littéralement par TalkBack : on lui donne un libellé
+        // parlant et on masque le caractère de l'arbre d'accessibilité (TÂCHE 6.18).
+        EmojiIcon(
+            emoji = "⋮",
+            contentDescription = "Actions du commentaire",
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
         if (canEdit) {

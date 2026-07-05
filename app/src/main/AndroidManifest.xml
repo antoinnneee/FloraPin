@@ -80,6 +80,13 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+
+        <!-- Actions rapides depuis une notification (TÂCHE 2.6) : ❤️ et
+             « Répondre » (RemoteInput). Non exporté : déclenché uniquement par nos
+             propres PendingIntent. -->
+        <receiver
+            android:name=".push.NotificationActionReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

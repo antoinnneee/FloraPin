@@ -13,6 +13,15 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Actions rapides depuis la notification.** Les push référençant une fleur
+  proposent désormais des boutons d'action sans ouvrir l'app : « ❤️ J'aime »
+  (partage reçu uniquement) et « Répondre » (RemoteInput → commentaire ;
+  partage, commentaire, cœur reçu). L'appel réseau est effectué hors du thread
+  principal (`goAsync` + coroutine IO), authentifié via le client partagé, et la
+  notification est retirée en cas de succès (laissée en place, pour réessai, en
+  cas d'échec). Aucun bouton « J'aime » sur « on a aimé/commenté VOTRE fleur »
+  (commentaire et cœur ne sont notifiés qu'au propriétaire : aimer reviendrait à
+  aimer sa propre fleur).
 - **Photo de la fleur dans la notification.** Les push référençant une fleur
   affichent désormais sa miniature (BigPictureStyle) : vignette en mode replié
   et grande image une fois dépliée. L'URL de la miniature (présignée de lecture,

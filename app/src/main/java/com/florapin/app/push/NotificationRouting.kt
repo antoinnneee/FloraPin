@@ -73,3 +73,32 @@ object NotificationGrouping {
     fun summaryId(type: String?, flowerId: String?): Int =
         "summary|${groupKey(type, flowerId)}".hashCode()
 }
+
+/**
+ * Actions rapides proposées sous une notification (TÂCHE 2.6) : « ❤️ J'aime » et
+ * « Répondre » (RemoteInput → commentaire). Logique PURE (sans dépendance Android)
+ * pour rester testable — le [FloraMessagingService] la consulte pour décider quels
+ * boutons attacher, et le [NotificationActionReceiver] exécute l'appel réseau.
+ *
+ * Règles :
+ * - toute action exige une fleur (le like/commentaire porte sur un serverId) ;
+ * - « ❤️ J'aime » n'a de sens que sur une fleur d'AUTRUI qu'on découvre : le
+ *   PARTAGE est le seul push reçu par un NON-propriétaire. « on a aimé VOTRE
+ *   fleur » (flower_liked) et « on a commenté VOTRE fleur » (flower_commented)
+ *   ne sont envoyés qu'au PROPRIÉTAIRE : y aimer reviendrait à aimer sa propre
+ *   fleur (règle interdite), donc pas de bouton ❤️ ;
+ * - « Répondre » (commenter) reste pertinent sur toute conversation qui nous
+ *   concerne, y compris quand on est le propriétaire notifié d'un cœur ou d'un
+ *   commentaire.
+ */
+object NotificationQuickActions {
+
+    private val LIKE_TYPES = setOf("flower_shared")
+    private val REPLY_TYPES = setOf("flower_shared", "flower_commented", "flower_liked")
+
+    fun likeEnabled(type: String?, flowerId: String?): Boolean =
+        !flowerId.isNullOrBlank() && type in LIKE_TYPES
+
+    fun replyEnabled(type: String?, flowerId: String?): Boolean =
+        !flowerId.isNullOrBlank() && type in REPLY_TYPES
+}

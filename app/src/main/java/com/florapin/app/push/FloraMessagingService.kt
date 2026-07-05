@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.app.RemoteInput
 import com.florapin.app.MainActivity
 import com.florapin.app.R
 import com.florapin.app.sync.ImageCacher
@@ -76,6 +77,9 @@ class FloraMessagingService : FirebaseMessagingService() {
             .setAutoCancel(true)
             .setGroup(groupKey)
             .setContentIntent(contentIntent(notificationId, type, flowerId))
+        // Actions rapides (TÂCHE 2.6) : ❤️ et/ou « Répondre » directement depuis la
+        // notification, selon le type (cf. NotificationQuickActions).
+        addQuickActions(builder, notificationId, type, flowerId)
         if (bigPicture != null) {
             builder
                 // Vignette visible en mode replié.
@@ -188,6 +192,89 @@ class FloraMessagingService : FirebaseMessagingService() {
             requestCode,
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+    }
+
+    /**
+     * Attache les boutons d'action rapide à la notification enfant (jamais au
+     * résumé). Le like et la réponse portent sur une fleur : sans [flowerId], aucun
+     * bouton. Le choix des actions (❤️, Répondre) est délégué à la logique pure
+     * [NotificationQuickActions].
+     */
+    private fun addQuickActions(
+        builder: NotificationCompat.Builder,
+        notificationId: Int,
+        type: String?,
+        flowerId: String?,
+    ) {
+        val fid = flowerId?.takeIf { it.isNotBlank() } ?: return
+        if (NotificationQuickActions.likeEnabled(type, fid)) {
+            builder.addAction(likeAction(notificationId, fid))
+        }
+        if (NotificationQuickActions.replyEnabled(type, fid)) {
+            builder.addAction(replyAction(notificationId, fid))
+        }
+    }
+
+    /** Bouton « ❤️ J'aime » : POST flowers/{id}/like via [NotificationActionReceiver]. */
+    private fun likeAction(notificationId: Int, flowerId: String): NotificationCompat.Action {
+        val pending = actionPendingIntent(
+            NotificationActionReceiver.ACTION_LIKE,
+            notificationId,
+            flowerId,
+            // Immuable : aucune donnée n'est ajoutée à l'intent au déclenchement.
+            PendingIntent.FLAG_IMMUTABLE,
+        )
+        return NotificationCompat.Action.Builder(R.mipmap.ic_launcher, "❤️ J'aime", pending).build()
+    }
+
+    /**
+     * Bouton « Répondre » : ouvre un champ de saisie (RemoteInput) dont le texte est
+     * relu par [NotificationActionReceiver] pour poster un commentaire. Le
+     * PendingIntent doit être MUTABLE (Android 12+) pour que le système y injecte la
+     * réponse saisie.
+     */
+    private fun replyAction(notificationId: Int, flowerId: String): NotificationCompat.Action {
+        val remoteInput = RemoteInput.Builder(NotificationActionReceiver.KEY_REMOTE_INPUT)
+            .setLabel("Votre réponse…")
+            .build()
+        val pending = actionPendingIntent(
+            NotificationActionReceiver.ACTION_REPLY,
+            notificationId,
+            flowerId,
+            PendingIntent.FLAG_MUTABLE,
+        )
+        return NotificationCompat.Action.Builder(R.mipmap.ic_launcher, "Répondre", pending)
+            .addRemoteInput(remoteInput)
+            .setAllowGeneratedReplies(true)
+            .build()
+    }
+
+    /**
+     * PendingIntent (broadcast) vers [NotificationActionReceiver] transportant
+     * l'action, la fleur et l'id de notification (pour la retirer après coup). Le
+     * requestCode est stable par (action, notification) : un re-push met à jour
+     * l'intent existant plutôt que d'en accumuler.
+     */
+    private fun actionPendingIntent(
+        action: String,
+        notificationId: Int,
+        flowerId: String,
+        mutabilityFlag: Int,
+    ): PendingIntent {
+        val intent = Intent(this, NotificationActionReceiver::class.java).apply {
+            // Action d'intent DISTINCTE par type + notification : évite que deux
+            // PendingIntent « équivalents » se recyclent l'un l'autre.
+            this.action = "florapin.notif.$action.$notificationId"
+            putExtra(NotificationActionReceiver.EXTRA_QUICK_ACTION, action)
+            putExtra(NotificationRouting.EXTRA_FLOWER_ID, flowerId)
+            putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_ID, notificationId)
+        }
+        return PendingIntent.getBroadcast(
+            this,
+            "$action|$notificationId".hashCode(),
+            intent,
+            mutabilityFlag or PendingIntent.FLAG_UPDATE_CURRENT,
         )
     }
 

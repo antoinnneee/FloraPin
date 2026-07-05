@@ -109,6 +109,16 @@ export class Flower {
   @Column({ name: 'needs_identification', type: 'boolean', default: false })
   needsIdentification: boolean;
 
+  /**
+   * Horodatage de la dernière sollicitation des amis pour cette fleur (TÂCHE 4.4)
+   * — posé à l'ouverture de la demande puis à chaque relance manuelle. Sert
+   * d'anti-spam côté serveur : une relance est refusée tant que le délai minimal
+   * n'est pas écoulé (cf. IdentificationRequestsService.REMIND_COOLDOWN_MS).
+   * Nullable : fleurs jamais mises « à identifier ».
+   */
+  @Column({ name: 'last_reminded_at', type: 'timestamptz', nullable: true })
+  lastRemindedAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

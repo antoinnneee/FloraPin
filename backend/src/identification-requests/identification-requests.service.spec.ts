@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Flower } from '../flowers/flower.entity';
 import { FlowerResponse } from '../flowers/flowers.service';
 import { IdentificationRequestsService } from './identification-requests.service';
@@ -124,6 +124,63 @@ describe('IdentificationRequestsService', () => {
       expect(result).toEqual([]);
       expect(flowersService.toResponseMany).not.toHaveBeenCalled();
       expect(proposals.listForFlowerIds).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('remind', () => {
+    it('re-notifie les amis et met à jour lastRemindedAt', async () => {
+      // Demande ouverte, jamais relancée depuis assez longtemps.
+      flower!.needsIdentification = true;
+      flower!.lastRemindedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+
+      await service.remind(OWNER, FLOWER);
+
+      expect(flowers.save).toHaveBeenCalledTimes(1);
+      expect(flower!.lastRemindedAt.getTime()).toBeGreaterThan(
+        Date.now() - 5000,
+      );
+      expect(notifications.createSafe).toHaveBeenCalledTimes(2);
+      expect(notifications.createSafe).toHaveBeenCalledWith(
+        'a',
+        'identification_requested',
+        { flowerId: FLOWER, byUserId: OWNER },
+      );
+    });
+
+    it('relance possible si jamais sollicitée (lastRemindedAt null)', async () => {
+      flower!.needsIdentification = true;
+      flower!.lastRemindedAt = null;
+
+      await service.remind(OWNER, FLOWER);
+
+      expect(flowers.save).toHaveBeenCalledTimes(1);
+      expect(notifications.createSafe).toHaveBeenCalledTimes(2);
+    });
+
+    it('refuse (anti-spam) une relance trop rapprochée : ni save ni notification', async () => {
+      flower!.needsIdentification = true;
+      flower!.lastRemindedAt = new Date(Date.now() - 60 * 1000); // il y a 1 min
+
+      await expect(service.remind(OWNER, FLOWER)).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+      expect(flowers.save).not.toHaveBeenCalled();
+      expect(notifications.createSafe).not.toHaveBeenCalled();
+    });
+
+    it('refuse si la fleur n’attend pas d’identification', async () => {
+      flower!.needsIdentification = false;
+      await expect(service.remind(OWNER, FLOWER)).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+      expect(notifications.createSafe).not.toHaveBeenCalled();
+    });
+
+    it('lève NotFound si la fleur ne m’appartient pas', async () => {
+      flower = null;
+      await expect(service.remind(OWNER, FLOWER)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 

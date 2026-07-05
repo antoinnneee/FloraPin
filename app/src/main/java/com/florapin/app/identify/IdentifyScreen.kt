@@ -16,6 +16,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -217,6 +218,10 @@ private fun MyRequestsTab(
                 items(state.requests, key = { it.flower.id }) { request ->
                     MyRequestCard(
                         request = request,
+                        reminding = request.flower.id in state.remindingIds,
+                        reminded = request.flower.id in state.remindedIds,
+                        remindError = state.remindErrors[request.flower.id],
+                        onRemind = { viewModel.remind(request.flower.id) },
                         onComment = { onComment(request.flower.id) },
                     )
                 }
@@ -363,6 +368,10 @@ private fun IdentifyCard(
 @Composable
 private fun MyRequestCard(
     request: MyIdentificationRequestDto,
+    reminding: Boolean,
+    reminded: Boolean,
+    remindError: String?,
+    onRemind: () -> Unit,
     onComment: () -> Unit,
 ) {
     val flower = request.flower
@@ -416,6 +425,31 @@ private fun MyRequestCard(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+
+            // Relance manuelle (TÂCHE 4.4) : re-sollicite le réseau d'amis.
+            // L'anti-spam est arbitré côté serveur (409) — restitué en message.
+            if (reminded) {
+                Text(
+                    text = "✅ Amis relancés. Merci de patienter un peu !",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            } else {
+                OutlinedButton(
+                    onClick = onRemind,
+                    enabled = !reminding,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (reminding) "Relance…" else "🔔 Relancer mes amis")
+                }
+                remindError?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
 
             TextButton(

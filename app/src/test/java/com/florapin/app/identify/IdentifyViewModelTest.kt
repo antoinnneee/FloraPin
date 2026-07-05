@@ -45,6 +45,9 @@ private class FakeIdentificationApi(
     override suspend fun request(flowerId: String): Response<Unit> =
         Response.success(null)
 
+    override suspend fun remind(flowerId: String): Response<Unit> =
+        Response.success(null)
+
     override suspend fun cancel(flowerId: String): Response<Unit> =
         Response.success(null)
 

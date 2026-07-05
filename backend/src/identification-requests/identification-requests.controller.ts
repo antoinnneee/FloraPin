@@ -33,6 +33,16 @@ export class IdentificationRequestsController {
     await this.service.request(user.userId, flowerId);
   }
 
+  /** Le propriétaire relance ses amis (TÂCHE 4.4) — anti-spam serveur. */
+  @Post('flowers/:id/identification-requests/remind')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remind(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) flowerId: string,
+  ): Promise<void> {
+    await this.service.remind(user.userId, flowerId);
+  }
+
   /** Le propriétaire annule la demande. */
   @Delete('flowers/:id/identification-requests')
   @HttpCode(HttpStatus.NO_CONTENT)

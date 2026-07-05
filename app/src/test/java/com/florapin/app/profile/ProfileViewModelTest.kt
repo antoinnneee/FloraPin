@@ -96,6 +96,7 @@ private class FakeIdentificationApi(
     private val accepted: Int = 3,
 ) : com.florapin.app.network.api.IdentificationApi {
     override suspend fun request(flowerId: String) = Response.success<Unit>(null)
+    override suspend fun remind(flowerId: String) = Response.success<Unit>(null)
     override suspend fun cancel(flowerId: String) = Response.success<Unit>(null)
     override suspend fun listToIdentify() = emptyList<com.florapin.app.network.dto.FlowerDto>()
     override suspend fun listMyRequests() =

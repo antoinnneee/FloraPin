@@ -6,6 +6,7 @@ import com.florapin.app.network.dto.MyIdentificationRequestDto
 import com.florapin.app.network.dto.ProposeSpeciesRequest
 import com.florapin.app.network.dto.SpeciesProposalDto
 import kotlinx.coroutines.Dispatchers
+import okhttp3.ResponseBody.Companion.toResponseBody
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -25,8 +26,18 @@ import retrofit2.Response
 private class FakeMyRequestsApi(
     var myRequests: List<MyIdentificationRequestDto> = emptyList(),
     var failMyRequests: Boolean = false,
+    /** Réponse renvoyée par remind() (succès par défaut ; 409 pour l'anti-spam). */
+    var remindResponse: Response<Unit> = Response.success(null),
+    var failRemind: Boolean = false,
 ) : IdentificationApi {
+    /** Fleurs pour lesquelles remind() a été appelé (ordre d'appel). */
+    val remindedIds = mutableListOf<String>()
     override suspend fun request(flowerId: String): Response<Unit> = Response.success(null)
+    override suspend fun remind(flowerId: String): Response<Unit> {
+        remindedIds += flowerId
+        if (failRemind) throw RuntimeException("réseau")
+        return remindResponse
+    }
     override suspend fun cancel(flowerId: String): Response<Unit> = Response.success(null)
     override suspend fun listToIdentify(): List<FlowerDto> = emptyList()
     override suspend fun listMyRequests(): List<MyIdentificationRequestDto> {
@@ -134,5 +145,52 @@ class MyRequestsViewModelTest {
         advanceUntilIdle()
         assertFalse(vm.state.value.refreshing)
         assertEquals(listOf("f1", "f2"), vm.state.value.requests.map { it.flower.id })
+    }
+
+    @Test
+    fun remind_success_marksFlowerReminded() = runTest {
+        val api = FakeMyRequestsApi(myRequests = listOf(request("f1")))
+        val vm = MyRequestsViewModel(api)
+        advanceUntilIdle()
+
+        vm.remind("f1")
+        advanceUntilIdle()
+
+        assertEquals(listOf("f1"), api.remindedIds)
+        assertTrue("f1" in vm.state.value.remindedIds)
+        assertFalse("f1" in vm.state.value.remindingIds)
+        assertNull(vm.state.value.remindErrors["f1"])
+    }
+
+    @Test
+    fun remind_conflict_setsAntiSpamMessage() = runTest {
+        val api = FakeMyRequestsApi(
+            myRequests = listOf(request("f1")),
+            remindResponse = Response.error(409, "".toResponseBody(null)),
+        )
+        val vm = MyRequestsViewModel(api)
+        advanceUntilIdle()
+
+        vm.remind("f1")
+        advanceUntilIdle()
+
+        assertFalse("f1" in vm.state.value.remindedIds)
+        assertEquals(
+            "Vous avez déjà relancé vos amis récemment.",
+            vm.state.value.remindErrors["f1"],
+        )
+    }
+
+    @Test
+    fun remind_failure_setsError() = runTest {
+        val api = FakeMyRequestsApi(myRequests = listOf(request("f1")), failRemind = true)
+        val vm = MyRequestsViewModel(api)
+        advanceUntilIdle()
+
+        vm.remind("f1")
+        advanceUntilIdle()
+
+        assertFalse("f1" in vm.state.value.remindedIds)
+        assertEquals("réseau", vm.state.value.remindErrors["f1"])
     }
 }

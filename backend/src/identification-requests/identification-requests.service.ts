@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Flower } from '../flowers/flower.entity';
@@ -25,6 +29,13 @@ export interface MyIdentificationRequest {
  */
 @Injectable()
 export class IdentificationRequestsService {
+  /**
+   * Délai minimal entre deux sollicitations du réseau pour une même fleur
+   * (TÂCHE 4.4) : anti-spam serveur. Une relance manuelle avant ce délai est
+   * refusée (409), indépendamment de tout garde-fou UI.
+   */
+  static readonly REMIND_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 1 jour
+
   constructor(
     @InjectRepository(Flower)
     private readonly flowers: Repository<Flower>,
@@ -57,8 +68,52 @@ export class IdentificationRequestsService {
     }
 
     flower.needsIdentification = true;
+    // Ancre l'anti-spam des relances (TÂCHE 4.4) sur cette première sollicitation.
+    flower.lastRemindedAt = new Date();
     await this.flowers.save(flower);
 
+    await this.notifyFriends(ownerId, flowerId);
+  }
+
+  /**
+   * Relance manuelle (TÂCHE 4.4) : re-notifie les amis d'une fleur toujours « à
+   * identifier ». Anti-spam côté serveur (pas seulement UI) : refuse tant que
+   * {@link REMIND_COOLDOWN_MS} n'est pas écoulé depuis la dernière sollicitation
+   * (ouverture ou relance), en s'appuyant sur `lastRemindedAt`.
+   */
+  async remind(ownerId: string, flowerId: string): Promise<void> {
+    const flower = await this.flowers.findOne({
+      where: { id: flowerId, ownerId },
+    });
+    if (!flower) {
+      throw new NotFoundException('Fleur introuvable.');
+    }
+    if (!flower.needsIdentification) {
+      throw new ConflictException('Cette fleur n’attend pas d’identification.');
+    }
+
+    const now = Date.now();
+    if (flower.lastRemindedAt) {
+      const elapsed = now - flower.lastRemindedAt.getTime();
+      if (elapsed < IdentificationRequestsService.REMIND_COOLDOWN_MS) {
+        throw new ConflictException(
+          'Vous avez déjà relancé vos amis récemment. Réessayez plus tard.',
+        );
+      }
+    }
+
+    flower.lastRemindedAt = new Date(now);
+    await this.flowers.save(flower);
+
+    await this.notifyFriends(ownerId, flowerId);
+  }
+
+  /**
+   * Notifie tous les amis acceptés du propriétaire qu'une identification est
+   * demandée (in-app + push best-effort). Un échec unitaire ne casse pas l'action
+   * déjà committée (createSafe).
+   */
+  private async notifyFriends(ownerId: string, flowerId: string): Promise<void> {
     const friendIds = await this.friendships.acceptedFriendIds(ownerId);
     await Promise.all(
       friendIds.map((friendId) =>

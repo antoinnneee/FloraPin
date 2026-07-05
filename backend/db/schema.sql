@@ -116,6 +116,9 @@ CREATE TABLE IF NOT EXISTS flowers (
                 CHECK (visibility IN ('private', 'friends')),
     -- Demande d'identification collaborative (NODE-133).
     needs_identification BOOLEAN NOT NULL DEFAULT false,
+    -- Dernière sollicitation des amis (ouverture + relances manuelles, TÂCHE 4.4).
+    -- Anti-spam serveur : une relance est refusée sous le délai minimal.
+    last_reminded_at TIMESTAMPTZ,
     -- Diffusion GPS au feed des amis (NODE-136) : masque le GPS si false quand
     -- visibility = 'friends', comme l'option includeGps des partages ciblés.
     feed_include_gps BOOLEAN NOT NULL DEFAULT true,
@@ -135,6 +138,7 @@ ALTER TABLE flowers ADD COLUMN IF NOT EXISTS species_id UUID
     REFERENCES species(id) ON DELETE SET NULL;                                     -- NODE-124
 ALTER TABLE flowers ADD COLUMN IF NOT EXISTS needs_identification BOOLEAN
     NOT NULL DEFAULT false;                                                        -- NODE-133
+ALTER TABLE flowers ADD COLUMN IF NOT EXISTS last_reminded_at TIMESTAMPTZ;         -- TÂCHE 4.4
 ALTER TABLE flowers ADD COLUMN IF NOT EXISTS feed_include_gps BOOLEAN
     NOT NULL DEFAULT true;                                                         -- NODE-136
 ALTER TABLE flowers ADD COLUMN IF NOT EXISTS thumbnail_key TEXT;                   -- preview WebP

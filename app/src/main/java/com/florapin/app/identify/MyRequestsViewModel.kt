@@ -22,6 +22,12 @@ data class MyRequestsUiState(
     /** Mes fleurs en attente d'identification, avec les propositions reçues. */
     val requests: List<MyIdentificationRequestDto> = emptyList(),
     val error: String? = null,
+    /** Fleurs dont la relance manuelle (TÂCHE 4.4) est en cours. */
+    val remindingIds: Set<String> = emptySet(),
+    /** Fleurs relancées avec succès durant la session (confirmation « Amis relancés »). */
+    val remindedIds: Set<String> = emptySet(),
+    /** Erreurs de relance par fleur (ex. anti-spam serveur : relance trop récente). */
+    val remindErrors: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -72,6 +78,50 @@ class MyRequestsViewModel(
 
     /** Rechargement déclenché par le pull-to-refresh. */
     fun refresh() = load(isRefresh = true)
+
+    /**
+     * Relance mes amis sur la fleur [flowerId] (TÂCHE 4.4). L'anti-spam est arbitré
+     * côté serveur : un 409 (relance trop récente) remonte comme message d'erreur
+     * par fleur. Idempotent côté UI : ignore un second appel pendant l'envoi.
+     */
+    fun remind(flowerId: String) {
+        if (flowerId in _state.value.remindingIds) return
+        _state.update {
+            it.copy(
+                remindingIds = it.remindingIds + flowerId,
+                remindErrors = it.remindErrors - flowerId,
+            )
+        }
+        viewModelScope.launch {
+            _state.update {
+                try {
+                    val response = api.remind(flowerId)
+                    if (response.isSuccessful) {
+                        it.copy(
+                            remindingIds = it.remindingIds - flowerId,
+                            remindedIds = it.remindedIds + flowerId,
+                        )
+                    } else {
+                        val message = if (response.code() == 409) {
+                            "Vous avez déjà relancé vos amis récemment."
+                        } else {
+                            "Échec de la relance (${response.code()})."
+                        }
+                        it.copy(
+                            remindingIds = it.remindingIds - flowerId,
+                            remindErrors = it.remindErrors + (flowerId to message),
+                        )
+                    }
+                } catch (e: Exception) {
+                    it.copy(
+                        remindingIds = it.remindingIds - flowerId,
+                        remindErrors = it.remindErrors +
+                            (flowerId to (e.message ?: "Impossible de relancer.")),
+                    )
+                }
+            }
+        }
+    }
 
     companion object {
         fun factory(context: Context): ViewModelProvider.Factory =

@@ -24,6 +24,13 @@ interface IdentificationApi {
     @POST("flowers/{id}/identification-requests")
     suspend fun request(@Path("id") flowerId: String): Response<Unit>
 
+    /**
+     * Relance mes amis sur une fleur toujours « à identifier » (TÂCHE 4.4).
+     * Anti-spam serveur : renvoie 409 si la dernière sollicitation est trop récente.
+     */
+    @POST("flowers/{id}/identification-requests/remind")
+    suspend fun remind(@Path("id") flowerId: String): Response<Unit>
+
     /** Annule la demande d'identification sur ma fleur. */
     @DELETE("flowers/{id}/identification-requests")
     suspend fun cancel(@Path("id") flowerId: String): Response<Unit>

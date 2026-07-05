@@ -28,6 +28,7 @@ private class StubApi(
         requested += flowerId
         return result()
     }
+    override suspend fun remind(flowerId: String): Response<Unit> = Response.success(null)
     override suspend fun cancel(flowerId: String): Response<Unit> = Response.success(null)
     override suspend fun listToIdentify(): List<FlowerDto> = emptyList()
     override suspend fun listMyRequests():
@@ -94,6 +95,8 @@ class IdentificationRequestViewModelTest {
         val api = object : IdentificationApi {
             override suspend fun request(flowerId: String): Response<Unit> =
                 throw RuntimeException("hors-ligne")
+            override suspend fun remind(flowerId: String): Response<Unit> =
+                Response.success(null)
             override suspend fun cancel(flowerId: String): Response<Unit> =
                 Response.success(null)
             override suspend fun listToIdentify(): List<FlowerDto> = emptyList()

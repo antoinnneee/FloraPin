@@ -21,6 +21,14 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Relance manuelle d'une demande d'identification.** Depuis l'onglet « Mes
+  demandes », un bouton « 🔔 Relancer mes amis » re-sollicite tout le réseau
+  d'amis sur une fleur toujours « à identifier ». Nouvel endpoint
+  `POST /flowers/{id}/identification-requests/remind` qui re-notifie
+  (`identification_requested`, push data-only). Anti-spam **côté serveur** (pas
+  seulement UI) : la colonne `flowers.last_reminded_at` horodate la dernière
+  sollicitation (ouverture + relances) et une relance sous 24 h est refusée
+  (409 → « Vous avez déjà relancé vos amis récemment »).
 - **« Merci 🌸 » en un tap (identification collaborative).** Sur le détail d'une
   fleur, le propriétaire peut désormais remercier l'auteur d'une proposition
   d'espèce d'un simple tap, sans avoir à l'accepter. Nouvel endpoint

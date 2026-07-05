@@ -11,6 +11,7 @@ import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.api.SpeciesApi
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.network.dto.SpeciesDto
+import com.florapin.app.ui.components.networkErrorMessage
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -71,7 +72,7 @@ class SpeciesDetailViewModel(
             try {
                 species.value = api.get(speciesId)
             } catch (e: Exception) {
-                error.value = e.message ?: "Impossible de charger la fiche."
+                error.value = networkErrorMessage(e)
             }
         }
     }

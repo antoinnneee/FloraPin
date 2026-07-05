@@ -10,6 +10,7 @@ import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.network.dto.AddFriendByIdRequest
 import com.florapin.app.network.dto.CreateFriendshipRequest
 import com.florapin.app.network.dto.FriendshipDto
+import com.florapin.app.ui.components.networkErrorMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -117,8 +118,8 @@ class FriendsViewModel(
         }
     }
 
-    private fun messageOf(e: Exception): String =
-        e.message ?: "Erreur réseau. Réessayez."
+    // Mapping réseau commun (TÂCHE 6.16) : hors-ligne / serveur injoignable / 4xx.
+    private fun messageOf(e: Exception): String = networkErrorMessage(e)
 
     companion object {
         /** Répartit les relations en demandes entrantes/sortantes et amis. */

@@ -18,6 +18,8 @@ import com.florapin.app.network.dto.fullPhotoUrls
 import com.florapin.app.network.dto.previewPhotoUrls
 import com.florapin.app.network.dto.withReaction
 import com.florapin.app.sync.ImageCacher
+import com.florapin.app.ui.components.NetworkErrorInfo
+import com.florapin.app.ui.components.networkErrorInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -121,7 +123,8 @@ data class SharedFeedUiState(
     /** Chargement d'une page suivante (pagination), distinct du chargement initial. */
     val loadingMore: Boolean = false,
     val items: List<SharedFlowerItem> = emptyList(),
-    val error: String? = null,
+    /** Erreur réseau mappée (TÂCHE 6.16) : porte le message ET la nature (hors-ligne / serveur). */
+    val error: NetworkErrorInfo? = null,
     val sort: FeedSort = FeedSort.DATE,
     /** Toutes les pages ont été chargées : plus rien à paginer. */
     val endReached: Boolean = false,
@@ -250,7 +253,7 @@ class SharedFeedViewModel(
                     it.copy(
                         loading = false,
                         refreshing = false,
-                        error = e.message ?: "Erreur réseau. Réessayez.",
+                        error = networkErrorInfo(e),
                     )
                 }
             }
@@ -291,7 +294,7 @@ class SharedFeedViewModel(
                 }
             } catch (e: Exception) {
                 _state.update {
-                    it.copy(loadingMore = false, error = e.message ?: "Erreur réseau. Réessayez.")
+                    it.copy(loadingMore = false, error = networkErrorInfo(e))
                 }
             }
         }

@@ -56,6 +56,7 @@ import com.florapin.app.notifications.NotificationBell
 import com.florapin.app.network.dto.fullPhotoUrls
 import com.florapin.app.network.dto.previewPhotoUrls
 import com.florapin.app.ui.components.EmptyState
+import com.florapin.app.ui.components.NetworkErrorState
 import com.florapin.app.ui.components.PhotoCarousel
 
 /**
@@ -121,11 +122,20 @@ fun SharedFeedScreen(
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     item {
                         Box(modifier = Modifier.fillParentMaxSize()) {
-                            EmptyState(
-                                title = state.error?.let { "Oups" } ?: "Rien de partagé",
-                                message = state.error
-                                    ?: "Aucune fleur partagée avec vous pour l'instant.",
-                            )
+                            val error = state.error
+                            if (error != null) {
+                                // Erreur réseau humaine (TÂCHE 6.16) : distingue
+                                // hors-ligne / serveur injoignable + bouton « Réessayer ».
+                                NetworkErrorState(
+                                    info = error,
+                                    onRetry = { viewModel.load() },
+                                )
+                            } else {
+                                EmptyState(
+                                    title = "Rien de partagé",
+                                    message = "Aucune fleur partagée avec vous pour l'instant.",
+                                )
+                            }
                         }
                     }
                 }

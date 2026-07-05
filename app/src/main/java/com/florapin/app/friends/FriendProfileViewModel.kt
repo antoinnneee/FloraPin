@@ -8,6 +8,7 @@ import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.api.FriendshipsApi
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.network.dto.FriendProfileDto
+import com.florapin.app.ui.components.networkErrorMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,7 +47,7 @@ class FriendProfileViewModel(
                 _state.value = FriendProfileUiState(loading = false, profile = profile)
             } catch (e: Exception) {
                 _state.update {
-                    it.copy(loading = false, error = e.message ?: "Erreur réseau. Réessayez.")
+                    it.copy(loading = false, error = networkErrorMessage(e))
                 }
             }
         }

@@ -7,12 +7,12 @@ import androidx.lifecycle.viewModelScope
 import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.network.auth.SessionManager
+import com.florapin.app.ui.components.networkErrorMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import retrofit2.HttpException
 
 /** État du flux « mot de passe oublié » / réinitialisation (NODE-116). */
 data class PasswordResetUiState(
@@ -62,12 +62,13 @@ class PasswordResetViewModel(
         }
     }
 
-    private fun messageOf(error: Throwable): String = when {
-        error is HttpException && error.code() == 401 ->
-            "Lien invalide ou expiré. Refaites une demande."
-        error is HttpException && error.code() == 400 ->
-            "Vérifiez le format (mot de passe : 8 caractères minimum)."
-        else -> "Erreur réseau. Réessayez."
+    // Mapping réseau commun (TÂCHE 6.16) avec surcharge des 4xx propres au reset.
+    private fun messageOf(error: Throwable): String = networkErrorMessage(error) { code ->
+        when (code) {
+            401 -> "Lien invalide ou expiré. Refaites une demande."
+            400 -> "Vérifiez le format (mot de passe : 8 caractères minimum)."
+            else -> null
+        }
     }
 
     companion object {

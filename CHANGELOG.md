@@ -21,6 +21,18 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Erreurs réseau humaines (TÂCHE 6.16).** Un composant commun `NetworkError`
+  (ui/components/) traduit les `Throwable` réseau bruts (`IOException` OkHttp,
+  `HttpException` Retrofit) en messages français lisibles et, surtout, distingue
+  le **mode avion / pas de connexion** (`UnknownHostException`, `IOException`)
+  du **serveur injoignable** (timeout `SocketTimeoutException` ou 5xx) — les deux
+  restant « réessayables », contrairement à une erreur applicative 4xx définitive.
+  Le composable `NetworkErrorState` réutilise l'illustration d'`EmptyState` et
+  n'affiche le bouton « Réessayer » que quand un nouvel essai a du sens. Les
+  ViewModels réseau (feed, détail, amis, auth) passent désormais par ce mapping
+  (`networkErrorMessage` / `networkErrorInfo`), avec surcharge des 4xx propres à
+  l'auth (401 « Identifiants invalides », 409 « Compte déjà existant »…). Le feed
+  vide en erreur affiche l'écran illustré avec bouton de réessai.
 - **Retour haptique (TÂCHE 6.15).** Un utilitaire `Haptics` (util/) centralise
   les vibrations sémantiques de l'app (`tap` léger, `celebrate` appuyé) au-dessus
   du `LocalHapticFeedback` de Compose (respecte le réglage système, aucune

@@ -9,11 +9,11 @@ import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.network.auth.SessionManager
 import com.florapin.app.network.dto.UserDto
+import com.florapin.app.ui.components.networkErrorMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import retrofit2.HttpException
 
 /** État de l'UI d'authentification. */
 sealed interface AuthUiState {
@@ -67,12 +67,14 @@ class AuthViewModel(private val session: SessionManager) : ViewModel() {
         }
     }
 
-    private fun messageOf(error: Exception): String = when {
-        error is HttpException && error.code() == 401 ->
-            "Identifiants invalides."
-        error is HttpException && error.code() == 409 ->
-            "Un compte existe déjà avec cet email."
-        else -> error.message ?: "Erreur réseau. Réessayez."
+    // Mapping réseau commun (TÂCHE 6.16) : distingue hors-ligne / serveur
+    // injoignable, avec surcharge des 4xx spécifiques à l'auth.
+    private fun messageOf(error: Exception): String = networkErrorMessage(error) { code ->
+        when (code) {
+            401 -> "Identifiants invalides."
+            409 -> "Un compte existe déjà avec cet email."
+            else -> null
+        }
     }
 
     companion object {

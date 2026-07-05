@@ -12,6 +12,564 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.13.0] — 2026-07-05
+
+_versionName 1.13.0, versionCode 21._
+
+### Ajouté
+- **Albums collaboratifs = groupes (TÂCHE 7.1).** Un album peut désormais devenir
+  collaboratif : le créer coche « Album collaboratif » crée aussi un **groupe**
+  (décision actée n°1), et plusieurs albums peuvent partager le même groupe.
+  Chaque album de groupe porte un **régime de droits** — *tout ouvert* (chaque
+  membre édite) ou *au cas par cas* (droit d'édition accordé membre par membre) —
+  découplé du partage réseau. Backend : nouveau module `groups/` (entités
+  `Group`/`GroupMember`, controller/service, invitations réservées aux amis,
+  acceptation, retrait/quitter, suppression détachant les albums), colonnes
+  `albums.group_id` / `albums.permission_mode` + table `album_permissions`, DDL
+  idempotent dans `db/schema.sql`, notifications `group_invited` /
+  `group_member_joined` (push data-only), matrice de droits couverte par des
+  tests unitaires et e2e. App : API `GroupsApi` + endpoints album
+  `PATCH /albums/:id/group` et `/permissions`, migration Room 15→16
+  (`groupId`/`permissionMode`/`canEdit` sur les albums), panneau de collaboration
+  (membres, invitations d'amis, droits) dans le détail d'album, et
+  `AlbumSyncEngine` durci contre les conflits d'édition concurrente (je ne
+  renomme/supprime que mes albums, la réconciliation d'appartenance ne touche que
+  mes propres fleurs, un 403 abandonne l'édition locale).
+
+### Modifié
+- **Feed en 2 colonnes (mosaïque).** Le fil « Partagées avec moi » s'affiche
+  désormais dans une `LazyVerticalStaggeredGrid` à deux colonnes : les fleurs
+  seules occupent chacune une colonne (hauteurs variables) pour un rendu type
+  mosaïque, tandis que la barre de filtres, les cartes-lot (3.6), le séparateur
+  « nouveautés » (3.2), l'indicateur de pagination et le mode « Ma sélection »
+  restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
+
+### Ajouté
+- **Accessibilité — passe transverse (TÂCHE 6.18).** Les emojis servant
+  d'icônes (barre de navigation, boutons d'action, FAB, cloche de notifications,
+  flèches « retour », actions de sélection…) étaient lus littéralement par
+  TalkBack (« maison à trois étages », « visage »…). Deux composants communs
+  (`ui/components/EmojiIcon.kt`) corrigent le tir : `EmojiIcon` remplace le
+  glyphe par un `contentDescription` parlant (« Retour », « Capturer une
+  fleur », « Supprimer »…), et `DecorativeEmoji` retire de l'arbre
+  d'accessibilité les emojis purement décoratifs déjà doublés d'un libellé
+  (onglets de la bottom bar, icône de recherche, chip de style de carte). Les
+  cibles tactiles des mini-actions par photo (couverture/suppression) passent
+  de 36 à 48 dp. Le menu de débordement « ⋮ » de chaque commentaire
+  (éditer/supprimer) et le bouton « ✕ » de fermeture de la visionneuse plein
+  écran reçoivent également un `contentDescription` parlant (« Actions du
+  commentaire », « Fermer »), et la cible du bouton de fermeture passe de 40 à
+  48 dp.
+- **Transitions partagées galerie ↔ détail (TÂCHE 6.17).** L'ouverture d'une
+  fleur depuis la galerie fait glisser/agrandir sa vignette en continu vers
+  l'image du détail (élément partagé keyé sur l'id local), et inversement au
+  retour. Le `NavHost` est enveloppé dans un `SharedTransitionLayout` et chaque
+  destination transmet sa portée via un `FloraSharedScope` nullable. L'API
+  `SharedTransitionScope` étant encore expérimentale (BOM 2024.12.01), toute la
+  mécanique est isolée dans `ui/transition/FloraSharedTransition.kt` derrière un
+  interrupteur `SHARED_TRANSITIONS_ENABLED` et un modificateur `sharedFlowerImage`
+  qui dégrade en no-op (aperçus, tests, portée absente). Seule la page ouverte au
+  démarrage du pager du détail porte l'élément partagé ; les pages voisines du
+  balayage s'affichent normalement.
+- **Erreurs réseau humaines (TÂCHE 6.16).** Un composant commun `NetworkError`
+  (ui/components/) traduit les `Throwable` réseau bruts (`IOException` OkHttp,
+  `HttpException` Retrofit) en messages français lisibles et, surtout, distingue
+  le **mode avion / pas de connexion** (`UnknownHostException`, `IOException`)
+  du **serveur injoignable** (timeout `SocketTimeoutException` ou 5xx) — les deux
+  restant « réessayables », contrairement à une erreur applicative 4xx définitive.
+  Le composable `NetworkErrorState` réutilise l'illustration d'`EmptyState` et
+  n'affiche le bouton « Réessayer » que quand un nouvel essai a du sens. Les
+  ViewModels réseau (feed, détail, amis, auth) passent désormais par ce mapping
+  (`networkErrorMessage` / `networkErrorInfo`), avec surcharge des 4xx propres à
+  l'auth (401 « Identifiants invalides », 409 « Compte déjà existant »…). Le feed
+  vide en erreur affiche l'écran illustré avec bouton de réessai.
+- **Retour haptique (TÂCHE 6.15).** Un utilitaire `Haptics` (util/) centralise
+  les vibrations sémantiques de l'app (`tap` léger, `celebrate` appuyé) au-dessus
+  du `LocalHapticFeedback` de Compose (respecte le réglage système, aucune
+  permission). Points d'appel : like/réaction (`LikeButton`), déclenchement de
+  l'obturateur (`CameraScreen`) et déblocage d'un palier de badge (`BadgesTab`,
+  qui appelait déjà le retour haptique directement).
+- **État de synchronisation visible (TÂCHE 6.14).** L'onglet Configuration
+  affiche désormais l'état de la dernière passe du worker (en cours / réussie /
+  échec + message d'erreur) et l'horodatage de la dernière synchro réussie (lu via
+  `PrefsLastSyncStore` / curseur `last_sync_at`). Le `SyncWorker` publie son
+  résultat dans un `SyncStatusStore` dédié (fichier de prefs `florapin_sync_status`,
+  disjoint de `florapin_sync`), exposé en direct à l'UI via un flux. En galerie, un
+  badge discret (« ☁️ » en attente d'envoi, « ⚠️ » en échec) surmonte les vignettes
+  non synchronisées — uniquement lorsque la sync automatique est active
+  (device-first : une fleur PENDING sync OFF est l'état de repos normal).
+- **Annuler la suppression d'une fleur (TÂCHE 6.13).** Supprimer une fleur depuis
+  le détail pose désormais un soft-delete immédiat (la fleur disparaît des listes)
+  puis, de retour sur la galerie, affiche un snackbar « Fleur supprimée / Annuler ».
+  « Annuler » restaure la fleur ; à l'expiration du snackbar, la suppression est
+  finalisée (purge physique si jamais synchronisée, sinon propagation au serveur au
+  prochain sync). Aucune sync n'est déclenchée pendant la fenêtre d'annulation :
+  tant que la passe n'a pas tourné, la suppression reste locale et annulable (pas de
+  course). Un balayage de sécurité à l'ouverture de la galerie purge les
+  soft-deletes locaux jamais finalisés (app tuée pendant la fenêtre, détail ouvert
+  hors galerie…). `FlowerRepository.softDelete/restore/finalizeDelete/purgeExpiredLocalDeletions`.
+- **Partage externe de la photo (TÂCHE 6.12).** Le menu de débordement (⋮) du
+  détail propose « 📷 Partager la photo » : la photo de couverture est partagée
+  vers une autre application via un `Intent.ACTION_SEND` (`image/jpeg`). Les
+  photos vivant en stockage privé (`filesDir/photos`), un `FileProvider`
+  (authority `${applicationId}.fileprovider`, `file_paths.xml`) concède un accès
+  temporaire en lecture (`content://`, `FLAG_GRANT_READ_URI_PERMISSION`).
+  Device-first : sans fichier local (fleur seulement distante), un message
+  prévient au lieu d'échouer.
+- **Ouvrir dans Maps / copier les coordonnées (TÂCHE 6.11).** La mini-carte du
+  détail expose un menu de débordement (⋮) superposé à son coin : « Ouvrir dans
+  Maps » lance un Intent `geo:lat,lng?q=lat,lng` (repère sur la position, message
+  si aucune application de cartes) et « Copier les coordonnées » place les
+  coordonnées décimales (Locale.US, 6 décimales) dans le presse-papiers.
+- **Balayage entre fleurs dans le détail (TÂCHE 6.10).** L'écran de détail est
+  désormais enveloppé dans un `HorizontalPager` : on passe d'une fleur à l'autre
+  d'un simple glissement horizontal, dans l'ordre par défaut de la galerie (plus
+  récentes d'abord). La liste ordonnée d'ids provient de la même source Room que
+  la galerie (`DetailPagerViewModel`) et transite d'un bloc vers le pager — pas de
+  navigation fleur par fleur. Chaque page conserve son propre état (ViewModels
+  keyés sur l'id de la fleur). Tant que la liste n'est pas chargée, la fleur ciblée
+  s'affiche seule, le balayage s'activant dès que la liste est prête (device-first).
+- **États vides soignés (TÂCHE 6.9).** Le composant réutilisable `EmptyState`
+  (galerie, feed, albums, notifications…) gagne une illustration mise en valeur
+  dans une pastille circulaire teintée et un bouton d'action optionnel
+  (call-to-action). La galerie vide propose désormais « 📷 Capturer une fleur »
+  et l'écran Albums vide « ➕ Créer un album », menant directement au bon geste.
+- **Densité de grille réglable (TÂCHE 6.8).** Une pastille « Densité » dans la
+  galerie, à côté du tri, permet de choisir la taille des vignettes (Compacte /
+  Confort / Grande) : la grille adaptative resserre ou élargit ses colonnes en
+  conséquence. Le choix est persisté par appareil dans un store dédié
+  (`florapin_gallery`) et réappliqué au prochain lancement.
+- **En-têtes par mois + fast scroller (TÂCHE 6.7).** La galerie regroupe les
+  vignettes par mois de **capture** (`createdAt`), avec un en-tête pleine largeur
+  introduisant chaque mois (ex. « Juin 2026 ») lorsqu'elle est triée par date. Une
+  poignée latérale de défilement rapide (fast scroller) apparaît dès que la grille
+  déborde de l'écran : on la fait glisser pour parcourir la galerie, et une bulle
+  affiche le mois pointé pendant le glissement. Le tri par espèce reste à plat
+  (sans en-têtes ni fast scroller).
+- **Multi-sélection par appui long (TÂCHE 6.6).** Dans la galerie, un appui long
+  sur une vignette entre en mode sélection (liseré + pastille ✅ sur les fleurs
+  cochées) ; un simple tap coche/décoche ensuite les autres. Une barre du haut
+  contextuelle affiche le nombre de fleurs sélectionnées et propose « tout
+  sélectionner » (☑️), l'ajout groupé à un album (📁, feuille `AddToAlbumSheet`
+  réutilisée en lot) et la suppression groupée (🗑️, avec confirmation). La
+  suppression reste un soft delete (deletedAt + PENDING) pour les fleurs déjà
+  synchronisées, propagé puis purgé par la sync ; la croix ✕ ou le retour arrière
+  quittent le mode. Le bouton de capture s'efface pendant la sélection.
+- **Indicateur de fix GPS (TÂCHE 6.5).** L'écran de capture affiche désormais,
+  en haut à gauche, une pastille d'état de la position GPS sondée en continu
+  pendant la visée (`📡 GPS…` en recherche, `📍 GPS ±N m` une fois fixée,
+  `⚠️ GPS indisponible` sinon). Quand aucune position n'est disponible, un
+  avertissement s'affiche juste au-dessus de l'obturateur *avant* la prise (« la
+  photo sera enregistrée sans localisation »), et non après coup. Le fix déjà
+  obtenu pendant la visée est réutilisé au moment d'enregistrer la fleur, ce qui
+  évite une seconde attente de localisation après le déclenchement.
+- **Déclencheur au volume (TÂCHE 6.4).** Sur l'écran de capture, les touches de
+  volume (haut ou bas) déclenchent la prise de photo, comme l'obturateur à
+  l'écran. L'interception n'est active que lorsque l'aperçu caméra est visible :
+  l'écran enregistre l'action auprès de `MainActivity` à l'affichage et la retire
+  à la sortie, si bien que les touches de volume gardent partout ailleurs leur
+  comportement système normal. Un maintien de touche ne déclenche qu'une seule
+  capture (`repeatCount == 0`), et une capture déjà en cours est ignorée.
+- **Grille de composition (TÂCHE 6.3).** Une nouvelle bascule **▦ Grille** sur
+  l'écran de capture superpose une grille « règle des tiers » à l'aperçu caméra
+  (deux traits verticaux et deux horizontaux en blanc translucide), pour aider au
+  cadrage. Purement visuelle (overlay `Canvas`), éteinte par défaut, sans aucun
+  effet sur la caméra ni sur la photo prise ; le dessin n'intercepte pas les
+  gestes, donc le tap-to-focus et le pincement-zoom restent actifs.
+- **Mise au point par tap (TÂCHE 6.2).** Un appui sur l'aperçu caméra fait la
+  mise au point sur le point touché : les coordonnées vue sont converties via la
+  fabrique de points de mesure de la `PreviewView` (transformation vue → capteur
+  gérée nativement, zoom compris), puis `startFocusAndMetering` lance le cycle
+  d'AF/mesure. Le tap **respecte le mode macro** : le mode `AF_MODE_MACRO` est
+  ré-appliqué une fois la mise au point terminée pour ne pas quitter le macro. Le
+  pincement-zoom natif reste actif (l'événement tactile n'est pas consommé), et
+  le tap-to-focus intégré du contrôleur est désactivé au profit de cette version.
+- **Flash & torche à la capture (TÂCHE 6.1).** L'écran caméra offre deux
+  nouvelles bascules à côté du mode macro : **⚡ Flash** (déclenchement du flash
+  à la prise via `imageCaptureFlashMode`) et **🔦 Torche** (éclairage LED
+  continu pendant la visée via `enableTorch`). Les deux contrôles sont
+  indépendants, éteints par défaut, et se dégradent proprement si l'appareil n'a
+  pas de LED (best effort).
+- **Profil d'ami — amis en commun & ancienneté (TÂCHE 5.7).** Nouvel écran
+  « profil d'ami » ouvert d'un tap sur un ami de l'écran **Amis** ou sur le
+  « Partagée par … » d'une carte du **feed**. Il affiche l'avatar et le nom, une
+  ancienneté « **Amis depuis mai 2026** » (calculée sur `friendship.createdAt`),
+  le nombre d'**amis en commun**, les **espèces communes** et les **fleurs de
+  l'ami visibles par moi**. Côté serveur, un endpoint public **limité**
+  `GET /users/:id/profile` (module `friend-profile`) ne renvoie **que ce qui
+  m'est déjà accessible** (fleurs partagées avec moi ou diffusées au réseau) —
+  jamais les stats privées de l'ami — et n'est ouvert qu'entre amis acceptés
+  (404 anti-énumération sinon). Aucune évolution de schéma (lecture seule).
+- **Onglet Profil complété — nb de badges + dernières fleurs (TÂCHE 5.1).**
+  L'onglet ① Profil affiche désormais, en plus de l'avatar et des statistiques
+  d'entraide, un **compteur de badges débloqués** (raccourci vers l'onglet
+  Badges) et un **aperçu horizontal des dernières fleurs** capturées (un tap
+  ouvre le détail). Les deux sont calculés **100 % localement** (device-first,
+  disponibles hors-ligne) via une passerelle `profile/ProfileCollection.kt` :
+  nombre de paliers de la table Room `badges` (recalcul idempotent au passage) et
+  6 dernières fleurs actives (`FlowerDao.recentActive`). Complète la refonte en
+  trois onglets sans toucher au flux de déconnexion.
+- **Mon herbier — stats de collection (TÂCHE 5.6).** Nouvel écran « Mon herbier »
+  accessible depuis l'onglet Profil : espèces distinctes, nombre de fleurs et
+  regroupement par **familles botaniques** (cartes dépliables, tap sur une espèce
+  rapprochée → sa fiche). Les compteurs d'en-tête et la liste des espèces sont
+  calculés **localement** (device-first, toujours disponibles, y compris
+  hors-ligne — nouvel agrégat `FlowerDao.speciesCounts()`) ; le regroupement par
+  familles est calculé **côté serveur** (la famille est portée par l'espèce) via
+  un nouvel endpoint `GET /species/herbier`, donc partiel hors-ligne : l'écran
+  retombe alors sur la liste à plat des espèces avec un bandeau explicatif. Côté
+  backend, `SpeciesService.herbierFor` agrège les fleurs de l'utilisateur (deux
+  requêtes groupées, pas de N+1) et `SpeciesService.normalizeFamily` normalise les
+  familles (casse Titre, fusion des variantes) sur le référentiel embarqué du seed
+  `seed-species.sql` ; les espèces en texte libre non rapprochées tombent sous
+  « Non classées ». Nouveaux `herbier/HerbierScreen.kt` + `HerbierViewModel.kt`,
+  route dans `FloraNavHost.kt`.
+- **Grille de badges — étoiles + progression (TÂCHE 5.5).** L'onglet Badges du
+  Profil affiche désormais une **grille** de familles de badges (DA actée) :
+  chaque carte porte une **rangée d'étoiles** grisées (un palier atteignable
+  chacune) qui se remplissent en or au fur et à mesure, une progression
+  chiffrée « 34 / 50 » vers le prochain palier, et grise entièrement la carte
+  tant qu'aucun palier n'est atteint. Deux sections : **Collection** (calcul
+  local, disponible hors-ligne) et **Entraide** (compteurs serveur, cartes
+  grisées hors-ligne — device-first). Les saisons (4 + « Quatre saisons ») et
+  l'outre-mer (une par région) sont regroupés en **familles à paliers**
+  (« 3 / 4 », « 2 / 5 »). Nouveau composant partagé `ui/components/BadgeCard.kt`
+  + palette d'états dans `ui/theme/Color.kt` (étoile « or » chaude, lisible en
+  clair comme en sombre) ; catalogue d'affichage `badges/BadgeCatalog.kt` ;
+  `profile/BadgesViewModel.kt` (fusion local + serveur) et `profile/BadgesTab.kt`
+  (grille). `BadgeCalculator` expose une passe `progress()` donnant les
+  numérateurs bruts (fleurs, espèces, saisons, régions, lieux) pour la
+  progression exacte, et `BadgeRepository.currentProgress()` la relaie. Un palier
+  fraîchement débloqué déclenche un **retour haptique** de célébration (cf. QOL
+  6.15, à centraliser plus tard dans un `Haptics` partagé) et un liseré sur la
+  carte concernée.
+- **Badges « entraide » — calcul serveur (TÂCHE 5.4).** Nouveau module backend
+  `badges/` (`badges.module.ts` + `badges.controller.ts` + `badges.service.ts`,
+  sur le modèle du module `likes` : agrégation **en lecture**, aucune table
+  dédiée, recalcul à la volée). `GET /me/badges` renvoie les compteurs
+  collaboratifs de l'utilisateur courant en une passe (quelques `COUNT` ciblés
+  lancés **en parallèle**, pas de N+1) : 🤝 amis acceptés · 🔍 propositions
+  faites · 🎓 propositions acceptées · ❓ demandes d'identification ouvertes ·
+  ✅ propositions acceptées en tant que propriétaire · 💬 commentaires ·
+  👍 réactions données · ❤️ réactions reçues. Sources : `Friendship`
+  (`status='accepted'`, demandeur ou destinataire), `SpeciesProposal`
+  (`proposedBy` / `status='accepted'`, et jointure `flowers.owner_id` pour les
+  propositions reçues), `Flower.needsIdentification`, `FlowerComment`,
+  `FlowerLike` (données = `user_id` ; reçues = jointure `flowers.owner_id`, hors
+  auto-réactions). Côté app : `network/api/BadgesApi.kt` +
+  `network/dto/BadgeDtos.kt` (`EntraideBadgeCountsDto`, champs à défaut pour la
+  compat) branchés sur le client authentifié partagé (`NetworkModule`). Le
+  serveur ne renvoie que des **compteurs bruts** : le mapping en paliers et la
+  fusion avec les badges « collection » locaux se feront dans l'onglet Badges
+  (TÂCHE 5.5). Device-first : indisponibles hors-ligne, à afficher depuis une
+  dernière valeur en cache ou grisés.
+- **Badges « collection » — calcul local (TÂCHE 5.3).** Nouveau
+  `badges/BadgeCalculator.kt` : dérive **100 % localement** les badges à partir
+  des fleurs de l'appareil — 🌸 Première fleur · 📚 Herbier (10/50/100/250) ·
+  🌿 Diversité (10/25/50 espèces) · 🌷☀️🍁❄️ Saisons + 🍂 Quatre saisons ·
+  🧭 Explorateur (2/5/10/15/18 régions, via `RegionResolver`) · 🏝️ Outre-mer
+  (un badge par région d'outre-mer visitée) · 📍 Lieux distincts (grille ~5 km :
+  5/15/30/50/100). Persistance en **table Room `badges`** (`data/BadgeEntity.kt`
+  + `data/BadgeDao.kt`, une ligne par palier `(badgeId, tier)` — migration
+  v14 → v15) ; agrégats ajoutés à `data/FlowerDao.kt` (`COUNT`,
+  `COUNT(DISTINCT espèce)` avec repli sur le nom libre, coordonnées + dates —
+  toujours `deletedAt IS NULL`). `data/BadgeRepository.kt` orchestre le recalcul
+  et l'état « vu » : à la **première exécution** (base potentiellement déjà
+  remplie), tous les paliers acquis sont marqués `seen = true` en masse (pas de
+  pluie de célébrations, comme l'onboarding 1.4) ; les déblocages suivants sont
+  à célébrer. Choix documentés : saisons codées **hémisphère nord** (fuseau
+  Europe/Paris), grille 5 km avec correction de la longitude par
+  `cos(latitude)`, dégradation device-first si les assets régions manquent.
+- **Mapping GPS → région hors-ligne (TÂCHE 5.2).** Nouveau
+  `geo/RegionResolver.kt` : les polygones des **18 régions françaises** (13 de
+  métropole + 5 d'outre-mer) sont embarqués dans `assets/regions-fr.geojson`
+  (source [france-geojson](https://github.com/gregoiredavid/france-geojson),
+  simplifiée ; outre-mer réduit par Douglas-Peucker — ~125 Ko) et le test
+  d'appartenance se fait **100 % localement** par *ray-casting* (rejet préalable
+  par boîte englobante). `Polygon`, `MultiPolygon` et anneaux intérieurs (trous)
+  sont gérés ; l'ordre GeoJSON `[longitude, latitude]` est respecté. Une position
+  hors France renvoie `null` (les fleurs sans GPS ne sont pas résolues, pour ne
+  pas fausser les futurs paliers). Débloque le calcul local des badges
+  « Explorateur » / « Outre-mer » (TÂCHE 5.3).
+- **Refonte Profil / Réglages en 3 onglets (TÂCHE 5.1).** L'écran Profil se
+  divise désormais en trois onglets : **① Profil** (avatar, identité,
+  statistiques d'entraide, emplacements des futurs herbier/badges), **② Badges**
+  (grille à venir — TÂCHES 5.3–5.5) et **③ Configuration** (synchronisation,
+  sauvegarde locale, sécurité, déconnexion, confidentialité, suppression de
+  compte — le contenu préexistant, inchangé). Le flux de déconnexion
+  (`LocalSessionDataCleaner`, qui ne purge plus les fleurs) n'est pas modifié.
+- **Avatar / photo de profil (TÂCHE 5.1).** Depuis l'onglet Profil, l'utilisateur
+  choisit une image via le sélecteur média système ; elle est réencodée en WebP
+  côté serveur (nouveau `POST /users/me/avatar`, colonne `users.avatar_key`) et
+  affichée via Coil (initiales par défaut en l'absence d'avatar). L'URL présignée
+  est renvoyée par `GET /users/me` (et les autres réponses profil) et jamais
+  figée. L'objet est purgé du stockage à la suppression de compte.
+- **Ajout d'ami par QR code (TÂCHE 4.5).** Sur le terrain, sans lien web : depuis
+  l'écran « Amis », chacun peut afficher son QR code (« Mon QR code ») ou scanner
+  celui d'un ami (« Scanner un QR »). Le scan envoie une demande d'amitié. Le QR
+  encode l'**identifiant** (UUID) de l'utilisateur, jamais son email (vie privée).
+  Génération et décodage 100 % locaux via ZXing (`com.google.zxing:core`, aucune
+  dépendance réseau/Play Services). Nouvel endpoint `POST /friendships/by-id`
+  (corps `{ userId }`) : contrairement à l'ajout par email, l'**acceptation
+  croisée est automatique** quand chacun scanne l'autre (consentement mutuel), et
+  le re-scan (demande déjà envoyée ou déjà amis) est idempotent — pas de 409. Le
+  scan réutilise le flux de permission caméra existant (`permission/`).
+- **Relance manuelle d'une demande d'identification.** Depuis l'onglet « Mes
+  demandes », un bouton « 🔔 Relancer mes amis » re-sollicite tout le réseau
+  d'amis sur une fleur toujours « à identifier ». Nouvel endpoint
+  `POST /flowers/{id}/identification-requests/remind` qui re-notifie
+  (`identification_requested`, push data-only). Anti-spam **côté serveur** (pas
+  seulement UI) : la colonne `flowers.last_reminded_at` horodate la dernière
+  sollicitation (ouverture + relances) et une relance sous 24 h est refusée
+  (409 → « Vous avez déjà relancé vos amis récemment »).
+- **« Merci 🌸 » en un tap (identification collaborative).** Sur le détail d'une
+  fleur, le propriétaire peut désormais remercier l'auteur d'une proposition
+  d'espèce d'un simple tap, sans avoir à l'accepter. Nouvel endpoint
+  `POST /flowers/{id}/proposals/{proposalId}/thanks` (idempotent : un seul merci
+  par proposition, matérialisé par `species_proposals.thanked_at`) qui notifie le
+  proposeur (`species_thanked`, push data-only « Marie vous remercie pour …
+  🌸 »). Le bouton passe à « Merci envoyé 🌸 » une fois envoyé.
+- **Statut d'une demande d'identification (En attente / Résolue).** Une pastille
+  de statut apparaît désormais des deux côtés de l'entraide : sur les cartes
+  « À identifier » (côté ami), « Mes demandes » (côté propriétaire) et sur la
+  section « Propositions de vos amis » du détail d'une fleur. Le statut est
+  entièrement *dérivé* de l'état existant — « Résolue » dès que la fleur
+  n'attend plus d'identification (`needsIdentification = false`) et qu'une
+  proposition a été acceptée, « En attente » sinon — sans nouvelle colonne ni
+  changement de schéma.
+- **Écran « Mes demandes » (identification collaborative).** L'écran
+  d'identification propose désormais deux onglets : « À identifier » (les fleurs
+  d'amis que je peux aider à identifier, inchangé) et « Mes demandes », qui
+  montre l'état de mes propres sollicitations — mes fleurs en attente et « qui a
+  proposé quoi ». Nouvel endpoint `GET /me/identification-requests` : le serveur
+  compose mes fleurs `needsIdentification` avec les propositions reçues (auteurs
+  batchés) en une seule requête, sans composition N+1 côté client. Nouveau
+  `MyRequestsViewModel` + DTO `MyIdentificationRequestDto`. L'accept/refus d'une
+  proposition reste sur le détail de la fleur ; l'onglet est une vue d'état.
+- **Fleurs enregistrées — « Ma sélection ».** Chaque fleur d'ami du feed propose
+  une étoile (⭐/☆) pour l'enregistrer en favori PRIVÉ et LOCAL, sans aucune API
+  dédiée (device-first). Comme la fleur d'un ami n'existe pas en base locale, on
+  fige un snapshot autonome (id serveur, espèce, nom de l'ami, miniature mise en
+  cache sur l'appareil) : la sélection reste consultable hors ligne et même si le
+  partage d'origine est révoqué. Une puce « ⭐ Ma sélection » filtre le feed pour
+  n'afficher que ces favoris (liste locale, tirage et pagination désactivés).
+  Nouvelle table Room `saved_flowers` (migration 13→14) + entité/DAO/dépôt sous
+  `data/`. La sélection est purgée à la suppression de compte (NODE-93).
+- **Mention d'un ami dans un commentaire (`@ami`).** En saisissant `@` dans le
+  fil de discussion, une liste d'amis acceptés s'affiche en autocomplete ;
+  choisir un ami insère une mention rendue « @Nom » (colorée) dans le champ.
+  La mention encode l'IDENTIFIANT de l'ami (`@[userId]`) et non son nom : un
+  renommage (1.7) ne casse donc pas la mention, le nom étant re-résolu à chaque
+  lecture (nouveau champ `mentions` sur chaque commentaire renvoyé par l'API).
+  Côté serveur, `POST`/`PATCH flowers/{id}/comments` détecte les amis mentionnés
+  et leur envoie une notification `comment_mention` (nouveau type, canal
+  « Commentaires », action rapide « Répondre »). Restreint au réseau d'amis
+  acceptés de l'auteur ; l'auteur et le propriétaire (déjà averti par
+  `flower_commented`) sont exclus, et l'édition ne re-notifie que les mentions
+  nouvellement ajoutées.
+- **Réponse à un commentaire (fil à un niveau).** Chaque commentaire propose un
+  bouton « Répondre » qui ouvre une réponse citée : un bandeau « En réponse à … »
+  s'affiche au-dessus de la saisie et la réponse rappelle l'auteur et le texte du
+  commentaire visé. Le fil reste volontairement à un seul niveau — répondre à une
+  réponse est aplati côté serveur pour pointer la racine. Côté API, `POST
+  flowers/{id}/comments` accepte un `replyToId` optionnel (validé sur la même
+  fleur) et chaque commentaire renvoie `replyToId`/`replyToAuthorName`/
+  `replyToBody` pour la citation. Nouvelle colonne `reply_to_id` sur
+  `flower_comments`.
+- **Édition d'un commentaire.** L'auteur d'un commentaire peut désormais le
+  modifier via le menu « Éditer » (⋮) du fil de discussion : le texte est
+  ré-ouvert en édition inline (Enregistrer / Annuler). Un suffixe « · modifié »
+  s'affiche à côté de l'ancienneté. Côté serveur, un `PATCH
+  flowers/{id}/comments/{commentId}` réservé à l'auteur met à jour le texte et
+  horodate la colonne `edited_at` (nouvelle sur `flower_comments`).
+- **Brouillon de commentaire conservé.** Le texte saisi dans le fil de discussion
+  d'une fleur n'est plus perdu si l'on ferme la bottom sheet (ou redémarre
+  l'appli) sans envoyer : il est persisté par fleur (`flowerServerId`) dans un
+  fichier de prefs dédié (`florapin_comment_drafts`) et restauré à la réouverture.
+  Le brouillon est effacé une fois le commentaire envoyé.
+- **Regroupement du feed par lot.** Quand un ami partage plusieurs fleurs d'un
+  même geste, le feed « Partagées avec moi » les réunit en une carte-lot
+  « Marie a partagé N fleurs » (aperçu de 3 miniatures) ; un tap déplie les
+  fleurs du lot juste en dessous, sans quitter le feed. Le regroupement se fait
+  par clé de lot (partage ciblé `shareId`, sinon repli « ami + jour » pour les
+  fleurs diffusées au réseau), pas par position : un lot coupé entre deux pages
+  de pagination se recompose dès le chargement de la page suivante, en gardant un
+  tri stable par date. L'API du feed expose désormais `shareId`/`sharedAt` sur
+  chaque item pour un regroupement fiable côté client.
+- **Réactions enrichies sur les fleurs.** Le cœur devient un jeu de réactions :
+  un appui long sur l'emoji ouvre un sélecteur (😍 🌸 🌹 🌼 🪻 🔍 👍) ; un simple
+  tap pose (ou retire) la réaction par défaut ❤️. Le libellé récapitule les types
+  présents suivis du total, et la liste des likers affiche l'emoji de chacun.
+  Côté API, `POST /flowers/:id/like` accepte un corps optionnel `{ reaction }`
+  (absent = cœur, compat ascendante des anciennes apps) ; changer de réaction met
+  à jour la ligne existante (une seule réaction par fleur et par utilisateur, pas
+  de doublon). Les réponses fleur exposent désormais `reactionCounts` (décompte
+  par type) et `myReaction`, en plus de `likeCount`/`likedByMe` conservés. Colonne
+  `flower_likes.reaction` ajoutée (défaut `heart`, migration idempotente).
+- **Liste des personnes ayant liké une fleur.** Un tap sur le compteur de cœurs
+  (détail comme feed « Partagées avec moi ») ouvre un bottom sheet listant les
+  likers par leur nom d'affichage. Servi par un nouvel endpoint
+  `GET /flowers/:id/likes` soumis au même contrôle d'accès que le like (fleur
+  visible par le viewer, sinon 404), noms résolus en une requête groupée.
+- **Compteur de commentaires sur les cartes du feed.** Chaque fleur partagée
+  affiche désormais une puce 💬 avec le nombre de commentaires reçus, à côté du
+  cœur ; un clic ouvre le fil. Le compte est renvoyé par l'API (`commentCount`)
+  et agrégé en une seule requête groupée côté backend (pas de N+1 sur la liste).
+- **Séparateur « Nouveau depuis votre dernière visite » dans le feed.** En tri par
+  date, un filet libellé s'insère juste avant la première fleur déjà présente à la
+  précédente ouverture de l'onglet 🖼️, isolant les nouveautés en tête de liste.
+  Repère de visite mémorisé par appareil dans `FeedBadgeStore` ; absent à la
+  première visite ou lorsqu'il n'y a rien à distinguer (aucune nouveauté, ou feed
+  entièrement nouveau).
+- **Badge de nouveautés sur l'onglet « Partagées ».** L'onglet 🖼️ de la barre du
+  bas porte désormais un badge du nombre de fleurs non encore vues dans le feed
+  d'amis. Le compteur est recalculé à chaque changement d'onglet et remis à zéro
+  dès l'ouverture de l'onglet (les fleurs affichées sont marquées « vues » par
+  appareil, via `FeedBadgeStore`). Silencieux hors-ligne / non connecté (la
+  dernière valeur connue est conservée).
+- **Centre de notifications in-app.** Une cloche 🔔 dans la barre du haut de
+  l'Accueil, surmontée d'un badge du nombre de non-lus, ouvre un centre de
+  notifications listant les nouveautés reçues (demandes/acceptations d'ami,
+  partages, propositions et confirmations d'espèce, demandes d'identification,
+  cœurs et commentaires), plus récentes d'abord, avec un point « non lu » et
+  l'ancienneté. Un tap marque la notification lue et route vers le contenu
+  concerné en réutilisant le routage des push (résolution serverId → fleur
+  locale, sinon repli feed/amis/accueil). Fonctionnalité collaborative servie
+  par le backend : indépendante de la synchronisation device-first mais
+  nécessitant le réseau ; hors-ligne ou non connecté, l'écran affiche un état
+  « indisponible » explicite et le badge reste masqué.
+- **Actions rapides depuis la notification.** Les push référençant une fleur
+  proposent désormais des boutons d'action sans ouvrir l'app : « ❤️ J'aime »
+  (partage reçu uniquement) et « Répondre » (RemoteInput → commentaire ;
+  partage, commentaire, cœur reçu). L'appel réseau est effectué hors du thread
+  principal (`goAsync` + coroutine IO), authentifié via le client partagé, et la
+  notification est retirée en cas de succès (laissée en place, pour réessai, en
+  cas d'échec). Aucun bouton « J'aime » sur « on a aimé/commenté VOTRE fleur »
+  (commentaire et cœur ne sont notifiés qu'au propriétaire : aimer reviendrait à
+  aimer sa propre fleur).
+- **Photo de la fleur dans la notification.** Les push référençant une fleur
+  affichent désormais sa miniature (BigPictureStyle) : vignette en mode replié
+  et grande image une fois dépliée. L'URL de la miniature (présignée de lecture,
+  longue durée) est fournie dans le payload par le backend ; l'app la télécharge
+  à la réception, de façon synchrone et bornée par un timeout court (~2,5 s),
+  puis retombe proprement sur une notification sans image en cas d'échec, d'URL
+  absente ou de push sans fleur.
+- **Regroupement des notifications par fleur / conversation.** Les push sont
+  désormais regroupés côté système : toutes les notifications concernant une même
+  fleur (cœur, commentaire, proposition d'espèce, demande d'identification…) sont
+  collapsées sous un résumé unique — « Activité sur une fleur » — au lieu de
+  s'empiler ; les notifications sans fleur (demandes d'ami…) se regroupent par
+  type. Les ids de notification sont stables par (type, fleur) : un nouveau push
+  du même couple met à jour la notification existante plutôt que d'en créer une
+  nouvelle, et le résumé est reposté à chaque ajout.
+- **Canaux de notification par type.** Les push sont désormais rangés dans des
+  canaux Android dédiés — Cœurs (`florapin_likes`), Commentaires
+  (`florapin_comments`), Amis (`florapin_friends`) et Identification
+  (`florapin_identification`) — permettant à l'utilisateur de couper ou
+  personnaliser chaque catégorie depuis les réglages système. Les partages et
+  les types inconnus retombent sur le canal historique « Général »
+  (`florapin_default`). Le mapping type FCM → canal est fait à la réception.
+- **Tap sur une notification → contenu concerné.** Toucher une notification push
+  ouvre désormais l'app directement sur le contenu visé plutôt que sur l'Accueil.
+  Le `PendingIntent` (FLAG_IMMUTABLE, targetSdk 35) transporte le type et le
+  `serverId` de la fleur ; au tap, l'app résout ce `serverId` → id local Room et
+  ouvre le détail de la fleur (mes fleurs : cœur, commentaire, proposition…),
+  ou retombe sur le feed « Partagées » quand la fleur appartient à un ami (donc
+  absente de Room : partage, demande d'identification). Les notifications sans
+  fleur routent par type (demande/acceptation d'ami → écran Amis). Gère le
+  démarrage à froid (extras dans `onCreate`) comme l'app déjà ouverte
+  (`onNewIntent`, activité en `singleTop`).
+- **Notifications push « incarnées ».** Les push disent désormais *qui* fait quoi
+  et *sur quelle fleur* : « Marie a partagé Coquelicot avec vous », « Paul a
+  commenté votre Coquelicot », « Léa a aimé votre fleur », etc. Le backend
+  enrichit le `data` de chaque push (data-only) à l'envoi avec le nom
+  d'affichage de l'émetteur (`byUserName`, jamais figé — résolu au moment de
+  l'envoi, cohérent avec la modification de nom), et, quand une fleur est
+  concernée, son espèce (`species`) et l'URL de sa miniature (`thumbnailUrl`,
+  présignée à longue durée). L'app compose le texte à partir de ces champs et
+  retombe proprement sur les libellés génériques quand ils sont absents
+  (anciens payloads tolérés). La notification in-app persistée conserve, elle,
+  ses identifiants bruts.
+- **Modification du nom d'affichage depuis le profil.** La carte du profil
+  propose désormais un bouton « Modifier le nom » ouvrant un dialogue pré-rempli
+  avec le nom courant. Nouvel endpoint `PATCH /users/me` (JWT requis) qui
+  applique les mêmes règles qu'à l'inscription (trim + 1..80 caractères) puis
+  renvoie le profil à jour. Le nom n'est jamais figé ailleurs : il reste résolu
+  au moment de l'envoi (ex. futurs push « incarnés »). L'app reflète le nouveau
+  nom dans l'état et le persiste localement (affichage immédiat au prochain
+  lancement).
+- **Changement de mot de passe depuis le profil.** Une section « Sécurité » du
+  profil ouvre un dialogue qui demande le mot de passe actuel (vérifié côté
+  serveur) puis le nouveau, confirmé localement (≥ 8 caractères). Nouvel endpoint
+  `POST /auth/change-password` (JWT requis, throttlé à 5/min par IP) : il vérifie
+  l'ancien mot de passe, re-hash le nouveau, révoque **toutes** les sessions
+  (déconnexion des autres appareils) puis **réémet une paire de jetons pour
+  l'appareil courant** afin de ne pas déconnecter l'utilisateur de son propre
+  téléphone. L'app persiste immédiatement les jetons réémis.
+- **Sauvegarde locale — export/import ZIP (device-first).** Le profil propose
+  désormais d'exporter toute la bibliothèque (fleurs, albums, appartenances et
+  photos) dans une archive ZIP choisie via le sélecteur de documents (SAF), puis
+  de la réimporter — entièrement hors ligne, filet de sécurité du mode 100 %
+  local. L'export sérialise un dump JSON via les DAO (jamais le `.db` à chaud,
+  pour éviter les incohérences WAL) et copie les images en flux (aucune image ni
+  archive entière chargée en mémoire). L'import est une **fusion idempotente**
+  sans écrasement : dédoublonnage des albums par `clientId`, des fleurs par
+  `serverId` (sinon date de capture) et des photos par `serverId` (sinon couple
+  fleur/position) ; les identifiants locaux sont remappés pour reconstruire les
+  relations, et les champs de synchronisation (`serverId`, `syncState`,
+  `updatedAt`…) sont restaurés tels quels afin qu'une bibliothèque déjà
+  synchronisée ne soit pas re-poussée en double. Nouveaux composants
+  `BackupExporter`/`BackupImporter` (paquet `data/backup`).
+- **Onboarding en trois écrans (première installation).** Au tout premier
+  lancement, FloraPin présente sa promesse sociale (capture géolocalisée →
+  partage → identification par les amis), explique les accès caméra et
+  localisation *avant* de les demander (permissions contextualisées), puis
+  propose le choix de synchronisation cloud en réutilisant l'écran « Options
+  réseau » (device-first : sync OFF par défaut, choix par appareil). L'onboarding
+  s'insère avant l'aiguillage Login/Galerie et ne s'affiche qu'une fois : le
+  drapeau « déjà vu » est figé à vrai pour les installations existantes (session
+  active ou base locale déjà créée), afin qu'une simple mise à jour ne le
+  ré-affiche pas. Nouveau fichier de préférences dédié `florapin_onboarding`.
+- **Tirer pour rafraîchir (pull-to-refresh).** La galerie, le feed « Partagées
+  avec moi » et l'écran « Fleurs à identifier » se rafraîchissent désormais d'un
+  simple geste de tirage vers le bas. Sur la galerie (device-first), le geste
+  relit la bibliothèque locale et ne relance une passe de synchronisation cloud
+  que si la sync est activée — jamais de réseau exigé ; il rafraîchit aussi les
+  badges de nouveautés (identifications et invitations). Sur le feed et
+  « À identifier », il recharge la première page depuis le serveur. Le geste
+  reste déclenchable même quand l'écran est vide.
+- **Pagination du feed d'amis (défilement infini).** Le flux « Partagées avec
+  moi » charge désormais les fleurs par pages et complète la liste à l'approche
+  du bas de l'écran, au lieu de plafonner à un lot unique. Côté serveur, une
+  vraie pagination *keyset* descendante s'appuie sur un curseur `before` — le
+  couple stable `(createdAt, id)` — appliqué aux deux sources du feed (partages
+  ciblés + diffusion réseau) avant fusion, puis re-tranché à la limite. Nouveau
+  paramètre `GET /feed?before=<ISO8601>_<id>`, réservé au tri par date
+  (incompatible avec `sort=likes`, qui renvoie alors un 400). Le paramètre
+  `since` (delta de synchronisation) reste inchangé.
+
+### Interne
+- **Tests UI Compose des flux critiques capture & partage.** Nouveaux tests
+  instrumentés `app/src/androidTest/…/capture/CaptureFlowTest` (écran de revue
+  de la photo piloté avec une source d'image factice — l'aperçu CameraX n'étant
+  pas instrumentable sur émulateur) et `…/share/ShareFlowerSheetTest` (sélection
+  d'un destinataire, partage réseau « tous mes amis », révocation, via un
+  `ShareViewModel` alimenté par des APIs factices, comme `ShareViewModelTest`).
+  L'écran de revue `CapturedPhotoScreen` (et les types `Captured`/`LocationState`)
+  passent de `private` à `internal` pour la testabilité. La CI compile désormais
+  la variante `androidTest` (`assembleDebugAndroidTest`) à chaque PR pour éviter
+  leur rot ; leur exécution réelle reste locale (`connectedDebugAndroidTest`,
+  émulateur requis).
+- **CI unifiée sur chaque PR (`.github/workflows/ci.yml`).** Le workflow
+  d'intégration continue construit et teste l'app *et* le backend à chaque
+  push/pull request : job Android (lint, `testDebugUnitTest`, `assembleDebug`
+  en debug uniquement, APK publié en artefact) et job Backend (`npm ci`,
+  `npm run build`, `npm test`, puis `npm run test:e2e` via Testcontainers sur
+  le démon Docker d'`ubuntu-latest`). Un `google-services.json` factice est
+  injecté pour satisfaire le plugin `google-services`, et `MAPTILER_API_KEY`
+  retombe sur une valeur vide (aucune clé requise pour compiler). Fichier
+  renommé depuis `android-ci.yml` pour refléter sa couverture app + backend.
+
 ## [1.12.0] — 2026-07-04
 
 _versionName 1.12.0, versionCode 20._

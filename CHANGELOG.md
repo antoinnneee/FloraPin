@@ -12,6 +12,10 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.13.0] — 2026-07-05
+
+_versionName 1.13.0, versionCode 21._
+
 ### Ajouté
 - **Albums collaboratifs = groupes (TÂCHE 7.1).** Un album peut désormais devenir
   collaboratif : le créer coche « Album collaboratif » crée aussi un **groupe**

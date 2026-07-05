@@ -52,6 +52,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -60,6 +61,7 @@ import androidx.lifecycle.Observer
 import com.florapin.app.MainActivity
 import com.florapin.app.location.GpsFixState
 import com.florapin.app.permission.findActivity
+import com.florapin.app.util.Haptics
 import androidx.lifecycle.compose.LocalLifecycleOwner
 
 private const val TAG = "CameraScreen"
@@ -94,6 +96,7 @@ fun CameraScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val haptic = LocalHapticFeedback.current
 
     val controller = remember {
         LifecycleCameraController(context).apply {
@@ -171,6 +174,8 @@ fun CameraScreen(
     val onShutter = {
         if (!isCapturing) {
             isCapturing = true
+            // Confirmation haptique au déclenchement de l'obturateur (QOL 6.15).
+            Haptics.tap(haptic)
             takePhoto(
                 controller = controller,
                 context = context,

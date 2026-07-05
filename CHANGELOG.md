@@ -21,6 +21,12 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Retour haptique (TÂCHE 6.15).** Un utilitaire `Haptics` (util/) centralise
+  les vibrations sémantiques de l'app (`tap` léger, `celebrate` appuyé) au-dessus
+  du `LocalHapticFeedback` de Compose (respecte le réglage système, aucune
+  permission). Points d'appel : like/réaction (`LikeButton`), déclenchement de
+  l'obturateur (`CameraScreen`) et déblocage d'un palier de badge (`BadgesTab`,
+  qui appelait déjà le retour haptique directement).
 - **État de synchronisation visible (TÂCHE 6.14).** L'onglet Configuration
   affiche désormais l'état de la dernière passe du worker (en cours / réussie /
   échec + message d'erreur) et l'horodatage de la dernière synchro réussie (lu via

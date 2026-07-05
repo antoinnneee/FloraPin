@@ -15,7 +15,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -24,6 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.ui.components.BadgeCard
 import com.florapin.app.ui.components.BadgeUiState
+import com.florapin.app.util.Haptics
 
 /**
  * Onglet ② Badges (TÂCHE 5.5) : grille des familles de badges avec rangées
@@ -44,7 +44,7 @@ internal fun BadgesTab(
 
     LaunchedEffect(state.celebrate) {
         if (state.celebrate) {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            Haptics.celebrate(haptic)
             viewModel.celebrationConsumed()
         }
     }

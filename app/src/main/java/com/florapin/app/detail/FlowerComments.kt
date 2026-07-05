@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -63,6 +64,8 @@ data class CommentsUiState(
     val editDraft: String = "",
     /** Édition en cours d'envoi. */
     val editSubmitting: Boolean = false,
+    /** Commentaire auquel le brouillon répond (citation), `null` sinon. */
+    val replyingTo: FlowerCommentDto? = null,
     val error: String? = null,
 )
 
@@ -117,21 +120,33 @@ class CommentsViewModel(
         serverId?.let { drafts.save(it, text) }
     }
 
+    /** Cible [comment] pour une réponse citée (le prochain envoi lui répondra). */
+    fun startReply(comment: FlowerCommentDto) {
+        _state.update { it.copy(replyingTo = comment, error = null) }
+    }
+
+    /** Abandonne la réponse citée en cours : le prochain envoi repart au fil. */
+    fun cancelReply() {
+        _state.update { it.copy(replyingTo = null) }
+    }
+
     /** Poste le brouillon courant ; l'ajoute en fin de liste à la réussite. */
     fun submit() {
         val id = serverId ?: return
         val body = _state.value.draft.trim()
         if (body.isEmpty() || _state.value.submitting) return
+        val replyToId = _state.value.replyingTo?.id
         _state.update { it.copy(submitting = true, error = null) }
         viewModelScope.launch {
             try {
-                val created = api.post(id, CreateCommentRequest(body))
+                val created = api.post(id, CreateCommentRequest(body, replyToId))
                 // Envoi réussi : le brouillon persisté n'a plus lieu d'être.
                 drafts.clear(id)
                 _state.update {
                     it.copy(
                         submitting = false,
                         draft = "",
+                        replyingTo = null,
                         comments = it.comments + created,
                     )
                 }
@@ -270,14 +285,24 @@ fun CommentsSection(
                 onEditDraftChange = viewModel::updateEditDraft,
                 onSubmitEdit = { viewModel.submitEdit() },
                 onCancelEdit = { viewModel.cancelEdit() },
+                onReply = { viewModel.startReply(comment) },
             )
+        }
+
+        state.replyingTo?.let { target ->
+            ReplyBanner(target = target, onCancel = { viewModel.cancelReply() })
         }
 
         OutlinedTextField(
             value = state.draft,
             onValueChange = viewModel::updateDraft,
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Ajouter un commentaire…") },
+            placeholder = {
+                Text(
+                    if (state.replyingTo != null) "Écrire une réponse…"
+                    else "Ajouter un commentaire…",
+                )
+            },
             enabled = !state.submitting,
             maxLines = 4,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
@@ -365,6 +390,7 @@ private fun CommentCard(
     onEditDraftChange: (String) -> Unit,
     onSubmitEdit: () -> Unit,
     onCancelEdit: () -> Unit,
+    onReply: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -373,6 +399,13 @@ private fun CommentCard(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
+            // Citation : rappel de l'auteur et du texte du commentaire répondu.
+            if (comment.replyToId != null) {
+                CommentQuote(
+                    authorName = comment.replyToAuthorName,
+                    body = comment.replyToBody,
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -428,7 +461,69 @@ private fun CommentCard(
                     text = comment.body,
                     style = MaterialTheme.typography.bodyMedium,
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onReply) {
+                        Text("Répondre")
+                    }
+                }
             }
+        }
+    }
+}
+
+/**
+ * Citation d'un commentaire parent, affichée en tête d'une réponse : nom de
+ * l'auteur cité et rappel tronqué de son texte, dans un liseré discret.
+ */
+@Composable
+private fun CommentQuote(authorName: String?, body: String?) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            text = "↩ ${authorName?.ifBlank { "Quelqu'un" } ?: "Quelqu'un"}",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        if (!body.isNullOrBlank()) {
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/**
+ * Bandeau « En réponse à … » affiché au-dessus du champ de saisie quand une
+ * réponse citée est en cours de rédaction, avec un bouton d'annulation.
+ */
+@Composable
+private fun ReplyBanner(target: FlowerCommentDto, onCancel: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "En réponse à ${target.authorName.ifBlank { "Quelqu'un" }}",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onCancel) {
+            Text("Annuler")
         }
     }
 }

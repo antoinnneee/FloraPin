@@ -345,8 +345,15 @@ CREATE TABLE IF NOT EXISTS flower_comments (
 );
 -- Édition d'un commentaire par son auteur (NULL si jamais modifié).
 ALTER TABLE flower_comments ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;
+-- Réponse citée : commentaire racine auquel celui-ci répond (fil à un seul
+-- niveau ; NULL pour un commentaire de premier niveau). Aplati côté serveur.
+ALTER TABLE flower_comments
+    ADD COLUMN IF NOT EXISTS reply_to_id UUID
+    REFERENCES flower_comments(id) ON DELETE CASCADE;
 -- Listing chronologique des commentaires d'une fleur.
 CREATE INDEX IF NOT EXISTS idx_flower_comments_flower ON flower_comments(flower_id);
+-- Récupération des réponses d'un commentaire racine.
+CREATE INDEX IF NOT EXISTS idx_flower_comments_reply_to ON flower_comments(reply_to_id);
 
 -- =====================================================================
 -- Notifications in-app (NODE-23)

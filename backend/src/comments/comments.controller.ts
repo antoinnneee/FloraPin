@@ -33,7 +33,7 @@ export class CommentsController {
     @Param('id', ParseUUIDPipe) flowerId: string,
     @Body() dto: CreateCommentDto,
   ) {
-    return this.comments.post(user.userId, flowerId, dto.body);
+    return this.comments.post(user.userId, flowerId, dto.body, dto.replyToId);
   }
 
   /** Liste les commentaires d'une fleur visible (chronologique). */

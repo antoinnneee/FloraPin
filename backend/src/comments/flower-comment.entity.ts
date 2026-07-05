@@ -27,6 +27,16 @@ export class FlowerComment {
   @Column({ type: 'text' })
   body: string;
 
+  /**
+   * Réponse citée : id du commentaire racine auquel celui-ci répond, `null` pour
+   * un commentaire de premier niveau. Fil à un seul niveau — une réponse à une
+   * réponse est aplatie côté serveur pour pointer la racine (cf.
+   * CommentsService.post).
+   */
+  @Index()
+  @Column({ name: 'reply_to_id', type: 'uuid', nullable: true })
+  replyToId: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

@@ -8,6 +8,11 @@ import com.squareup.moshi.JsonClass
 @JsonClass(generateAdapter = true)
 data class CreateCommentRequest(
     val body: String,
+    /**
+     * Réponse citée : id du commentaire auquel on répond, `null` au premier
+     * niveau. Le serveur aplatit vers la racine (fil à un seul niveau).
+     */
+    val replyToId: String? = null,
 )
 
 /** Corps de PATCH flowers/{id}/comments/{commentId} : le nouveau texte. */
@@ -32,4 +37,10 @@ data class FlowerCommentDto(
     val createdAt: String,
     /** Dernière édition par l'auteur, `null` si jamais modifié. */
     val editedAt: String? = null,
+    /** Réponse citée : id du commentaire racine visé, `null` au premier niveau. */
+    val replyToId: String? = null,
+    /** Nom d'affichage de l'auteur du commentaire cité (`null` si sans réponse). */
+    val replyToAuthorName: String? = null,
+    /** Texte du commentaire cité (`null` si sans réponse). */
+    val replyToBody: String? = null,
 )

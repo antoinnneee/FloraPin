@@ -13,6 +13,15 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Réponse à un commentaire (fil à un niveau).** Chaque commentaire propose un
+  bouton « Répondre » qui ouvre une réponse citée : un bandeau « En réponse à … »
+  s'affiche au-dessus de la saisie et la réponse rappelle l'auteur et le texte du
+  commentaire visé. Le fil reste volontairement à un seul niveau — répondre à une
+  réponse est aplati côté serveur pour pointer la racine. Côté API, `POST
+  flowers/{id}/comments` accepte un `replyToId` optionnel (validé sur la même
+  fleur) et chaque commentaire renvoie `replyToId`/`replyToAuthorName`/
+  `replyToBody` pour la citation. Nouvelle colonne `reply_to_id` sur
+  `flower_comments`.
 - **Édition d'un commentaire.** L'auteur d'un commentaire peut désormais le
   modifier via le menu « Éditer » (⋮) du fil de discussion : le texte est
   ré-ouvert en édition inline (Enregistrer / Annuler). Un suffixe « · modifié »

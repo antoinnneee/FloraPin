@@ -210,6 +210,46 @@ describe('CommentsService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  it('répond à un commentaire : cite l’auteur et le texte du parent', async () => {
+    flowerRepo.seed({ id: FLOWER, ownerId: OWNER });
+    const root = await service.post(OWNER, FLOWER, 'Quelle espèce ?');
+    const reply = await service.post(FRIEND, FLOWER, 'Une rose', root.id);
+    expect(reply.replyToId).toBe(root.id);
+    expect(reply.replyToAuthorName).toBe('Nom owner');
+    expect(reply.replyToBody).toBe('Quelle espèce ?');
+  });
+
+  it('aplatit une réponse à une réponse vers la racine', async () => {
+    flowerRepo.seed({ id: FLOWER, ownerId: OWNER });
+    const root = await service.post(OWNER, FLOWER, 'Racine');
+    const reply = await service.post(FRIEND, FLOWER, 'Réponse 1', root.id);
+    // On répond à la réponse : le fil reste à un niveau → pointe la racine.
+    const nested = await service.post(OWNER, FLOWER, 'Réponse 2', reply.id);
+    expect(nested.replyToId).toBe(root.id);
+    expect(nested.replyToBody).toBe('Racine');
+  });
+
+  it('expose la citation à la relecture de la liste', async () => {
+    flowerRepo.seed({ id: FLOWER, ownerId: OWNER });
+    const root = await service.post(OWNER, FLOWER, 'Question');
+    await service.post(FRIEND, FLOWER, 'Réponse', root.id);
+    const listed = await service.listForFlower(OWNER, FLOWER);
+    const reply = listed.find((c) => c.body === 'Réponse')!;
+    expect(reply.replyToId).toBe(root.id);
+    expect(reply.replyToAuthorName).toBe('Nom owner');
+    expect(reply.replyToBody).toBe('Question');
+  });
+
+  it('refuse de répondre à un commentaire d’une autre fleur', async () => {
+    flowerRepo.seed({ id: FLOWER, ownerId: OWNER });
+    const other = 'flower-2';
+    flowerRepo.seed({ id: other, ownerId: OWNER });
+    const onOther = await service.post(OWNER, other, 'Ailleurs');
+    await expect(
+      service.post(OWNER, FLOWER, 'Hors sujet', onOther.id),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('l’auteur supprime son commentaire', async () => {
     flowerRepo.seed({ id: FLOWER, ownerId: OWNER });
     const comment = await service.post(FRIEND, FLOWER, 'À retirer');

@@ -26,6 +26,12 @@ export interface CommentResponse {
   createdAt: Date;
   /** Dernière édition par l'auteur, `null` si jamais modifié. */
   editedAt: Date | null;
+  /** Réponse citée : id du commentaire racine visé, `null` au premier niveau. */
+  replyToId: string | null;
+  /** Nom d'affichage de l'auteur du commentaire cité (`null` si sans réponse). */
+  replyToAuthorName: string | null;
+  /** Texte du commentaire cité (`null` si sans réponse). */
+  replyToBody: string | null;
 }
 
 /**
@@ -45,16 +51,34 @@ export class CommentsService {
     private readonly users: UsersService,
   ) {}
 
-  /** Poste un commentaire sur une fleur visible par l'auteur. Notifie le propriétaire. */
+  /**
+   * Poste un commentaire sur une fleur visible par l'auteur. Notifie le
+   * propriétaire. Si [replyToId] est fourni, le commentaire répond à un autre :
+   * le fil est volontairement à un seul niveau, donc une réponse à une réponse
+   * est aplatie pour pointer la racine.
+   */
   async post(
     authorId: string,
     flowerId: string,
     body: string,
+    replyToId?: string,
   ): Promise<CommentResponse> {
     const flower = await this.visibleFlowerOrThrow(authorId, flowerId);
 
+    // Réponse citée : la cible doit exister sur la MÊME fleur. On aplatit vers
+    // la racine (fil à un seul niveau) et on garde le parent pour la citation.
+    let parent: FlowerComment | null = null;
+    if (replyToId) {
+      parent = await this.rootParentOrThrow(flowerId, replyToId);
+    }
+
     const saved = await this.comments.save(
-      this.comments.create({ flowerId, authoredBy: authorId, body }),
+      this.comments.create({
+        flowerId,
+        authoredBy: authorId,
+        body,
+        replyToId: parent?.id ?? null,
+      }),
     );
 
     // Notifie le propriétaire (sauf auto-commentaire) — best-effort : le
@@ -68,7 +92,39 @@ export class CommentsService {
     }
 
     const authorName = (await this.users.findById(authorId))?.displayName ?? '';
-    return this.buildResponse(saved, authorId, flower.ownerId, authorName);
+    const replyToAuthorName = parent
+      ? ((await this.users.findById(parent.authoredBy))?.displayName ?? '')
+      : null;
+    return this.buildResponse(saved, authorId, flower.ownerId, authorName, {
+      authorName: replyToAuthorName,
+      body: parent?.body ?? null,
+    });
+  }
+
+  /**
+   * Charge le commentaire racine visé par une réponse. La cible doit appartenir
+   * à la même fleur ; si elle est elle-même une réponse, on remonte à sa racine
+   * (aplatissement, fil à un seul niveau).
+   */
+  private async rootParentOrThrow(
+    flowerId: string,
+    targetId: string,
+  ): Promise<FlowerComment> {
+    const target = await this.comments.findOne({
+      where: { id: targetId, flowerId },
+    });
+    if (!target) {
+      throw new NotFoundException('Commentaire cité introuvable.');
+    }
+    if (!target.replyToId) {
+      return target;
+    }
+    const root = await this.comments.findOne({
+      where: { id: target.replyToId, flowerId },
+    });
+    // La racine devrait toujours exister (cascade FK) ; repli défensif sur la
+    // cible directe si l'intégrité était rompue.
+    return root ?? target;
   }
 
   /** Liste les commentaires d'une fleur visible, du plus ancien au plus récent. */
@@ -86,14 +142,24 @@ export class CommentsService {
     const authorIds = [...new Set(comments.map((c) => c.authoredBy))];
     const authors = await this.users.findByIds(authorIds);
     const nameById = new Map(authors.map((u) => [u.id, u.displayName]));
-    return comments.map((c) =>
-      this.buildResponse(
+    // Résolution de la citation : le parent est forcément un commentaire de la
+    // même fleur, donc déjà dans `comments` (aplatissement à un seul niveau).
+    const byId = new Map(comments.map((c) => [c.id, c]));
+    return comments.map((c) => {
+      const parent = c.replyToId ? byId.get(c.replyToId) : undefined;
+      return this.buildResponse(
         c,
         viewerId,
         flower.ownerId,
         nameById.get(c.authoredBy) ?? '',
-      ),
-    );
+        parent
+          ? {
+              authorName: nameById.get(parent.authoredBy) ?? '',
+              body: parent.body,
+            }
+          : null,
+      );
+    });
   }
 
   /** Édite un commentaire : réservé à son auteur. Marque `editedAt`. */
@@ -122,7 +188,26 @@ export class CommentsService {
 
     const authorName =
       (await this.users.findById(comment.authoredBy))?.displayName ?? '';
-    return this.buildResponse(saved, viewerId, flower.ownerId, authorName);
+    // Préserve la citation existante : l'édition ne change pas le parent.
+    const parent = saved.replyToId
+      ? await this.comments.findOne({
+          where: { id: saved.replyToId, flowerId },
+        })
+      : null;
+    const replyTo = parent
+      ? {
+          authorName:
+            (await this.users.findById(parent.authoredBy))?.displayName ?? '',
+          body: parent.body,
+        }
+      : null;
+    return this.buildResponse(
+      saved,
+      viewerId,
+      flower.ownerId,
+      authorName,
+      replyTo,
+    );
   }
 
   /** Supprime un commentaire : autorisé pour son auteur ou le propriétaire de la fleur. */
@@ -147,12 +232,17 @@ export class CommentsService {
     await this.comments.delete(comment.id);
   }
 
-  /** Assemble la réponse d'un commentaire à partir d'un nom d'auteur déjà résolu. */
+  /**
+   * Assemble la réponse d'un commentaire à partir d'un nom d'auteur déjà résolu.
+   * [replyTo] porte la citation du commentaire parent (nom + texte), `null` pour
+   * un commentaire de premier niveau.
+   */
   private buildResponse(
     c: FlowerComment,
     viewerId: string,
     ownerId: string,
     authorName: string,
+    replyTo: { authorName: string | null; body: string | null } | null = null,
   ): CommentResponse {
     return {
       id: c.id,
@@ -164,6 +254,9 @@ export class CommentsService {
       canEdit: c.authoredBy === viewerId,
       createdAt: c.createdAt,
       editedAt: c.editedAt ?? null,
+      replyToId: c.replyToId ?? null,
+      replyToAuthorName: replyTo?.authorName ?? null,
+      replyToBody: replyTo?.body ?? null,
     };
   }
 

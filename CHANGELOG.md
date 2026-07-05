@@ -13,6 +13,17 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Centre de notifications in-app.** Une cloche 🔔 dans la barre du haut de
+  l'Accueil, surmontée d'un badge du nombre de non-lus, ouvre un centre de
+  notifications listant les nouveautés reçues (demandes/acceptations d'ami,
+  partages, propositions et confirmations d'espèce, demandes d'identification,
+  cœurs et commentaires), plus récentes d'abord, avec un point « non lu » et
+  l'ancienneté. Un tap marque la notification lue et route vers le contenu
+  concerné en réutilisant le routage des push (résolution serverId → fleur
+  locale, sinon repli feed/amis/accueil). Fonctionnalité collaborative servie
+  par le backend : indépendante de la synchronisation device-first mais
+  nécessitant le réseau ; hors-ligne ou non connecté, l'écran affiche un état
+  « indisponible » explicite et le badge reste masqué.
 - **Actions rapides depuis la notification.** Les push référençant une fleur
   proposent désormais des boutons d'action sans ouvrir l'app : « ❤️ J'aime »
   (partage reçu uniquement) et « Répondre » (RemoteInput → commentaire ;

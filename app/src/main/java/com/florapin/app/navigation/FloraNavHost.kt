@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -42,6 +43,7 @@ import com.florapin.app.gallery.GalleryScreen
 import com.florapin.app.identify.IdentifyScreen
 import com.florapin.app.map.MapScreen
 import com.florapin.app.network.auth.EncryptedTokenStore
+import com.florapin.app.notifications.NotificationCenterScreen
 import com.florapin.app.onboarding.OnboardingPrefs
 import com.florapin.app.onboarding.OnboardingScreen
 import com.florapin.app.data.FloraDatabase
@@ -52,6 +54,7 @@ import com.florapin.app.push.PushTokenRegistrar
 import com.florapin.app.sync.SyncPreferences
 import com.florapin.app.sync.SyncScheduler
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** Destinations de l'application. */
@@ -74,6 +77,7 @@ private object Routes {
     const val DETAIL = "detail/{id}"
     const val SPECIES_DETAIL = "species/{id}"
     const val IDENTIFY = "identify"
+    const val NOTIFICATIONS = "notifications"
 
     fun detail(id: Long) = "detail/$id"
     fun album(id: Long) = "album/$id"
@@ -317,10 +321,24 @@ fun FloraNavHost(
                 onFlowerClick = { id -> navController.navigate(Routes.detail(id)) },
                 onOpenFriends = { navController.navigate(Routes.FRIENDS) },
                 onOpenIdentify = { navController.navigate(Routes.IDENTIFY) },
+                onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
             )
         }
         composable(Routes.IDENTIFY) {
             IdentifyScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.NOTIFICATIONS) {
+            // Le tap réutilise le routage des push (TÂCHE 2.2) : résolution
+            // serverId → fleur locale, ou repli feed/amis/accueil selon le type.
+            val scope = rememberCoroutineScope()
+            NotificationCenterScreen(
+                onBack = { navController.popBackStack() },
+                onOpen = { target ->
+                    scope.launch {
+                        routeFromNotification(navController, context, target, homeRoute)
+                    }
+                },
+            )
         }
         composable(Routes.ALBUMS) {
             // Onglet racine : pas de flèche retour (le BackHandler global gère le
@@ -341,7 +359,9 @@ fun FloraNavHost(
             )
         }
         composable(Routes.FEED) {
-            SharedFeedScreen()
+            SharedFeedScreen(
+                onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+            )
         }
         composable(Routes.FRIENDS) {
             FriendsScreen(onBack = { navController.popBackStack() })

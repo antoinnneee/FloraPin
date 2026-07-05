@@ -43,6 +43,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.thumbnailModel
+import com.florapin.app.notifications.NotificationBell
 import com.florapin.app.ui.components.EmptyState
 import com.florapin.app.util.formatCaptureDate
 
@@ -58,6 +59,7 @@ fun GalleryScreen(
     onFlowerClick: (Long) -> Unit,
     onOpenFriends: () -> Unit,
     onOpenIdentify: () -> Unit,
+    onOpenNotifications: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: GalleryViewModel = viewModel(),
 ) {
@@ -79,10 +81,12 @@ fun GalleryScreen(
                 title = { Text("🌸 FloraPin") },
                 actions = {
                     // Topbar allégée : seules les entrées « à notifier » restent
-                    // ici (identification demandée, invitations d'amis). Le tri est
+                    // ici (identification demandée, invitations d'amis) plus la
+                    // cloche du centre de notifications (TÂCHE 2.7). Le tri est
                     // descendu dans la vue, les albums dans la barre du bas.
                     BadgedEmojiAction("🔎", identifyBadge, onClick = onOpenIdentify)
                     BadgedEmojiAction("🤝", friendsBadge, onClick = onOpenFriends)
+                    NotificationBell(onOpen = onOpenNotifications)
                 },
             )
         },

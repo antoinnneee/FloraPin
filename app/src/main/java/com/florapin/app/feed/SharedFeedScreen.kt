@@ -36,6 +36,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.detail.CommentsBottomSheet
 import com.florapin.app.likes.LikeButton
+import com.florapin.app.notifications.NotificationBell
 import com.florapin.app.network.dto.fullPhotoUrls
 import com.florapin.app.network.dto.previewPhotoUrls
 import com.florapin.app.ui.components.EmptyState
@@ -48,6 +49,7 @@ import com.florapin.app.ui.components.PhotoCarousel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SharedFeedScreen(
+    onOpenNotifications: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SharedFeedViewModel = viewModel(
         factory = SharedFeedViewModel.factory(androidx.compose.ui.platform.LocalContext.current),
@@ -70,6 +72,9 @@ fun SharedFeedScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Partagées avec moi") },
+                actions = {
+                    NotificationBell(onOpen = onOpenNotifications)
+                },
             )
         },
     ) { innerPadding ->

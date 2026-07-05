@@ -1,7 +1,14 @@
 package com.florapin.app.detail
 
 import android.annotation.SuppressLint
+import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.view.MotionEvent
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -748,20 +755,42 @@ private fun parseTags(raw: String): List<String> =
 @Composable
 private fun MiniMap(point: GeoPoint, emoji: String) {
     val apiKey = BuildConfig.MAPTILER_API_KEY
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val mapStyle = remember { com.florapin.app.map.MapStylePreferences(context).get() }
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(180.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-        ),
     ) {
-        if (apiKey.isBlank()) {
-            MiniMapFallback(point)
-            return@Card
+        Card(
+            modifier = Modifier.fillMaxSize(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            ),
+        ) {
+            if (apiKey.isBlank()) {
+                MiniMapFallback(point)
+            } else {
+                MiniMapView(point, emoji, apiKey, mapStyle)
+            }
         }
+        // Menu superposé (NODE-6.11) : ouvrir dans Maps / copier les coordonnées.
+        MiniMapMenu(point, modifier = Modifier.align(Alignment.TopEnd))
+    }
+}
+
+/**
+ * Contenu MapLibre de la mini-carte (extrait de [MiniMap] pour que la carte et
+ * son menu superposé coexistent dans un même [Box]).
+ */
+@SuppressLint("ClickableViewAccessibility")
+@Composable
+private fun MiniMapView(
+    point: GeoPoint,
+    emoji: String,
+    apiKey: String,
+    mapStyle: com.florapin.app.map.MapStyle,
+) {
 
         val target = remember(point.latitude, point.longitude) {
             LatLng(point.latitude, point.longitude)
@@ -809,7 +838,62 @@ private fun MiniMap(point: GeoPoint, emoji: String) {
                 }
             },
         )
+}
+
+/**
+ * Menu d'actions de la mini-carte (TÂCHE 6.11) : ouvrir la position dans une
+ * application de cartes (Intent `geo:`) ou copier les coordonnées décimales.
+ * Superposé au coin de la carte pour ne pas gêner sa manipulation.
+ */
+@Composable
+private fun MiniMapMenu(point: GeoPoint, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    var open by remember { mutableStateOf(false) }
+    Box(modifier) {
+        IconButton(onClick = { open = true }) { Text("⋮") }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text("🗺️ Ouvrir dans Maps") },
+                onClick = {
+                    open = false
+                    openPointInMaps(context, point)
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("📋 Copier les coordonnées") },
+                onClick = {
+                    open = false
+                    copyPointCoordinates(context, point)
+                },
+            )
+        }
     }
+}
+
+/** Coordonnées décimales « lat,lng » (Locale.US) pour URI `geo:` et copie. */
+private fun GeoPoint.toLatLngString(): String =
+    String.format(java.util.Locale.US, "%.6f,%.6f", latitude, longitude)
+
+/**
+ * Ouvre la position dans une application de cartes via un Intent `geo:` avec
+ * un repère (`?q=`). Prévient si aucune application ne gère l'intent.
+ */
+private fun openPointInMaps(context: Context, point: GeoPoint) {
+    val coords = point.toLatLngString()
+    val uri = Uri.parse("geo:$coords?q=$coords")
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+    } catch (_: ActivityNotFoundException) {
+        Toast.makeText(context, "Aucune application de cartes", Toast.LENGTH_SHORT).show()
+    }
+}
+
+/** Copie les coordonnées décimales dans le presse-papiers et le signale. */
+private fun copyPointCoordinates(context: Context, point: GeoPoint) {
+    val coords = point.toLatLngString()
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText("Coordonnées", coords))
+    Toast.makeText(context, "Coordonnées copiées", Toast.LENGTH_SHORT).show()
 }
 
 /** Zoom de la mini-carte du détail : assez serré pour situer la fleur. */

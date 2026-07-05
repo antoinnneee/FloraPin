@@ -21,6 +21,11 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Ouvrir dans Maps / copier les coordonnées (TÂCHE 6.11).** La mini-carte du
+  détail expose un menu de débordement (⋮) superposé à son coin : « Ouvrir dans
+  Maps » lance un Intent `geo:lat,lng?q=lat,lng` (repère sur la position, message
+  si aucune application de cartes) et « Copier les coordonnées » place les
+  coordonnées décimales (Locale.US, 6 décimales) dans le presse-papiers.
 - **Balayage entre fleurs dans le détail (TÂCHE 6.10).** L'écran de détail est
   désormais enveloppé dans un `HorizontalPager` : on passe d'une fleur à l'autre
   d'un simple glissement horizontal, dans l'ordre par défaut de la galerie (plus

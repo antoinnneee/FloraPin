@@ -83,6 +83,14 @@ private class FakeAlbumsApi(private val data: List<AlbumDto> = emptyList()) : Al
     ) = throw UnsupportedOperationException()
     override suspend fun removeFlower(id: String, flowerId: String) =
         throw UnsupportedOperationException()
+    override suspend fun setGroup(
+        id: String,
+        body: com.florapin.app.network.dto.SetAlbumGroupRequest,
+    ) = throw UnsupportedOperationException()
+    override suspend fun setPermissions(
+        id: String,
+        body: com.florapin.app.network.dto.SetAlbumPermissionsRequest,
+    ) = throw UnsupportedOperationException()
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -113,8 +121,14 @@ class ShareViewModelTest {
     @Test
     fun load_exposesAlbums() = runTest {
         val albums = listOf(
-            AlbumDto("a1", "owner", "Printemps", "client-a1", emptyList(),
-                "2026-06-21T09:00:00Z"),
+            AlbumDto(
+                id = "a1",
+                ownerId = "owner",
+                name = "Printemps",
+                clientId = "client-a1",
+                flowerIds = emptyList(),
+                createdAt = "2026-06-21T09:00:00Z",
+            ),
         )
         val vm = ShareViewModel(
             FakeFriendshipsApi(emptyList()),

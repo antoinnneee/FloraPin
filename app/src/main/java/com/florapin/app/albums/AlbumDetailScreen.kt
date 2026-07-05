@@ -36,6 +36,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.thumbnailModel
+import com.florapin.app.ui.components.EmojiIcon
 import com.florapin.app.ui.components.EmptyState
 import com.florapin.app.util.formatCaptureDate
 
@@ -51,21 +52,45 @@ fun AlbumDetailScreen(
     onFlowerClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AlbumDetailViewModel = viewModel(),
+    collaborationViewModel: AlbumCollaborationViewModel = viewModel(),
 ) {
     viewModel.setAlbumId(albumId)
     val album by viewModel.album.collectAsStateWithLifecycle()
     val flowers by viewModel.flowers.collectAsStateWithLifecycle()
     var renaming by remember { mutableStateOf(false) }
+    var showCollaboration by remember { mutableStateOf(false) }
+
+    // Recharge l'état de collaboration quand l'album (ou son groupe) change.
+    androidx.compose.runtime.LaunchedEffect(album?.id, album?.groupId) {
+        album?.let { collaborationViewModel.load(it) }
+    }
 
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text(album?.name ?: "Album") },
-                navigationIcon = { IconButton(onClick = onBack) { Text("←") } },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        EmojiIcon("←", contentDescription = "Retour")
+                    }
+                },
                 actions = {
-                    if (album != null) {
-                        IconButton(onClick = { renaming = true }) { Text("✏️") }
+                    val current = album
+                    if (current != null) {
+                        // Collaboration (TÂCHE 7.1) : disponible sur un album
+                        // synchronisé (serverId requis pour l'API groupes).
+                        if (current.serverId != null) {
+                            IconButton(onClick = { showCollaboration = true }) {
+                                EmojiIcon("👥", contentDescription = "Collaboration")
+                            }
+                        }
+                        // Renommage réservé à qui peut éditer (owner ou droits).
+                        if (current.canEdit) {
+                            IconButton(onClick = { renaming = true }) {
+                                EmojiIcon("✏️", contentDescription = "Renommer l'album")
+                            }
+                        }
                     }
                 },
             )
@@ -85,14 +110,31 @@ fun AlbumDetailScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                val canEdit = album?.canEdit ?: true
                 items(flowers, key = { it.id }) { flower ->
                     AlbumFlowerThumbnail(
                         flower = flower,
                         onClick = { onFlowerClick(flower.id) },
-                        onLongClick = { viewModel.removeFlower(flower.id) },
+                        // Retrait par appui long réservé à qui peut éditer l'album.
+                        onLongClick = { if (canEdit) viewModel.removeFlower(flower.id) },
                     )
                 }
             }
+        }
+    }
+
+    if (showCollaboration) {
+        val current = album
+        if (current != null) {
+            val collabState by collaborationViewModel.state.collectAsStateWithLifecycle()
+            AlbumCollaborationPanel(
+                album = current,
+                // Album solo → je suis le propriétaire de ma copie ; album de
+                // groupe → l'info vient du groupe chargé.
+                isOwner = if (collabState.group == null) true else collabState.isOwner,
+                viewModel = collaborationViewModel,
+                onDismiss = { showCollaboration = false },
+            )
         }
     }
 

@@ -7,6 +7,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.florapin.app.ui.components.EmojiIcon
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
@@ -52,7 +53,11 @@ fun NotificationBell(
         },
     ) {
         IconButton(onClick = onOpen) {
-            Text("🔔", style = MaterialTheme.typography.titleLarge)
+            EmojiIcon(
+                "🔔",
+                contentDescription = "Notifications",
+                style = MaterialTheme.typography.titleLarge,
+            )
         }
     }
 }

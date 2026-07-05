@@ -81,6 +81,8 @@ import com.florapin.app.map.setupFlowerClustering
 import com.florapin.app.map.updateFlowerMarkers
 import com.florapin.app.network.dto.SpeciesDto
 import com.florapin.app.share.ShareFlowerSheet
+import com.florapin.app.ui.components.DecorativeEmoji
+import com.florapin.app.ui.components.EmojiIcon
 import com.florapin.app.ui.components.FullscreenPhotoViewer
 import com.florapin.app.ui.transition.FloraSharedScope
 import com.florapin.app.ui.transition.sharedFlowerImage
@@ -226,20 +228,28 @@ fun FlowerDetailPage(
             TopAppBar(
                 title = { Text("Détail") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Text("←") }
+                    IconButton(onClick = onBack) {
+                        EmojiIcon("←", contentDescription = "Retour")
+                    }
                 },
                 actions = {
                     val current = flower
                     if (current != null) {
                         val context = LocalContext.current
-                        IconButton(onClick = { showAddToAlbum = true }) { Text("📁") }
-                        IconButton(onClick = { showShare = true }) { Text("📤") }
+                        IconButton(onClick = { showAddToAlbum = true }) {
+                            EmojiIcon("📁", contentDescription = "Ajouter à un album")
+                        }
+                        IconButton(onClick = { showShare = true }) {
+                            EmojiIcon("📤", contentDescription = "Partager")
+                        }
                         // Suppression (destructive) reléguée dans un menu de
                         // débordement pour éviter un toucher accidentel à côté des
                         // actions courantes ; une confirmation suit de toute façon.
                         var menuOpen by remember { mutableStateOf(false) }
                         Box {
-                            IconButton(onClick = { menuOpen = true }) { Text("⋮") }
+                            IconButton(onClick = { menuOpen = true }) {
+                                EmojiIcon("⋮", contentDescription = "Plus d'options")
+                            }
                             DropdownMenu(
                                 expanded = menuOpen,
                                 onDismissRequest = { menuOpen = false },
@@ -597,12 +607,12 @@ private fun PhotoThumbnail(
         Row {
             // « Définir comme couverture » seulement si la photo a un fichier local.
             if (photo.imagePath.isNotEmpty()) {
-                IconButton(onClick = onMakeCover, modifier = Modifier.size(36.dp)) {
-                    Text("⭐")
+                IconButton(onClick = onMakeCover, modifier = Modifier.size(48.dp)) {
+                    EmojiIcon("⭐", contentDescription = "Définir comme couverture")
                 }
             }
-            IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                Text("🗑️")
+            IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
+                EmojiIcon("🗑️", contentDescription = "Supprimer cette photo")
             }
         }
     }
@@ -885,7 +895,9 @@ private fun MiniMapMenu(point: GeoPoint, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     var open by remember { mutableStateOf(false) }
     Box(modifier) {
-        IconButton(onClick = { open = true }) { Text("⋮") }
+        IconButton(onClick = { open = true }) {
+            EmojiIcon("⋮", contentDescription = "Options de localisation")
+        }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(
                 text = { Text("🗺️ Ouvrir dans Maps") },
@@ -983,7 +995,7 @@ private fun MiniMapFallback(point: GeoPoint) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text("🗺️", style = MaterialTheme.typography.headlineMedium)
+            DecorativeEmoji("🗺️", style = MaterialTheme.typography.headlineMedium)
             Text(
                 text = "${"%.5f".format(point.latitude)}, " +
                     "%.5f".format(point.longitude),

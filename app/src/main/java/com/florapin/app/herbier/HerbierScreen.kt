@@ -31,6 +31,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.data.LocalSpeciesCount
 import com.florapin.app.network.dto.HerbierFamilyDto
 import com.florapin.app.network.dto.HerbierSpeciesDto
+import com.florapin.app.ui.components.EmojiIcon
 
 /**
  * Écran « Mon herbier » (TÂCHE 5.6) : nombre d'espèces distinctes et regroupement
@@ -62,7 +63,9 @@ fun HerbierScreen(
             TopAppBar(
                 title = { Text("Mon herbier") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Text("←") }
+                    IconButton(onClick = onBack) {
+                        EmojiIcon("←", contentDescription = "Retour")
+                    }
                 },
             )
         },

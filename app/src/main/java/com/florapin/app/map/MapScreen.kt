@@ -37,6 +37,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.BuildConfig
+import com.florapin.app.ui.components.DecorativeEmoji
+import com.florapin.app.ui.components.EmojiIcon
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
@@ -110,7 +112,7 @@ fun MapScreen(
                         }
                     },
                 ) {
-                    Text("📍")
+                    EmojiIcon("📍", contentDescription = "Recentrer sur ma position")
                 }
             }
         },
@@ -244,7 +246,7 @@ private fun MapStyleChip(
         FilterChip(
             selected = false,
             onClick = { expanded = true },
-            leadingIcon = { Text("🗺️") },
+            leadingIcon = { DecorativeEmoji("🗺️") },
             label = { Text(selected.label) },
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {

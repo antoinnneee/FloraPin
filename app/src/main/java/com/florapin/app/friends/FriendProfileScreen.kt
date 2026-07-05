@@ -38,6 +38,7 @@ import coil.compose.AsyncImage
 import com.florapin.app.network.dto.FlowerDto
 import com.florapin.app.network.dto.FriendProfileDto
 import com.florapin.app.network.dto.previewPhotoUrls
+import com.florapin.app.ui.components.EmojiIcon
 import com.florapin.app.ui.components.EmptyState
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
@@ -70,7 +71,11 @@ fun FriendProfileScreen(
         topBar = {
             TopAppBar(
                 title = { Text(profile?.displayName?.ifBlank { "Profil" } ?: "Profil") },
-                navigationIcon = { IconButton(onClick = onBack) { Text("←") } },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        EmojiIcon("←", contentDescription = "Retour")
+                    }
+                },
             )
         },
     ) { innerPadding ->

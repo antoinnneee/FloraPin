@@ -33,6 +33,7 @@ import coil.compose.AsyncImage
 import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.imageModel
 import com.florapin.app.network.dto.SpeciesDto
+import com.florapin.app.ui.components.EmojiIcon
 
 /**
  * Fiche d'une espèce (NODE-151) : nom scientifique + commun + famille +
@@ -63,7 +64,9 @@ fun SpeciesDetailScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Text("←") }
+                    IconButton(onClick = onBack) {
+                        EmojiIcon("←", contentDescription = "Retour")
+                    }
                 },
             )
         },

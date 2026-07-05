@@ -45,6 +45,7 @@ import com.florapin.app.network.dto.MyIdentificationRequestDto
 import com.florapin.app.network.dto.fullPhotoUrls
 import com.florapin.app.network.dto.identificationStatus
 import com.florapin.app.network.dto.previewPhotoUrls
+import com.florapin.app.ui.components.EmojiIcon
 import com.florapin.app.ui.components.EmptyState
 import com.florapin.app.ui.components.PhotoCarousel
 
@@ -86,7 +87,9 @@ fun IdentifyScreen(
             TopAppBar(
                 title = { Text("Identification") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Text("←") }
+                    IconButton(onClick = onBack) {
+                        EmojiIcon("←", contentDescription = "Retour")
+                    }
                 },
             )
         },

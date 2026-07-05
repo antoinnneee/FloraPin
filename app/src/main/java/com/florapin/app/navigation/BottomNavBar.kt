@@ -7,6 +7,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.florapin.app.ui.components.DecorativeEmoji
 
 /**
  * Onglets principaux de la bottom navigation bar (NODE-110). Chaque onglet
@@ -54,7 +55,13 @@ fun FloraBottomBar(
                             }
                         },
                     ) {
-                        Text(destination.emoji, style = MaterialTheme.typography.titleLarge)
+                        // L'emoji est décoratif : le libellé de l'onglet (« Accueil »,
+                        // « Albums »…) porte déjà le sens pour TalkBack. Le lire en plus
+                        // (« maison à trois étages ») serait parasite.
+                        DecorativeEmoji(
+                            destination.emoji,
+                            style = MaterialTheme.typography.titleLarge,
+                        )
                     }
                 },
                 label = { Text(destination.label) },

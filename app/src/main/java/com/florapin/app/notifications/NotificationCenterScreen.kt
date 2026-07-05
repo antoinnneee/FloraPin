@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.network.dto.NotificationDto
 import com.florapin.app.push.NotificationTarget
+import com.florapin.app.ui.components.EmojiIcon
 import com.florapin.app.ui.components.EmptyState
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -62,7 +63,9 @@ fun NotificationCenterScreen(
             TopAppBar(
                 title = { Text("Notifications") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Text("←") }
+                    IconButton(onClick = onBack) {
+                        EmojiIcon("←", contentDescription = "Retour")
+                    }
                 },
             )
         },

@@ -76,6 +76,8 @@ import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.SyncState
 import com.florapin.app.data.thumbnailModel
 import com.florapin.app.notifications.NotificationBell
+import com.florapin.app.ui.components.DecorativeEmoji
+import com.florapin.app.ui.components.EmojiIcon
 import com.florapin.app.ui.components.EmptyState
 import com.florapin.app.ui.transition.FloraSharedScope
 import com.florapin.app.ui.transition.sharedFlowerImage
@@ -172,8 +174,18 @@ fun GalleryScreen(
                         // ici (identification demandée, invitations d'amis) plus la
                         // cloche du centre de notifications (TÂCHE 2.7). Le tri est
                         // descendu dans la vue, les albums dans la barre du bas.
-                        BadgedEmojiAction("🔎", identifyBadge, onClick = onOpenIdentify)
-                        BadgedEmojiAction("🤝", friendsBadge, onClick = onOpenFriends)
+                        BadgedEmojiAction(
+                            "🔎",
+                            contentDescription = "Identifications demandées",
+                            badge = identifyBadge,
+                            onClick = onOpenIdentify,
+                        )
+                        BadgedEmojiAction(
+                            "🤝",
+                            contentDescription = "Amis",
+                            badge = friendsBadge,
+                            onClick = onOpenFriends,
+                        )
                         NotificationBell(onOpen = onOpenNotifications)
                     },
                 )
@@ -184,7 +196,11 @@ fun GalleryScreen(
             // moment sont celles de la barre contextuelle.
             if (!selectionActive) {
                 FloatingActionButton(onClick = onCapture) {
-                    Text("📷", style = MaterialTheme.typography.titleLarge)
+                    EmojiIcon(
+                        "📷",
+                        contentDescription = "Capturer une fleur",
+                        style = MaterialTheme.typography.titleLarge,
+                    )
                 }
             }
         },
@@ -350,13 +366,21 @@ private fun SelectionTopBar(
 ) {
     TopAppBar(
         navigationIcon = {
-            IconButton(onClick = onClose) { Text("✕") }
+            IconButton(onClick = onClose) {
+                EmojiIcon("✕", contentDescription = "Quitter la sélection")
+            }
         },
         title = { Text("$count sélectionnée${if (count > 1) "s" else ""}") },
         actions = {
-            IconButton(onClick = onSelectAll) { Text("☑️") }
-            IconButton(onClick = onAddToAlbum) { Text("📁") }
-            IconButton(onClick = onDelete) { Text("🗑️") }
+            IconButton(onClick = onSelectAll) {
+                EmojiIcon("☑️", contentDescription = "Tout sélectionner")
+            }
+            IconButton(onClick = onAddToAlbum) {
+                EmojiIcon("📁", contentDescription = "Ajouter à un album")
+            }
+            IconButton(onClick = onDelete) {
+                EmojiIcon("🗑️", contentDescription = "Supprimer")
+            }
         },
     )
 }
@@ -368,6 +392,7 @@ private fun SelectionTopBar(
 @Composable
 private fun BadgedEmojiAction(
     emoji: String,
+    contentDescription: String,
     badge: Int,
     onClick: () -> Unit,
 ) {
@@ -379,7 +404,11 @@ private fun BadgedEmojiAction(
         },
     ) {
         IconButton(onClick = onClick) {
-            Text(emoji, style = MaterialTheme.typography.titleLarge)
+            EmojiIcon(
+                emoji,
+                contentDescription = contentDescription,
+                style = MaterialTheme.typography.titleLarge,
+            )
         }
     }
 }
@@ -394,10 +423,12 @@ private fun SearchBar(
         value = query,
         onValueChange = onQueryChange,
         singleLine = true,
-        leadingIcon = { Text("🔍") },
+        leadingIcon = { DecorativeEmoji("🔍") },
         trailingIcon = {
             if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) { Text("✕") }
+                IconButton(onClick = { onQueryChange("") }) {
+                    EmojiIcon("✕", contentDescription = "Effacer la recherche")
+                }
             }
         },
         placeholder = { Text("Rechercher (espèce, notes, étiquette)") },

@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.network.dto.FriendshipDto
+import com.florapin.app.ui.components.EmojiIcon
 
 /**
  * Écran de gestion des amis (NODE-70) : demandes reçues/envoyées, liste d'amis,
@@ -85,7 +86,11 @@ fun FriendsScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Amis") },
-                navigationIcon = { IconButton(onClick = onBack) { Text("←") } },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        EmojiIcon("←", contentDescription = "Retour")
+                    }
+                },
             )
         },
     ) { innerPadding ->

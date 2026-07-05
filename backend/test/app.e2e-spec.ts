@@ -125,6 +125,7 @@ describe('FloraPin API (e2e)', () => {
     expect(res.body.accessToken).toBeDefined();
     return {
       id: res.body.user.id as string,
+      email,
       access: res.body.accessToken as string,
       refresh: res.body.refreshToken as string,
     };
@@ -265,7 +266,7 @@ describe('FloraPin API (e2e)', () => {
     const reqRes = await api()
       .post('/api/v1/friendships')
       .set('Authorization', `Bearer ${owner.access}`)
-      .send({ addresseeId: friend.id })
+      .send({ email: friend.email })
       .expect(201);
     await api()
       .post(`/api/v1/friendships/${reqRes.body.id}/accept`)
@@ -510,12 +511,12 @@ describe('FloraPin API (e2e)', () => {
   /** Crée une amitié acceptée entre [owner] et [friend]. */
   async function befriend(
     owner: { access: string },
-    friend: { id: string; access: string },
+    friend: { id: string; email: string; access: string },
   ): Promise<void> {
     const reqRes = await api()
       .post('/api/v1/friendships')
       .set('Authorization', `Bearer ${owner.access}`)
-      .send({ addresseeId: friend.id })
+      .send({ email: friend.email })
       .expect(201);
     await api()
       .post(`/api/v1/friendships/${reqRes.body.id}/accept`)

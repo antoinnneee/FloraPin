@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Flower } from '../flowers/flower.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SharesModule } from '../shares/shares.module';
+import { UsersModule } from '../users/users.module';
 import { FlowerLike } from './flower-like.entity';
 import { LikesController } from './likes.controller';
 import { LikesService } from './likes.service';
@@ -13,6 +14,7 @@ import { LikesService } from './likes.service';
     TypeOrmModule.forFeature([FlowerLike, Flower]),
     SharesModule,
     NotificationsModule,
+    UsersModule,
   ],
   controllers: [LikesController],
   providers: [LikesService],

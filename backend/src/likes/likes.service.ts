@@ -4,7 +4,15 @@ import { Repository } from 'typeorm';
 import { Flower } from '../flowers/flower.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SharesService } from '../shares/shares.service';
+import { UsersService } from '../users/users.service';
 import { FlowerLike } from './flower-like.entity';
+
+/** Un « liker » d'une fleur : identifiant et nom d'affichage. */
+export interface LikerResponse {
+  userId: string;
+  /** Nom d'affichage du liker (vide si introuvable). */
+  displayName: string;
+}
 
 /**
  * Cœurs sur les fleurs (NODE-139) : pose/retrait idempotents et notification
@@ -20,6 +28,7 @@ export class LikesService {
     private readonly flowers: Repository<Flower>,
     private readonly shares: SharesService,
     private readonly notifications: NotificationsService,
+    private readonly users: UsersService,
   ) {}
 
   /** Pose un cœur (idempotent). Notifie le propriétaire (sauf auto-cœur). */
@@ -43,6 +52,30 @@ export class LikesService {
   async unlike(userId: string, flowerId: string): Promise<void> {
     await this.visibleFlowerOrThrow(userId, flowerId);
     await this.likes.delete({ flowerId, userId });
+  }
+
+  /**
+   * Liste les utilisateurs ayant posé un cœur sur la fleur, du plus ancien au
+   * plus récent. Même contrôle d'accès que pose/retrait : le viewer doit voir
+   * la fleur (sinon 404, on ne révèle pas l'existence d'une fleur privée).
+   */
+  async listLikers(
+    viewerId: string,
+    flowerId: string,
+  ): Promise<LikerResponse[]> {
+    await this.visibleFlowerOrThrow(viewerId, flowerId);
+    const rows = await this.likes.find({
+      where: { flowerId },
+      order: { createdAt: 'ASC' },
+    });
+    // Résolution en lot des noms d'affichage (évite un findById par liker).
+    const userIds = [...new Set(rows.map((r) => r.userId))];
+    const users = await this.users.findByIds(userIds);
+    const nameById = new Map(users.map((u) => [u.id, u.displayName]));
+    return rows.map((r) => ({
+      userId: r.userId,
+      displayName: nameById.get(r.userId) ?? '',
+    }));
   }
 
   /**

@@ -120,6 +120,8 @@ fun DetailScreen(
     var showAddToAlbum by remember { mutableStateOf(false) }
     var showCamera by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    // Liste des likers ouverte en bottom sheet (tap sur le compteur de cœurs).
+    var showLikers by remember { mutableStateOf(false) }
 
     if (showCamera) {
         CameraScreen(
@@ -192,6 +194,7 @@ fun DetailScreen(
                 onSetFeedPublication = viewModel::setFeedPublication,
                 likeState = likeState,
                 onToggleLike = likeVm::toggle,
+                onOpenLikers = { showLikers = true },
                 commentsVm = commentsVm,
                 onOpenSpecies = onOpenSpecies,
                 onAddPhoto = { showCamera = true },
@@ -213,6 +216,15 @@ fun DetailScreen(
         AddToAlbumSheet(
             flowerLocalId = flowerId,
             onDismiss = { showAddToAlbum = false },
+        )
+    }
+
+    // Fleur synchronisée requise : les likers vivent côté serveur.
+    val likersServerId = flower?.serverId
+    if (showLikers && likersServerId != null) {
+        com.florapin.app.likes.LikersBottomSheet(
+            flowerServerId = likersServerId,
+            onDismiss = { showLikers = false },
         )
     }
 
@@ -250,6 +262,7 @@ private fun DetailContent(
     onSetFeedPublication: (Boolean, Boolean) -> Unit,
     likeState: com.florapin.app.likes.LikeState,
     onToggleLike: () -> Unit,
+    onOpenLikers: () -> Unit,
     commentsVm: CommentsViewModel,
     onOpenSpecies: (String) -> Unit,
     onAddPhoto: () -> Unit,
@@ -308,6 +321,7 @@ private fun DetailContent(
                         liked = likeState.liked,
                         count = likeState.count,
                         onToggle = onToggleLike,
+                        onCountClick = onOpenLikers.takeIf { likeState.count > 0 },
                     )
                 }
             }

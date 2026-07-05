@@ -15,6 +15,7 @@ describe('LikesService', () => {
   let likeRows: FlowerLike[];
   let likes: {
     findOne: jest.Mock;
+    find: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
     delete: jest.Mock;
@@ -22,6 +23,7 @@ describe('LikesService', () => {
   let flowers: { findOne: jest.Mock };
   let shares: { isVisibleTo: jest.Mock };
   let notifications: { create: jest.Mock };
+  let users: { findByIds: jest.Mock };
   let service: LikesService;
 
   beforeEach(() => {
@@ -34,6 +36,10 @@ describe('LikesService', () => {
           likeRows.find(
             (r) => r.flowerId === where.flowerId && r.userId === where.userId,
           ) ?? null,
+      ),
+      find: jest.fn(
+        async ({ where }: { where: { flowerId: string } }) =>
+          likeRows.filter((r) => r.flowerId === where.flowerId),
       ),
       create: jest.fn((o: Partial<FlowerLike>) => o as FlowerLike),
       save: jest.fn(async (o: FlowerLike) => {
@@ -58,11 +64,17 @@ describe('LikesService', () => {
       ),
     };
     notifications = { create: jest.fn(async () => undefined) };
+    users = {
+      findByIds: jest.fn(async (ids: string[]) =>
+        ids.map((id) => ({ id, displayName: `name-${id}` })),
+      ),
+    };
     service = new LikesService(
       likes as never,
       flowers as never,
       shares as never,
       notifications as never,
+      users as never,
     );
   });
 
@@ -126,6 +138,37 @@ describe('LikesService', () => {
     it('lève NotFound si la fleur n’existe pas', async () => {
       flower = null;
       await expect(service.unlike(LIKER, FLOWER)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('listLikers', () => {
+    it('renvoie les likers avec leur nom d’affichage', async () => {
+      await service.like(OWNER, FLOWER);
+      await service.like(LIKER, FLOWER);
+      const likers = await service.listLikers(OWNER, FLOWER);
+      expect(likers).toEqual([
+        { userId: OWNER, displayName: `name-${OWNER}` },
+        { userId: LIKER, displayName: `name-${LIKER}` },
+      ]);
+    });
+
+    it('renvoie une liste vide quand aucune personne n’a liké', async () => {
+      expect(await service.listLikers(OWNER, FLOWER)).toEqual([]);
+      expect(users.findByIds).toHaveBeenCalledWith([]);
+    });
+
+    it('lève NotFound si la fleur n’est pas visible par le viewer (I1)', async () => {
+      await expect(service.listLikers(STRANGER, FLOWER)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(likes.find).not.toHaveBeenCalled();
+    });
+
+    it('lève NotFound si la fleur n’existe pas', async () => {
+      flower = null;
+      await expect(service.listLikers(LIKER, FLOWER)).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });

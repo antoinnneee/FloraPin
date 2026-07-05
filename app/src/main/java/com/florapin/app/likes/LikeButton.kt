@@ -14,8 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 
 /**
- * Bouton cœur (NODE-140) : affiche l'état liké (❤️/🤍) et le compteur. Le toggle
- * est délégué à l'appelant (mise à jour optimiste côté ViewModel).
+ * Bouton cœur (NODE-140) : le ❤️/🤍 bascule le like (mise à jour optimiste côté
+ * ViewModel), le compteur ouvre la liste des likers via [onCountClick]. Sans
+ * [onCountClick], toute la puce bascule le like (comportement historique).
  */
 @Composable
 fun LikeButton(
@@ -23,21 +24,26 @@ fun LikeButton(
     count: Int,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
+    onCountClick: (() -> Unit)? = null,
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
         tonalElevation = 1.dp,
-        modifier = modifier.clickable(onClick = onToggle),
+        modifier = modifier,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
         ) {
-            Text(if (liked) "❤️" else "🤍")
+            Text(
+                text = if (liked) "❤️" else "🤍",
+                modifier = Modifier.clickable(onClick = onToggle),
+            )
             Text(
                 text = count.toString(),
                 style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.clickable(onClick = onCountClick ?: onToggle),
             )
         }
     }

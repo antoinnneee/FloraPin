@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.detail.CommentsBottomSheet
 import com.florapin.app.likes.LikeButton
+import com.florapin.app.likes.LikersBottomSheet
 import com.florapin.app.notifications.NotificationBell
 import com.florapin.app.network.dto.fullPhotoUrls
 import com.florapin.app.network.dto.previewPhotoUrls
@@ -63,11 +64,20 @@ fun SharedFeedScreen(
 
     // Fleur dont le fil de commentaires est ouvert (en bottom sheet), ou null.
     var commentsFor by remember { mutableStateOf<String?>(null) }
+    // Fleur dont la liste des likers est ouverte (en bottom sheet), ou null.
+    var likersFor by remember { mutableStateOf<String?>(null) }
 
     commentsFor?.let { flowerId ->
         CommentsBottomSheet(
             flowerServerId = flowerId,
             onDismiss = { commentsFor = null },
+        )
+    }
+
+    likersFor?.let { flowerId ->
+        LikersBottomSheet(
+            flowerServerId = flowerId,
+            onDismiss = { likersFor = null },
         )
     }
 
@@ -139,6 +149,7 @@ fun SharedFeedScreen(
                     SharedFlowerCard(
                         item = item,
                         onToggleLike = { viewModel.toggleLike(item.flower.id) },
+                        onOpenLikers = { likersFor = item.flower.id },
                         onComment = { commentsFor = item.flower.id },
                     )
                 }
@@ -199,6 +210,7 @@ private fun NewSinceLastVisitSeparator() {
 private fun SharedFlowerCard(
     item: SharedFlowerItem,
     onToggleLike: () -> Unit,
+    onOpenLikers: () -> Unit,
     onComment: () -> Unit,
 ) {
     val flower = item.flower
@@ -234,6 +246,7 @@ private fun SharedFlowerCard(
                             liked = flower.likedByMe,
                             count = flower.likeCount,
                             onToggle = onToggleLike,
+                            onCountClick = onOpenLikers.takeIf { flower.likeCount > 0 },
                         )
                         // Compteur de commentaires (TÂCHE 3.3) : 💬 à côté du cœur,
                         // ouvre le fil au clic.

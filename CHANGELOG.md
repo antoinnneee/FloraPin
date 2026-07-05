@@ -13,6 +13,11 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Liste des personnes ayant liké une fleur.** Un tap sur le compteur de cœurs
+  (détail comme feed « Partagées avec moi ») ouvre un bottom sheet listant les
+  likers par leur nom d'affichage. Servi par un nouvel endpoint
+  `GET /flowers/:id/likes` soumis au même contrôle d'accès que le like (fleur
+  visible par le viewer, sinon 404), noms résolus en une requête groupée.
 - **Compteur de commentaires sur les cartes du feed.** Chaque fleur partagée
   affiche désormais une puce 💬 avec le nombre de commentaires reçus, à côté du
   cœur ; un clic ouvre le fil. Le compte est renvoyé par l'API (`commentCount`)

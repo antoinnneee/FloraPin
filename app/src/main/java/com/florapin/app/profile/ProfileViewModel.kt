@@ -34,6 +34,11 @@ data class ProfileUiState(
     /** Changement d'adresse en cours (NODE-117). */
     val emailSaving: Boolean = false,
     val emailError: String? = null,
+    /** Changement de mot de passe en cours (TÂCHE 1.6). */
+    val passwordSaving: Boolean = false,
+    val passwordError: String? = null,
+    /** Message de succès après un changement de mot de passe. */
+    val passwordMessage: String? = null,
     /** Nombre de mes propositions d'espèce acceptées par des amis, ou null si non chargé. */
     val acceptedProposals: Int? = null,
     /** Export/import de sauvegarde locale en cours (TÂCHE 1.5). */
@@ -157,6 +162,53 @@ class ProfileViewModel(
                 _state.value.copy(emailSaving = false, emailError = changeEmailMessageOf(e))
             }
         }
+    }
+
+    /**
+     * Change le mot de passe (TÂCHE 1.6) : vérifie l'ancien côté serveur, réémet
+     * les jetons de l'appareil courant et coupe les autres sessions. [onSuccess]
+     * est invoqué en cas de réussite (ex. fermeture du dialogue).
+     */
+    fun changePassword(
+        oldPassword: String,
+        newPassword: String,
+        onSuccess: () -> Unit,
+    ) {
+        _state.update {
+            it.copy(passwordSaving = true, passwordError = null, passwordMessage = null)
+        }
+        viewModelScope.launch {
+            try {
+                session.changePassword(oldPassword, newPassword)
+                _state.update {
+                    it.copy(
+                        passwordSaving = false,
+                        passwordMessage = "Mot de passe modifié.",
+                    )
+                }
+                onSuccess()
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(passwordSaving = false, passwordError = changePasswordMessageOf(e))
+                }
+            }
+        }
+    }
+
+    /** Réinitialise les retours du formulaire de mot de passe (fermeture du dialogue). */
+    fun clearPasswordFeedback() {
+        _state.update {
+            it.copy(passwordSaving = false, passwordError = null, passwordMessage = null)
+        }
+    }
+
+    private fun changePasswordMessageOf(error: Throwable): String = when {
+        error is HttpException && error.code() == 401 -> "Mot de passe actuel incorrect."
+        error is HttpException && error.code() == 400 ->
+            "Le nouveau mot de passe doit comporter au moins 8 caractères."
+        error is HttpException && error.code() == 429 ->
+            "Trop de tentatives. Réessayez dans un instant."
+        else -> "Modification impossible. Réessayez."
     }
 
     private fun changeEmailMessageOf(error: Throwable): String = when {

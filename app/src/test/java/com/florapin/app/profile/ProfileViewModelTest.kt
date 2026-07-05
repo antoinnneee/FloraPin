@@ -47,6 +47,7 @@ private class MemTokenStore(displayName: String? = null) : TokenStore {
 private class FakeAuthApi(
     private val failMe: Boolean = false,
     private val deleteStatus: Int = 204,
+    private val changePasswordStatus: Int = 200,
 ) : AuthApi {
     override suspend fun register(body: RegisterRequest): AuthResponse = AuthResponse(USER, "acc", "ref")
     override suspend fun login(body: LoginRequest): AuthResponse = AuthResponse(USER, "acc", "ref")
@@ -72,6 +73,21 @@ private class FakeAuthApi(
     override suspend fun verifyEmail(body: com.florapin.app.network.dto.VerifyEmailRequest): Response<Unit> =
         Response.success(null)
     override suspend fun changeEmail(body: com.florapin.app.network.dto.ChangeEmailRequest): UserDto = USER
+    override suspend fun changePassword(
+        body: com.florapin.app.network.dto.ChangePasswordRequest,
+    ): TokenPair {
+        if (changePasswordStatus !in 200..299) {
+            throw retrofit2.HttpException(
+                Response.error<Unit>("".toResponseBody(), okhttp3.Response.Builder()
+                    .code(changePasswordStatus)
+                    .message("err")
+                    .protocol(okhttp3.Protocol.HTTP_1_1)
+                    .request(okhttp3.Request.Builder().url("http://localhost/auth/change-password").build())
+                    .build()),
+            )
+        }
+        return TokenPair("new-access", "new-refresh")
+    }
 }
 
 /** Stats fixes ; le reste de l'API n'est pas sollicité par le profil. */
@@ -167,6 +183,44 @@ class ProfileViewModelTest {
         assertTrue(deleted)
         assertTrue(store.cleared)
         assertEquals(null, vm.state.value.deleteError)
+    }
+
+    @Test
+    fun changePassword_success_persistsNewTokensAndCallsOnSuccess() = runTest {
+        val store = MemTokenStore(displayName = "Alice")
+        val vm = ProfileViewModel(store, SessionManager(FakeAuthApi(), store), FakeIdentificationApi())
+        advanceUntilIdle()
+
+        var succeeded = false
+        vm.changePassword("old", "nouveauPass1") { succeeded = true }
+        advanceUntilIdle()
+
+        assertTrue(succeeded)
+        // La paire réémise pour l'appareil courant est bien persistée.
+        assertEquals("new-access", store.accessToken())
+        assertEquals("new-refresh", store.refreshToken())
+        assertEquals("Mot de passe modifié.", vm.state.value.passwordMessage)
+        assertEquals(null, vm.state.value.passwordError)
+        assertFalse(vm.state.value.passwordSaving)
+    }
+
+    @Test
+    fun changePassword_wrongOldPassword_setsErrorAndDoesNotCallOnSuccess() = runTest {
+        val store = MemTokenStore(displayName = "Alice")
+        val vm = ProfileViewModel(
+            store,
+            SessionManager(FakeAuthApi(changePasswordStatus = 401), store),
+            FakeIdentificationApi(),
+        )
+        advanceUntilIdle()
+
+        var succeeded = false
+        vm.changePassword("old", "nouveauPass1") { succeeded = true }
+        advanceUntilIdle()
+
+        assertFalse(succeeded)
+        assertEquals("Mot de passe actuel incorrect.", vm.state.value.passwordError)
+        assertFalse(vm.state.value.passwordSaving)
     }
 
     @Test

@@ -53,3 +53,14 @@ export class ChangeEmailDto {
   @IsEmail()
   email: string;
 }
+
+export class ChangePasswordDto {
+  @IsString()
+  @MinLength(1)
+  oldPassword: string;
+
+  @IsString()
+  @MinLength(8)
+  @MaxLength(72) // limite bcrypt
+  newPassword: string;
+}

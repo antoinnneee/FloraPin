@@ -61,6 +61,23 @@ fun ProfileScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showPasswordDialog by remember { mutableStateOf(false) }
+
+    if (showPasswordDialog) {
+        ChangePasswordDialog(
+            saving = state.passwordSaving,
+            error = state.passwordError,
+            onConfirm = { oldPassword, newPassword ->
+                viewModel.changePassword(oldPassword, newPassword) {
+                    showPasswordDialog = false
+                }
+            },
+            onDismiss = {
+                showPasswordDialog = false
+                viewModel.clearPasswordFeedback()
+            },
+        )
+    }
 
     if (showDeleteDialog) {
         DeleteAccountDialog(
@@ -178,6 +195,11 @@ fun ProfileScreen(
                 message = state.backupMessage,
                 onExport = viewModel::exportBackup,
                 onImport = viewModel::importBackup,
+            )
+
+            SecuritySection(
+                successMessage = state.passwordMessage,
+                onChangePassword = { showPasswordDialog = true },
             )
 
             Button(
@@ -444,6 +466,142 @@ private fun PrivacyPolicyLink() {
     ) {
         Text("Politique de confidentialité")
     }
+}
+
+/**
+ * Section « Sécurité » (TÂCHE 1.6) : accès au changement de mot de passe. Le
+ * message de succès s'affiche brièvement sous le bouton après une modification.
+ */
+@Composable
+private fun SecuritySection(
+    successMessage: String?,
+    onChangePassword: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "Sécurité",
+                style = MaterialTheme.typography.titleSmall,
+            )
+            OutlinedButton(
+                onClick = onChangePassword,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Changer le mot de passe")
+            }
+            successMessage?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Dialogue de changement de mot de passe (TÂCHE 1.6) : re-saisie de l'ancien mot
+ * de passe (vérifié côté serveur) + nouveau mot de passe confirmé localement.
+ * [error] affiche un échec (ex. ancien mot de passe incorrect) sans fermer le
+ * dialogue.
+ */
+@Composable
+private fun ChangePasswordDialog(
+    saving: Boolean,
+    error: String?,
+    onConfirm: (String, String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var oldPassword by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+
+    val tooShort = newPassword.isNotEmpty() && newPassword.length < 8
+    val mismatch = confirmPassword.isNotEmpty() && confirmPassword != newPassword
+    val canSubmit = oldPassword.isNotBlank() &&
+        newPassword.length >= 8 &&
+        confirmPassword == newPassword &&
+        !saving
+
+    AlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        title = { Text("Changer le mot de passe") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "Vos autres appareils seront déconnectés ; celui-ci reste connecté.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = oldPassword,
+                    onValueChange = { oldPassword = it },
+                    label = { Text("Mot de passe actuel") },
+                    singleLine = true,
+                    enabled = !saving,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = newPassword,
+                    onValueChange = { newPassword = it },
+                    label = { Text("Nouveau mot de passe") },
+                    singleLine = true,
+                    enabled = !saving,
+                    isError = tooShort,
+                    supportingText = if (tooShort) {
+                        { Text("Au moins 8 caractères.") }
+                    } else {
+                        null
+                    },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    label = { Text("Confirmer le nouveau mot de passe") },
+                    singleLine = true,
+                    enabled = !saving,
+                    isError = mismatch,
+                    supportingText = if (mismatch) {
+                        { Text("Les mots de passe ne correspondent pas.") }
+                    } else {
+                        null
+                    },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                error?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(oldPassword, newPassword) },
+                enabled = canSubmit,
+            ) {
+                Text("Enregistrer")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !saving) {
+                Text("Annuler")
+            }
+        },
+    )
 }
 
 /** Section « zone de danger » regroupant l'effacement définitif du compte. */

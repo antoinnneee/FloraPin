@@ -5,6 +5,7 @@ import com.florapin.app.network.dto.DeleteAccountRequest
 import com.florapin.app.network.dto.ForgotPasswordRequest
 import com.florapin.app.network.dto.LoginRequest
 import com.florapin.app.network.dto.ChangeEmailRequest
+import com.florapin.app.network.dto.ChangePasswordRequest
 import com.florapin.app.network.dto.RefreshRequest
 import com.florapin.app.network.dto.RegisterRequest
 import com.florapin.app.network.dto.ResetPasswordRequest
@@ -38,6 +39,14 @@ interface AuthApi {
     /** Termine la réinitialisation avec le token reçu par email. */
     @POST("auth/reset-password")
     suspend fun resetPassword(@Body body: ResetPasswordRequest): Response<Unit>
+
+    /**
+     * Change le mot de passe (JWT requis, vérification de l'ancien). Renvoie une
+     * nouvelle paire de jetons pour l'appareil courant ; les autres sessions sont
+     * révoquées côté serveur.
+     */
+    @POST("auth/change-password")
+    suspend fun changePassword(@Body body: ChangePasswordRequest): TokenPair
 
     /** Demande/renvoie l'email de vérification d'adresse (JWT requis). */
     @POST("auth/email/verification")

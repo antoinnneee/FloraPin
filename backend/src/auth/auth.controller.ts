@@ -13,6 +13,7 @@ import { AuthenticatedUser } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuthService } from './auth.service';
 import {
+  ChangePasswordDto,
   ForgotPasswordDto,
   LoginDto,
   RefreshDto,
@@ -20,6 +21,7 @@ import {
   ResetPasswordDto,
   VerifyEmailDto,
 } from './dto/auth.dto';
+import type { TokenPair } from './auth.service';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -51,6 +53,27 @@ export class AuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(@Body() dto: RefreshDto): Promise<void> {
     await this.auth.logout(dto.refreshToken);
+  }
+
+  /**
+   * Change le mot de passe du compte courant (vérification de l'ancien).
+   * Réémet une paire de jetons pour l'appareil courant et révoque les autres
+   * sessions. 5 tentatives/min par IP (anti brute-force de l'ancien mdp).
+   */
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  changePassword(
+    @CurrentUser() current: AuthenticatedUser,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<TokenPair> {
+    return this.auth.changePassword(
+      current.userId,
+      dto.oldPassword,
+      dto.newPassword,
+    );
   }
 
   /**

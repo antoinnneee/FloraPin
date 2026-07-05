@@ -149,6 +149,56 @@ describe('FloraPin API (e2e)', () => {
     expect(refreshed.body.accessToken).toBeDefined();
   });
 
+  it('auth : change-password vérifie l’ancien mdp, garde la session et coupe les autres', async () => {
+    const email = 'pat@example.com';
+    const created = await register(email);
+    // Seconde session (autre appareil).
+    const other = await api()
+      .post('/api/v1/auth/login')
+      .send({ email, password: 'password123' })
+      .expect(200);
+
+    // Ancien mot de passe erroné → 401.
+    await api()
+      .post('/api/v1/auth/change-password')
+      .set('Authorization', `Bearer ${created.access}`)
+      .send({ oldPassword: 'wrong-pass', newPassword: 'nouveauPass1' })
+      .expect(401);
+
+    // Changement réussi → nouvelle paire de jetons.
+    const changed = await api()
+      .post('/api/v1/auth/change-password')
+      .set('Authorization', `Bearer ${created.access}`)
+      .send({ oldPassword: 'password123', newPassword: 'nouveauPass1' })
+      .expect(200);
+    expect(changed.body.accessToken).toBeDefined();
+    expect(changed.body.refreshToken).toBeDefined();
+
+    // La session réémise fonctionne, l'ancienne et l'autre appareil sont coupés.
+    await api()
+      .post('/api/v1/auth/refresh')
+      .send({ refreshToken: changed.body.refreshToken })
+      .expect(200);
+    await api()
+      .post('/api/v1/auth/refresh')
+      .send({ refreshToken: created.refresh })
+      .expect(401);
+    await api()
+      .post('/api/v1/auth/refresh')
+      .send({ refreshToken: other.body.refreshToken })
+      .expect(401);
+
+    // Le nouveau mot de passe est requis désormais.
+    await api()
+      .post('/api/v1/auth/login')
+      .send({ email, password: 'password123' })
+      .expect(401);
+    await api()
+      .post('/api/v1/auth/login')
+      .send({ email, password: 'nouveauPass1' })
+      .expect(200);
+  });
+
   it('flowers : création (upload présigné), listing et URL image', async () => {
     const { access } = await register('bob@example.com');
 

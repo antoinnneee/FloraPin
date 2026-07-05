@@ -210,6 +210,39 @@ export class AuthService {
     await this.emailTokens.save(record);
   }
 
+  /**
+   * Change le mot de passe du compte [userId] après vérification de l'ancien
+   * ([oldPassword]). Révoque TOUTES les sessions existantes (déconnexion des
+   * autres appareils) puis réémet une paire de jetons pour la session courante :
+   * l'utilisateur reste connecté sur l'appareil d'où provient la demande.
+   * Ancien mot de passe erroné ⇒ 401.
+   */
+  async changePassword(
+    userId: string,
+    oldPassword: string,
+    newPassword: string,
+  ): Promise<TokenPair> {
+    const user = await this.users.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('Utilisateur introuvable.');
+    }
+    if (!(await bcrypt.compare(oldPassword, user.passwordHash))) {
+      throw new UnauthorizedException('Mot de passe actuel incorrect.');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    await this.users.setPasswordHash(userId, passwordHash);
+
+    // Déconnexion globale : on révoque tous les refresh actifs (dont celui de la
+    // session courante), puis on en réémet un pour l'appareil courant.
+    await this.refreshTokens.update(
+      { userId, revokedAt: IsNull() },
+      { revokedAt: new Date() },
+    );
+
+    return this.issueTokens(user);
+  }
+
   /** Révoque le refresh fourni (déconnexion). */
   async logout(refreshToken: string): Promise<void> {
     let payload: RefreshPayload;

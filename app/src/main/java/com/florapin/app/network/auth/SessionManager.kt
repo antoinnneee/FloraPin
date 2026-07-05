@@ -2,6 +2,7 @@ package com.florapin.app.network.auth
 
 import com.florapin.app.network.api.AuthApi
 import com.florapin.app.network.dto.ChangeEmailRequest
+import com.florapin.app.network.dto.ChangePasswordRequest
 import com.florapin.app.network.dto.DeleteAccountRequest
 import com.florapin.app.network.dto.ForgotPasswordRequest
 import com.florapin.app.network.dto.LoginRequest
@@ -97,6 +98,19 @@ class SessionManager(
     suspend fun resetPassword(token: String, newPassword: String) {
         val response = authApi.resetPassword(ResetPasswordRequest(token, newPassword))
         if (!response.isSuccessful) throw HttpException(response)
+    }
+
+    /**
+     * Change le mot de passe (vérification de l'ancien côté serveur). En cas de
+     * succès, le serveur révoque les autres sessions et réémet une paire de
+     * jetons pour cet appareil : on la persiste pour rester connecté. Un ancien
+     * mot de passe erroné lève [HttpException] (401).
+     */
+    suspend fun changePassword(oldPassword: String, newPassword: String) {
+        val pair = authApi.changePassword(
+            ChangePasswordRequest(oldPassword, newPassword),
+        )
+        tokenStore.save(pair.accessToken, pair.refreshToken)
     }
 
     /** Demande/renvoie l'email de vérification d'adresse (NODE-117, JWT). */

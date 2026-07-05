@@ -246,6 +246,52 @@ describe('AuthService', () => {
     );
   });
 
+  it('changePassword : applique le nouveau mdp, garde la session courante et coupe les autres', async () => {
+    const reg = await auth.register('a@example.com', 'password123', 'Alice');
+    // Deuxième appareil : une seconde session (refresh) pour le même compte.
+    const other = await auth.login('a@example.com', 'password123');
+
+    const pair = await auth.changePassword(
+      reg.user.id,
+      'password123',
+      'nouveauPass1',
+    );
+    // Une paire fraîche est renvoyée pour l'appareil courant.
+    expect(pair.accessToken).toBeTruthy();
+    expect(pair.refreshToken).toBeTruthy();
+    expect(pair.refreshToken).not.toBe(reg.refreshToken);
+
+    // La session courante réémise fonctionne...
+    expect((await auth.refresh(pair.refreshToken)).accessToken).toBeTruthy();
+    // ...mais les anciennes sessions (courante d'origine ET autre appareil) sont révoquées.
+    await expect(auth.refresh(reg.refreshToken)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    await expect(auth.refresh(other.refreshToken)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+
+    // Le nouveau mot de passe est bien pris en compte, l'ancien ne marche plus.
+    await expect(auth.login('a@example.com', 'password123')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    expect(
+      (await auth.login('a@example.com', 'nouveauPass1')).accessToken,
+    ).toBeTruthy();
+  });
+
+  it('changePassword : ancien mot de passe erroné est rejeté (401) sans rien changer', async () => {
+    const reg = await auth.register('a@example.com', 'password123', 'Alice');
+
+    await expect(
+      auth.changePassword(reg.user.id, 'mauvais', 'nouveauPass1'),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    // Le mot de passe n'a pas changé et la session d'origine reste valide.
+    expect((await auth.login('a@example.com', 'password123')).accessToken).toBeTruthy();
+    expect((await auth.refresh(reg.refreshToken)).accessToken).toBeTruthy();
+  });
+
   it('forgotPassword : compte inconnu → aucun token, aucun email (anti-énumération)', async () => {
     await auth.forgotPassword('inconnu@example.com');
     expect(resetRepo.store).toHaveLength(0);

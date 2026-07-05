@@ -55,6 +55,13 @@ data class ChangeEmailRequest(
     val email: String,
 )
 
+/** Corps de POST /auth/change-password (vérification de l'ancien mot de passe). */
+@JsonClass(generateAdapter = true)
+data class ChangePasswordRequest(
+    val oldPassword: String,
+    val newPassword: String,
+)
+
 @JsonClass(generateAdapter = true)
 data class UserDto(
     val id: String,

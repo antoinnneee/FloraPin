@@ -13,6 +13,14 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Changement de mot de passe depuis le profil.** Une section « Sécurité » du
+  profil ouvre un dialogue qui demande le mot de passe actuel (vérifié côté
+  serveur) puis le nouveau, confirmé localement (≥ 8 caractères). Nouvel endpoint
+  `POST /auth/change-password` (JWT requis, throttlé à 5/min par IP) : il vérifie
+  l'ancien mot de passe, re-hash le nouveau, révoque **toutes** les sessions
+  (déconnexion des autres appareils) puis **réémet une paire de jetons pour
+  l'appareil courant** afin de ne pas déconnecter l'utilisateur de son propre
+  téléphone. L'app persiste immédiatement les jetons réémis.
 - **Sauvegarde locale — export/import ZIP (device-first).** Le profil propose
   désormais d'exporter toute la bibliothèque (fleurs, albums, appartenances et
   photos) dans une archive ZIP choisie via le sélecteur de documents (SAF), puis

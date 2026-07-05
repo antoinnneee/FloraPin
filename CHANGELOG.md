@@ -21,6 +21,14 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Mise au point par tap (TÂCHE 6.2).** Un appui sur l'aperçu caméra fait la
+  mise au point sur le point touché : les coordonnées vue sont converties via la
+  fabrique de points de mesure de la `PreviewView` (transformation vue → capteur
+  gérée nativement, zoom compris), puis `startFocusAndMetering` lance le cycle
+  d'AF/mesure. Le tap **respecte le mode macro** : le mode `AF_MODE_MACRO` est
+  ré-appliqué une fois la mise au point terminée pour ne pas quitter le macro. Le
+  pincement-zoom natif reste actif (l'événement tactile n'est pas consommé), et
+  le tap-to-focus intégré du contrôleur est désactivé au profit de cette version.
 - **Flash & torche à la capture (TÂCHE 6.1).** L'écran caméra offre deux
   nouvelles bascules à côté du mode macro : **⚡ Flash** (déclenchement du flash
   à la prise via `imageCaptureFlashMode`) et **🔦 Torche** (éclairage LED

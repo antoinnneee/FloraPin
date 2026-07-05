@@ -1,13 +1,17 @@
 package com.florapin.app.capture
 
+import android.annotation.SuppressLint
 import android.hardware.camera2.CaptureRequest
 import android.net.Uri
 import android.util.Log
+import android.view.GestureDetector
+import android.view.MotionEvent
 import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.camera.camera2.interop.Camera2CameraControl
 import androidx.camera.camera2.interop.CaptureRequestOptions
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
+import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ZoomState
@@ -37,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,12 +63,17 @@ private const val TAG = "CameraScreen"
  *
  * Contrôles disponibles pendant la visée :
  * - **zoom** : pincement à deux doigts (actif par défaut) ou curseur, synchronisés ;
+ * - **mise au point par tap** : un appui fait le point sur la zone touchée
+ *   (respecte le mode macro actif) ;
  * - **mode macro** : bascule la mise au point rapprochée pour les sujets très proches ;
  * - **flash** : déclenchement du flash à la prise de vue (éteint par défaut) ;
  * - **torche** : éclairage LED continu pendant la visée (éteint par défaut).
  *
  * Suppose que la permission CAMERA est déjà accordée (gérée en amont).
  */
+// setOnTouchListener sur la PreviewView : on relaie l'événement sans le consommer
+// (pincement-zoom natif préservé), donc pas de performClick à implémenter.
+@SuppressLint("ClickableViewAccessibility")
 @Composable
 fun CameraScreen(
     onPhotoSaved: (Uri) -> Unit,
@@ -75,6 +85,10 @@ fun CameraScreen(
     val controller = remember {
         LifecycleCameraController(context).apply {
             setEnabledUseCases(LifecycleCameraController.IMAGE_CAPTURE)
+            // On pilote nous-mêmes la mise au point par tap (cf. PreviewView plus
+            // bas) pour pouvoir respecter le mode macro ; on désactive donc le
+            // tap-to-focus intégré du contrôleur qui repasserait en AF standard.
+            isTapToFocusEnabled = false
         }
     }
 
@@ -136,14 +150,35 @@ fun CameraScreen(
         }
     }
 
+    // Valeur courante du mode macro, lue au moment du tap (le listener n'est
+    // installé qu'une fois sur la PreviewView).
+    val currentMacro = rememberUpdatedState(macroEnabled)
+    val previewView = remember {
+        PreviewView(context).apply {
+            this.controller = controller
+            // Détecteur de tap simple : à la levée du doigt, on lance la mise au
+            // point sur le point touché. On relaie tous les événements à la
+            // PreviewView (return false) pour conserver le pincement-zoom natif.
+            val tapDetector = GestureDetector(
+                context,
+                object : GestureDetector.SimpleOnGestureListener() {
+                    override fun onSingleTapUp(e: MotionEvent): Boolean {
+                        tapToFocus(controller, this@apply, e.x, e.y, currentMacro.value)
+                        return false
+                    }
+                },
+            )
+            setOnTouchListener { _, event ->
+                tapDetector.onTouchEvent(event)
+                false
+            }
+        }
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
-            factory = { ctx ->
-                PreviewView(ctx).apply {
-                    this.controller = controller
-                }
-            },
+            factory = { previewView },
         )
 
         // Bascules « macro », « flash » et « torche » en haut à droite,
@@ -280,6 +315,38 @@ private fun applyMacroFocus(controller: LifecycleCameraController, enabled: Bool
                 .setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, afMode)
                 .build()
     }.onFailure { Log.w(TAG, "Mode macro non appliqué", it) }
+}
+
+/**
+ * Mise au point par tap sur l'aperçu : convertit les coordonnées **vue** du
+ * point touché en [androidx.camera.core.MeteringPoint] via la fabrique de la
+ * [PreviewView] (qui connaît la transformation vue → capteur, y compris zoom et
+ * rognage), puis lance un cycle de mise au point/mesure sur cette zone.
+ *
+ * Respecte le mode macro actif : `startFocusAndMetering` repasse l'AF en mode
+ * automatique standard, on ré-applique donc [applyMacroFocus] une fois le cycle
+ * terminé si le macro est activé, pour ne pas sortir silencieusement du mode.
+ * Best effort : ignoré si la caméra n'est pas encore liée.
+ */
+private fun tapToFocus(
+    controller: LifecycleCameraController,
+    previewView: PreviewView,
+    x: Float,
+    y: Float,
+    macroEnabled: Boolean,
+) {
+    val cameraControl = controller.cameraControl ?: return
+    val point = previewView.meteringPointFactory.createPoint(x, y)
+    val action = FocusMeteringAction.Builder(point).build()
+    runCatching {
+        val future = cameraControl.startFocusAndMetering(action)
+        future.addListener(
+            {
+                if (macroEnabled) applyMacroFocus(controller, true)
+            },
+            ContextCompat.getMainExecutor(previewView.context),
+        )
+    }.onFailure { Log.w(TAG, "Tap-to-focus non appliqué", it) }
 }
 
 /** Déclenche la capture et enregistre le JPEG dans le stockage privé. */

@@ -173,6 +173,9 @@ export class ProposalsService {
     await this.notifications.create(proposal.proposedBy, 'species_confirmed', {
       flowerId,
       species: proposal.species,
+      // Émetteur = le propriétaire qui confirme (« Marie a confirmé Coquelicot ») :
+      // le nom d'affichage est résolu à l'envoi côté push (TÂCHE 2.1).
+      byUserId: ownerId,
     });
     return saved;
   }

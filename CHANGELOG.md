@@ -13,6 +13,17 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Notifications push « incarnées ».** Les push disent désormais *qui* fait quoi
+  et *sur quelle fleur* : « Marie a partagé Coquelicot avec vous », « Paul a
+  commenté votre Coquelicot », « Léa a aimé votre fleur », etc. Le backend
+  enrichit le `data` de chaque push (data-only) à l'envoi avec le nom
+  d'affichage de l'émetteur (`byUserName`, jamais figé — résolu au moment de
+  l'envoi, cohérent avec la modification de nom), et, quand une fleur est
+  concernée, son espèce (`species`) et l'URL de sa miniature (`thumbnailUrl`,
+  présignée à longue durée). L'app compose le texte à partir de ces champs et
+  retombe proprement sur les libellés génériques quand ils sont absents
+  (anciens payloads tolérés). La notification in-app persistée conserve, elle,
+  ses identifiants bruts.
 - **Modification du nom d'affichage depuis le profil.** La carte du profil
   propose désormais un bouton « Modifier le nom » ouvrant un dialogue pré-rempli
   avec le nom courant. Nouvel endpoint `PATCH /users/me` (JWT requis) qui

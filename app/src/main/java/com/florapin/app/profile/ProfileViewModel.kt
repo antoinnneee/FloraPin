@@ -34,6 +34,11 @@ data class ProfileUiState(
     /** Changement d'adresse en cours (NODE-117). */
     val emailSaving: Boolean = false,
     val emailError: String? = null,
+    /** Modification du nom d'affichage en cours (TÂCHE 1.7). */
+    val nameSaving: Boolean = false,
+    val nameError: String? = null,
+    /** Message de succès après modification du nom d'affichage. */
+    val nameMessage: String? = null,
     /** Changement de mot de passe en cours (TÂCHE 1.6). */
     val passwordSaving: Boolean = false,
     val passwordError: String? = null,
@@ -162,6 +167,44 @@ class ProfileViewModel(
                 _state.value.copy(emailSaving = false, emailError = changeEmailMessageOf(e))
             }
         }
+    }
+
+    /**
+     * Modifie le nom d'affichage (TÂCHE 1.7). Trim + longueur (1..80) validés
+     * côté serveur ; en cas de succès le nouveau nom est reflété dans l'état et
+     * persisté localement. [onSuccess] est invoqué en cas de réussite.
+     */
+    fun updateDisplayName(displayName: String, onSuccess: () -> Unit = {}) {
+        val trimmed = displayName.trim()
+        _state.update { it.copy(nameSaving = true, nameError = null, nameMessage = null) }
+        viewModelScope.launch {
+            try {
+                val user = session.updateDisplayName(trimmed)
+                _state.update {
+                    it.copy(
+                        displayName = user.displayName,
+                        nameSaving = false,
+                        nameMessage = "Nom mis à jour.",
+                    )
+                }
+                onSuccess()
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(nameSaving = false, nameError = updateNameMessageOf(e))
+                }
+            }
+        }
+    }
+
+    private fun updateNameMessageOf(error: Throwable): String = when {
+        error is HttpException && error.code() == 400 ->
+            "Le nom doit comporter entre 1 et 80 caractères."
+        else -> "Modification impossible. Réessayez."
+    }
+
+    /** Réinitialise les retours du formulaire de nom (fermeture du dialogue). */
+    fun clearNameFeedback() {
+        _state.update { it.copy(nameSaving = false, nameError = null, nameMessage = null) }
     }
 
     /**

@@ -55,6 +55,12 @@ data class ChangeEmailRequest(
     val email: String,
 )
 
+/** Corps de PATCH /users/me (TÂCHE 1.7) : modification du nom d'affichage. */
+@JsonClass(generateAdapter = true)
+data class UpdateProfileRequest(
+    val displayName: String,
+)
+
 /** Corps de POST /auth/change-password (vérification de l'ancien mot de passe). */
 @JsonClass(generateAdapter = true)
 data class ChangePasswordRequest(

@@ -9,6 +9,7 @@ import com.florapin.app.network.dto.LoginRequest
 import com.florapin.app.network.dto.RefreshRequest
 import com.florapin.app.network.dto.RegisterRequest
 import com.florapin.app.network.dto.ResetPasswordRequest
+import com.florapin.app.network.dto.UpdateProfileRequest
 import com.florapin.app.network.dto.UserDto
 import com.florapin.app.network.dto.VerifyEmailRequest
 import retrofit2.HttpException
@@ -131,6 +132,17 @@ class SessionManager(
      */
     suspend fun changeEmail(email: String): UserDto {
         val user = authApi.changeEmail(ChangeEmailRequest(email))
+        tokenStore.saveDisplayName(user.displayName)
+        return user
+    }
+
+    /**
+     * Modifie le nom d'affichage (TÂCHE 1.7) et met à jour le nom persisté
+     * localement (affiché immédiatement au prochain lancement). Renvoie
+     * l'utilisateur mis à jour.
+     */
+    suspend fun updateDisplayName(displayName: String): UserDto {
+        val user = authApi.updateProfile(UpdateProfileRequest(displayName))
         tokenStore.saveDisplayName(user.displayName)
         return user
     }

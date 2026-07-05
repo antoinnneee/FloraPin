@@ -62,6 +62,24 @@ fun ProfileScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showPasswordDialog by remember { mutableStateOf(false) }
+    var showNameDialog by remember { mutableStateOf(false) }
+
+    if (showNameDialog) {
+        EditDisplayNameDialog(
+            currentName = state.displayName,
+            saving = state.nameSaving,
+            error = state.nameError,
+            onConfirm = { newName ->
+                viewModel.updateDisplayName(newName) {
+                    showNameDialog = false
+                }
+            },
+            onDismiss = {
+                showNameDialog = false
+                viewModel.clearNameFeedback()
+            },
+        )
+    }
 
     if (showPasswordDialog) {
         ChangePasswordDialog(
@@ -134,6 +152,19 @@ fun ProfileScreen(
                             MaterialTheme.colorScheme.error
                         },
                     )
+                    OutlinedButton(
+                        onClick = { showNameDialog = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Modifier le nom")
+                    }
+                    state.nameMessage?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
             }
 
@@ -591,6 +622,68 @@ private fun ChangePasswordDialog(
         confirmButton = {
             TextButton(
                 onClick = { onConfirm(oldPassword, newPassword) },
+                enabled = canSubmit,
+            ) {
+                Text("Enregistrer")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !saving) {
+                Text("Annuler")
+            }
+        },
+    )
+}
+
+/**
+ * Dialogue de modification du nom d'affichage (TÂCHE 1.7) : champ pré-rempli
+ * avec le nom courant. Mêmes règles qu'à l'inscription (trim + 1..80 caractères,
+ * validés côté serveur). [error] affiche un échec sans fermer le dialogue.
+ */
+@Composable
+private fun EditDisplayNameDialog(
+    currentName: String,
+    saving: Boolean,
+    error: String?,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember(currentName) { mutableStateOf(currentName) }
+    val trimmed = name.trim()
+    val tooLong = trimmed.length > 80
+    val canSubmit = trimmed.isNotEmpty() && !tooLong && trimmed != currentName && !saving
+
+    AlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        title = { Text("Modifier le nom") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nom affiché") },
+                    singleLine = true,
+                    enabled = !saving,
+                    isError = tooLong,
+                    supportingText = if (tooLong) {
+                        { Text("80 caractères maximum.") }
+                    } else {
+                        null
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                error?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(trimmed) },
                 enabled = canSubmit,
             ) {
                 Text("Enregistrer")

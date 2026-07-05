@@ -91,3 +91,41 @@ describe('UsersService.deleteAccount', () => {
     expect(users.delete).toHaveBeenCalledWith({ id: USER_ID });
   });
 });
+
+describe('UsersService.updateDisplayName', () => {
+  const USER_ID = 'user-1';
+  let user: User | null;
+  let users: jest.Mocked<Pick<Repository<User>, 'findOne' | 'save'>>;
+  let service: UsersService;
+
+  beforeEach(() => {
+    user = { id: USER_ID, displayName: 'Ancien' } as User;
+    users = {
+      findOne: jest.fn(async () => user),
+      save: jest.fn(async (u: User) => u),
+    } as never;
+    service = new UsersService(
+      users as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+  });
+
+  it('applique le nouveau nom et renvoie l’utilisateur', async () => {
+    const updated = await service.updateDisplayName(USER_ID, 'Nouveau');
+    expect(updated.displayName).toBe('Nouveau');
+    expect(users.save).toHaveBeenCalledWith(
+      expect.objectContaining({ id: USER_ID, displayName: 'Nouveau' }),
+    );
+  });
+
+  it('lève NotFound si l’utilisateur n’existe pas', async () => {
+    user = null;
+    await expect(
+      service.updateDisplayName(USER_ID, 'Nouveau'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(users.save).not.toHaveBeenCalled();
+  });
+});

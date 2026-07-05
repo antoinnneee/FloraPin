@@ -10,6 +10,7 @@ import com.florapin.app.network.dto.RefreshRequest
 import com.florapin.app.network.dto.RegisterRequest
 import com.florapin.app.network.dto.ResetPasswordRequest
 import com.florapin.app.network.dto.TokenPair
+import com.florapin.app.network.dto.UpdateProfileRequest
 import com.florapin.app.network.dto.UserDto
 import com.florapin.app.network.dto.VerifyEmailRequest
 import retrofit2.Response
@@ -59,6 +60,10 @@ interface AuthApi {
     /** Change l'adresse email (autorisé tant qu'elle n'est pas vérifiée). */
     @PATCH("users/me/email")
     suspend fun changeEmail(@Body body: ChangeEmailRequest): UserDto
+
+    /** Modifie le nom d'affichage (TÂCHE 1.7). */
+    @PATCH("users/me")
+    suspend fun updateProfile(@Body body: UpdateProfileRequest): UserDto
 
     /**
      * Profil de l'utilisateur courant (session restaurée sans relogin).

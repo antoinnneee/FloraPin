@@ -13,6 +13,14 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Modification du nom d'affichage depuis le profil.** La carte du profil
+  propose désormais un bouton « Modifier le nom » ouvrant un dialogue pré-rempli
+  avec le nom courant. Nouvel endpoint `PATCH /users/me` (JWT requis) qui
+  applique les mêmes règles qu'à l'inscription (trim + 1..80 caractères) puis
+  renvoie le profil à jour. Le nom n'est jamais figé ailleurs : il reste résolu
+  au moment de l'envoi (ex. futurs push « incarnés »). L'app reflète le nouveau
+  nom dans l'état et le persiste localement (affichage immédiat au prochain
+  lancement).
 - **Changement de mot de passe depuis le profil.** Une section « Sécurité » du
   profil ouvre un dialogue qui demande le mot de passe actuel (vérifié côté
   serveur) puis le nouveau, confirmé localement (≥ 8 caractères). Nouvel endpoint

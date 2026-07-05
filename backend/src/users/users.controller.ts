@@ -14,6 +14,7 @@ import { ChangeEmailDto } from '../auth/dto/auth.dto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DeleteAccountDto } from './dto/delete-account.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
 
 @ApiTags('users')
@@ -29,6 +30,29 @@ export class UsersController {
     if (!user) {
       throw new NotFoundException('Utilisateur introuvable.');
     }
+    return {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      emailVerified: user.emailVerified,
+      createdAt: user.createdAt,
+    };
+  }
+
+  /**
+   * Modifie le nom d'affichage du compte courant (TÂCHE 1.7). Mêmes règles
+   * qu'à l'inscription (trim + 1..80 caractères, cf. UpdateProfileDto).
+   */
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  async updateProfile(
+    @CurrentUser() current: AuthenticatedUser,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    const user = await this.users.updateDisplayName(
+      current.userId,
+      dto.displayName,
+    );
     return {
       id: user.id,
       email: user.email,

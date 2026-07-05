@@ -107,6 +107,21 @@ export class UsersService {
     return user;
   }
 
+  /**
+   * Met à jour le nom d'affichage (TÂCHE 1.7). Le nom est déjà trimmé/validé
+   * par le DTO. Renvoie l'utilisateur mis à jour. Aucun figement ailleurs : les
+   * push « incarnés » (2.1) résolvent toujours le nom au moment de l'envoi.
+   */
+  async updateDisplayName(userId: string, displayName: string): Promise<User> {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('Utilisateur introuvable.');
+    }
+    user.displayName = displayName;
+    await this.users.save(user);
+    return user;
+  }
+
   create(params: {
     email: string;
     passwordHash: string;

@@ -13,6 +13,16 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Tap sur une notification → contenu concerné.** Toucher une notification push
+  ouvre désormais l'app directement sur le contenu visé plutôt que sur l'Accueil.
+  Le `PendingIntent` (FLAG_IMMUTABLE, targetSdk 35) transporte le type et le
+  `serverId` de la fleur ; au tap, l'app résout ce `serverId` → id local Room et
+  ouvre le détail de la fleur (mes fleurs : cœur, commentaire, proposition…),
+  ou retombe sur le feed « Partagées » quand la fleur appartient à un ami (donc
+  absente de Room : partage, demande d'identification). Les notifications sans
+  fleur routent par type (demande/acceptation d'ami → écran Amis). Gère le
+  démarrage à froid (extras dans `onCreate`) comme l'app déjà ouverte
+  (`onNewIntent`, activité en `singleTop`).
 - **Notifications push « incarnées ».** Les push disent désormais *qui* fait quoi
   et *sur quelle fleur* : « Marie a partagé Coquelicot avec vous », « Paul a
   commenté votre Coquelicot », « Léa a aimé votre fleur », etc. Le backend

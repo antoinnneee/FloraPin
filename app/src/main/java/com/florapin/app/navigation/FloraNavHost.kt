@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -43,11 +44,15 @@ import com.florapin.app.map.MapScreen
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.onboarding.OnboardingPrefs
 import com.florapin.app.onboarding.OnboardingScreen
+import com.florapin.app.data.FloraDatabase
 import com.florapin.app.permission.RequestNotificationPermissionOnce
 import com.florapin.app.profile.ProfileScreen
+import com.florapin.app.push.NotificationTarget
 import com.florapin.app.push.PushTokenRegistrar
 import com.florapin.app.sync.SyncPreferences
 import com.florapin.app.sync.SyncScheduler
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Destinations de l'application. */
 private object Routes {
@@ -94,7 +99,11 @@ private val authRoutes: Set<String> = setOf(
  * Login si l'utilisateur n'est pas connecté, sinon sur la galerie.
  */
 @Composable
-fun FloraNavHost(modifier: Modifier = Modifier) {
+fun FloraNavHost(
+    modifier: Modifier = Modifier,
+    notificationTarget: NotificationTarget? = null,
+    onNotificationTargetHandled: () -> Unit = {},
+) {
     val navController = rememberNavController()
     val context = LocalContext.current
 
@@ -135,6 +144,18 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
             // Onglet secondaire → Accueil.
             navController.navigateToTab(homeRoute)
         }
+    }
+
+    // Tap sur notification (TÂCHE 2.2) : route vers le contenu concerné dès que
+    // la cible change. Keyé sur la cible pour ne router qu'une fois par tap.
+    LaunchedEffect(notificationTarget) {
+        val target = notificationTarget ?: return@LaunchedEffect
+        // Sécurité : hors utilisateur connecté, on ignore (le flux d'auth n'a pas
+        // de destination « contenu »). La cible est tout de même consommée.
+        if (loggedIn) {
+            routeFromNotification(navController, context, target, homeRoute)
+        }
+        onNotificationTargetHandled()
     }
 
     Scaffold(
@@ -387,6 +408,50 @@ fun FloraNavHost(modifier: Modifier = Modifier) {
 private fun OnAuthSuccess(state: AuthUiState, onSuccess: () -> Unit) {
     androidx.compose.runtime.LaunchedEffect(state) {
         if (state is AuthUiState.Success) onSuccess()
+    }
+}
+
+/**
+ * Route vers le contenu concerné par un tap sur notification (TÂCHE 2.2).
+ *
+ * Le payload ne porte que le serverId (UUID) de la fleur, jamais l'id local Room.
+ * Deux chemins distincts :
+ *  - fleur présente en local (mes fleurs : cœur, commentaire, proposition…) →
+ *    on résout serverId → id local et on ouvre son détail ;
+ *  - fleur d'ami (partage, demande d'identification), absente de Room → on ouvre
+ *    le feed « Partagées », seul endroit qui sait afficher le contenu distant.
+ *
+ * Sans fleur (demande/acceptation d'ami), on route par type. Tout le reste
+ * retombe sur l'Accueil.
+ */
+private suspend fun routeFromNotification(
+    navController: NavHostController,
+    context: android.content.Context,
+    target: NotificationTarget,
+    homeRoute: String,
+) {
+    val serverId = target.flowerServerId
+    if (serverId != null) {
+        val local = withContext(Dispatchers.IO) {
+            FloraDatabase.getInstance(context).flowerDao().findByServerId(serverId)
+        }
+        if (local != null) {
+            // launchSingleTop : un re-tap alors qu'on est déjà sur ce détail ne
+            // ré-empile pas l'écran.
+            navController.navigate(Routes.detail(local.id)) { launchSingleTop = true }
+        } else {
+            // Fleur d'ami : elle vit dans le feed, pas dans Room.
+            navController.navigateToTab(Routes.FEED)
+        }
+        return
+    }
+    when (target.type) {
+        "friend_request", "friend_accepted" ->
+            navController.navigate(Routes.FRIENDS) { launchSingleTop = true }
+        // Contenu d'ami sans fleur ciblée (partage 'all'/'album'…) → feed.
+        "flower_shared", "identification_requested" ->
+            navController.navigateToTab(Routes.FEED)
+        else -> navController.navigateToTab(homeRoute)
     }
 }
 

@@ -14,9 +14,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
+import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -129,7 +131,7 @@ fun SharedFeedScreen(
                 return@PullToRefreshBox
             }
 
-            val listState = rememberLazyListState()
+            val listState = rememberLazyStaggeredGridState()
             // Regroupement en lot (TÂCHE 3.6) : dérivé de la liste plate à chaque
             // changement. Un lot coupé entre deux pages se recompose ici dès que la
             // page suivante est fusionnée (fusion par clé de lot, pas par position).
@@ -155,13 +157,19 @@ fun SharedFeedScreen(
                 if (shouldLoadMore && !state.showSelectionOnly) viewModel.loadMore()
             }
 
-            LazyColumn(
+            // Feed en 2 colonnes (TÂCHE 3.12) : grille décalée pour un rendu type
+            // mosaïque (hauteurs de cartes variables). Les éléments transversaux
+            // (barre de filtres, cartes-lot 3.6, séparateurs 3.2, indicateur de
+            // pagination, sélection) restent en pleine largeur via FullLine.
+            LazyVerticalStaggeredGrid(
+                columns = StaggeredGridCells.Fixed(2),
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalItemSpacing = 12.dp,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                item(key = "filter-bar") {
+                item(key = "filter-bar", span = StaggeredGridItemSpan.FullLine) {
                     FeedFilterBar(
                         sort = state.sort,
                         onSelectSort = viewModel::setSort,
@@ -171,10 +179,11 @@ fun SharedFeedScreen(
                     )
                 }
                 // Mode « Ma sélection » (TÂCHE 3.11) : favoris locaux (snapshots
-                // autonomes), affichables hors-ligne / partage révoqué.
+                // autonomes), affichables hors-ligne / partage révoqué. Cartes en
+                // pleine largeur (mise en page horizontale miniature + texte).
                 if (state.showSelectionOnly) {
                     if (state.saved.isEmpty()) {
-                        item(key = "selection-empty") {
+                        item(key = "selection-empty", span = StaggeredGridItemSpan.FullLine) {
                             EmptyState(
                                 title = "Sélection vide",
                                 message = "Enregistrez une fleur d'ami avec ⭐ " +
@@ -182,34 +191,46 @@ fun SharedFeedScreen(
                             )
                         }
                     } else {
-                        items(state.saved, key = { "saved:${it.serverId}" }) { saved ->
+                        items(
+                            state.saved,
+                            key = { "saved:${it.serverId}" },
+                            span = { StaggeredGridItemSpan.FullLine },
+                        ) { saved ->
                             SavedFlowerCard(
                                 saved = saved,
                                 onRemove = { viewModel.removeSaved(saved.serverId) },
                             )
                         }
                     }
-                    return@LazyColumn
+                    return@LazyVerticalStaggeredGrid
                 }
-                itemsIndexed(rows, key = { _, row -> row.key }) { index, row ->
+                // Chaque ligne du feed regroupé (TÂCHE 3.6) devient un élément de la
+                // grille : les fleurs seules occupent une colonne (mosaïque), les
+                // cartes-lot et le séparateur « nouveautés » (TÂCHE 3.2) toute la ligne.
+                rows.forEachIndexed { index, row ->
                     // Séparateur « Nouveau depuis votre dernière visite » juste avant
-                    // la première ligne déjà vue (TÂCHE 3.2).
+                    // la première ligne déjà vue (TÂCHE 3.2), en pleine largeur.
                     if (index == separatorRow) {
-                        NewSinceLastVisitSeparator()
+                        item(key = "new-separator", span = StaggeredGridItemSpan.FullLine) {
+                            NewSinceLastVisitSeparator()
+                        }
                     }
                     when (row) {
-                        is FeedRow.Single -> SharedFlowerCard(
-                            item = row.item,
-                            saved = row.item.flower.id in state.savedIds,
-                            onToggleSave = { viewModel.toggleSaved(row.item) },
-                            onToggleLike = { viewModel.toggleLike(row.item.flower.id) },
-                            onReact = { code -> viewModel.react(row.item.flower.id, code) },
-                            onOpenLikers = { likersFor = row.item.flower.id },
-                            onComment = { commentsFor = row.item.flower.id },
-                        )
+                        is FeedRow.Single -> item(key = row.key) {
+                            SharedFlowerCard(
+                                item = row.item,
+                                saved = row.item.flower.id in state.savedIds,
+                                onToggleSave = { viewModel.toggleSaved(row.item) },
+                                onToggleLike = { viewModel.toggleLike(row.item.flower.id) },
+                                onReact = { code -> viewModel.react(row.item.flower.id, code) },
+                                onOpenLikers = { likersFor = row.item.flower.id },
+                                onComment = { commentsFor = row.item.flower.id },
+                            )
+                        }
                         // Carte-lot « Marie a partagé N fleurs » (TÂCHE 3.6) : le tap
                         // déplie les fleurs du lot juste en dessous, sans quitter le feed.
-                        is FeedRow.Batch -> {
+                        // Pleine largeur pour rester lisible avec ses miniatures.
+                        is FeedRow.Batch -> item(key = row.key, span = StaggeredGridItemSpan.FullLine) {
                             val expanded = row.key in expandedBatches
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 BatchHeaderCard(
@@ -238,7 +259,7 @@ fun SharedFeedScreen(
                     }
                 }
                 if (state.loadingMore) {
-                    item(key = "loading-more") {
+                    item(key = "loading-more", span = StaggeredGridItemSpan.FullLine) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()

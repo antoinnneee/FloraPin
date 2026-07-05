@@ -12,6 +12,14 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Modifié
+- **Feed en 2 colonnes (mosaïque).** Le fil « Partagées avec moi » s'affiche
+  désormais dans une `LazyVerticalStaggeredGrid` à deux colonnes : les fleurs
+  seules occupent chacune une colonne (hauteurs variables) pour un rendu type
+  mosaïque, tandis que la barre de filtres, les cartes-lot (3.6), le séparateur
+  « nouveautés » (3.2), l'indicateur de pagination et le mode « Ma sélection »
+  restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
+
 ### Ajouté
 - **Fleurs enregistrées — « Ma sélection ».** Chaque fleur d'ami du feed propose
   une étoile (⭐/☆) pour l'enregistrer en favori PRIVÉ et LOCAL, sans aucune API

@@ -21,6 +21,17 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Mapping GPS → région hors-ligne (TÂCHE 5.2).** Nouveau
+  `geo/RegionResolver.kt` : les polygones des **18 régions françaises** (13 de
+  métropole + 5 d'outre-mer) sont embarqués dans `assets/regions-fr.geojson`
+  (source [france-geojson](https://github.com/gregoiredavid/france-geojson),
+  simplifiée ; outre-mer réduit par Douglas-Peucker — ~125 Ko) et le test
+  d'appartenance se fait **100 % localement** par *ray-casting* (rejet préalable
+  par boîte englobante). `Polygon`, `MultiPolygon` et anneaux intérieurs (trous)
+  sont gérés ; l'ordre GeoJSON `[longitude, latitude]` est respecté. Une position
+  hors France renvoie `null` (les fleurs sans GPS ne sont pas résolues, pour ne
+  pas fausser les futurs paliers). Débloque le calcul local des badges
+  « Explorateur » / « Outre-mer » (TÂCHE 5.3).
 - **Refonte Profil / Réglages en 3 onglets (TÂCHE 5.1).** L'écran Profil se
   divise désormais en trois onglets : **① Profil** (avatar, identité,
   statistiques d'entraide, emplacements des futurs herbier/badges), **② Badges**

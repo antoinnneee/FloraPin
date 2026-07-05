@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AlbumsModule } from './albums/albums.module';
 import { AuthModule } from './auth/auth.module';
+import { BadgesModule } from './badges/badges.module';
 import { CommentsModule } from './comments/comments.module';
 import { FeedModule } from './feed/feed.module';
 import { FlowersModule } from './flowers/flowers.module';
@@ -61,6 +62,7 @@ import { UsersModule } from './users/users.module';
     LikesModule,
     ProposalsModule,
     CommentsModule,
+    BadgesModule,
     PushModule,
     SyncModule,
   ],

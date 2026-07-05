@@ -3,6 +3,7 @@ package com.florapin.app.network
 import com.florapin.app.BuildConfig
 import com.florapin.app.network.api.AlbumsApi
 import com.florapin.app.network.api.AuthApi
+import com.florapin.app.network.api.BadgesApi
 import com.florapin.app.network.api.CommentsApi
 import com.florapin.app.network.api.FeedApi
 import com.florapin.app.network.api.FlowersApi
@@ -43,6 +44,7 @@ class FloraApis(
     val likes: LikesApi,
     val comments: CommentsApi,
     val notifications: NotificationsApi,
+    val badges: BadgesApi,
 )
 
 /**
@@ -87,6 +89,7 @@ object NetworkModule {
         likes = retrofit.create(LikesApi::class.java),
         comments = retrofit.create(CommentsApi::class.java),
         notifications = retrofit.create(NotificationsApi::class.java),
+        badges = retrofit.create(BadgesApi::class.java),
     )
 
     /**

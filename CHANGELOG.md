@@ -21,6 +21,26 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Badges « entraide » — calcul serveur (TÂCHE 5.4).** Nouveau module backend
+  `badges/` (`badges.module.ts` + `badges.controller.ts` + `badges.service.ts`,
+  sur le modèle du module `likes` : agrégation **en lecture**, aucune table
+  dédiée, recalcul à la volée). `GET /me/badges` renvoie les compteurs
+  collaboratifs de l'utilisateur courant en une passe (quelques `COUNT` ciblés
+  lancés **en parallèle**, pas de N+1) : 🤝 amis acceptés · 🔍 propositions
+  faites · 🎓 propositions acceptées · ❓ demandes d'identification ouvertes ·
+  ✅ propositions acceptées en tant que propriétaire · 💬 commentaires ·
+  👍 réactions données · ❤️ réactions reçues. Sources : `Friendship`
+  (`status='accepted'`, demandeur ou destinataire), `SpeciesProposal`
+  (`proposedBy` / `status='accepted'`, et jointure `flowers.owner_id` pour les
+  propositions reçues), `Flower.needsIdentification`, `FlowerComment`,
+  `FlowerLike` (données = `user_id` ; reçues = jointure `flowers.owner_id`, hors
+  auto-réactions). Côté app : `network/api/BadgesApi.kt` +
+  `network/dto/BadgeDtos.kt` (`EntraideBadgeCountsDto`, champs à défaut pour la
+  compat) branchés sur le client authentifié partagé (`NetworkModule`). Le
+  serveur ne renvoie que des **compteurs bruts** : le mapping en paliers et la
+  fusion avec les badges « collection » locaux se feront dans l'onglet Badges
+  (TÂCHE 5.5). Device-first : indisponibles hors-ligne, à afficher depuis une
+  dernière valeur en cache ou grisés.
 - **Badges « collection » — calcul local (TÂCHE 5.3).** Nouveau
   `badges/BadgeCalculator.kt` : dérive **100 % localement** les badges à partir
   des fleurs de l'appareil — 🌸 Première fleur · 📚 Herbier (10/50/100/250) ·

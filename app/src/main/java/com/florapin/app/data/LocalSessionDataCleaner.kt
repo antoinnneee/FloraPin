@@ -16,6 +16,7 @@ class LocalSessionDataCleaner(
     private val flowers: FlowerRepository,
     private val albums: AlbumRepository,
     private val photos: PhotoRepository,
+    private val saved: SavedFlowerRepository,
     private val lastSync: LastSyncStore,
 ) : SessionDataCleaner {
 
@@ -23,6 +24,7 @@ class LocalSessionDataCleaner(
         flowers.deleteAll()
         albums.deleteAll()
         photos.deleteAll()
+        saved.deleteAll()
         PhotoStorage.clearAll(context)
         lastSync.clear()
     }
@@ -36,6 +38,7 @@ class LocalSessionDataCleaner(
                 flowers = FlowerRepository.from(app),
                 albums = AlbumRepository.from(app),
                 photos = PhotoRepository.from(app),
+                saved = SavedFlowerRepository.from(app),
                 lastSync = PrefsLastSyncStore(app),
             )
         }

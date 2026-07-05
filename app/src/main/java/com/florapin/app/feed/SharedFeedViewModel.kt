@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.florapin.app.data.SavedFlowerEntity
+import com.florapin.app.data.SavedFlowerRepository
 import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.api.FeedApi
 import com.florapin.app.network.api.FriendshipsApi
@@ -12,12 +14,16 @@ import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.network.dto.FlowerDto
 import com.florapin.app.network.dto.ReactionRequest
 import com.florapin.app.network.dto.Reactions
+import com.florapin.app.network.dto.fullPhotoUrls
+import com.florapin.app.network.dto.previewPhotoUrls
 import com.florapin.app.network.dto.withReaction
+import com.florapin.app.sync.ImageCacher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
 import java.time.Instant
 
 /** Une fleur partagée + le nom de l'ami qui la partage (si connu). */
@@ -126,6 +132,15 @@ data class SharedFeedUiState(
      * séparateur (première visite, ou aucune nouveauté à distinguer).
      */
     val newSeparatorIndex: Int? = null,
+    /**
+     * « Ma sélection » (TÂCHE 3.11) : ids serveur des fleurs enregistrées en
+     * favori local, pour afficher l'état « épinglé » sur chaque carte du feed.
+     */
+    val savedIds: Set<String> = emptySet(),
+    /** Snapshots enregistrés (favoris locaux), plus récents d'abord (TÂCHE 3.11). */
+    val saved: List<SavedFlowerEntity> = emptyList(),
+    /** Filtre « Ma sélection » actif : le feed n'affiche que les favoris locaux. */
+    val showSelectionOnly: Boolean = false,
 )
 
 /**
@@ -139,6 +154,13 @@ class SharedFeedViewModel(
     private val likesApi: LikesApi,
     /** Suivi des fleurs vues (badge onglet). Null en test : la remise à 0 est ignorée. */
     private val badgeStore: FeedBadgeStore? = null,
+    /**
+     * Persistance de « Ma sélection » (TÂCHE 3.11). Null en test (feed pur) : la
+     * fonctionnalité de favori local est alors inerte.
+     */
+    private val savedRepo: SavedFlowerRepository? = null,
+    /** Mise en cache de la miniature à l'enregistrement (snapshot hors-ligne). */
+    private val imageCacher: ImageCacher? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SharedFeedUiState(loading = true))
@@ -157,6 +179,23 @@ class SharedFeedViewModel(
 
     init {
         load()
+        observeSelection()
+    }
+
+    /**
+     * Observe « Ma sélection » (TÂCHE 3.11) : maintient à jour l'ensemble des ids
+     * enregistrés (état des cartes) et la liste des snapshots (vue filtrée). No-op
+     * si aucun dépôt n'est câblé (tests du feed pur).
+     */
+    private fun observeSelection() {
+        val repo = savedRepo ?: return
+        viewModelScope.launch {
+            repo.saved.collect { list ->
+                _state.update {
+                    it.copy(saved = list, savedIds = list.map { s -> s.serverId }.toSet())
+                }
+            }
+        }
     }
 
     /** (Re)charge la première page du feed, en repartant de zéro. */
@@ -265,6 +304,52 @@ class SharedFeedViewModel(
         load()
     }
 
+    /** Active/désactive le filtre « Ma sélection » (favoris locaux, TÂCHE 3.11). */
+    fun setShowSelectionOnly(enabled: Boolean) {
+        _state.update { it.copy(showSelectionOnly = enabled) }
+    }
+
+    /**
+     * Bascule l'enregistrement d'une fleur d'ami dans « Ma sélection » (TÂCHE 3.11).
+     * À l'ajout, on met en cache la miniature ET on fige un snapshot autonome (nom
+     * d'espèce, ami, URLs de repli) pour rester affichable hors-ligne ou si le
+     * partage est révoqué. Au retrait, on supprime le snapshot et sa miniature.
+     */
+    fun toggleSaved(item: SharedFlowerItem) {
+        val repo = savedRepo ?: return
+        val flower = item.flower
+        val alreadySaved = flower.id in _state.value.savedIds
+        viewModelScope.launch {
+            if (alreadySaved) {
+                repo.remove(flower.id)
+            } else {
+                val thumbUrl = flower.previewPhotoUrls().firstOrNull()
+                // Mise en cache best-effort : en cas d'échec, on garde l'URL de repli.
+                val cachedPath = thumbUrl?.let { imageCacher?.cache(flower.id, it) }
+                repo.save(
+                    SavedFlowerEntity(
+                        serverId = flower.id,
+                        ownerId = flower.ownerId,
+                        ownerName = item.ownerName,
+                        species = flower.species,
+                        imagePath = cachedPath ?: "",
+                        remoteThumbnailUrl = thumbUrl,
+                        remoteImageUrl = flower.fullPhotoUrls().firstOrNull(),
+                        latitude = flower.latitude,
+                        longitude = flower.longitude,
+                        savedAt = System.currentTimeMillis(),
+                    ),
+                )
+            }
+        }
+    }
+
+    /** Retire un snapshot de la sélection depuis la vue filtrée (TÂCHE 3.11). */
+    fun removeSaved(serverId: String) {
+        val repo = savedRepo ?: return
+        viewModelScope.launch { repo.remove(serverId) }
+    }
+
     /**
      * Tap sur le cœur : bascule la réaction par défaut (NODE-140). S'il réagissait
      * déjà (quel que soit le type), retire ; sinon pose un cœur.
@@ -316,13 +401,23 @@ class SharedFeedViewModel(
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    val tokenStore = EncryptedTokenStore(context.applicationContext)
+                    val app = context.applicationContext
+                    val tokenStore = EncryptedTokenStore(app)
                     val apis = NetworkModule.createAuthenticated(tokenStore)
+                    // Miniatures de « Ma sélection » : les URLs présignées de lecture
+                    // sont publiques → un client OkHttp simple (sans auth) suffit, comme
+                    // pour le cache d'images de synchro.
+                    val imageCacher = ImageCacher(
+                        client = OkHttpClient(),
+                        targetDir = SavedFlowerRepository.imagesDir(app),
+                    )
                     return SharedFeedViewModel(
                         apis.feed,
                         apis.friendships,
                         apis.likes,
-                        FeedBadgeStore(context.applicationContext),
+                        FeedBadgeStore(app),
+                        SavedFlowerRepository.from(app),
+                        imageCacher,
                     ) as T
                 }
             }

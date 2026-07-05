@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Card
@@ -44,6 +45,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.florapin.app.data.SavedFlowerEntity
+import com.florapin.app.data.imageModel
 import com.florapin.app.detail.CommentsBottomSheet
 import com.florapin.app.likes.LikeButton
 import com.florapin.app.likes.LikersBottomSheet
@@ -98,15 +101,18 @@ fun SharedFeedScreen(
             )
         },
     ) { innerPadding ->
-        // Tirer vers le bas recharge la première page du feed (TÂCHE 1.3).
+        // Tirer vers le bas recharge la première page du feed (TÂCHE 1.3). En mode
+        // « Ma sélection » (favoris locaux), le tirage n'a rien à recharger.
         PullToRefreshBox(
             isRefreshing = state.refreshing,
-            onRefresh = viewModel::refresh,
+            onRefresh = { if (!state.showSelectionOnly) viewModel.refresh() },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            if (!state.loading && state.items.isEmpty()) {
+            // Écran vide du feed uniquement hors mode sélection (la sélection a son
+            // propre message quand elle est vide).
+            if (!state.showSelectionOnly && !state.loading && state.items.isEmpty()) {
                 // Enveloppé dans une LazyColumn pleine zone pour que le tirage
                 // reste déclenchable même sans liste à faire défiler.
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -144,8 +150,9 @@ fun SharedFeedScreen(
                     info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - 3
                 }
             }
-            LaunchedEffect(shouldLoadMore, state.items.size) {
-                if (shouldLoadMore) viewModel.loadMore()
+            // Pagination réservée au feed (jamais en mode sélection : liste locale).
+            LaunchedEffect(shouldLoadMore, state.items.size, state.showSelectionOnly) {
+                if (shouldLoadMore && !state.showSelectionOnly) viewModel.loadMore()
             }
 
             LazyColumn(
@@ -154,8 +161,35 @@ fun SharedFeedScreen(
                 contentPadding = PaddingValues(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                item {
-                    SortBar(selected = state.sort, onSelect = viewModel::setSort)
+                item(key = "filter-bar") {
+                    FeedFilterBar(
+                        sort = state.sort,
+                        onSelectSort = viewModel::setSort,
+                        selectionOnly = state.showSelectionOnly,
+                        onToggleSelection = viewModel::setShowSelectionOnly,
+                        savedCount = state.saved.size,
+                    )
+                }
+                // Mode « Ma sélection » (TÂCHE 3.11) : favoris locaux (snapshots
+                // autonomes), affichables hors-ligne / partage révoqué.
+                if (state.showSelectionOnly) {
+                    if (state.saved.isEmpty()) {
+                        item(key = "selection-empty") {
+                            EmptyState(
+                                title = "Sélection vide",
+                                message = "Enregistrez une fleur d'ami avec ⭐ " +
+                                    "pour la retrouver ici, même hors ligne.",
+                            )
+                        }
+                    } else {
+                        items(state.saved, key = { "saved:${it.serverId}" }) { saved ->
+                            SavedFlowerCard(
+                                saved = saved,
+                                onRemove = { viewModel.removeSaved(saved.serverId) },
+                            )
+                        }
+                    }
+                    return@LazyColumn
                 }
                 itemsIndexed(rows, key = { _, row -> row.key }) { index, row ->
                     // Séparateur « Nouveau depuis votre dernière visite » juste avant
@@ -166,6 +200,8 @@ fun SharedFeedScreen(
                     when (row) {
                         is FeedRow.Single -> SharedFlowerCard(
                             item = row.item,
+                            saved = row.item.flower.id in state.savedIds,
+                            onToggleSave = { viewModel.toggleSaved(row.item) },
                             onToggleLike = { viewModel.toggleLike(row.item.flower.id) },
                             onReact = { code -> viewModel.react(row.item.flower.id, code) },
                             onOpenLikers = { likersFor = row.item.flower.id },
@@ -188,6 +224,8 @@ fun SharedFeedScreen(
                                     row.items.forEach { batchItem ->
                                         SharedFlowerCard(
                                             item = batchItem,
+                                            saved = batchItem.flower.id in state.savedIds,
+                                            onToggleSave = { viewModel.toggleSaved(batchItem) },
                                             onToggleLike = { viewModel.toggleLike(batchItem.flower.id) },
                                             onReact = { code -> viewModel.react(batchItem.flower.id, code) },
                                             onOpenLikers = { likersFor = batchItem.flower.id },
@@ -227,6 +265,107 @@ private fun SortBar(selected: FeedSort, onSelect: (FeedSort) -> Unit) {
                 onClick = { onSelect(sort) },
                 label = { Text(sort.label) },
             )
+        }
+    }
+}
+
+/**
+ * Barre de filtres du feed (TÂCHE 3.11) : l'ordre (récentes / meilleures) quand on
+ * parcourt le flux, plus une puce « Ma sélection » qui bascule vers les favoris
+ * locaux. En mode sélection, l'ordre du flux n'a plus de sens : on masque ses puces.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FeedFilterBar(
+    sort: FeedSort,
+    onSelectSort: (FeedSort) -> Unit,
+    selectionOnly: Boolean,
+    onToggleSelection: (Boolean) -> Unit,
+    savedCount: Int,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (!selectionOnly) {
+            SortBar(selected = sort, onSelect = onSelectSort)
+        }
+        FilterChip(
+            selected = selectionOnly,
+            onClick = { onToggleSelection(!selectionOnly) },
+            label = {
+                Text(if (savedCount > 0) "⭐ Ma sélection ($savedCount)" else "⭐ Ma sélection")
+            },
+        )
+    }
+}
+
+/**
+ * Bouton d'enregistrement dans « Ma sélection » (TÂCHE 3.11), calqué sur
+ * [CommentCount] : une puce ⭐/☆ cliquable. Favori PRIVÉ et LOCAL.
+ */
+@Composable
+private fun SaveButton(saved: Boolean, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        tonalElevation = 1.dp,
+        modifier = Modifier.clickable(onClick = onClick),
+    ) {
+        Text(
+            text = if (saved) "⭐" else "☆",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+        )
+    }
+}
+
+/**
+ * Carte d'un favori local (« Ma sélection », TÂCHE 3.11) : snapshot autonome
+ * affiché depuis Room (miniature en cache, espèce, ami), donc visible hors-ligne
+ * et même si le partage d'origine a été révoqué. Le ⭐ retire de la sélection.
+ */
+@Composable
+private fun SavedFlowerCard(
+    saved: SavedFlowerEntity,
+    onRemove: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            AsyncImage(
+                model = saved.imageModel(),
+                contentDescription = "Fleur enregistrée",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = saved.species?.takeIf { it.isNotBlank() }?.let { "🌿 $it" }
+                        ?: "🌸 Fleur enregistrée",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                saved.ownerName?.let {
+                    Text("Partagée par $it", style = MaterialTheme.typography.bodySmall)
+                }
+                val lat = saved.latitude
+                val lng = saved.longitude
+                if (lat != null && lng != null) {
+                    Text(
+                        text = "📍 %.5f, %.5f".format(lat, lng),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+            SaveButton(saved = true, onClick = onRemove)
         }
     }
 }
@@ -309,6 +448,8 @@ private fun BatchHeaderCard(
 @Composable
 private fun SharedFlowerCard(
     item: SharedFlowerItem,
+    saved: Boolean,
+    onToggleSave: () -> Unit,
     onToggleLike: () -> Unit,
     onReact: (String) -> Unit,
     onOpenLikers: () -> Unit,
@@ -343,6 +484,9 @@ private fun SharedFlowerCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
+                        // Enregistrer dans « Ma sélection » (TÂCHE 3.11) : favori privé
+                        // et local. ⭐ = enregistrée, ☆ = à enregistrer.
+                        SaveButton(saved = saved, onClick = onToggleSave)
                         LikeButton(
                             myReaction = flower.myReaction,
                             count = flower.likeCount,

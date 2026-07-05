@@ -19,8 +19,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AlbumEntity::class,
         FlowerAlbumCrossRef::class,
         PhotoEntity::class,
+        SavedFlowerEntity::class,
     ],
-    version = 13,
+    version = 14,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -31,6 +32,8 @@ abstract class FloraDatabase : RoomDatabase() {
     abstract fun albumDao(): AlbumDao
 
     abstract fun photoDao(): PhotoDao
+
+    abstract fun savedFlowerDao(): SavedFlowerDao
 
     companion object {
         /** Nom du fichier SQLite local (aussi utilisé pour détecter un install existant). */
@@ -238,6 +241,28 @@ abstract class FloraDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v13 → v14 : « Ma sélection » (TÂCHE 3.11). Table locale des fleurs
+         * d'amis enregistrées en favori privé (snapshot autonome : id serveur,
+         * espèce, ami, miniature en cache), sans aucune synchronisation serveur.
+         */
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS saved_flowers (" +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "serverId TEXT NOT NULL, ownerId TEXT, ownerName TEXT, " +
+                        "species TEXT, imagePath TEXT NOT NULL DEFAULT '', " +
+                        "remoteThumbnailUrl TEXT, remoteImageUrl TEXT, " +
+                        "latitude REAL, longitude REAL, savedAt INTEGER NOT NULL)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_saved_flowers_serverId " +
+                        "ON saved_flowers(serverId)",
+                )
+            }
+        }
+
         @Volatile
         private var instance: FloraDatabase? = null
 
@@ -265,6 +290,7 @@ abstract class FloraDatabase : RoomDatabase() {
                 MIGRATION_10_11,
                 MIGRATION_11_12,
                 MIGRATION_12_13,
+                MIGRATION_13_14,
             ).build()
     }
 }

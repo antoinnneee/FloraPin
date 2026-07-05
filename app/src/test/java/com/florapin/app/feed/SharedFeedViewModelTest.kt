@@ -1,5 +1,7 @@
 package com.florapin.app.feed
 
+import com.florapin.app.data.MemSavedFlowerDao
+import com.florapin.app.data.SavedFlowerRepository
 import com.florapin.app.network.api.FeedApi
 import com.florapin.app.network.api.FriendshipsApi
 import com.florapin.app.network.api.LikesApi
@@ -434,6 +436,48 @@ class SharedFeedViewModelTest {
         val rows = groupFeed(items)
         assertEquals(1, separatorRowIndex(items, rows, itemIndex = 3))
         assertNull(separatorRowIndex(items, rows, itemIndex = null))
+    }
+
+    @Test
+    fun toggleSaved_savesSnapshotThenRemoves() = runTest {
+        val savedRepo = SavedFlowerRepository(MemSavedFlowerDao())
+        val vm = SharedFeedViewModel(
+            FakeFeedApi(listOf(flower("fl1", "alice").copy(species = "Rose"))),
+            FakeFriendshipsApi(listOf(friendship("alice", "Alice"))),
+            FakeLikesApi(),
+            savedRepo = savedRepo,
+        )
+        advanceUntilIdle()
+        val item = vm.state.value.items.first()
+
+        // Enregistre : id présent dans savedIds + snapshot (espèce, ami) figé.
+        vm.toggleSaved(item)
+        advanceUntilIdle()
+        assertTrue("fl1" in vm.state.value.savedIds)
+        val snapshot = vm.state.value.saved.first()
+        assertEquals("Rose", snapshot.species)
+        assertEquals("Alice", snapshot.ownerName)
+
+        // Bascule à nouveau : retiré de la sélection.
+        vm.toggleSaved(item)
+        advanceUntilIdle()
+        assertTrue("fl1" !in vm.state.value.savedIds)
+        assertTrue(vm.state.value.saved.isEmpty())
+    }
+
+    @Test
+    fun setShowSelectionOnly_togglesFilter() = runTest {
+        val vm = SharedFeedViewModel(
+            FakeFeedApi(listOf(flower("fl1", "alice"))),
+            FakeFriendshipsApi(emptyList()),
+            FakeLikesApi(),
+            savedRepo = SavedFlowerRepository(MemSavedFlowerDao()),
+        )
+        advanceUntilIdle()
+        assertEquals(false, vm.state.value.showSelectionOnly)
+
+        vm.setShowSelectionOnly(true)
+        assertEquals(true, vm.state.value.showSelectionOnly)
     }
 
     @Test

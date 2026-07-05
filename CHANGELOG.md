@@ -13,6 +13,15 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Fleurs enregistrées — « Ma sélection ».** Chaque fleur d'ami du feed propose
+  une étoile (⭐/☆) pour l'enregistrer en favori PRIVÉ et LOCAL, sans aucune API
+  dédiée (device-first). Comme la fleur d'un ami n'existe pas en base locale, on
+  fige un snapshot autonome (id serveur, espèce, nom de l'ami, miniature mise en
+  cache sur l'appareil) : la sélection reste consultable hors ligne et même si le
+  partage d'origine est révoqué. Une puce « ⭐ Ma sélection » filtre le feed pour
+  n'afficher que ces favoris (liste locale, tirage et pagination désactivés).
+  Nouvelle table Room `saved_flowers` (migration 13→14) + entité/DAO/dépôt sous
+  `data/`. La sélection est purgée à la suppression de compte (NODE-93).
 - **Mention d'un ami dans un commentaire (`@ami`).** En saisissant `@` dans le
   fil de discussion, une liste d'amis acceptés s'affiche en autocomplete ;
   choisir un ami insère une mention rendue « @Nom » (colorée) dans le champ.

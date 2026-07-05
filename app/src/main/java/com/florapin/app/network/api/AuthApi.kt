@@ -13,12 +13,15 @@ import com.florapin.app.network.dto.TokenPair
 import com.florapin.app.network.dto.UpdateProfileRequest
 import com.florapin.app.network.dto.UserDto
 import com.florapin.app.network.dto.VerifyEmailRequest
+import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.HTTP
+import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.Part
 
 interface AuthApi {
     @POST("auth/register")
@@ -64,6 +67,14 @@ interface AuthApi {
     /** Modifie le nom d'affichage (TÂCHE 1.7). */
     @PATCH("users/me")
     suspend fun updateProfile(@Body body: UpdateProfileRequest): UserDto
+
+    /**
+     * Téléverse (ou remplace) l'avatar (TÂCHE 5.1, multipart, champ `file`) ; le
+     * serveur réencode en WebP et renvoie le profil à jour (avec `avatarUrl`).
+     */
+    @Multipart
+    @POST("users/me/avatar")
+    suspend fun uploadAvatar(@Part file: MultipartBody.Part): UserDto
 
     /**
      * Profil de l'utilisateur courant (session restaurée sans relogin).

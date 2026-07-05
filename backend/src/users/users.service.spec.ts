@@ -1,5 +1,6 @@
 import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import sharp from 'sharp';
 import { Repository } from 'typeorm';
 import { FlowerPhoto } from '../flowers/flower-photo.entity';
 import { Flower } from '../flowers/flower.entity';
@@ -127,5 +128,78 @@ describe('UsersService.updateDisplayName', () => {
       service.updateDisplayName(USER_ID, 'Nouveau'),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(users.save).not.toHaveBeenCalled();
+  });
+});
+
+describe('UsersService.uploadAvatar', () => {
+  const USER_ID = 'user-1';
+  let user: User | null;
+  let users: jest.Mocked<Pick<Repository<User>, 'findOne' | 'save'>>;
+  let storage: jest.Mocked<
+    Pick<StorageService, 'buildKey' | 'putObject' | 'delete'>
+  >;
+  let service: UsersService;
+  let pngBuffer: Buffer;
+
+  beforeAll(async () => {
+    // Petite image réelle : encodeWebp valide les magic bytes via sharp.
+    pngBuffer = await sharp({
+      create: {
+        width: 8,
+        height: 8,
+        channels: 3,
+        background: { r: 10, g: 120, b: 60 },
+      },
+    })
+      .png()
+      .toBuffer();
+  });
+
+  beforeEach(() => {
+    user = { id: USER_ID, avatarKey: null } as User;
+    users = {
+      findOne: jest.fn(async () => user),
+      save: jest.fn(async (u: User) => u),
+    } as never;
+    storage = {
+      buildKey: jest.fn(() => 'flowers/user-1/new.webp'),
+      putObject: jest.fn(async () => undefined),
+      delete: jest.fn(async () => undefined),
+    } as never;
+    service = new UsersService(
+      users as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      storage as never,
+    );
+  });
+
+  it('réencode, stocke la miniature WebP et enregistre la nouvelle clé', async () => {
+    const updated = await service.uploadAvatar(USER_ID, pngBuffer);
+
+    expect(updated.avatarKey).toBe('flowers/user-1/new.webp');
+    const [, body, contentType] = storage.putObject.mock.calls[0];
+    expect(contentType).toBe('image/webp');
+    expect(body.length).toBeGreaterThan(0);
+    expect(users.save).toHaveBeenCalled();
+    // Aucun avatar précédent → rien à supprimer.
+    expect(storage.delete).not.toHaveBeenCalled();
+  });
+
+  it('supprime l’ancien objet avatar lors d’un remplacement', async () => {
+    user = { id: USER_ID, avatarKey: 'flowers/user-1/old.webp' } as User;
+
+    await service.uploadAvatar(USER_ID, pngBuffer);
+
+    expect(storage.delete).toHaveBeenCalledWith('flowers/user-1/old.webp');
+  });
+
+  it('lève NotFound si l’utilisateur n’existe pas', async () => {
+    user = null;
+    await expect(
+      service.uploadAvatar(USER_ID, pngBuffer),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(storage.putObject).not.toHaveBeenCalled();
   });
 });

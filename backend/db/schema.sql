@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS users (
 -- (Sans ça, tout SELECT sur `users` — dont le login — échoue en 500.)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
+-- Avatar (TÂCHE 5.1) : clé de l'objet image WebP sur MinIO ; NULL = pas d'avatar.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_key TEXT;
 
 -- =====================================================================
 -- Refresh tokens (rotation — NODE-17)

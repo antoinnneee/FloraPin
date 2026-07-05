@@ -29,6 +29,14 @@ export class User {
   @Column({ name: 'email_verified_at', type: 'timestamptz', nullable: true })
   emailVerifiedAt: Date | null;
 
+  /**
+   * Clé de l'objet image d'avatar dans le stockage (TÂCHE 5.1). L'objet lui-même
+   * (WebP) vit sur MinIO ; l'URL présignée est calculée à la lecture. `null` =
+   * pas d'avatar (l'app affiche alors les initiales).
+   */
+  @Column({ name: 'avatar_key', type: 'text', nullable: true })
+  avatarKey: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

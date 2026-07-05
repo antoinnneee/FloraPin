@@ -50,6 +50,12 @@ data class ProfileUiState(
     val backupRunning: Boolean = false,
     /** Message de résultat de la dernière sauvegarde/restauration (succès ou échec). */
     val backupMessage: String? = null,
+    /** URL présignée de l'avatar (TÂCHE 5.1), ou null si l'utilisateur n'en a pas. */
+    val avatarUrl: String? = null,
+    /** Upload d'avatar en cours (TÂCHE 5.1). */
+    val avatarUploading: Boolean = false,
+    /** Message d'échec de l'upload d'avatar (succès = simple mise à jour de l'image). */
+    val avatarError: String? = null,
 )
 
 /**
@@ -62,6 +68,7 @@ class ProfileViewModel(
     private val session: SessionManager,
     private val identification: IdentificationApi,
     private val backup: ProfileBackup = ProfileBackup.NOOP,
+    private val avatar: ProfileAvatar = ProfileAvatar.NOOP,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -93,6 +100,7 @@ class ProfileViewModel(
                     displayName = user.displayName,
                     email = user.email,
                     emailVerified = user.emailVerified,
+                    avatarUrl = user.avatarUrl ?: _state.value.avatarUrl,
                     loading = false,
                 )
             } catch (e: Exception) {
@@ -309,6 +317,30 @@ class ProfileViewModel(
         }
     }
 
+    /**
+     * Téléverse une nouvelle image d'avatar (TÂCHE 5.1). En cas de succès, l'URL
+     * présignée renvoyée remplace l'affichage courant ; sinon [ProfileUiState.avatarError]
+     * est renseigné. Nécessite le réseau (fonctionnalité sociale) : dégrade
+     * proprement hors-ligne via le message d'erreur.
+     */
+    fun uploadAvatar(source: Uri) {
+        _state.update { it.copy(avatarUploading = true, avatarError = null) }
+        viewModelScope.launch {
+            _state.value = try {
+                val url = avatar.upload(source)
+                _state.value.copy(
+                    avatarUploading = false,
+                    avatarUrl = url ?: _state.value.avatarUrl,
+                )
+            } catch (e: Exception) {
+                _state.value.copy(
+                    avatarUploading = false,
+                    avatarError = "Échec de la mise à jour de la photo. Réessayez.",
+                )
+            }
+        }
+    }
+
     companion object {
         /** Factory câblant le stockage chiffré + les services authentifiés. */
         fun factory(context: Context): ViewModelProvider.Factory =
@@ -325,6 +357,7 @@ class ProfileViewModel(
                         session,
                         apis.identification,
                         ProfileBackup.from(context),
+                        ProfileAvatar.from(context, session),
                     ) as T
                 }
             }

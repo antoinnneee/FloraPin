@@ -52,6 +52,7 @@ class FakeUsersService {
       displayName: params.displayName,
       emailVerified: false,
       emailVerifiedAt: null,
+      avatarKey: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

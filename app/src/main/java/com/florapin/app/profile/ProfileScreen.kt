@@ -3,14 +3,20 @@ package com.florapin.app.profile
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -24,22 +30,30 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.florapin.app.BuildConfig
 import com.florapin.app.sync.SyncPreferences
 import com.florapin.app.sync.SyncScheduler
@@ -111,6 +125,9 @@ fun ProfileScreen(
         )
     }
 
+    val tabs = listOf("Profil", "Badges", "Configuration")
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -119,135 +136,316 @@ fun ProfileScreen(
             )
         },
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(
-                        text = state.displayName.ifBlank { "—" },
-                        style = MaterialTheme.typography.headlineSmall,
+        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            TabRow(selectedTabIndex = selectedTab) {
+                tabs.forEachIndexed { index, label ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = { Text(label) },
                     )
-                    Text(
-                        text = state.email.ifBlank { "Email indisponible" },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = if (state.emailVerified) "✓ Email vérifié" else "⚠ Email non vérifié",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (state.emailVerified) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.error
-                        },
-                    )
-                    OutlinedButton(
-                        onClick = { showNameDialog = true },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Modifier le nom")
-                    }
-                    state.nameMessage?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
                 }
             }
 
-            // Statistiques collaboratives : nombre de mes propositions acceptées.
-            state.acceptedProposals?.let { count ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        Text(
-                            text = "🌿 $count",
-                            style = MaterialTheme.typography.headlineSmall,
-                        )
-                        Text(
-                            text = if (count == 1) {
-                                "identification acceptée par un ami"
-                            } else {
-                                "identifications acceptées par des amis"
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-
-            if (!state.emailVerified && state.email.isNotBlank()) {
-                EmailVerificationSection(
-                    currentEmail = state.email,
-                    sending = state.verificationSending,
-                    verificationMessage = state.verificationMessage,
-                    emailSaving = state.emailSaving,
-                    emailError = state.emailError,
+            when (selectedTab) {
+                0 -> ProfileTab(
+                    state = state,
+                    onPickAvatar = viewModel::uploadAvatar,
+                    onEditName = { showNameDialog = true },
                     onVerify = viewModel::requestEmailVerification,
                     onChangeEmail = viewModel::changeEmail,
                 )
-            }
 
-            if (state.loading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                1 -> BadgesTab()
+
+                else -> ConfigurationTab(
+                    state = state,
+                    onExport = viewModel::exportBackup,
+                    onImport = viewModel::importBackup,
+                    onChangePassword = { showPasswordDialog = true },
+                    onLogout = onLogout,
+                    onDeleteAccount = { showDeleteDialog = true },
                 )
             }
-            state.error?.let { error ->
-                Text(
-                    text = error,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-
-            SyncSettingsSection()
-
-            LocalBackupSection(
-                running = state.backupRunning,
-                message = state.backupMessage,
-                onExport = viewModel::exportBackup,
-                onImport = viewModel::importBackup,
-            )
-
-            SecuritySection(
-                successMessage = state.passwordMessage,
-                onChangePassword = { showPasswordDialog = true },
-            )
-
-            Button(
-                onClick = onLogout,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError,
-                ),
-            ) {
-                Text("Se déconnecter")
-            }
-
-            PrivacyPolicyLink()
-
-            DangerZone(onDeleteAccount = { showDeleteDialog = true })
         }
+    }
+}
+
+/**
+ * Onglet ① Profil : avatar, identité, statistiques d'entraide et emplacements
+ * des futurs contenus (herbier, dernières fleurs — TÂCHES 5.5/5.6).
+ */
+@Composable
+private fun ProfileTab(
+    state: ProfileUiState,
+    onPickAvatar: (Uri) -> Unit,
+    onEditName: () -> Unit,
+    onVerify: () -> Unit,
+    onChangeEmail: (String) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                AvatarPicker(
+                    avatarUrl = state.avatarUrl,
+                    displayName = state.displayName,
+                    uploading = state.avatarUploading,
+                    onPick = onPickAvatar,
+                )
+                state.avatarError?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                Text(
+                    text = state.displayName.ifBlank { "—" },
+                    style = MaterialTheme.typography.headlineSmall,
+                )
+                Text(
+                    text = state.email.ifBlank { "Email indisponible" },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = if (state.emailVerified) "✓ Email vérifié" else "⚠ Email non vérifié",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (state.emailVerified) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
+                )
+                OutlinedButton(
+                    onClick = onEditName,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Modifier le nom")
+                }
+                state.nameMessage?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+        }
+
+        // Statistiques collaboratives : nombre de mes propositions acceptées.
+        state.acceptedProposals?.let { count ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = "🌿 $count",
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
+                    Text(
+                        text = if (count == 1) {
+                            "identification acceptée par un ami"
+                        } else {
+                            "identifications acceptées par des amis"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
+        if (!state.emailVerified && state.email.isNotBlank()) {
+            EmailVerificationSection(
+                currentEmail = state.email,
+                sending = state.verificationSending,
+                verificationMessage = state.verificationMessage,
+                emailSaving = state.emailSaving,
+                emailError = state.emailError,
+                onVerify = onVerify,
+                onChangeEmail = onChangeEmail,
+            )
+        }
+
+        if (state.loading) {
+            CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+        }
+        state.error?.let { error ->
+            Text(
+                text = error,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
+
+/**
+ * Avatar circulaire (TÂCHE 5.1) : affiche l'image via Coil, ou les initiales si
+ * absente. Un tap ouvre le sélecteur média système (`PickVisualMedia`) ; pendant
+ * l'upload, un indicateur de progression se superpose.
+ */
+@Composable
+private fun AvatarPicker(
+    avatarUrl: String?,
+    displayName: String,
+    uploading: Boolean,
+    onPick: (Uri) -> Unit,
+) {
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri -> uri?.let(onPick) }
+
+    Box(
+        modifier = Modifier
+            .size(96.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(enabled = !uploading) {
+                launcher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        if (avatarUrl != null) {
+            AsyncImage(
+                model = avatarUrl,
+                contentDescription = "Photo de profil",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Text(
+                text = initialsOf(displayName),
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (uploading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.4f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
+            }
+        }
+    }
+    Text(
+        text = "Modifier la photo",
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+    )
+}
+
+/** Initiales (1 à 2 lettres) pour l'avatar par défaut. */
+private fun initialsOf(displayName: String): String {
+    val parts = displayName.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+    return when {
+        parts.isEmpty() -> "?"
+        parts.size == 1 -> parts[0].take(1).uppercase()
+        else -> (parts[0].take(1) + parts[1].take(1)).uppercase()
+    }
+}
+
+/**
+ * Onglet ② Badges (TÂCHE 5.1) : emplacement de la grille de badges. La collection
+ * (calcul local — TÂCHE 5.3) et l'entraide (calcul serveur — TÂCHE 5.4) ainsi que
+ * la DA « étoiles » (TÂCHE 5.5) arriveront ici.
+ */
+@Composable
+private fun BadgesTab() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = "🏅",
+            style = MaterialTheme.typography.displaySmall,
+        )
+        Text(
+            text = "Badges à venir",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = "Vos jalons de collection et votre entraide entre amis " +
+                "s'afficheront ici prochainement.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * Onglet ③ Configuration (TÂCHE 5.1) : regroupe les réglages du compte
+ * préexistants — synchronisation, sauvegarde locale, sécurité, déconnexion,
+ * confidentialité et zone de danger.
+ */
+@Composable
+private fun ConfigurationTab(
+    state: ProfileUiState,
+    onExport: (Uri) -> Unit,
+    onImport: (Uri) -> Unit,
+    onChangePassword: () -> Unit,
+    onLogout: () -> Unit,
+    onDeleteAccount: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        SyncSettingsSection()
+
+        LocalBackupSection(
+            running = state.backupRunning,
+            message = state.backupMessage,
+            onExport = onExport,
+            onImport = onImport,
+        )
+
+        SecuritySection(
+            successMessage = state.passwordMessage,
+            onChangePassword = onChangePassword,
+        )
+
+        Button(
+            onClick = onLogout,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError,
+            ),
+        ) {
+            Text("Se déconnecter")
+        }
+
+        PrivacyPolicyLink()
+
+        DangerZone(onDeleteAccount = onDeleteAccount)
     }
 }
 

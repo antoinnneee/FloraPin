@@ -12,6 +12,10 @@ import com.florapin.app.network.dto.ResetPasswordRequest
 import com.florapin.app.network.dto.UpdateProfileRequest
 import com.florapin.app.network.dto.UserDto
 import com.florapin.app.network.dto.VerifyEmailRequest
+import java.io.File
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import retrofit2.HttpException
 
 /** Orchestration de la session : connexion, inscription, déconnexion. */
@@ -145,5 +149,15 @@ class SessionManager(
         val user = authApi.updateProfile(UpdateProfileRequest(displayName))
         tokenStore.saveDisplayName(user.displayName)
         return user
+    }
+
+    /**
+     * Téléverse l'avatar (TÂCHE 5.1) : l'image transite par l'API (multipart)
+     * qui la réencode en WebP. Renvoie le profil à jour (avec `avatarUrl`).
+     */
+    suspend fun uploadAvatar(file: File): UserDto {
+        val body = file.asRequestBody("image/jpeg".toMediaType())
+        val part = MultipartBody.Part.createFormData("file", file.name, body)
+        return authApi.uploadAvatar(part)
     }
 }

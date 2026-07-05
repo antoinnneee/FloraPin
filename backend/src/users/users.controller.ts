@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -6,13 +7,19 @@ import {
   HttpCode,
   NotFoundException,
   Patch,
+  Post,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ChangeEmailDto } from '../auth/dto/auth.dto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { imageUploadOptions } from '../flowers/image-upload.options';
+import { User } from './user.entity';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
@@ -23,6 +30,21 @@ import { UsersService } from './users.service';
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 
+  /**
+   * Sérialise le profil renvoyé au client. Résout l'URL présignée de l'avatar
+   * (TÂCHE 5.1) à la volée : les URLs expirent, elles ne sont jamais figées.
+   */
+  private async toProfileResponse(user: User) {
+    return {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      emailVerified: user.emailVerified,
+      avatarUrl: await this.users.avatarUrl(user),
+      createdAt: user.createdAt,
+    };
+  }
+
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async me(@CurrentUser() current: AuthenticatedUser) {
@@ -30,13 +52,7 @@ export class UsersController {
     if (!user) {
       throw new NotFoundException('Utilisateur introuvable.');
     }
-    return {
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      emailVerified: user.emailVerified,
-      createdAt: user.createdAt,
-    };
+    return this.toProfileResponse(user);
   }
 
   /**
@@ -53,13 +69,26 @@ export class UsersController {
       current.userId,
       dto.displayName,
     );
-    return {
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      emailVerified: user.emailVerified,
-      createdAt: user.createdAt,
-    };
+    return this.toProfileResponse(user);
+  }
+
+  /**
+   * Téléverse (ou remplace) l'avatar du compte courant (TÂCHE 5.1, multipart,
+   * champ `file`). Le serveur réencode en WebP avant stockage.
+   */
+  @Post('me/avatar')
+  @UseGuards(JwtAuthGuard)
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', imageUploadOptions))
+  async uploadAvatar(
+    @CurrentUser() current: AuthenticatedUser,
+    @UploadedFile() file: { buffer: Buffer } | undefined,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Fichier image manquant.');
+    }
+    const user = await this.users.uploadAvatar(current.userId, file.buffer);
+    return this.toProfileResponse(user);
   }
 
   /**
@@ -73,13 +102,7 @@ export class UsersController {
     @Body() dto: ChangeEmailDto,
   ) {
     const user = await this.users.changeEmail(current.userId, dto.email);
-    return {
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      emailVerified: user.emailVerified,
-      createdAt: user.createdAt,
-    };
+    return this.toProfileResponse(user);
   }
 
   /**

@@ -75,6 +75,8 @@ data class UserDto(
     val displayName: String,
     val createdAt: String,
     val emailVerified: Boolean = false,
+    /** URL présignée de l'avatar (TÂCHE 5.1), ou null si l'utilisateur n'en a pas. */
+    val avatarUrl: String? = null,
 )
 
 @JsonClass(generateAdapter = true)

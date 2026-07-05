@@ -12,6 +12,7 @@ import { In, Repository } from 'typeorm';
 import { EmailVerificationToken } from '../auth/email-verification-token.entity';
 import { FlowerPhoto } from '../flowers/flower-photo.entity';
 import { Flower } from '../flowers/flower.entity';
+import { encodeWebp } from '../storage/image-processing';
 import { StorageService } from '../storage/storage.service';
 import { User } from './user.entity';
 
@@ -122,6 +123,43 @@ export class UsersService {
     return user;
   }
 
+  /**
+   * Téléverse (ou remplace) l'avatar du compte [userId] (TÂCHE 5.1). L'image est
+   * réencodée en WebP (on ne conserve que la miniature ~400px, largement
+   * suffisante pour un avatar) puis stockée sur MinIO. L'ancien objet est retiré
+   * best-effort. Renvoie l'utilisateur mis à jour (avec sa nouvelle `avatarKey`).
+   */
+  async uploadAvatar(userId: string, input: Buffer): Promise<User> {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('Utilisateur introuvable.');
+    }
+
+    const { thumbnail } = await encodeWebp(input);
+    const avatarKey = this.storage.buildKey(userId, 'webp');
+    await this.storage.putObject(avatarKey, thumbnail, 'image/webp');
+
+    const oldKey = user.avatarKey;
+    user.avatarKey = avatarKey;
+    const saved = await this.users.save(user);
+
+    // Retrait best-effort de l'ancien avatar : un objet déjà absent (ou une
+    // panne MinIO) ne doit pas faire échouer le changement d'avatar.
+    if (oldKey && oldKey !== avatarKey) {
+      await this.storage.delete(oldKey).catch(() => undefined);
+    }
+
+    return saved;
+  }
+
+  /**
+   * URL présignée de lecture de l'avatar de [user], ou `null` s'il n'en a pas.
+   * Calculée à la volée (les URLs présignées expirent) — jamais persistée.
+   */
+  async avatarUrl(user: User): Promise<string | null> {
+    return user.avatarKey ? this.storage.presignDownload(user.avatarKey) : null;
+  }
+
   create(params: {
     email: string;
     passwordHash: string;
@@ -164,6 +202,8 @@ export class UsersService {
       : [];
 
     const keys = new Set<string>();
+    // Avatar (TÂCHE 5.1) : objet distinct, hors cascade — à retirer explicitement.
+    if (user.avatarKey) keys.add(user.avatarKey);
     for (const flower of flowers) {
       if (flower.imageKey) keys.add(flower.imageKey);
       // La miniature WebP est un objet distinct : sans ça, chaque fleur

@@ -71,6 +71,8 @@ private class FakeAuthApi(private val failLogin: Boolean = false) : AuthApi {
     override suspend fun verifyEmail(body: com.florapin.app.network.dto.VerifyEmailRequest): Response<Unit> =
         Response.success(null)
     override suspend fun changeEmail(body: com.florapin.app.network.dto.ChangeEmailRequest): UserDto = USER
+    override suspend fun updateProfile(body: com.florapin.app.network.dto.UpdateProfileRequest): UserDto = USER
+    override suspend fun uploadAvatar(file: okhttp3.MultipartBody.Part): UserDto = USER
     override suspend fun changePassword(
         body: com.florapin.app.network.dto.ChangePasswordRequest,
     ): TokenPair = TokenPair("a", "r")

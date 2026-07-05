@@ -21,6 +21,19 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent en pleine largeur (`StaggeredGridItemSpan.FullLine`).
 
 ### Ajouté
+- **Refonte Profil / Réglages en 3 onglets (TÂCHE 5.1).** L'écran Profil se
+  divise désormais en trois onglets : **① Profil** (avatar, identité,
+  statistiques d'entraide, emplacements des futurs herbier/badges), **② Badges**
+  (grille à venir — TÂCHES 5.3–5.5) et **③ Configuration** (synchronisation,
+  sauvegarde locale, sécurité, déconnexion, confidentialité, suppression de
+  compte — le contenu préexistant, inchangé). Le flux de déconnexion
+  (`LocalSessionDataCleaner`, qui ne purge plus les fleurs) n'est pas modifié.
+- **Avatar / photo de profil (TÂCHE 5.1).** Depuis l'onglet Profil, l'utilisateur
+  choisit une image via le sélecteur média système ; elle est réencodée en WebP
+  côté serveur (nouveau `POST /users/me/avatar`, colonne `users.avatar_key`) et
+  affichée via Coil (initiales par défaut en l'absence d'avatar). L'URL présignée
+  est renvoyée par `GET /users/me` (et les autres réponses profil) et jamais
+  figée. L'objet est purgé du stockage à la suppression de compte.
 - **Ajout d'ami par QR code (TÂCHE 4.5).** Sur le terrain, sans lien web : depuis
   l'écran « Amis », chacun peut afficher son QR code (« Mon QR code ») ou scanner
   celui d'un ami (« Scanner un QR »). Le scan envoie une demande d'amitié. Le QR

@@ -74,6 +74,7 @@ private class FakeAuthApi(
         Response.success(null)
     override suspend fun changeEmail(body: com.florapin.app.network.dto.ChangeEmailRequest): UserDto = USER
     override suspend fun updateProfile(body: com.florapin.app.network.dto.UpdateProfileRequest): UserDto = USER
+    override suspend fun uploadAvatar(file: okhttp3.MultipartBody.Part): UserDto = USER
     override suspend fun changePassword(
         body: com.florapin.app.network.dto.ChangePasswordRequest,
     ): TokenPair {

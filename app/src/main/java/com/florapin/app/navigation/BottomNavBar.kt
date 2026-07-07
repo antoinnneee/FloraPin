@@ -1,30 +1,40 @@
 package com.florapin.app.navigation
 
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import com.florapin.app.ui.components.DecorativeEmoji
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import com.florapin.app.R
 
 /**
  * Onglets principaux de la bottom navigation bar (NODE-110). Chaque onglet
  * correspond à une destination racine persistante : Accueil (galerie), Albums,
  * Carte, Partagées (feed) et Profil. Le reste de la navigation (Amis, Détail,
  * Capture) reste poussé par-dessus, sans onglet dédié.
+ *
+ * [icon] est une illustration botanique multicolore (marque FloraPin). On la
+ * rend via [Image] et non [androidx.compose.material3.Icon] : Icon appliquerait
+ * une teinte monochrome qui écraserait les couleurs. L'état actif reste porté
+ * par l'indicateur de la NavigationBar et la couleur du libellé.
  */
 enum class TopLevelDestination(
     val route: String,
-    val emoji: String,
+    @DrawableRes val icon: Int,
     val label: String,
 ) {
-    HOME("gallery", "🏠", "Accueil"),
-    ALBUMS("albums", "📁", "Albums"),
-    MAP("map", "🗺️", "Carte"),
-    FEED("feed", "🖼️", "Partagées"),
-    PROFILE("profile", "👤", "Profil"),
+    HOME("gallery", R.drawable.ic_nav_home, "Accueil"),
+    ALBUMS("albums", R.drawable.ic_nav_albums, "Albums"),
+    MAP("map", R.drawable.ic_nav_map, "Carte"),
+    FEED("feed", R.drawable.ic_nav_feed, "Partagées"),
+    PROFILE("profile", R.drawable.ic_nav_profile, "Profil"),
 }
 
 /** Routes des onglets racine, pour décider de l'affichage de la barre. */
@@ -55,12 +65,13 @@ fun FloraBottomBar(
                             }
                         },
                     ) {
-                        // L'emoji est décoratif : le libellé de l'onglet (« Accueil »,
-                        // « Albums »…) porte déjà le sens pour TalkBack. Le lire en plus
-                        // (« maison à trois étages ») serait parasite.
-                        DecorativeEmoji(
-                            destination.emoji,
-                            style = MaterialTheme.typography.titleLarge,
+                        // L'illustration est décorative : le libellé de l'onglet
+                        // (« Accueil », « Albums »…) porte déjà le sens pour TalkBack,
+                        // d'où contentDescription = null.
+                        Image(
+                            painter = painterResource(destination.icon),
+                            contentDescription = null,
+                            modifier = Modifier.size(26.dp),
                         )
                     }
                 },

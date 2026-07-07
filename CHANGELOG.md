@@ -12,6 +12,14 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Modifié
+- **Icônes de la barre de navigation.** Les emojis des 5 onglets (Accueil,
+  Albums, Carte, Partagées, Profil) sont remplacés par un set d'illustrations
+  botaniques maison (fleurs bleues + vert forêt, marque FloraPin), générées puis
+  détourées en PNG transparents (`res/drawable-nodpi/ic_nav_*`). Rendues via
+  `Image` (et non `Icon`) pour préserver les couleurs ; l'état actif reste porté
+  par l'indicateur de la `NavigationBar` et le libellé.
+
 ## [1.13.0] — 2026-07-05
 
 _versionName 1.13.0, versionCode 21._

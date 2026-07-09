@@ -36,6 +36,12 @@ class SyncEngine(
      */
     private val cacheRemoteImage: suspend (serverId: String, url: String) -> String? =
         { _, _ -> null },
+    /**
+     * Partage une fleur fraîchement créée côté serveur selon les réglages de
+     * partage par défaut (cf. SharePreferences). Appelé une seule fois par fleur,
+     * au moment où elle acquiert son id serveur. Par défaut no-op (tests/compat).
+     */
+    private val autoShareFlower: suspend (serverId: String) -> Unit = {},
     private val now: () -> Long = { System.currentTimeMillis() },
     /** Sync des albums (NODE-102) ; optionnel pour rester rétrocompatible. */
     private val albumSync: AlbumSyncEngine? = null,
@@ -89,6 +95,10 @@ class SyncEngine(
                     // retentera aux syncs suivantes (I9).
                     if (!uploaded) repository.setImagePendingUpload(local.id, true)
                 }
+                // Partage automatique, après l'upload : partager plus tôt ferait
+                // apparaître une fleur sans photo dans le flux des amis. Le
+                // partage est accessoire, son échec ne doit pas rompre la sync.
+                runCatching { autoShareFlower(result.flower.id) }
             }
         }
 

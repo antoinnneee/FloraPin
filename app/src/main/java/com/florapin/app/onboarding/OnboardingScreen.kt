@@ -35,12 +35,13 @@ import androidx.compose.ui.unit.dp
 import com.florapin.app.auth.NetworkOptionsScreen
 import com.florapin.app.permission.AppPermission
 import com.florapin.app.permission.rememberMultiplePermissionsState
+import com.florapin.app.share.SharePreferences
+import com.florapin.app.share.SharingDefaultsForm
 import com.florapin.app.sync.SyncPreferences
 import com.florapin.app.ui.theme.FloraPinTheme
 
 /**
- * Onboarding en trois écrans, affiché à la première installation uniquement
- * (cf. [OnboardingPrefs]).
+ * Onboarding affiché à la première installation uniquement (cf. [OnboardingPrefs]).
  *
  *  1. Promesse sociale : capture géolocalisée → partage → identification par les
  *     amis.
@@ -48,6 +49,12 @@ import com.florapin.app.ui.theme.FloraPinTheme
  *     sollicitation système (réutilise le socle [rememberMultiplePermissionsState]).
  *  3. Choix de synchronisation : délègue à [NetworkOptionsScreen] pour respecter
  *     le device-first (sync OFF par défaut, choix par appareil).
+ *  4. Partage par défaut : destinataire, GPS, partage automatique — les valeurs
+ *     qui prérempliront la feuille de partage (cf. [SharePreferences]).
+ *
+ * Le dernier écran n'a de sens qu'avec la synchronisation : partager suppose des
+ * fleurs déposées sur le serveur. Refuser le cloud à l'écran 3 clôt donc
+ * l'onboarding, et les réglages de partage gardent leurs valeurs par défaut.
  *
  * @param onFinish invoqué à la fin du dernier écran ; l'appelant persiste le
  *   drapeau « déjà vu » puis navigue vers Login ou la galerie.
@@ -79,12 +86,23 @@ fun OnboardingScreen(
             modifier = modifier,
         )
 
-        else -> NetworkOptionsScreen(
+        2 -> NetworkOptionsScreen(
             // Pré-rempli sur le défaut device-first (OFF) ; le choix est mémorisé
             // par appareil et re-proposé, déjà coché, après connexion.
             initialEnabled = remember { SyncPreferences(context).isEnabled() },
             onContinue = { enabled ->
                 SyncPreferences(context).setEnabled(enabled)
+                // Sans cloud, aucune fleur n'atteint le serveur : les questions de
+                // partage seraient sans objet.
+                if (enabled) step = 3 else onFinish()
+            },
+            modifier = modifier,
+        )
+
+        else -> SharingDefaultsStep(
+            step = step,
+            onContinue = {
+                SharePreferences(context).markSetupDone()
                 onFinish()
             },
             modifier = modifier,
@@ -162,6 +180,46 @@ private fun PermissionsStep(
                 TextButton(onClick = onContinue, modifier = Modifier.fillMaxWidth()) {
                     Text("Plus tard")
                 }
+            }
+        },
+    )
+}
+
+/**
+ * Troisième écran : les réglages de partage par défaut. Chaque réponse est
+ * persistée à la volée par [SharingDefaultsForm] ; « Continuer » ne fait que
+ * graver le fait que la question a été posée.
+ */
+@Composable
+private fun SharingDefaultsStep(
+    step: Int,
+    onContinue: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OnboardingScaffold(
+        step = step,
+        modifier = modifier,
+        content = {
+            EmojiBadge("📤")
+            Text(
+                text = "Comment partages-tu ?",
+                style = MaterialTheme.typography.headlineSmall,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = "Ces réponses préremplissent la feuille de partage. " +
+                    "Tu pourras les changer à tout moment dans ton profil.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Card(modifier = Modifier.fillMaxWidth()) {
+                SharingDefaultsForm(modifier = Modifier.padding(16.dp))
+            }
+        },
+        actions = {
+            Button(onClick = onContinue, modifier = Modifier.fillMaxWidth()) {
+                Text("Continuer")
             }
         },
     )
@@ -280,7 +338,7 @@ private fun StepIndicator(current: Int, total: Int) {
 }
 
 /** Nombre total d'écrans de l'onboarding. */
-private const val ONBOARDING_STEPS = 3
+private const val ONBOARDING_STEPS = 4
 
 @androidx.compose.ui.tooling.preview.Preview(showBackground = true)
 @Composable

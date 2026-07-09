@@ -1,18 +1,17 @@
 package com.florapin.app.share
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.florapin.app.network.api.AlbumsApi
 import com.florapin.app.network.api.FriendshipsApi
 import com.florapin.app.network.api.SharesApi
-import com.florapin.app.network.dto.AddFlowerToAlbumRequest
-import com.florapin.app.network.dto.AlbumDto
-import com.florapin.app.network.dto.CreateAlbumRequest
 import com.florapin.app.network.dto.CreateFriendshipRequest
 import com.florapin.app.network.dto.CreateShareRequest
 import com.florapin.app.network.dto.FlowerDto
@@ -20,7 +19,6 @@ import com.florapin.app.network.dto.FriendUserDto
 import com.florapin.app.network.dto.FriendshipDto
 import com.florapin.app.network.dto.ShareDto
 import com.florapin.app.network.dto.ShareToAllFriendsRequest
-import com.florapin.app.network.dto.UpdateAlbumRequest
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -31,7 +29,8 @@ import retrofit2.Response
  * Tests UI Compose de la feuille de partage (NODE-71). On injecte un
  * [ShareViewModel] alimenté par des APIs factices (aucun réseau réel), sur le
  * modèle de `ShareViewModelTest`, et on pilote les interactions clés :
- * sélection d'un destinataire, périmètre, création ciblée / réseau, révocation.
+ * sélection d'un destinataire, recherche d'un ami hors raccourcis, création
+ * ciblée / réseau, révocation.
  */
 @RunWith(AndroidJUnit4::class)
 class ShareFlowerSheetTest {
@@ -47,17 +46,16 @@ class ShareFlowerSheetTest {
         createdAt = "2026-06-21T09:00:00Z",
     )
 
-    // Le second nœud portant le texte « Partager » est le bouton (le premier est
-    // le titre de la feuille). Cet ordre suit la déclaration du composable.
-    private fun submitButton() = compose.onAllNodesWithText("Partager")[1]
+    private fun submitButton() = compose.onNodeWithText("Partager")
 
     @Test
     fun selectingFriend_thenSubmit_createsTargetedShare() {
         val sharesApi = FakeSharesApi()
+        val recents = FakeRecents()
         val vm = ShareViewModel(
             FakeFriendshipsApi(listOf(acceptedFriend("u1", "Alice"))),
             sharesApi,
-            FakeAlbumsApi(),
+            recents,
         )
         compose.setContent {
             ShareFlowerSheet(flowerServerId = "srv-1", onDismiss = {}, viewModel = vm)
@@ -78,10 +76,12 @@ class ShareFlowerSheetTest {
         compose.waitUntil(timeoutMillis = 5_000) { sharesApi.created != null }
         val req = sharesApi.created!!
         assertEquals("u1", req.friendId)
-        // Périmètre par défaut « cette fleur » puisqu'un id serveur est fourni.
+        // Le seul périmètre proposé est désormais la photo affichée.
         assertEquals("flower", req.scope)
         assertEquals("srv-1", req.flowerId)
         assertEquals(true, req.includeGps)
+        // Le destinataire est mémorisé pour les prochains partages.
+        assertEquals(listOf("u1"), recents.recentFriendIds())
     }
 
     @Test
@@ -90,7 +90,7 @@ class ShareFlowerSheetTest {
         val vm = ShareViewModel(
             FakeFriendshipsApi(listOf(acceptedFriend("u1", "Alice"))),
             sharesApi,
-            FakeAlbumsApi(),
+            FakeRecents(),
         )
         compose.setContent {
             ShareFlowerSheet(flowerServerId = "srv-1", onDismiss = {}, viewModel = vm)
@@ -112,6 +112,37 @@ class ShareFlowerSheetTest {
         assertEquals(null, sharesApi.created)
     }
 
+    /**
+     * Au-delà de [SharePreferences.RECENT_LIMIT] amis, les suivants ne sont plus
+     * affichés en raccourci : ils restent atteignables via le bouton « … ».
+     */
+    @Test
+    fun friendBeyondShortcuts_isReachableThroughSearch() {
+        val sharesApi = FakeSharesApi()
+        val friends = (1..6).map { acceptedFriend("u$it", "Ami $it") }
+        val vm = ShareViewModel(FakeFriendshipsApi(friends), sharesApi, FakeRecents())
+        compose.setContent {
+            ShareFlowerSheet(flowerServerId = "srv-1", onDismiss = {}, viewModel = vm)
+        }
+
+        compose.waitUntil(timeoutMillis = 5_000) {
+            compose.onAllNodesWithText("Ami 1").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // « Ami 6 » est hors des 4 raccourcis.
+        compose.onAllNodesWithText("Ami 6").assertCountEquals(0)
+
+        // On filtre sur l'email pour que le texte saisi ne se confonde pas avec
+        // le libellé du résultat (« Ami 6 »), seul nœud cliquable attendu.
+        compose.onNodeWithContentDescription("Chercher un ami").performClick()
+        compose.onNodeWithText("Nom ou email").performTextInput("u6@b.c")
+        compose.onNodeWithText("Ami 6").performClick()
+
+        submitButton().performClick()
+        compose.waitUntil(timeoutMillis = 5_000) { sharesApi.created != null }
+        assertEquals("u6", sharesApi.created!!.friendId)
+    }
+
     @Test
     fun existingShare_revoke_callsApi() {
         val sharesApi = FakeSharesApi().apply {
@@ -121,7 +152,8 @@ class ShareFlowerSheetTest {
                     ownerId = "owner",
                     sharedWith = "u1",
                     audience = "friend",
-                    scope = "all",
+                    scope = "flower",
+                    flowerId = "srv-1",
                     includeGps = true,
                     createdAt = "2026-06-21T09:00:00Z",
                 ),
@@ -130,10 +162,10 @@ class ShareFlowerSheetTest {
         val vm = ShareViewModel(
             FakeFriendshipsApi(listOf(acceptedFriend("u1", "Alice"))),
             sharesApi,
-            FakeAlbumsApi(),
+            FakeRecents(),
         )
         compose.setContent {
-            ShareFlowerSheet(flowerServerId = null, onDismiss = {}, viewModel = vm)
+            ShareFlowerSheet(flowerServerId = "srv-1", onDismiss = {}, viewModel = vm)
         }
 
         compose.waitUntil(timeoutMillis = 5_000) {
@@ -170,12 +202,12 @@ private class FakeSharesApi : SharesApi {
     override suspend fun create(body: CreateShareRequest): ShareDto {
         created = body
         return ShareDto("s1", "owner", body.friendId, "friend", body.scope,
-            body.flowerId, body.albumId, true, "2026-06-21T09:00:00Z")
+            body.flowerId, body.albumId, body.includeGps ?: true, "2026-06-21T09:00:00Z")
     }
     override suspend fun createForAllFriends(body: ShareToAllFriendsRequest): ShareDto {
         createdForAll = body
         return ShareDto("s1", "owner", null, "all_friends", body.scope,
-            body.flowerId, body.albumId, true, "2026-06-21T09:00:00Z")
+            body.flowerId, body.albumId, body.includeGps ?: true, "2026-06-21T09:00:00Z")
     }
     override suspend fun listMine() = shares.toList()
     override suspend fun revoke(id: String): Response<Unit> {
@@ -185,23 +217,11 @@ private class FakeSharesApi : SharesApi {
     override suspend fun sharedWithMe() = emptyList<FlowerDto>()
 }
 
-private class FakeAlbumsApi(private val data: List<AlbumDto> = emptyList()) : AlbumsApi {
-    override suspend fun list() = data
-    override suspend fun get(id: String) = data.first { it.id == id }
-    override suspend fun create(body: CreateAlbumRequest) = throw UnsupportedOperationException()
-    override suspend fun rename(id: String, body: UpdateAlbumRequest) =
-        throw UnsupportedOperationException()
-    override suspend fun delete(id: String) = Response.success<Unit>(null)
-    override suspend fun addFlower(id: String, body: AddFlowerToAlbumRequest) =
-        throw UnsupportedOperationException()
-    override suspend fun removeFlower(id: String, flowerId: String) =
-        throw UnsupportedOperationException()
-    override suspend fun setGroup(
-        id: String,
-        body: com.florapin.app.network.dto.SetAlbumGroupRequest,
-    ) = throw UnsupportedOperationException()
-    override suspend fun setPermissions(
-        id: String,
-        body: com.florapin.app.network.dto.SetAlbumPermissionsRequest,
-    ) = throw UnsupportedOperationException()
+private class FakeRecents(initial: List<String> = emptyList()) : RecentRecipientsStore {
+    private val ids = initial.toMutableList()
+    override fun recentFriendIds() = ids.toList()
+    override fun rememberRecentFriend(friendId: String) {
+        ids.remove(friendId)
+        ids.add(0, friendId)
+    }
 }

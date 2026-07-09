@@ -6,7 +6,11 @@ import com.florapin.app.data.AlbumRepository
 import com.florapin.app.data.FlowerRepository
 import com.florapin.app.data.PhotoRepository
 import com.florapin.app.network.NetworkModule
+import com.florapin.app.network.api.SharesApi
 import com.florapin.app.network.auth.TokenStore
+import com.florapin.app.network.dto.ShareToAllFriendsRequest
+import com.florapin.app.share.DefaultRecipient
+import com.florapin.app.share.SharePreferences
 import java.io.File
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -39,6 +43,7 @@ object SyncEngineFactory {
             },
             lastSyncStore = PrefsLastSyncStore(context),
             cacheRemoteImage = { serverId, url -> imageCacher.cache(serverId, url) },
+            autoShareFlower = { serverId -> autoShare(context, apis.shares, serverId) },
             albumSync = AlbumSyncEngine(
                 albums = AlbumRepository.from(context),
                 flowers = flowerRepo,
@@ -58,6 +63,27 @@ object SyncEngineFactory {
                 },
             ),
         )
+    }
+
+    /**
+     * Applique le réglage « partager automatiquement mes nouvelles fleurs » à la
+     * fleur qui vient d'obtenir son id serveur. Sans destinataire par défaut,
+     * `autoShare()` est faux et rien n'est envoyé.
+     */
+    private suspend fun autoShare(context: Context, shares: SharesApi, serverId: String) {
+        val prefs = SharePreferences(context)
+        if (!prefs.autoShare()) return
+        when (prefs.defaultRecipient()) {
+            DefaultRecipient.ALL_FRIENDS -> shares.createForAllFriends(
+                ShareToAllFriendsRequest(
+                    scope = "flower",
+                    flowerId = serverId,
+                    includeGps = prefs.includeGps(),
+                ),
+            )
+            // Exclu par autoShare(), mais le `when` reste exhaustif.
+            DefaultRecipient.NONE -> Unit
+        }
     }
 
     /** Construit la part multipart « file » attendue par les endpoints d'upload. */

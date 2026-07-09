@@ -188,16 +188,17 @@ else
 fi
 
 # --- Changelog pour la vitrine ---
-# La page /changelog affiche le CHANGELOG.md (racine du repo). Ce fichier N'EST
-# PAS dans landing/, donc invisible du build Astro sur le VPS. On en copie une
-# version dans landing/src/ (comme version.json) AVANT le rsync de landing/.
-CHANGELOG_SRC="$REPO_ROOT/CHANGELOG.md"
+# La page /changelog affiche le CHANGELOG_SIMPLE.md (racine du repo), version
+# grand public du journal ; le CHANGELOG.md technique reste interne. Ce fichier
+# N'EST PAS dans landing/, donc invisible du build Astro sur le VPS. On en copie
+# une version dans landing/src/ (comme version.json) AVANT le rsync de landing/.
+CHANGELOG_SRC="$REPO_ROOT/CHANGELOG_SIMPLE.md"
 CHANGELOG_DEST="$REPO_ROOT/landing/src/changelog.md"
 if [ -f "$CHANGELOG_SRC" ]; then
     cp "$CHANGELOG_SRC" "$CHANGELOG_DEST"
     echo "📄 Changelog copié dans la vitrine (landing/src/changelog.md)."
 else
-    echo "ℹ️  CHANGELOG.md absent ; changelog de la vitrine inchangé (copie commitée conservée)."
+    echo "ℹ️  CHANGELOG_SIMPLE.md absent ; changelog de la vitrine inchangé (copie commitée conservée)."
 fi
 
 echo "📦 Synchronisation de landing/ (sources + APK)..."

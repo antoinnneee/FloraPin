@@ -22,6 +22,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +40,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.BuildConfig
 import com.florapin.app.ui.components.DecorativeEmoji
 import com.florapin.app.ui.components.EmojiIcon
+import com.florapin.app.ui.components.FullscreenPhotoViewer
+import com.florapin.app.ui.layout.topBarHeight
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
@@ -73,6 +76,20 @@ fun MapScreen(
     val availableSpecies by viewModel.availableSpecies.collectAsStateWithLifecycle()
     val currentOnFlowerClick by rememberUpdatedState(onFlowerClick)
 
+    // Photo d'une fleur d'ami ouverte en plein écran (pas de détail local à ouvrir).
+    var friendPhoto by remember { mutableStateOf<String?>(null) }
+    val currentOnFriendPhotoClick by rememberUpdatedState<(String) -> Unit> {
+        friendPhoto = it
+    }
+
+    friendPhoto?.let { url ->
+        FullscreenPhotoViewer(
+            models = listOf(url),
+            startIndex = 0,
+            onDismiss = { friendPhoto = null },
+        )
+    }
+
     val context = LocalContext.current
     val stylePrefs = remember { MapStylePreferences(context) }
     var selectedStyle by remember { mutableStateOf(stylePrefs.get()) }
@@ -98,6 +115,7 @@ fun MapScreen(
             // Topbar épurée : le style de carte est descendu dans la barre de
             // filtres (chip « 🗺️ »), comme le reste des contrôles.
             TopAppBar(
+                expandedHeight = topBarHeight,
                 title = { Text("Carte") },
             )
         },
@@ -130,7 +148,12 @@ fun MapScreen(
                 mapRef.value = map
                 map.cameraPosition = DEFAULT_CAMERA
                 map.addOnMapClickListener { latLng ->
-                    handleMapClick(map, latLng) { id -> currentOnFlowerClick(id) }
+                    handleMapClick(
+                        map = map,
+                        latLng = latLng,
+                        onFlowerClick = { id -> currentOnFlowerClick(id) },
+                        onFriendPhotoClick = { url -> currentOnFriendPhotoClick(url) },
+                    )
                 }
             }
         }
@@ -138,9 +161,32 @@ fun MapScreen(
         // (Re)charge le style à l'ouverture et à chaque changement de sélection.
         LaunchedEffect(mapRef.value, selectedStyle) {
             mapRef.value?.setStyle(mapTilerStyleUrl(apiKey, selectedStyle)) { loadedStyle ->
-                loadedStyle.setupFlowerClustering()
+                loadedStyle.setupFlowerClustering(context)
                 style.value = loadedStyle
             }
+        }
+
+        // Les pastilles grossissent avec le zoom, sans se chevaucher : leur
+        // échelle dépend de l'écart, à l'écran, des deux fleurs les plus proches.
+        // Un rechargement de style repart de l'échelle inscrite dans la couche,
+        // d'où ce suivi hors de `style` (cf. réapplication plus bas).
+        val currentMarkers by rememberUpdatedState(markers)
+        val appliedScale = remember { mutableStateOf(PHOTO_ICON_SCALE_INITIAL) }
+        DisposableEffect(mapRef.value) {
+            val map = mapRef.value ?: return@DisposableEffect onDispose {}
+            val listener = MapLibreMap.OnCameraMoveListener {
+                val loadedStyle = style.value ?: return@OnCameraMoveListener
+                if (map.cameraPosition.zoom < PHOTO_ICON_MIN_ZOOM) {
+                    return@OnCameraMoveListener
+                }
+                val scale = map.photoIconScaleForCamera(currentMarkers)
+                if (isScaleChangeVisible(appliedScale.value, scale)) {
+                    appliedScale.value = scale
+                    loadedStyle.setPhotoIconScale(scale)
+                }
+            }
+            map.addOnCameraMoveListener(listener)
+            onDispose { map.removeOnCameraMoveListener(listener) }
         }
 
         // Active le point « ma position » dès que le style est prêt et la
@@ -153,9 +199,42 @@ fun MapScreen(
             }
         }
 
-        // Met à jour les marqueurs dès que les données ou le style changent.
+        // Pastilles photo déjà enregistrées dans le style courant. Un rechargement
+        // de style (changement de fond de carte) repart sans image : la clé
+        // `remember` les fait repartir de zéro avec lui.
+        val photoIconIds = remember(style.value) { mutableStateOf(emptySet<Long>()) }
+
+        // Met à jour les marqueurs dès que les données ou le style changent. Les
+        // vignettes sont décodées après coup : la carte s'affiche tout de suite en
+        // emojis, puis les pastilles apparaissent au fur et à mesure.
         LaunchedEffect(markers, style.value) {
-            style.value?.updateFlowerMarkers(markers)
+            val loadedStyle = style.value ?: return@LaunchedEffect
+            loadedStyle.updateFlowerMarkers(markers, photoIconIds.value)
+
+            // Le style neuf porte l'échelle initiale, et un lot de marqueurs peut
+            // resserrer le voisinage sans que la caméra ait bougé.
+            mapRef.value?.let { map ->
+                appliedScale.value = map.photoIconScaleForCamera(markers)
+                loadedStyle.setPhotoIconScale(appliedScale.value)
+            }
+
+            val loaded = photoIconIds.value.toMutableSet()
+            var added = false
+            markers.take(MAX_PHOTO_ICONS).forEach { marker ->
+                if (marker.id in loaded) return@forEach
+                val bitmap = loadCircularIcon(context, marker.thumbnailModel)
+                    ?: return@forEach
+                // Le style a pu être remplacé pendant le décodage : y ajouter une
+                // image lèverait une exception.
+                if (style.value !== loadedStyle) return@LaunchedEffect
+                loadedStyle.addImage(photoIconId(marker.id), bitmap)
+                loaded += marker.id
+                added = true
+            }
+            if (added) {
+                photoIconIds.value = loaded
+                loadedStyle.updateFlowerMarkers(markers, loaded)
+            }
         }
 
         Column(modifier = Modifier.padding(innerPadding)) {
@@ -305,13 +384,15 @@ private fun SpeciesFilterChip(
 }
 
 /**
- * Gère un tap : zoom sur un cluster, ou ouverture du détail sur un marqueur
- * individuel. Renvoie true si l'évènement a été consommé.
+ * Gère un tap : zoom sur un cluster, ouverture du détail sur une de mes fleurs,
+ * ou affichage de la photo pour une fleur d'ami (pas de détail local). Renvoie
+ * true si l'évènement a été consommé.
  */
 private fun handleMapClick(
     map: MapLibreMap,
     latLng: LatLng,
     onFlowerClick: (Long) -> Unit,
+    onFriendPhotoClick: (String) -> Unit,
 ): Boolean {
     val screenPoint = map.projection.toScreenLocation(latLng)
     val touch = RectF(
@@ -328,10 +409,19 @@ private fun handleMapClick(
         return true
     }
 
-    val point = map.queryRenderedFeatures(touch, MapLayers.UNCLUSTERED)
-        .firstOrNull { it.hasProperty(MapLayers.PROP_ID) }
-    if (point != null) {
-        onFlowerClick(point.getNumberProperty(MapLayers.PROP_ID).toLong())
+    val features = map.queryRenderedFeatures(touch, MapLayers.UNCLUSTERED)
+
+    // Mes fleurs d'abord : leur détail complet prime sur la photo seule d'un ami
+    // dont le marqueur se superposerait.
+    val mine = features.firstOrNull { it.hasProperty(MapLayers.PROP_ID) }
+    if (mine != null) {
+        onFlowerClick(mine.getNumberProperty(MapLayers.PROP_ID).toLong())
+        return true
+    }
+
+    val friend = features.firstOrNull { it.hasProperty(MapLayers.PROP_PHOTO) }
+    if (friend != null) {
+        onFriendPhotoClick(friend.getStringProperty(MapLayers.PROP_PHOTO))
         return true
     }
     return false

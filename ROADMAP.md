@@ -52,6 +52,8 @@
 - **`app/build/` pollue les recherches** (adapters Moshi générés par KSP) —
   toujours filtrer sur `app/src/main`.
 - **CHANGELOG.md** : chaque tâche livrée = entrée dans la section « Non publié ».
+  Si le changement se voit dans l'app, ajouter *aussi* un résumé sans jargon dans
+  **CHANGELOG_SIMPLE.md** (le journal publié sur le site).
 
 ---
 

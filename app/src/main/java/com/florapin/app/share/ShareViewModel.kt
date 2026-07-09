@@ -5,11 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.florapin.app.network.NetworkModule
-import com.florapin.app.network.api.AlbumsApi
 import com.florapin.app.network.api.FriendshipsApi
 import com.florapin.app.network.api.SharesApi
 import com.florapin.app.network.auth.EncryptedTokenStore
-import com.florapin.app.network.dto.AlbumDto
 import com.florapin.app.network.dto.CreateShareRequest
 import com.florapin.app.network.dto.FriendUserDto
 import com.florapin.app.network.dto.ShareDto
@@ -21,23 +19,32 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 
-/** État de la feuille de partage : amis disponibles, albums, partages existants. */
+/** Périmètre des partages créés depuis la feuille : la fleur affichée, rien d'autre. */
+private const val SCOPE_FLOWER = "flower"
+
+/**
+ * État de la feuille de partage : amis disponibles (les destinataires récents
+ * d'abord), partages existants de la fleur.
+ */
 data class ShareUiState(
     val loading: Boolean = false,
     val friends: List<FriendUserDto> = emptyList(),
-    val albums: List<AlbumDto> = emptyList(),
     val shares: List<ShareDto> = emptyList(),
     val error: String? = null,
 )
 
 /**
  * Logique de partage d'une fleur : liste les amis (acceptés) et les partages
- * existants, crée un partage (périmètre + GPS), révoque. APIs injectées (test).
+ * existants, crée un partage (destinataire + GPS), révoque. APIs injectées (test).
+ *
+ * Création et révocation mettent l'état à jour sur place plutôt que de relancer
+ * un [load] complet : recréer l'état viderait un instant la liste des partages,
+ * ce qui ramènerait la feuille en haut et forcerait l'utilisateur à re-scroller.
  */
 class ShareViewModel(
     private val friendshipsApi: FriendshipsApi,
     private val sharesApi: SharesApi,
-    private val albumsApi: AlbumsApi,
+    private val recents: RecentRecipientsStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ShareUiState(loading = true))
@@ -54,12 +61,10 @@ class ShareViewModel(
                 val friends = friendshipsApi.list()
                     .filter { it.status == "accepted" }
                     .map { it.user }
-                val albums = albumsApi.list()
                 val shares = sharesApi.listMine()
                 _state.value = ShareUiState(
                     loading = false,
-                    friends = friends,
-                    albums = albums,
+                    friends = sortByRecency(friends),
                     shares = shares,
                 )
             } catch (e: Exception) {
@@ -69,28 +74,31 @@ class ShareViewModel(
     }
 
     /**
-     * Crée un partage. [flowerId] est requis pour le périmètre 'flower',
-     * [albumId] pour 'album' ; tous deux ignorés (null) pour 'all'.
+     * Amis triés par usage : ceux récemment choisis comme destinataires en tête
+     * (dans l'ordre du plus récent), le reste ensuite dans l'ordre du serveur.
+     * La feuille n'affiche en raccourci que les premiers.
      */
-    fun createShare(
-        friendId: String,
-        scope: String,
-        includeGps: Boolean,
-        flowerId: String?,
-        albumId: String? = null,
-    ) {
+    private fun sortByRecency(friends: List<FriendUserDto>): List<FriendUserDto> {
+        val rank = recents.recentFriendIds().withIndex().associate { (i, id) -> id to i }
+        val (recent, others) = friends.partition { it.id in rank }
+        return recent.sortedBy { rank.getValue(it.id) } + others
+    }
+
+    /** Partage la fleur [flowerId] avec un ami précis. */
+    fun createShare(friendId: String, includeGps: Boolean, flowerId: String) {
         viewModelScope.launch {
             try {
-                sharesApi.create(
+                val share = sharesApi.create(
                     CreateShareRequest(
                         friendId = friendId,
-                        scope = scope,
-                        flowerId = if (scope == "flower") flowerId else null,
-                        albumId = if (scope == "album") albumId else null,
+                        scope = SCOPE_FLOWER,
+                        flowerId = flowerId,
+                        albumId = null,
                         includeGps = includeGps,
                     ),
                 )
-                load()
+                recents.rememberRecentFriend(friendId)
+                _state.update { it.copy(shares = it.shares + share, error = null) }
             } catch (e: Exception) {
                 _state.update { it.copy(error = messageOf(e)) }
             }
@@ -98,40 +106,41 @@ class ShareViewModel(
     }
 
     /**
-     * Partage le périmètre avec *tous* les amis acceptés en une requête
-     * ([SharesApi.createForAllFriends]). [flowerId]/[albumId] suivent la même
-     * règle que [createShare] selon le périmètre.
+     * Partage la fleur avec *tous* les amis acceptés en une requête
+     * ([SharesApi.createForAllFriends]) : un partage réseau unique, qui vaudra
+     * aussi pour les amis ajoutés plus tard.
      */
-    fun createShareForAll(
-        scope: String,
-        includeGps: Boolean,
-        flowerId: String?,
-        albumId: String? = null,
-    ) {
+    fun createShareForAll(includeGps: Boolean, flowerId: String) {
         viewModelScope.launch {
             try {
-                sharesApi.createForAllFriends(
+                val share = sharesApi.createForAllFriends(
                     ShareToAllFriendsRequest(
-                        scope = scope,
-                        flowerId = if (scope == "flower") flowerId else null,
-                        albumId = if (scope == "album") albumId else null,
+                        scope = SCOPE_FLOWER,
+                        flowerId = flowerId,
+                        albumId = null,
                         includeGps = includeGps,
                     ),
                 )
-                load()
+                _state.update { it.copy(shares = it.shares + share, error = null) }
             } catch (e: Exception) {
                 _state.update { it.copy(error = messageOf(e)) }
             }
         }
     }
 
+    /**
+     * Révoque un partage. La ligne disparaît immédiatement ; si l'appel échoue,
+     * elle est remise à sa place et l'erreur est affichée.
+     */
     fun revoke(id: String) {
+        val previous = _state.value.shares
+        if (previous.none { it.id == id }) return
+        _state.update { it.copy(shares = it.shares.filterNot { s -> s.id == id }, error = null) }
         viewModelScope.launch {
             try {
                 sharesApi.revoke(id)
-                load()
             } catch (e: Exception) {
-                _state.update { it.copy(error = messageOf(e)) }
+                _state.update { it.copy(shares = previous, error = messageOf(e)) }
             }
         }
     }
@@ -160,9 +169,14 @@ class ShareViewModel(
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    val tokenStore = EncryptedTokenStore(context.applicationContext)
+                    val appContext = context.applicationContext
+                    val tokenStore = EncryptedTokenStore(appContext)
                     val apis = NetworkModule.createAuthenticated(tokenStore)
-                    return ShareViewModel(apis.friendships, apis.shares, apis.albums) as T
+                    return ShareViewModel(
+                        apis.friendships,
+                        apis.shares,
+                        SharePreferences(appContext),
+                    ) as T
                 }
             }
     }

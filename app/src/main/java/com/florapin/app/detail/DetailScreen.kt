@@ -32,7 +32,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -84,6 +83,7 @@ import com.florapin.app.share.ShareFlowerSheet
 import com.florapin.app.ui.components.DecorativeEmoji
 import com.florapin.app.ui.components.EmojiIcon
 import com.florapin.app.ui.components.FullscreenPhotoViewer
+import com.florapin.app.ui.layout.topBarHeight
 import com.florapin.app.ui.transition.FloraSharedScope
 import com.florapin.app.ui.transition.sharedFlowerImage
 import com.florapin.app.util.formatCaptureDate
@@ -226,6 +226,7 @@ fun FlowerDetailPage(
         modifier = modifier,
         topBar = {
             TopAppBar(
+                expandedHeight = topBarHeight,
                 title = { Text("Détail") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -298,7 +299,6 @@ fun FlowerDetailPage(
                 proposalsVm = proposalsVm,
                 onSaveNotes = viewModel::saveNotes,
                 onSaveClassification = viewModel::saveClassification,
-                onSetFeedPublication = viewModel::setFeedPublication,
                 likeState = likeState,
                 onToggleLike = likeVm::toggle,
                 onReact = likeVm::react,
@@ -368,7 +368,6 @@ private fun DetailContent(
     proposalsVm: ReceivedProposalsViewModel,
     onSaveNotes: (String) -> Unit,
     onSaveClassification: (String, List<String>, SpeciesDto?) -> Unit,
-    onSetFeedPublication: (Boolean, Boolean) -> Unit,
     likeState: com.florapin.app.likes.LikeState,
     onToggleLike: () -> Unit,
     onReact: (String) -> Unit,
@@ -479,14 +478,6 @@ private fun DetailContent(
                         .padding(vertical = 4.dp),
                 )
             }
-
-            // Publication au flux d'amis (NODE-137) : pour ses propres fleurs.
-            FeedPublicationSection(
-                flowerId = flower.id,
-                published = flower.visibility == "friends",
-                includeGps = flower.feedIncludeGps,
-                onSetPublication = onSetFeedPublication,
-            )
 
             // Demande d'identification aux amis quand l'espèce est absente (NODE-134).
             // Nécessite une fleur déjà synchronisée (serverId), car la demande est
@@ -690,65 +681,6 @@ private fun ClassificationEditor(
     }
 }
 
-/**
- * Toggle « Publier sur mon flux d'amis » (NODE-137) : bascule la visibilité de
- * la fleur en 'friends' et, le cas échéant, l'inclusion de la position GPS. Le
- * changement est persisté localement puis synchronisé.
- */
-@Composable
-private fun FeedPublicationSection(
-    flowerId: Long,
-    published: Boolean,
-    includeGps: Boolean,
-    onSetPublication: (Boolean, Boolean) -> Unit,
-) {
-    var isPublished by remember(flowerId, published) { mutableStateOf(published) }
-    var gps by remember(flowerId, includeGps) { mutableStateOf(includeGps) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = "Publier sur mon flux d'amis",
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Switch(
-                checked = isPublished,
-                onCheckedChange = {
-                    isPublished = it
-                    onSetPublication(it, gps)
-                },
-            )
-        }
-        if (isPublished) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = "Inclure la position GPS",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Switch(
-                    checked = gps,
-                    onCheckedChange = {
-                        gps = it
-                        onSetPublication(true, it)
-                    },
-                )
-            }
-            Text(
-                text = "Vos amis verront cette fleur dans leur flux.",
-                style = MaterialTheme.typography.labelSmall,
-            )
-        }
-    }
-}
-
 /** Liste déroulante des suggestions d'espèces (référentiel). */
 @Composable
 private fun SpeciesSuggestions(
@@ -849,7 +781,7 @@ private fun MiniMapView(
                     .zoom(MINI_MAP_ZOOM)
                     .build()
                 map.setStyle(mapTilerStyleUrl(apiKey, mapStyle)) { style ->
-                    style.setupFlowerClustering()
+                    style.setupFlowerClustering(mapView.context)
                     style.updateFlowerMarkers(
                         listOf(
                             FlowerMarker(

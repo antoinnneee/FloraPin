@@ -34,6 +34,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.data.AlbumEntity
 import com.florapin.app.ui.components.EmojiIcon
 import com.florapin.app.ui.components.EmptyState
+import com.florapin.app.ui.layout.topBarHeight
 
 /**
  * Liste des albums (NODE-103) : création via FAB, renommage/suppression par
@@ -58,6 +59,7 @@ fun AlbumsScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
+                expandedHeight = topBarHeight,
                 title = { Text("Albums") },
                 navigationIcon = {
                     if (onBack != null) {

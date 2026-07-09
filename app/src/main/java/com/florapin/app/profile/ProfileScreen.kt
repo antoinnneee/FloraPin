@@ -57,12 +57,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.florapin.app.BuildConfig
+import com.florapin.app.share.SharingDefaultsForm
 import com.florapin.app.sync.PrefsLastSyncStore
 import com.florapin.app.sync.SyncOutcome
 import com.florapin.app.sync.SyncPreferences
 import com.florapin.app.sync.SyncScheduler
 import com.florapin.app.sync.SyncStatus
 import com.florapin.app.sync.SyncStatusStore
+import com.florapin.app.ui.layout.topBarHeight
 import com.florapin.app.util.formatCaptureDate
 
 /**
@@ -141,6 +143,7 @@ fun ProfileScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
+                expandedHeight = topBarHeight,
                 title = { Text("Profil") },
             )
         },
@@ -498,6 +501,8 @@ private fun ConfigurationTab(
     ) {
         SyncSettingsSection()
 
+        DefaultSharingSection()
+
         LocalBackupSection(
             running = state.backupRunning,
             message = state.backupMessage,
@@ -594,6 +599,27 @@ private fun EmailVerificationSection(
             verificationMessage?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
             }
+        }
+    }
+}
+
+/**
+ * Réglages de partage par défaut (par appareil) : ils préremplissent la feuille
+ * de partage d'une fleur. Renseignés à la première ouverture de l'app, modifiables
+ * ici à tout moment.
+ */
+@Composable
+private fun DefaultSharingSection() {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "Partage par défaut",
+                style = MaterialTheme.typography.titleSmall,
+            )
+            SharingDefaultsForm()
         }
     }
 }

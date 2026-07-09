@@ -73,13 +73,14 @@ fun PhotoCarousel(
                     .clickable { viewerStart = page },
             )
         }
-        // Compteur « 2 / 5 » quand il y a plusieurs photos.
+        // Compteur « 2 / 5 » quand il y a plusieurs photos. En haut à droite : le
+        // bas de l'image est occupé par les actions du feed (réaction, sélection).
         if (previewModels.size > 1) {
             Surface(
                 color = Color.Black.copy(alpha = 0.45f),
                 shape = CircleShape,
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
+                    .align(Alignment.TopEnd)
                     .padding(8.dp),
             ) {
                 Text(

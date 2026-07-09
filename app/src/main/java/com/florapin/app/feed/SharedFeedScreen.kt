@@ -51,13 +51,13 @@ import com.florapin.app.data.SavedFlowerEntity
 import com.florapin.app.data.imageModel
 import com.florapin.app.detail.CommentsBottomSheet
 import com.florapin.app.likes.LikeButton
-import com.florapin.app.likes.LikersBottomSheet
 import com.florapin.app.notifications.NotificationBell
 import com.florapin.app.network.dto.fullPhotoUrls
 import com.florapin.app.network.dto.previewPhotoUrls
 import com.florapin.app.ui.components.EmptyState
 import com.florapin.app.ui.components.NetworkErrorState
 import com.florapin.app.ui.components.PhotoCarousel
+import com.florapin.app.ui.layout.topBarHeight
 
 /**
  * Feed des fleurs partagées avec moi (NODE-72) : photo (URL présignée via Coil),
@@ -77,8 +77,6 @@ fun SharedFeedScreen(
 
     // Fleur dont le fil de commentaires est ouvert (en bottom sheet), ou null.
     var commentsFor by remember { mutableStateOf<String?>(null) }
-    // Fleur dont la liste des likers est ouverte (en bottom sheet), ou null.
-    var likersFor by remember { mutableStateOf<String?>(null) }
 
     commentsFor?.let { flowerId ->
         CommentsBottomSheet(
@@ -87,17 +85,11 @@ fun SharedFeedScreen(
         )
     }
 
-    likersFor?.let { flowerId ->
-        LikersBottomSheet(
-            flowerServerId = flowerId,
-            onDismiss = { likersFor = null },
-        )
-    }
-
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
+                expandedHeight = topBarHeight,
                 title = { Text("Partagées avec moi") },
                 actions = {
                     NotificationBell(onOpen = onOpenNotifications)
@@ -234,7 +226,6 @@ fun SharedFeedScreen(
                                 onToggleSave = { viewModel.toggleSaved(row.item) },
                                 onToggleLike = { viewModel.toggleLike(row.item.flower.id) },
                                 onReact = { code -> viewModel.react(row.item.flower.id, code) },
-                                onOpenLikers = { likersFor = row.item.flower.id },
                                 onComment = { commentsFor = row.item.flower.id },
                                 onOpenProfile = { onOpenProfile(row.item.flower.ownerId) },
                             )
@@ -261,7 +252,6 @@ fun SharedFeedScreen(
                                             onToggleSave = { viewModel.toggleSaved(batchItem) },
                                             onToggleLike = { viewModel.toggleLike(batchItem.flower.id) },
                                             onReact = { code -> viewModel.react(batchItem.flower.id, code) },
-                                            onOpenLikers = { likersFor = batchItem.flower.id },
                                             onComment = { commentsFor = batchItem.flower.id },
                                             onOpenProfile = { onOpenProfile(batchItem.flower.ownerId) },
                                         )
@@ -337,7 +327,7 @@ private fun FeedFilterBar(
 
 /**
  * Bouton d'enregistrement dans « Ma sélection » (TÂCHE 3.11), calqué sur
- * [CommentCount] : une puce ⭐/☆ cliquable. Favori PRIVÉ et LOCAL.
+ * [LikeButton] : une puce ⭐/☆ cliquable. Favori PRIVÉ et LOCAL.
  */
 @Composable
 private fun SaveButton(saved: Boolean, onClick: () -> Unit) {
@@ -486,60 +476,57 @@ private fun SharedFlowerCard(
     onToggleSave: () -> Unit,
     onToggleLike: () -> Unit,
     onReact: (String) -> Unit,
-    onOpenLikers: () -> Unit,
     onComment: () -> Unit,
     onOpenProfile: () -> Unit = {},
 ) {
     val flower = item.flower
     Card(modifier = Modifier.fillMaxWidth()) {
         Column {
-            // Carrousel de toutes les photos de la fleur (preview léger), avec
-            // visionneuse plein écran + zoom au clic. Repli sur la couverture seule.
-            PhotoCarousel(
-                previewModels = flower.previewPhotoUrls(),
-                fullModels = flower.fullPhotoUrls(),
-                contentDescription = "Fleur partagée",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f),
-            )
+            Box {
+                // Carrousel de toutes les photos de la fleur (preview léger), avec
+                // visionneuse plein écran + zoom au clic. Repli sur la couverture seule.
+                PhotoCarousel(
+                    previewModels = flower.previewPhotoUrls(),
+                    fullModels = flower.fullPhotoUrls(),
+                    contentDescription = "Fleur partagée",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f),
+                )
+                // Réaction et mise en sélection, posées sur la photo : la carte
+                // laisse toute sa largeur au nom de l'ami et à l'espèce.
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    LikeButton(
+                        myReaction = flower.myReaction,
+                        count = flower.likeCount,
+                        onToggle = onToggleLike,
+                        onReact = onReact,
+                        reactionCounts = flower.reactionCounts,
+                        showCount = false,
+                    )
+                    // Enregistrer dans « Ma sélection » (TÂCHE 3.11) : favori privé
+                    // et local. ⭐ = enregistrée, ☆ = à enregistrer.
+                    SaveButton(saved = saved, onClick = onToggleSave)
+                }
+            }
             Column(
                 modifier = Modifier.padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    item.ownerName?.let {
-                        // Tap sur « Partagée par X » → profil de l'ami (TÂCHE 5.7).
-                        Text(
-                            text = "Partagée par $it",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.clickable(onClick = onOpenProfile),
-                        )
-                    } ?: Box(Modifier)
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        // Enregistrer dans « Ma sélection » (TÂCHE 3.11) : favori privé
-                        // et local. ⭐ = enregistrée, ☆ = à enregistrer.
-                        SaveButton(saved = saved, onClick = onToggleSave)
-                        LikeButton(
-                            myReaction = flower.myReaction,
-                            count = flower.likeCount,
-                            onToggle = onToggleLike,
-                            onReact = onReact,
-                            reactionCounts = flower.reactionCounts,
-                            onCountClick = onOpenLikers.takeIf { flower.likeCount > 0 },
-                        )
-                        // Compteur de commentaires (TÂCHE 3.3) : 💬 à côté du cœur,
-                        // ouvre le fil au clic.
-                        CommentCount(count = flower.commentCount, onClick = onComment)
-                    }
+                item.ownerName?.let {
+                    // Tap sur « Partagée par X » → profil de l'ami (TÂCHE 5.7).
+                    Text(
+                        text = "Partagée par $it",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable(onClick = onOpenProfile),
+                    )
                 }
                 flower.species?.takeIf { it.isNotBlank() }?.let {
                     Text("🌿 $it", style = MaterialTheme.typography.bodyMedium)
@@ -565,27 +552,3 @@ private fun SharedFlowerCard(
     }
 }
 
-/**
- * Compteur de commentaires (TÂCHE 3.3) : puce 💬 + nombre, calquée sur
- * `LikeButton`, à côté du cœur. Ouvre le fil de commentaires au clic.
- */
-@Composable
-private fun CommentCount(count: Int, onClick: () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        tonalElevation = 1.dp,
-        modifier = Modifier.clickable(onClick = onClick),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-        ) {
-            Text("💬")
-            Text(
-                text = count.toString(),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
-    }
-}

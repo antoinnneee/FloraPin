@@ -2,6 +2,10 @@ package com.florapin.app.navigation
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -11,8 +15,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.florapin.app.R
+import com.florapin.app.ui.layout.bottomBarHeight
+import com.florapin.app.ui.layout.isLandscape
 
 /**
  * Onglets principaux de la bottom navigation bar (NODE-110). Chaque onglet
@@ -41,9 +48,13 @@ enum class TopLevelDestination(
 val topLevelRoutes: Set<String> = TopLevelDestination.entries.map { it.route }.toSet()
 
 /**
- * Barre de navigation inférieure à 4 onglets. [currentRoute] détermine l'onglet
+ * Barre de navigation inférieure à 5 onglets. [currentRoute] détermine l'onglet
  * actif ; [onSelect] est invoqué avec la destination choisie. [feedBadge] est le
  * nombre de fleurs non vues du feed « Partagées » (0 = pas de badge).
+ *
+ * En paysage, la barre se compacte : libellés masqués, icônes réduites et hauteur
+ * ramenée à [bottomBarHeight], pour ne pas amputer le contenu. La hauteur imposée
+ * s'ajoute à l'encoche système, que [NavigationBar] applique en padding interne.
  */
 @Composable
 fun FloraBottomBar(
@@ -51,7 +62,10 @@ fun FloraBottomBar(
     onSelect: (TopLevelDestination) -> Unit,
     feedBadge: Int = 0,
 ) {
-    NavigationBar {
+    val landscape = isLandscape()
+    val systemInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+    NavigationBar(modifier = Modifier.height(bottomBarHeight + systemInset)) {
         TopLevelDestination.entries.forEach { destination ->
             val badge = if (destination == TopLevelDestination.FEED) feedBadge else 0
             NavigationBarItem(
@@ -65,17 +79,28 @@ fun FloraBottomBar(
                             }
                         },
                     ) {
-                        // L'illustration est décorative : le libellé de l'onglet
-                        // (« Accueil », « Albums »…) porte déjà le sens pour TalkBack,
-                        // d'où contentDescription = null.
+                        // L'illustration ne porte de sens pour TalkBack que lorsque
+                        // le libellé est masqué (paysage) ; sinon elle est décorative.
                         Image(
                             painter = painterResource(destination.icon),
-                            contentDescription = null,
-                            modifier = Modifier.size(26.dp),
+                            contentDescription = destination.label.takeIf { landscape },
+                            modifier = Modifier.size(if (landscape) 26.dp else 30.dp),
                         )
                     }
                 },
-                label = { Text(destination.label) },
+                label = if (landscape) {
+                    null
+                } else {
+                    {
+                        // Cinq onglets à se partager la largeur : « Partagées » y
+                        // reviendrait à la ligne, décalant les icônes vers le haut.
+                        Text(
+                            text = destination.label,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                },
             )
         }
     }

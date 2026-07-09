@@ -1,37 +1,248 @@
 ---
-// Cadres en attente des vraies captures ; chaque écran garde une légère
-// inclinaison, comme des photos posées sur une table.
-const screens = [
-  { label: 'Galerie',      icon: '🖼️', tilt: -2.5 },
-  { label: 'Carte',        icon: '🗺️', tilt: 1.5 },
-  { label: 'Détail fleur', icon: '🌸', tilt: -1 },
-  { label: 'Partage',      icon: '👥', tilt: 2.5 },
-];
+import PhoneNav from './PhoneNav.astro';
+import { APP_VERSION } from '../config';
+
+// Trois écrans de l'app reconstitués en HTML/CSS (pas des captures) : ils suivent
+// la structure et les couleurs réelles de app/.../map, /detail et /feed. Chaque
+// cadre garde une légère inclinaison, comme des photos posées sur une table.
+
+// Regroupement de la carte : la marguerite ambrée du palier 10–49
+// (app/.../map/MapClustering.kt, cf. asset/generated/map_cluster_medium.png).
+const clusterPetals = Array.from({ length: 12 }, (_, i) => i * 30);
 ---
 
-<section class="screenshots">
+<section id="apercu" class="screens">
   <div class="container">
     <div class="section-header reveal">
       <span class="eyebrow">Aperçu</span>
-      <h2>L'app <em>en images</em></h2>
-      <p class="note">Captures d'écran à venir avant le lancement de la bêta.</p>
+      <h2>L'app <em>en un coup d'œil</em></h2>
+      <p class="note">
+        Interface de la bêta {APP_VERSION} — les fleurs affichées sont des exemples.
+      </p>
     </div>
+
     <div class="gallery">
-      {screens.map((s, i) => (
-        <div class="screen-frame reveal" style={`--tilt:${s.tilt}deg; transition-delay:${i * 0.08}s`}>
-          <div class="notch"></div>
-          <div class="screen-inner">
-            <span class="screen-icon">{s.icon}</span>
-            <span class="screen-label">{s.label}</span>
+      <!-- ————— Carte ————— -->
+      <figure class="phone reveal" style="--tilt:-2deg">
+        <div class="frame">
+          <div class="screen" aria-hidden="true">
+            <div class="statusbar"><span>9:41</span><span>▮▮▮</span></div>
+            <div class="topbar"><span class="title">Carte</span></div>
+
+            <div class="chips">
+              <span class="chip on">Tout</span>
+              <span class="chip">7 jours</span>
+              <span class="chip">30 jours</span>
+              <span class="chip">🗺️ Rues</span>
+            </div>
+
+            <div class="map">
+              <svg class="map-bg" viewBox="0 0 200 340" preserveAspectRatio="xMidYMid slice">
+                <rect width="200" height="340" fill="#eef2e8" />
+                <path d="M-10 40 L70 10 L130 60 L90 130 L10 110 Z" fill="#dfebd2" />
+                <path d="M120 200 L210 170 L215 260 L140 280 Z" fill="#dfebd2" />
+                <path d="M-10 250 C 40 240, 60 300, 120 290 S 190 320, 215 300"
+                      stroke="#c6dde9" stroke-width="9" fill="none" stroke-linecap="round" />
+                <g stroke="#ffffff" stroke-width="5" stroke-linecap="round">
+                  <path d="M-10 150 L215 130" />
+                  <path d="M60 -10 L80 350" />
+                  <path d="M150 -10 L140 350" />
+                </g>
+                <g stroke="#f7f9f5" stroke-width="2.5" stroke-linecap="round">
+                  <path d="M-10 220 L215 205" />
+                  <path d="M-10 75 L215 60" />
+                  <path d="M110 -10 L118 350" />
+                </g>
+              </svg>
+
+              <span class="mk" style="top:31%; left:26%">🌸</span>
+              <span class="mk" style="top:73%; left:34%">🌺</span>
+
+              <!-- À fort zoom, l'app remplace l'emoji par la vignette de la photo. -->
+              <img class="mk-photo" style="top:47%; left:68%" src="/img/flower-poppy.webp"
+                   alt="" width="480" height="480" loading="lazy" decoding="async" />
+
+              <span class="cluster" style="top:22%; left:62%">
+                <svg viewBox="0 0 44 44">
+                  {clusterPetals.map((a) => (
+                    <ellipse cx="22" cy="8.5" rx="3.6" ry="6.4" fill="#dda03c"
+                             stroke="#ffffff" stroke-width="1" transform={`rotate(${a} 22 22)`} />
+                  ))}
+                  <circle cx="22" cy="22" r="9.6" fill="#7a5324" stroke="#ffffff" stroke-width="1.4" />
+                  <text x="22" y="25.4" text-anchor="middle" font-size="10" font-weight="700" fill="#ffffff">12</text>
+                </svg>
+              </span>
+
+              <span class="fab">📍</span>
+            </div>
           </div>
+          <PhoneNav active="map" />
         </div>
-      ))}
+        <figcaption>Carte &amp; regroupements</figcaption>
+      </figure>
+
+      <!-- ————— Détail ————— -->
+      <figure class="phone reveal" style="--tilt:1.4deg; transition-delay:0.08s">
+        <div class="frame">
+          <div class="screen" aria-hidden="true">
+            <div class="statusbar"><span>9:41</span><span>▮▮▮</span></div>
+            <div class="topbar">
+              <span class="back">←</span>
+              <span class="title">Détail</span>
+              <span class="acts">📤 ⋮</span>
+            </div>
+
+            <div class="detail">
+              <img class="hero-photo" src="/img/flower-detail.webp" alt="" width="480" height="640" loading="lazy" decoding="async" />
+
+              <div class="thumbs">
+                <span class="thumbs-label">Photos (3)</span>
+                <span class="thumbs-add">➕ Ajouter</span>
+              </div>
+              <div class="thumb-row">
+                <img src="/img/flower-detail.webp" alt="" width="480" height="640" loading="lazy" decoding="async" />
+                <img src="/img/flower-anemone.webp" alt="" width="480" height="480" loading="lazy" decoding="async" />
+                <img src="/img/flower-orchid.webp" alt="" width="480" height="480" loading="lazy" decoding="async" />
+              </div>
+
+              <div class="row">
+                <span class="date">12 mai 2026</span>
+                <span class="like">❤️ 12</span>
+              </div>
+
+              <p class="coords">📍 45.7640, 4.8357</p>
+
+              <div class="minimap">
+                <svg viewBox="0 0 200 90" preserveAspectRatio="none">
+                  <rect width="200" height="90" fill="#d5e8dc" />
+                  <g stroke="#c0d5c6" stroke-width="2" fill="none">
+                    <path d="M-5 30 C 40 18, 70 46, 205 26" />
+                    <path d="M-5 66 C 60 52, 110 78, 205 58" />
+                    <path d="M70 -5 L82 95" />
+                  </g>
+                </svg>
+                <span class="minimap-pin">🌸</span>
+              </div>
+
+              <div class="field">
+                <span class="field-label">Espèce</span>
+                <span class="field-value">Myosotis sylvatica</span>
+              </div>
+              <p class="species-link">🌿 Voir la fiche : Myosotis des bois</p>
+
+              <div class="comment">
+                <span class="avatar">M</span>
+                <div>
+                  <p class="comment-author">Marion</p>
+                  <p class="comment-text">Le bleu est superbe à cette saison !</p>
+                </div>
+              </div>
+              <div class="comment">
+                <span class="avatar leo">L</span>
+                <div>
+                  <p class="comment-author">Léo</p>
+                  <p class="comment-text">Confirmé, c'est bien un myosotis des bois.</p>
+                </div>
+              </div>
+              <p class="comment-input">Écrire un commentaire…</p>
+            </div>
+          </div>
+          <PhoneNav active="home" />
+        </div>
+        <figcaption>Détail d'une fleur</figcaption>
+      </figure>
+
+      <!-- ————— Flux d'amis ————— -->
+      <figure class="phone reveal" style="--tilt:-1deg; transition-delay:0.16s">
+        <div class="frame">
+          <div class="screen" aria-hidden="true">
+            <div class="statusbar"><span>9:41</span><span>▮▮▮</span></div>
+            <div class="topbar">
+              <span class="title">Partagées avec moi</span>
+              <span class="bell">🔔<i class="badge">3</i></span>
+            </div>
+
+            <div class="chips">
+              <span class="chip on">Récentes</span>
+              <span class="chip">Meilleures photos</span>
+            </div>
+
+            <p class="feed-sep"><span>Nouveau depuis votre dernière visite</span></p>
+
+            <div class="masonry">
+              <article class="post">
+                <div class="post-photo">
+                  <img src="/img/flower-anemone.webp" alt="" width="480" height="480" loading="lazy" decoding="async" />
+                  <span class="post-like">🤍</span>
+                </div>
+                <div class="post-body">
+                  <p class="by">Partagée par Marion</p>
+                  <p class="sp">🌿 Anemone nemorosa</p>
+                  <p class="loc">📍 45.764, 4.835</p>
+                </div>
+              </article>
+
+              <article class="post">
+                <div class="post-photo">
+                  <img src="/img/flower-poppy.webp" alt="" width="480" height="480" loading="lazy" decoding="async" />
+                  <span class="post-like liked">❤️</span>
+                </div>
+                <div class="post-body">
+                  <p class="by">Partagée par Léo</p>
+                  <p class="sp">🌿 Papaver rhoeas</p>
+                  <p class="loc">📍 Position non partagée</p>
+                </div>
+              </article>
+
+              <article class="post">
+                <div class="post-photo">
+                  <img src="/img/flower-orchid.webp" alt="" width="480" height="480" loading="lazy" decoding="async" />
+                  <span class="post-like">🤍</span>
+                </div>
+                <div class="post-body">
+                  <p class="by">Partagée par Sam</p>
+                  <p class="sp">🌿 À identifier</p>
+                  <p class="loc">📍 44.837, 0.579</p>
+                </div>
+              </article>
+
+              <article class="post">
+                <div class="post-photo">
+                  <img src="/img/flower-detail.webp" alt="" width="480" height="640" loading="lazy" decoding="async" />
+                  <span class="post-like liked">❤️</span>
+                </div>
+                <div class="post-body">
+                  <p class="by">Partagée par Marion</p>
+                  <p class="sp">🌿 Myosotis sylvatica</p>
+                  <p class="loc">📍 45.764, 4.835</p>
+                </div>
+              </article>
+
+              <!-- Rognées par le bas de l'écran : la mosaïque continue. -->
+              <article class="post">
+                <div class="post-photo">
+                  <img src="/img/flower-poppy.webp" alt="" width="480" height="480" loading="lazy" decoding="async" />
+                  <span class="post-like">🤍</span>
+                </div>
+              </article>
+              <article class="post">
+                <div class="post-photo">
+                  <img src="/img/flower-anemone.webp" alt="" width="480" height="480" loading="lazy" decoding="async" />
+                  <span class="post-like">🤍</span>
+                </div>
+              </article>
+            </div>
+          </div>
+          <PhoneNav active="feed" />
+        </div>
+        <figcaption>Le flux de vos amis</figcaption>
+      </figure>
     </div>
   </div>
 </section>
 
 <style>
-  .screenshots {
+  .screens {
     padding: var(--section-py) 0;
     background: var(--tilleul);
   }
@@ -44,66 +255,457 @@ const screens = [
 
   .gallery {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: clamp(18px, 3vw, 32px);
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(22px, 4vw, 48px);
     align-items: start;
   }
 
-  .screen-frame {
-    background: var(--encre);
-    border-radius: 26px;
-    padding: 8px;
-    box-shadow: 0 20px 48px rgba(19, 42, 29, 0.22);
-    aspect-ratio: 9 / 18;
-    display: flex;
-    flex-direction: column;
+  /* Conteneur de requête : c'est la largeur de la colonne qui fixe l'échelle du
+     mockup (cqi ci-dessous). Le `container-type` doit vivre sur le PARENT du
+     cadre — un élément ne peut pas se mesurer à lui-même. */
+  .phone {
+    container-type: inline-size;
     rotate: var(--tilt);
-    transition: rotate 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    transition:
+      rotate 0.3s cubic-bezier(0.22, 1, 0.36, 1),
       transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 0.7s ease, box-shadow 0.3s;
+      opacity 0.7s ease;
   }
 
-  .screen-frame:hover {
+  .phone:hover {
     rotate: 0deg;
     transform: translateY(-6px);
+  }
+
+  figcaption {
+    margin-top: 18px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--feuille);
+  }
+
+  /* Coque du téléphone. Tout son contenu est dimensionné en `em` : régler la
+     taille de base ici met le mockup à l'échelle de la colonne d'un bloc. */
+  .frame {
+    display: flex;
+    flex-direction: column;
+    aspect-ratio: 9 / 19;
+    background: var(--encre);
+    border: 0.5em solid var(--encre);
+    border-radius: 26px;
+    overflow: hidden;
+    box-shadow: 0 20px 48px rgba(19, 42, 29, 0.24);
+    font-size: 11px; /* repli si les unités de conteneur manquent */
+  }
+
+  .frame:hover {
     box-shadow: 0 28px 60px rgba(19, 42, 29, 0.3);
   }
 
-  .notch {
-    width: 40px;
-    height: 4px;
-    background: rgba(237, 243, 227, 0.18);
-    border-radius: 3px;
-    margin: 6px auto;
+  @supports (font-size: 1cqi) {
+    .frame { font-size: 3.7cqi; }
   }
 
-  .screen-inner {
+  .screen {
     flex: 1;
-    background: var(--papier);
-    border-radius: 20px;
     display: flex;
     flex-direction: column;
+    min-height: 0;
+    background: #fbfdfb;
+    color: #1b1c1a;
+    line-height: 1.35;
+  }
+
+  .statusbar {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.35em 1em 0;
+    font-size: 0.65em;
+    color: #404943;
+  }
+
+  .topbar {
+    display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 12px;
-    border: 2px dashed var(--tilleul-2);
+    gap: 0.6em;
+    padding: 0.7em 0.9em;
   }
 
-  .screen-icon {
-    font-size: 2.4rem;
-    line-height: 1;
+  .topbar .title {
+    flex: 1;
+    font-size: 1.1em;
+    font-weight: 700;
   }
 
-  .screen-label {
-    font-family: var(--font-mono);
-    font-size: 0.66rem;
-    font-weight: 500;
-    color: var(--feuille);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
+  .topbar .back,
+  .topbar .acts,
+  .topbar .bell {
+    font-size: 0.9em;
+    color: #404943;
   }
 
-  @media (max-width: 720px) {
-    .gallery { grid-template-columns: repeat(2, 1fr); }
+  .bell {
+    position: relative;
+  }
+
+  .badge {
+    position: absolute;
+    top: -0.35em;
+    right: -0.5em;
+    display: grid;
+    place-items: center;
+    min-width: 1.25em;
+    height: 1.25em;
+    padding: 0 0.25em;
+    border-radius: 100px;
+    background: #ba1a1a;
+    color: #fff;
+    font-size: 0.6em;
+    font-style: normal;
+    font-weight: 700;
+  }
+
+  /* Puces de filtre Material */
+  .chips {
+    display: flex;
+    gap: 0.45em;
+    padding: 0 0.9em 0.7em;
+    overflow: hidden;
+  }
+
+  .chip {
+    flex: none;
+    padding: 0.3em 0.7em;
+    border: 1px solid #c0c9c0;
+    border-radius: 100px;
+    font-size: 0.72em;
+    color: #404943;
+    white-space: nowrap;
+  }
+
+  .chip.on {
+    background: #d5e8dc;
+    border-color: #d5e8dc;
+    color: #101f18;
+    font-weight: 700;
+  }
+
+  /* ————— Carte ————— */
+
+  .map {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .map-bg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .mk {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    font-size: 1.35em;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
+  }
+
+  .mk-photo {
+    position: absolute;
+    width: 2.6em;
+    height: 2.6em;
+    transform: translate(-50%, -50%);
+    object-fit: cover;
+    border-radius: 50%;
+    border: 0.16em solid #ffffff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  }
+
+  .cluster {
+    position: absolute;
+    width: 3.4em;
+    height: 3.4em;
+    transform: translate(-50%, -50%);
+    filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.25));
+  }
+
+  .fab {
+    position: absolute;
+    right: 0.9em;
+    bottom: 0.9em;
+    display: grid;
+    place-items: center;
+    width: 3.1em;
+    height: 3.1em;
+    border-radius: 1em;
+    background: #a8d5ba;
+    font-size: 1.45em;
+    box-shadow: 0 3px 8px rgba(19, 42, 29, 0.28);
+  }
+
+  /* ————— Détail ————— */
+
+  .detail {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0 0.9em 0.6em;
+  }
+
+  .hero-photo {
+    width: 100%;
+    height: 13.5em;
+    object-fit: cover;
+    border-radius: 0.7em;
+  }
+
+  .thumbs {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.6em;
+  }
+
+  .thumbs-label {
+    font-size: 0.78em;
+    font-weight: 700;
+  }
+
+  .thumbs-add {
+    font-size: 0.66em;
+    font-weight: 700;
+    color: #386a53;
+  }
+
+  .thumb-row {
+    display: flex;
+    gap: 0.4em;
+    margin-top: 0.4em;
+  }
+
+  .thumb-row img {
+    width: 3.3em;
+    height: 3.3em;
+    object-fit: cover;
+    border-radius: 0.35em;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0.7em 0 0.35em;
+  }
+
+  .date {
+    font-size: 0.9em;
+    font-weight: 700;
+  }
+
+  .like {
+    padding: 0.25em 0.65em;
+    border-radius: 1.3em;
+    background: #ffd9e2;
+    font-size: 0.72em;
+    font-weight: 700;
+    color: #7d5260;
+  }
+
+  .coords {
+    font-size: 0.72em;
+    color: #404943;
+  }
+
+  .minimap {
+    position: relative;
+    margin: 0.6em 0;
+    border-radius: 0.7em;
+    overflow: hidden;
+    height: 5.8em;
+  }
+
+  .minimap svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .minimap-pin {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -55%);
+    font-size: 1.2em;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1em;
+    padding: 0.45em 0.7em;
+    border: 1px solid #707972;
+    border-radius: 0.45em;
+  }
+
+  .field-label {
+    font-size: 0.62em;
+    color: #386a53;
+  }
+
+  .field-value {
+    font-size: 0.85em;
+  }
+
+  .species-link {
+    margin-top: 0.6em;
+    font-size: 0.75em;
+    font-weight: 700;
+    color: #386a53;
+  }
+
+  .comment {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    margin-top: 0.8em;
+    padding-top: 0.7em;
+    border-top: 1px solid #dce5dd;
+  }
+
+  .avatar {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 1.9em;
+    height: 1.9em;
+    border-radius: 50%;
+    background: #ffd9e2;
+    color: #7d5260;
+    font-size: 0.8em;
+    font-weight: 700;
+  }
+
+  .comment-author {
+    font-size: 0.68em;
+    font-weight: 700;
+  }
+
+  .comment-text {
+    font-size: 0.68em;
+    color: #404943;
+  }
+
+  .avatar.leo {
+    background: #d5e8dc;
+    color: #386a53;
+  }
+
+  .comment-input {
+    margin-top: 0.8em;
+    padding: 0.5em 0.8em;
+    border: 1px solid #c0c9c0;
+    border-radius: 1.4em;
+    font-size: 0.7em;
+    color: #707972;
+  }
+
+  /* ————— Flux ————— */
+
+  .feed-sep {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0 0.9em 0.6em;
+    font-size: 0.65em;
+    color: #386a53;
+  }
+
+  .feed-sep::before,
+  .feed-sep::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #c0d5c6;
+  }
+
+  .masonry {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-content: start;
+    gap: 0.6em;
+    padding: 0 0.9em;
+  }
+
+  .post {
+    background: #fff;
+    border: 1px solid #dce5dd;
+    border-radius: 0.75em;
+    overflow: hidden;
+  }
+
+  .post-photo {
+    position: relative;
+    aspect-ratio: 1;
+  }
+
+  .post-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .post-like {
+    position: absolute;
+    right: 0.35em;
+    bottom: 0.35em;
+    display: grid;
+    place-items: center;
+    width: 1.8em;
+    height: 1.8em;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.86);
+    font-size: 0.7em;
+  }
+
+  .post-body {
+    padding: 0.5em 0.55em 0.6em;
+  }
+
+  .by {
+    font-size: 0.68em;
+    font-weight: 700;
+    color: #386a53;
+  }
+
+  .sp,
+  .loc {
+    font-size: 0.62em;
+    color: #404943;
+  }
+
+  /* ————— Responsive ————— */
+
+  @media (max-width: 900px) {
+    .gallery {
+      grid-template-columns: 1fr;
+      justify-items: center;
+      gap: 56px;
+    }
+
+    .phone {
+      rotate: 0deg;
+      width: min(300px, 100%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .phone { transition: none; }
   }
 </style>

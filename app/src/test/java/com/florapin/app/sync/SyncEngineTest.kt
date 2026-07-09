@@ -204,6 +204,87 @@ class SyncEngineTest {
         assertEquals(SyncState.SYNCED.name, synced.syncState)
     }
 
+    /**
+     * Le partage automatique s'applique à la fleur qui vient d'obtenir son id
+     * serveur, et seulement après l'envoi de son image (sinon les amis verraient
+     * une fleur sans photo).
+     */
+    @Test
+    fun push_autoSharesCreatedFlowerAfterImageUpload() = runBlocking {
+        val dao = FakeDao()
+        val repo = FlowerRepository(dao)
+        val localId = dao.insert(
+            FlowerEntity(
+                imagePath = "/p.jpg",
+                createdAt = 1_000L,
+                syncState = SyncState.PENDING.name,
+                updatedAt = 1_000L,
+            ),
+        )
+        val syncApi = FakeSyncApi(
+            pushResults = listOf(
+                SyncPushItemResult(
+                    localId = localId.toString(),
+                    flower = dto("srv-9", "2026-06-21T10:00:00Z"),
+                    upload = PresignedUpload("https://upload", "PUT", 600),
+                ),
+            ),
+        )
+        val events = mutableListOf<String>()
+        val engine = SyncEngine(
+            repository = repo,
+            syncApi = syncApi,
+            flowersApi = FakeFlowersApi(),
+            uploadFlowerImage = { serverId, _ -> events += "upload:$serverId" },
+            lastSyncStore = FakeLastSync(),
+            autoShareFlower = { serverId -> events += "share:$serverId" },
+            now = { 5_000L },
+        )
+
+        engine.push()
+
+        assertEquals(listOf("upload:srv-9", "share:srv-9"), events)
+    }
+
+    /** Un partage automatique en échec ne doit pas faire échouer la sync. */
+    @Test
+    fun push_autoShareFailure_doesNotBreakSync() = runBlocking {
+        val dao = FakeDao()
+        val repo = FlowerRepository(dao)
+        val localId = dao.insert(
+            FlowerEntity(
+                imagePath = "/p.jpg",
+                createdAt = 1_000L,
+                syncState = SyncState.PENDING.name,
+                updatedAt = 1_000L,
+            ),
+        )
+        val syncApi = FakeSyncApi(
+            pushResults = listOf(
+                SyncPushItemResult(
+                    localId = localId.toString(),
+                    flower = dto("srv-9", "2026-06-21T10:00:00Z"),
+                    upload = PresignedUpload("https://upload", "PUT", 600),
+                ),
+            ),
+        )
+        val engine = SyncEngine(
+            repository = repo,
+            syncApi = syncApi,
+            flowersApi = FakeFlowersApi(),
+            uploadFlowerImage = { _, _ -> },
+            lastSyncStore = FakeLastSync(),
+            autoShareFlower = { throw IllegalStateException("réseau") },
+            now = { 5_000L },
+        )
+
+        engine.push()
+
+        val synced = dao.store[localId]!!
+        assertEquals("srv-9", synced.serverId)
+        assertEquals(SyncState.SYNCED.name, synced.syncState)
+    }
+
     @Test
     fun pull_appliesDeletesAndPersistsCursor() = runBlocking {
         val dao = FakeDao()

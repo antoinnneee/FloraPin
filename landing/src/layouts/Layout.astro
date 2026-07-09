@@ -8,8 +8,11 @@ interface Props {
 const {
   title = 'FloraPin — Géolocalisez et partagez vos fleurs',
   description = 'Photographiez chaque fleur que vous croisez, retrouvez-la sur une carte, et partagez vos plus belles trouvailles avec vos amis — même sans réseau.',
-  image = '/og-image.png',
+  image = '/img/og-image.png',
 } = Astro.props;
+
+const ogImageAlt =
+  'FloraPin — Vos fleurs, géolocalisées et gardées pour toujours.';
 
 const siteUrl = Astro.site ?? new URL('https://florapin.pattounecorp.ovh');
 const canonicalURL = new URL(Astro.url.pathname, siteUrl);
@@ -24,13 +27,18 @@ const ogImage = new URL(image, siteUrl);
     <link rel="canonical" href={canonicalURL} />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <meta name="theme-color" content="#132a1d" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="FloraPin" />
     <meta property="og:url" content={canonicalURL} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={ogImageAlt} />
     <meta property="og:locale" content="fr_FR" />
 
     <!-- Twitter Card -->
@@ -38,6 +46,7 @@ const ogImage = new URL(image, siteUrl);
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image:alt" content={ogImageAlt} />
 
     <!-- Schema.org SoftwareApplication -->
     <script type="application/ld+json" set:html={JSON.stringify({
@@ -47,18 +56,18 @@ const ogImage = new URL(image, siteUrl);
       "description": description,
       "applicationCategory": "LifestyleApplication",
       "operatingSystem": "Android",
-      "offers": { "@type": "Offer", "price": "0" },
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
       "url": siteUrl.href,
     })} />
 
     <!-- Favicon -->
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 
-    <!-- Fonts : Fraunces (display) · Karla (texte) · IBM Plex Mono (coordonnées) -->
+    <!-- Fonts : Lora (display) · Karla (texte) · IBM Plex Mono (coordonnées) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,560;0,9..144,640;1,9..144,460;1,9..144,560&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
   </head>
@@ -113,7 +122,7 @@ const ogImage = new URL(image, siteUrl);
     --texte:      #26382d;   /* corps de texte sur clair */
     --texte-doux: #5a6c5f;
 
-    --font-display: 'Fraunces', Georgia, serif;
+    --font-display: 'Lora', Georgia, serif;
     --font-body:    'Karla', system-ui, sans-serif;
     --font-mono:    'IBM Plex Mono', ui-monospace, monospace;
 

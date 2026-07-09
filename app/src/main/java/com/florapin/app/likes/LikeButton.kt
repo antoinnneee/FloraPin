@@ -33,6 +33,9 @@ import com.florapin.app.util.Haptics
  * gérée côté ViewModel.
  *
  * @param myReaction code de la réaction du spectateur, ou null s'il n'a pas réagi.
+ * @param showCount affiche le libellé (aperçu des types + total). À false, seul
+ *   l'emoji subsiste : le bouton se réduit à une pastille, posée sur la photo
+ *   dans le flux. [onCountClick] est alors sans effet, faute de libellé à taper.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -44,6 +47,7 @@ fun LikeButton(
     modifier: Modifier = Modifier,
     reactionCounts: Map<String, Int> = emptyMap(),
     onCountClick: (() -> Unit)? = null,
+    showCount: Boolean = true,
 ) {
     var showPicker by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
@@ -90,11 +94,13 @@ fun LikeButton(
                     },
                 )
             }
-            Text(
-                text = if (summary.isBlank()) count.toString() else "$summary $count",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.clickable(onClick = onCountClick ?: toggle),
-            )
+            if (showCount) {
+                Text(
+                    text = if (summary.isBlank()) count.toString() else "$summary $count",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.clickable(onClick = onCountClick ?: toggle),
+                )
+            }
         }
     }
 }

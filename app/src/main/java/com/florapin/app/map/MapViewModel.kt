@@ -8,6 +8,8 @@ import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.api.FeedApi
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.network.dto.FlowerDto
+import com.florapin.app.network.dto.fullPhotoUrls
+import com.florapin.app.network.dto.previewPhotoUrls
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +31,16 @@ data class FlowerMarker(
     val longitude: Double,
     val emoji: String = FlowerEmoji.DEFAULT,
     val navigable: Boolean = true,
+    /**
+     * URL de la photo, pour les marqueurs non navigables (fleurs d'amis) : faute
+     * de détail local à ouvrir, le tap affiche la photo en plein écran.
+     */
+    val photoUrl: String? = null,
+    /**
+     * Source de la vignette (fichier local ou URL) affichée en pastille ronde à
+     * fort zoom, à la place de l'emoji d'espèce.
+     */
+    val thumbnailModel: Any? = null,
 )
 
 /**
@@ -133,6 +145,8 @@ private fun List<FlowerDto>.toFriendMarkers(): List<FlowerMarker> =
                 longitude = lng,
                 emoji = FlowerEmoji.forSpecies(dto.species),
                 navigable = false,
+                photoUrl = dto.fullPhotoUrls().firstOrNull(),
+                thumbnailModel = dto.previewPhotoUrls().firstOrNull(),
             )
         } else {
             null

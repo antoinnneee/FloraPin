@@ -144,31 +144,8 @@ echo "📦 Synchronisation de backend/..."
 remote_sync --exclude 'node_modules/' --exclude 'dist/' \
     "$REPO_ROOT/backend/" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/backend/" || exit 1
 
-# --- APK de téléchargement (bêta) ---
-# La vitrine sert l'APK directement : on dépose la DERNIÈRE version debug
-# construite dans landing/public/ AVANT le rsync. Astro recopie public/ tel quel
-# dans dist/, donc Caddy l'expose à https://<DOMAIN>/florapin.apk.
-#
-# On NE build PAS l'APK ici : un APK exige le SDK Android, absent de
-# l'environnement de déploiement (WSL/Docker ; le wrapper gradlew a aussi des
-# fins de ligne CRLF inexploitables sous WSL). L'APK se construit côté Windows
-# (Android Studio, ou `gradlew.bat :app:assembleDebug` en PowerShell). Le script
-# se contente d'expédier le binaire le plus récent disponible.
-APK_BUILT="$REPO_ROOT/app/build/outputs/apk/debug/app-debug.apk"
-APK_PUB="$REPO_ROOT/landing/public/florapin.apk"
-if [ -f "$APK_BUILT" ] && { [ ! -f "$APK_PUB" ] || [ "$APK_BUILT" -nt "$APK_PUB" ]; }; then
-    cp "$APK_BUILT" "$APK_PUB"
-    echo "📱 APK debug mis à jour depuis le build Android ($(du -h "$APK_PUB" | cut -f1))."
-elif [ -f "$APK_PUB" ]; then
-    echo "📱 APK debug : landing/public/florapin.apk déjà à jour ($(du -h "$APK_PUB" | cut -f1))."
-else
-    echo "⚠️  Aucun APK trouvé (ni app/build/outputs/, ni landing/public/)."
-    echo "    Construis-le d'abord côté Windows : gradlew.bat :app:assembleDebug"
-    echo "    La vitrine sera déployée SANS fichier de téléchargement (/florapin.apk → 404)."
-fi
-
 # --- Version de l'app pour la vitrine ---
-# La vitrine affiche/nomme le téléchargement avec la VRAIE version (florapin_<ver>.apk).
+# La vitrine annonce la VRAIE version de l'app distribuée (« Bêta <ver> »).
 # La source de vérité est `versionName` dans app/build.gradle.kts, mais le dossier
 # app/ N'EST PAS synchronisé sur le VPS (le build Astro ne voit que landing/). On
 # extrait donc la version ICI (app/ disponible en local) et on l'écrit dans
@@ -188,19 +165,20 @@ else
 fi
 
 # --- Changelog pour la vitrine ---
-# La page /changelog affiche le CHANGELOG.md (racine du repo). Ce fichier N'EST
-# PAS dans landing/, donc invisible du build Astro sur le VPS. On en copie une
-# version dans landing/src/ (comme version.json) AVANT le rsync de landing/.
-CHANGELOG_SRC="$REPO_ROOT/CHANGELOG.md"
+# La page /changelog affiche le CHANGELOG_SIMPLE.md (racine du repo), version
+# grand public du journal ; le CHANGELOG.md technique reste interne. Ce fichier
+# N'EST PAS dans landing/, donc invisible du build Astro sur le VPS. On en copie
+# une version dans landing/src/ (comme version.json) AVANT le rsync de landing/.
+CHANGELOG_SRC="$REPO_ROOT/CHANGELOG_SIMPLE.md"
 CHANGELOG_DEST="$REPO_ROOT/landing/src/changelog.md"
 if [ -f "$CHANGELOG_SRC" ]; then
     cp "$CHANGELOG_SRC" "$CHANGELOG_DEST"
     echo "📄 Changelog copié dans la vitrine (landing/src/changelog.md)."
 else
-    echo "ℹ️  CHANGELOG.md absent ; changelog de la vitrine inchangé (copie commitée conservée)."
+    echo "ℹ️  CHANGELOG_SIMPLE.md absent ; changelog de la vitrine inchangé (copie commitée conservée)."
 fi
 
-echo "📦 Synchronisation de landing/ (sources + APK)..."
+echo "📦 Synchronisation de landing/..."
 remote_sync --exclude 'node_modules/' --exclude 'dist/' \
     "$REPO_ROOT/landing/" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/landing/" || exit 1
 

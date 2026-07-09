@@ -79,6 +79,7 @@ import com.florapin.app.notifications.NotificationBell
 import com.florapin.app.ui.components.DecorativeEmoji
 import com.florapin.app.ui.components.EmojiIcon
 import com.florapin.app.ui.components.EmptyState
+import com.florapin.app.ui.layout.topBarHeight
 import com.florapin.app.ui.transition.FloraSharedScope
 import com.florapin.app.ui.transition.sharedFlowerImage
 import com.florapin.app.util.formatCaptureDate
@@ -168,6 +169,7 @@ fun GalleryScreen(
                 )
             } else {
                 TopAppBar(
+                    expandedHeight = topBarHeight,
                     title = { Text("🌸 FloraPin") },
                     actions = {
                         // Topbar allégée : seules les entrées « à notifier » restent
@@ -365,6 +367,7 @@ private fun SelectionTopBar(
     onDelete: () -> Unit,
 ) {
     TopAppBar(
+        expandedHeight = topBarHeight,
         navigationIcon = {
             IconButton(onClick = onClose) {
                 EmojiIcon("✕", contentDescription = "Quitter la sélection")

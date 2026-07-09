@@ -5,7 +5,6 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import com.florapin.app.ui.components.EmojiIcon
 import androidx.compose.runtime.LaunchedEffect
@@ -26,12 +25,13 @@ import kotlinx.coroutines.launch
 
 /**
  * Cloche du centre de notifications (TÂCHE 2.7), à poser dans les `actions` d'une
- * top bar. Affiche un badge quand des notifications sont non lues et ouvre le
- * centre au clic. Le compteur est rafraîchi à chaque (ré)affichage de l'écran
- * hôte — y compris au retour depuis le centre, où l'on vient d'en lire.
+ * top bar. Signale par un point la présence de notifications non lues — sans en
+ * afficher le nombre, le détail appartenant au centre — et l'ouvre au clic. Le
+ * compteur est rafraîchi à chaque (ré)affichage de l'écran hôte, y compris au
+ * retour depuis le centre, où l'on vient d'en lire.
  *
  * Device-first : hors-ligne / non connecté, le comptage échoue silencieusement
- * (badge masqué) ; la cloche reste cliquable et le centre assume l'indisponibilité.
+ * (point masqué) ; la cloche reste cliquable et le centre assume l'indisponibilité.
  */
 @Composable
 fun NotificationBell(
@@ -47,15 +47,18 @@ fun NotificationBell(
 
     BadgedBox(
         badge = {
-            if (unread > 0) {
-                Badge { Text(if (unread > 99) "99+" else "$unread") }
-            }
+            // Badge sans libellé : un simple point de présence.
+            if (unread > 0) Badge()
         },
     ) {
         IconButton(onClick = onOpen) {
             EmojiIcon(
                 "🔔",
-                contentDescription = "Notifications",
+                contentDescription = if (unread > 0) {
+                    "Notifications, non lues"
+                } else {
+                    "Notifications"
+                },
                 style = MaterialTheme.typography.titleLarge,
             )
         }

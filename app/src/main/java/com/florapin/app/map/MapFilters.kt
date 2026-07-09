@@ -1,6 +1,7 @@
 package com.florapin.app.map
 
 import com.florapin.app.data.FlowerEntity
+import com.florapin.app.data.thumbnailModel
 import java.util.Calendar
 
 /**
@@ -77,7 +78,13 @@ fun List<FlowerEntity>.toFilteredMarkers(
             val lat = flower.latitude
             val lng = flower.longitude
             if (lat != null && lng != null) {
-                FlowerMarker(flower.id, lat, lng, FlowerEmoji.forSpecies(flower.species))
+                FlowerMarker(
+                    id = flower.id,
+                    latitude = lat,
+                    longitude = lng,
+                    emoji = FlowerEmoji.forSpecies(flower.species),
+                    thumbnailModel = flower.thumbnailModel(),
+                )
             } else {
                 null
             }

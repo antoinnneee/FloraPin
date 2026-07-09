@@ -9,16 +9,120 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 > « Non publié », puis les basculer dans une nouvelle version datée lors d'une
 > release (en pensant à incrémenter `versionName`/`versionCode` dans
 > `app/build.gradle.kts`).
+>
+> Ce fichier est le journal **technique**, interne. Toute modification visible
+> par l'utilisateur doit *aussi* être résumée, sans jargon, dans
+> [`CHANGELOG_SIMPLE.md`](CHANGELOG_SIMPLE.md) — c'est **ce dernier** qui est
+> publié sur la page « Nouveautés » du site.
 
 ## [Non publié]
 
+## [1.14.1] — 2026-07-10
+
+### Ajouté
+- **Vitrine — aperçu de l'app.** La section « Captures d'écran à venir » est
+  remplacée par trois mockups d'écran (carte + regroupements, détail d'une fleur,
+  flux d'amis) reconstitués en HTML/CSS d'après `map/`, `detail/` et `feed/` :
+  mêmes couleurs Material, mêmes libellés, barre de navigation à cinq onglets
+  (`PhoneNav.astro`). L'échelle suit la colonne via une requête de conteneur.
+- **Vitrine — image Open Graph.** `public/img/og-image.png` (1200×630) : les
+  partages de lien renvoyaient jusqu'ici un 404 (`/og-image.png` n'existait pas).
+  Ajout de `og:image:width/height/alt`, `og:site_name`, `twitter:image:alt` et
+  `theme-color`.
+
 ### Modifié
+- **Typographie des titres : Fraunces → Lora.** Appliqué des deux côtés pour
+  garder une marque cohérente : `--font-display` de la vitrine
+  (`Layout.astro`) et `DisplayFontFamily` de l'app (`ui/theme/Type.kt`, toujours
+  via Downloadable Fonts, aucun binaire embarqué). Lora est variable (400→700) :
+  les graisses en place (460/560/640 sur le web, Medium/SemiBold côté app)
+  passent inchangées. L'og-image est régénérée en Lora : elle est rendue par une
+  capture headless d'une page HTML (vraies polices web) au lieu d'être composée
+  par sharp, qui n'avait accès qu'aux polices système (Georgia).
+- **Vitrine — distribution par Google Play uniquement.** Le téléchargement direct
+  de l'APK est retiré (bouton du hero, repli du CTA final, `DownloadButton.astro`,
+  `DOWNLOAD_URL`/`DOWNLOAD_NOTE`/`DOWNLOAD_FILENAME`). `deploy.sh` ne copie plus
+  `app-debug.apk` dans `landing/public/` ; le rsync `--delete` retire le binaire
+  du VPS au prochain déploiement. `version.json` reste alimenté par `deploy.sh`
+  et sert désormais la mention « Bêta &lt;version&gt; · Android 8+ ».
+- **Vitrine — page d'accueil dans un `<main>`.** Les sélecteurs du sentier animé
+  (`TrailOverlay`) passent de `body > section` à `main > section`.
+
+### Corrigé
+- **Vitrine — lien mort.** Le pied de page pointait vers `/mentions-legales`,
+  page qui n'existe pas ; le lien est retiré.
+- **Vitrine — données structurées.** `offers.price` sans `priceCurrency` rendait
+  le bloc `SoftwareApplication` invalide.
+- **Vitrine — bascule GPS.** Le `<button>` de la démo vie privée n'avait pas de
+  `type="button"`.
+
+## [1.14.0] — 2026-07-09
+
+### Ajouté
+- **Réglages de partage par défaut.** Une nouvelle section « Partage par défaut »
+  (Profil › Configuration) fixe le destinataire par défaut, l'inclusion de la
+  position GPS et le partage automatique des nouvelles fleurs. Les mêmes questions
+  sont posées à la première ouverture, dans un 4ᵉ écran d'onboarding placé après
+  le choix de synchronisation — et sauté si le cloud est refusé, puisque partager
+  suppose des fleurs déposées sur le serveur. Le partage automatique s'applique dès
+  qu'une fleur obtient son id serveur, après l'envoi de sa photo (`SyncEngine`), et
+  n'interrompt jamais la synchronisation s'il échoue.
+- **Recherche d'un ami dans la feuille de partage.** Au-delà de 4 raccourcis, un
+  bouton « … » ouvre une recherche par nom ou email. Les raccourcis affichent les
+  derniers amis avec qui vous avez partagé.
+- **Photo d'une fleur d'ami depuis la carte.** Un tap sur le marqueur d'une fleur
+  d'ami — jusqu'ici inerte, faute de détail local — ouvre sa photo en plein écran.
+- **Pastilles photo sur la carte.** Au-delà du zoom 16, les fleurs isolées
+  troquent leur emoji d'espèce contre un aperçu rond de leur photo (256 px),
+  cerclé de blanc. Leur taille suit le zoom — doublement tous les deux niveaux —
+  mais se bride dès que deux voisines se recouvriraient de plus de 10 % de leur
+  diamètre, mesuré sur les fleurs visibles à l'écran. Les vignettes sont décodées
+  après l'affichage (la carte n'attend pas) et plafonnées à 80 par passe ; celles
+  qui manquent gardent leur emoji, à leur taille habituelle.
+- **Badge floral pour les groupes de fleurs.** Les cercles unis des clusters
+  cèdent la place à une fleur stylisée dont la couleur, la taille et le nombre de
+  pétales croissent avec le nombre de fleurs regroupées (vert < 10, ambre < 50,
+  terracotta au-delà). Le compte s'inscrit dans son cœur plein.
+
+### Modifié
+- **La feuille de partage ne concerne plus que la photo affichée.** Les périmètres
+  « Un album » et « Toutes mes fleurs » disparaissent, de même que le sélecteur
+  d'album. Les partages « toutes mes fleurs » déjà créés restent listés et
+  révocables, signalés comme hérités.
+- **Publication au flux d'amis.** Le toggle « Publier sur mon flux d'amis » (et son
+  option GPS) est retiré de l'écran de détail : le partage « 👥 Tous mes amis »
+  le remplace.
+- **Cartes du flux « Partagées ».** Le cœur et l'étoile passent sur la photo, en
+  bas à droite. Le nombre de cœurs et le compteur de commentaires ne sont plus
+  affichés (le bouton « Commenter » demeure). Le compteur de photos du carrousel
+  migre en haut à droite, là où les nouvelles pastilles le recouvraient.
+- **Barre du bas.** Icônes agrandies (30 dp au lieu de 26) et libellés bornés à
+  une ligne — « Partagées » revenait à la ligne et décalait les icônes.
+- **Cloche de notifications.** Le badge chiffré cède la place à un simple point de
+  présence ; le centre de notifications garde son point « non lu » par ligne.
+- **Barres en paysage.** Barre haute (48 dp) et barre basse (56 dp, libellés
+  masqués) se compactent en paysage pour rendre la hauteur au contenu.
 - **Icônes de la barre de navigation.** Les emojis des 5 onglets (Accueil,
   Albums, Carte, Partagées, Profil) sont remplacés par un set d'illustrations
   botaniques maison (fleurs bleues + vert forêt, marque FloraPin), générées puis
   détourées en PNG transparents (`res/drawable-nodpi/ic_nav_*`). Rendues via
   `Image` (et non `Icon`) pour préserver les couleurs ; l'état actif reste porté
   par l'indicateur de la `NavigationBar` et le libellé.
+
+### Interne
+- **Changelog public séparé (`CHANGELOG_SIMPLE.md`).** La page « Nouveautés » du
+  site rend désormais un journal grand public — une phrase par nouveauté, du
+  point de vue de l'utilisateur, sans nom de fichier ni d'endpoint, en trois
+  rubriques (Nouveau / Amélioré / Réparé) — au lieu de ce fichier technique.
+  `deploy.sh` copie `CHANGELOG_SIMPLE.md` vers `landing/src/changelog.md` ; la
+  règle d'ajout est rappelée en tête des deux fichiers (le bloc de citation
+  reste masqué sur la vitrine par le CSS de `changelog.astro`).
+
+### Corrigé
+- **Révocation d'un partage.** Révoquer ne recharge plus tout l'état de la feuille.
+  La liste des partages ne se vidait qu'un instant, mais cela suffisait à ramener
+  la vue en haut et forçait à re-scroller. La ligne disparaît désormais
+  immédiatement, et revient à sa place si l'appel échoue.
 
 ## [1.13.0] — 2026-07-05
 

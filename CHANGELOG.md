@@ -17,6 +17,8 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.14.1] — 2026-07-10
+
 ### Ajouté
 - **Vitrine — aperçu de l'app.** La section « Captures d'écran à venir » est
   remplacée par trois mockups d'écran (carte + regroupements, détail d'une fleur,
@@ -29,6 +31,14 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   `theme-color`.
 
 ### Modifié
+- **Typographie des titres : Fraunces → Lora.** Appliqué des deux côtés pour
+  garder une marque cohérente : `--font-display` de la vitrine
+  (`Layout.astro`) et `DisplayFontFamily` de l'app (`ui/theme/Type.kt`, toujours
+  via Downloadable Fonts, aucun binaire embarqué). Lora est variable (400→700) :
+  les graisses en place (460/560/640 sur le web, Medium/SemiBold côté app)
+  passent inchangées. L'og-image est régénérée en Lora : elle est rendue par une
+  capture headless d'une page HTML (vraies polices web) au lieu d'être composée
+  par sharp, qui n'avait accès qu'aux polices système (Georgia).
 - **Vitrine — distribution par Google Play uniquement.** Le téléchargement direct
   de l'APK est retiré (bouton du hero, repli du CTA final, `DownloadButton.astro`,
   `DOWNLOAD_URL`/`DOWNLOAD_NOTE`/`DOWNLOAD_FILENAME`). `deploy.sh` ne copie plus

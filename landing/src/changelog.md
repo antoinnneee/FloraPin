@@ -18,6 +18,26 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.14.1 — 10 juillet 2026
+
+### Nouveau
+- **Le site montre enfin l'application.** Trois écrans (la carte et ses bouquets
+  de fleurs regroupées, le détail d'une fleur, le flux de vos amis) remplacent
+  les cadres vides qui annonçaient des images « à venir ».
+
+### Amélioré
+- **Nouvelle police pour les titres**, dans l'application comme sur le site :
+  plus classique et plus facile à lire.
+- **Un aperçu s'affiche quand on partage le lien du site.** Envoyer l'adresse de
+  FloraPin par message ou sur un réseau social fait maintenant apparaître une
+  belle image au lieu d'un rectangle vide.
+- **Installation simplifiée.** L'application s'installe uniquement depuis le Play
+  Store : plus de fichier à télécharger à la main, ni d'avertissement Android sur
+  les « sources inconnues ».
+
+### Réparé
+- Le lien « Mentions légales » du bas de page menait à une page inexistante.
+
 ## Version 1.14 — 9 juillet 2026
 
 ### Nouveau

@@ -12,9 +12,9 @@ import com.florapin.app.R
 // Typographie organique FloraPin (NODE-84).
 //
 // Polices via Downloadable Fonts (Google Fonts) — aucun binaire à embarquer :
-//   • Titres (display/headline)  → Fraunces : serif chaleureux, organique.
-//   • Corps & libellés (title/body/label) → Inter : lisible, déjà utilisée
-//     par la vitrine (cohérence de marque).
+//   • Titres (display/headline)  → Lora : serif chaleureux, la même que les
+//     titres de la vitrine (cohérence de marque).
+//   • Corps & libellés (title/body/label) → Inter : lisible à petite taille.
 //
 // Le téléchargement est asynchrone : au tout premier rendu, avant que la
 // police soit en cache, Compose retombe sur la police système. Les certificats
@@ -27,10 +27,10 @@ private val provider = GoogleFont.Provider(
 )
 
 private val DisplayFontFamily = FontFamily(
-    Font(GoogleFont("Fraunces"), provider, FontWeight.Normal),
-    Font(GoogleFont("Fraunces"), provider, FontWeight.Medium),
-    Font(GoogleFont("Fraunces"), provider, FontWeight.SemiBold),
-    Font(GoogleFont("Fraunces"), provider, FontWeight.Bold),
+    Font(GoogleFont("Lora"), provider, FontWeight.Normal),
+    Font(GoogleFont("Lora"), provider, FontWeight.Medium),
+    Font(GoogleFont("Lora"), provider, FontWeight.SemiBold),
+    Font(GoogleFont("Lora"), provider, FontWeight.Bold),
 )
 
 private val BodyFontFamily = FontFamily(
@@ -40,7 +40,7 @@ private val BodyFontFamily = FontFamily(
     Font(GoogleFont("Inter"), provider, FontWeight.Bold),
 )
 
-// Échelle Material 3 complète : display/headline en Fraunces (SemiBold pour
+// Échelle Material 3 complète : display/headline en Lora (SemiBold pour
 // du caractère), title/body/label en Inter. Métriques alignées sur le type
 // scale M3 par défaut, ajustées pour un rendu chaleureux.
 val Typography = Typography(

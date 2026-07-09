@@ -17,6 +17,35 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+- **Vitrine — aperçu de l'app.** La section « Captures d'écran à venir » est
+  remplacée par trois mockups d'écran (carte + regroupements, détail d'une fleur,
+  flux d'amis) reconstitués en HTML/CSS d'après `map/`, `detail/` et `feed/` :
+  mêmes couleurs Material, mêmes libellés, barre de navigation à cinq onglets
+  (`PhoneNav.astro`). L'échelle suit la colonne via une requête de conteneur.
+- **Vitrine — image Open Graph.** `public/img/og-image.png` (1200×630) : les
+  partages de lien renvoyaient jusqu'ici un 404 (`/og-image.png` n'existait pas).
+  Ajout de `og:image:width/height/alt`, `og:site_name`, `twitter:image:alt` et
+  `theme-color`.
+
+### Modifié
+- **Vitrine — distribution par Google Play uniquement.** Le téléchargement direct
+  de l'APK est retiré (bouton du hero, repli du CTA final, `DownloadButton.astro`,
+  `DOWNLOAD_URL`/`DOWNLOAD_NOTE`/`DOWNLOAD_FILENAME`). `deploy.sh` ne copie plus
+  `app-debug.apk` dans `landing/public/` ; le rsync `--delete` retire le binaire
+  du VPS au prochain déploiement. `version.json` reste alimenté par `deploy.sh`
+  et sert désormais la mention « Bêta &lt;version&gt; · Android 8+ ».
+- **Vitrine — page d'accueil dans un `<main>`.** Les sélecteurs du sentier animé
+  (`TrailOverlay`) passent de `body > section` à `main > section`.
+
+### Corrigé
+- **Vitrine — lien mort.** Le pied de page pointait vers `/mentions-legales`,
+  page qui n'existe pas ; le lien est retiré.
+- **Vitrine — données structurées.** `offers.price` sans `priceCurrency` rendait
+  le bloc `SoftwareApplication` invalide.
+- **Vitrine — bascule GPS.** Le `<button>` de la démo vie privée n'avait pas de
+  `type="button"`.
+
 ## [1.14.0] — 2026-07-09
 
 ### Ajouté

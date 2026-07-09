@@ -1,17 +1,15 @@
 # Contenu de la vitrine FloraPin
 
 Copie **validée** pour intégration (source de vérité des composants Astro).
-Les **visuels** (captures, mockups, og-image) sont à produire séparément.
 
 ## 1. Hero
 - **Accroche** : « Vos fleurs, géolocalisées et gardées pour toujours. »
 - **Sous-titre** : « Photographiez chaque fleur que vous croisez, retrouvez-la
   sur une carte, et partagez-la avec une communauté d'amis passionnés — même
   sans réseau. »
-- **CTA principal** : « ⬇️ Télécharger l'app (Android) » → APK bêta auto-hébergé
-  (`/florapin.apk`). Secondaire : « Rejoindre la bêta ↓ ».
-- **Mention bêta** (sous le bouton) : « Version bêta — Android 8+ · autoriser les
-  « sources inconnues » à l'installation. »
+- **CTA principal** : « Rejoindre la bêta (Google Play) » → ancre `#beta`.
+  Secondaire : « Découvrir l'app ↓ ».
+- **Mention bêta** (sous les boutons) : « Bêta &lt;version&gt; · Android 8+ ».
 
 ## 2. Cartes fonctionnalités (9)
 1. **📷 Capture géolocalisée** — « Une photo, et la fleur est automatiquement
@@ -46,21 +44,27 @@ Les **visuels** (captures, mockups, og-image) sont à produire séparément.
   un simple bouton décide si les coordonnées GPS sont incluses ou non. Vos lieux
   ne quittent votre téléphone que si vous le décidez. »
 
-## 5. CTA final
+## 5. Aperçu de l'app
+- **Titre** : « L'app en un coup d'œil »
+- **Note** : « Interface de la bêta &lt;version&gt; — les fleurs affichées sont
+  des exemples. »
+- Trois écrans reconstitués : « Carte & regroupements », « Détail d'une fleur »,
+  « Le flux de vos amis ».
+
+## 6. CTA final
 - **Titre** : « Prêt à cataloguer vos fleurs ? »
 - **Texte** : « Rejoignez la bêta et soyez parmi les premiers à essayer
   FloraPin. »
-- **Bouton principal** : « ⬇️ Télécharger l'app (Android) » (+ mention bêta).
-- **Séparateur** : « ou laissez-nous votre e-mail pour être prévenu des mises à
-  jour ».
-- **Bouton secondaire** : « Je veux tester FloraPin »
-- **Champ** : email (inscription bêta)
+- **Parcours en deux étapes** (test fermé Google Play) : « Rejoindre le groupe de
+  testeurs », puis « Activer l'accès bêta ». Mention : « Bêta &lt;version&gt; ·
+  Android 8+ ».
 
-## 6. Footer
-- Contact · Politique de confidentialité · Mentions légales · Dépôt GitHub
+## 7. Footer
+- Contact · Nouveautés · Politique de confidentialité · Supprimer mon compte ·
+  Dépôt GitHub
 
-## Visuels à produire (non bloquants)
-- 4–6 captures d'écran réelles : galerie, carte + clustering, détail, partage,
-  identification.
-- Mockups téléphone (hero + section captures).
-- og-image (1200×630) + favicon 🌸.
+## Visuels
+- ✅ og-image (1200×630) : `public/img/og-image.png`.
+- ✅ Photos d'exemple des mockups : `public/img/flower-*.webp`.
+- ⬜ Remplacer les mockups par de vraies captures d'écran de l'app.
+- ⬜ Mentions légales (page absente ; le lien du footer a été retiré).

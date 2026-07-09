@@ -78,7 +78,7 @@
     const leftX = lane;
     const rightX = vw - lane;
 
-    const sections = [...document.querySelectorAll('body > section')];
+    const sections = [...document.querySelectorAll('main > section')];
     if (!sections.length) return;
     const hero = sections[0];
     const heroH = hero.offsetHeight;
@@ -260,7 +260,7 @@
      sections (hors hero, où le tracé doit rester au premier plan) au-dessus du
      tracé. Les zones transparentes laissent voir le sentier ; les cartes opaques
      le masquent — d'où l'effet « chemin qui se faufile entre les blocs ». */
-  body > section:not(.hero) > .container,
+  main > section:not(.hero) > .container,
   body > footer > .container {
     position: relative;
     z-index: 2;

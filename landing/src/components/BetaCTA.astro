@@ -1,15 +1,5 @@
 ---
-import DownloadButton from './DownloadButton.astro';
-import {
-  DOWNLOAD_URL,
-  DOWNLOAD_FILENAME,
-  PLAY_TEST_GROUP_URL,
-  PLAY_TEST_OPT_IN_URL,
-} from '../config';
-
-// Canal officiel = test fermé Google Play. Mis en avant dès que la liste de
-// testeurs (Google Groupe) est configurée ; l'APK devient un repli discret.
-const playTestEnabled = PLAY_TEST_GROUP_URL !== '';
+import { BETA_NOTE, PLAY_TEST_GROUP_URL, PLAY_TEST_OPT_IN_URL } from '../config';
 ---
 
 <section id="beta" class="beta-cta">
@@ -28,32 +18,24 @@ const playTestEnabled = PLAY_TEST_GROUP_URL !== '';
       <h2>Prêt à cataloguer <em>vos fleurs</em> ?</h2>
       <p>Rejoignez la bêta et soyez parmi les premiers à essayer FloraPin.</p>
 
-      {playTestEnabled ? (
-        <div class="join">
-          <p class="join-lead">Installez la version officielle en deux étapes :</p>
-          <div class="join-steps">
-            <a class="step-btn primary" href={PLAY_TEST_GROUP_URL} target="_blank" rel="noopener">
-              <span class="step-num">1</span>
-              <span class="step-label">Rejoindre le groupe de testeurs</span>
-            </a>
-            <a class="step-btn ghost" href={PLAY_TEST_OPT_IN_URL} target="_blank" rel="noopener">
-              <span class="step-num">2</span>
-              <span class="step-label">Activer l'accès bêta</span>
-            </a>
-          </div>
-          <p class="join-hint">
-            Rejoignez le groupe avec votre adresse Google, puis activez l'accès —
-            FloraPin apparaît alors sur le Play&nbsp;Store.
-          </p>
-          <a class="apk-fallback" href={DOWNLOAD_URL} download={DOWNLOAD_FILENAME}>
-            ou télécharger l'APK directement (hors Play Store)
+      <div class="join">
+        <p class="join-lead">Installez l'app en deux étapes :</p>
+        <div class="join-steps">
+          <a class="step-btn primary" href={PLAY_TEST_GROUP_URL} target="_blank" rel="noopener">
+            <span class="step-num">1</span>
+            <span class="step-label">Rejoindre le groupe de testeurs</span>
+          </a>
+          <a class="step-btn ghost" href={PLAY_TEST_OPT_IN_URL} target="_blank" rel="noopener">
+            <span class="step-num">2</span>
+            <span class="step-label">Activer l'accès bêta</span>
           </a>
         </div>
-      ) : (
-        <div class="dl-wrap">
-          <DownloadButton />
-        </div>
-      )}
+        <p class="join-hint">
+          Rejoignez le groupe avec votre adresse Google, puis activez l'accès —
+          FloraPin apparaît alors sur le Play&nbsp;Store.
+        </p>
+        <p class="join-note">{BETA_NOTE}</p>
+      </div>
     </div>
   </div>
 </section>
@@ -105,17 +87,6 @@ const playTestEnabled = PLAY_TEST_GROUP_URL !== '';
     font-size: 1.02rem;
     color: var(--texte-doux);
     margin-bottom: 36px;
-  }
-
-  .dl-wrap {
-    display: flex;
-    justify-content: center;
-    color: var(--texte-doux);
-  }
-
-  .dl-wrap :global(.download) {
-    align-items: center;
-    text-align: center;
   }
 
   /* Bloc principal : inscription au test fermé Google Play */
@@ -196,15 +167,11 @@ const playTestEnabled = PLAY_TEST_GROUP_URL !== '';
     margin: 22px auto 0;
   }
 
-  /* Repli discret : téléchargement direct de l'APK. */
-  .apk-fallback {
-    display: inline-block;
-    margin-top: 26px;
-    font-size: 0.82rem;
-    color: var(--texte-doux);
-    text-decoration: underline;
-    text-underline-offset: 2px;
+  .join-note {
+    margin: 26px 0 0;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    color: var(--mousse);
   }
-
-  .apk-fallback:hover { color: var(--feuille); }
 </style>

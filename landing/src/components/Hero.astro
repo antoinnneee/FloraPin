@@ -1,11 +1,5 @@
 ---
-import DownloadButton from './DownloadButton.astro';
-import { DOWNLOAD_URL, DOWNLOAD_FILENAME, PLAY_TEST_GROUP_URL } from '../config';
-
-// Le canal officiel est le test fermé Google Play : mis en avant dès que la
-// liste de testeurs (Google Groupe) est configurée. Sinon, on retombe sur le
-// téléchargement direct de l'APK pour ne pas laisser la vitrine sans CTA.
-const playTestEnabled = PLAY_TEST_GROUP_URL !== '';
+import { BETA_NOTE } from '../config';
 
 // Épingles-fleurs de la scène : position (en % du panneau), teinte des pétales,
 // délai d'éclosion (la séquence suit le tracé du sentier).
@@ -79,22 +73,10 @@ const pins = [
         et partagez-la avec une communauté d'amis passionnés — même sans réseau.
       </p>
       <div class="cta-group">
-        {playTestEnabled ? (
-          <>
-            <a href="#beta" class="btn-primary">Rejoindre la bêta (Google Play)</a>
-            <a
-              href={DOWNLOAD_URL}
-              class="btn-ghost"
-              download={DOWNLOAD_FILENAME}
-            >ou télécharger l'APK</a>
-          </>
-        ) : (
-          <>
-            <DownloadButton />
-            <a href="#beta" class="btn-ghost">Rejoindre la bêta ↓</a>
-          </>
-        )}
+        <a href="#beta" class="btn-primary">Rejoindre la bêta (Google Play)</a>
+        <a href="#fonctionnalites" class="btn-ghost">Découvrir l'app ↓</a>
       </div>
+      <p class="cta-note">{BETA_NOTE}</p>
     </div>
   </div>
 </section>
@@ -166,7 +148,14 @@ const pins = [
     align-items: center;
     gap: 26px;
     flex-wrap: wrap;
-    color: var(--mousse); /* hérité par la mention bêta du bouton */
+  }
+
+  .cta-note {
+    margin-top: 18px;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.06em;
+    color: var(--mousse);
   }
 
   .btn-primary {

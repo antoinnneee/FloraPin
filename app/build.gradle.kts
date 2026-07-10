@@ -177,6 +177,10 @@ dependencies {
     // Localisation (FusedLocationProvider)
     implementation(libs.play.services.location)
 
+    // Detection des nouvelles versions publiees sur le Play Store.
+    implementation(libs.play.app.update)
+    implementation(libs.play.app.update.ktx)
+
     // Carte (MapLibre GL)
     implementation(libs.maplibre.android)
 

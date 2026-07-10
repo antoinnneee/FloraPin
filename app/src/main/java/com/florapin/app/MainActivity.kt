@@ -13,12 +13,18 @@ import com.florapin.app.navigation.FloraNavHost
 import com.florapin.app.push.NotificationRouting
 import com.florapin.app.push.NotificationTarget
 import com.florapin.app.ui.theme.FloraPinTheme
+import com.florapin.app.update.UpdatePrompt
+import com.florapin.app.update.UpdatePromptPreferences
+import com.florapin.app.update.openPlayStore
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.install.model.UpdateAvailability
 
 class MainActivity : ComponentActivity() {
     // Cible de navigation issue d'un tap sur notification. État observable pour
     // que le NavHost la consomme aussi bien au démarrage à froid (onCreate) que
     // lorsque l'app est déjà ouverte (onNewIntent, activité en singleTop).
     private val notificationTarget = mutableStateOf<NotificationTarget?>(null)
+    private val availableUpdateVersion = mutableStateOf<Int?>(null)
 
     // Déclencheur de capture au volume : non nul uniquement quand l'écran de
     // capture est visible (il s'enregistre/désenregistre lui-même). Tant qu'il
@@ -62,6 +68,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         notificationTarget.value = consumeNotificationTarget()
+        checkForAvailableUpdate()
         setContent {
             FloraPinTheme {
                 // Pas de Scaffold ici : chaque écran gère ses propres insets via
@@ -72,8 +79,40 @@ class MainActivity : ComponentActivity() {
                     notificationTarget = notificationTarget.value,
                     onNotificationTargetHandled = { notificationTarget.value = null },
                 )
+                availableUpdateVersion.value?.let { versionCode ->
+                    UpdatePrompt(
+                        onDismiss = { doNotShowAgain ->
+                            hideUpdatePrompt(versionCode, doNotShowAgain)
+                        },
+                        onOpenPlayStore = { doNotShowAgain ->
+                            hideUpdatePrompt(versionCode, doNotShowAgain)
+                            openPlayStore(this@MainActivity)
+                        },
+                    )
+                }
             }
         }
+    }
+
+    private fun checkForAvailableUpdate() {
+        val preferences = UpdatePromptPreferences(this)
+
+        AppUpdateManagerFactory.create(this).appUpdateInfo
+            .addOnSuccessListener { updateInfo ->
+                if (updateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE) {
+                    val versionCode = updateInfo.availableVersionCode()
+                    if (preferences.shouldShow(versionCode)) {
+                        availableUpdateVersion.value = versionCode
+                    }
+                }
+            }
+    }
+
+    private fun hideUpdatePrompt(versionCode: Int, doNotShowAgain: Boolean) {
+        if (doNotShowAgain) {
+            UpdatePromptPreferences(this).dismiss(versionCode)
+        }
+        availableUpdateVersion.value = null
     }
 
     override fun onNewIntent(intent: Intent) {

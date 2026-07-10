@@ -17,6 +17,13 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+- **Alerte de mise à jour Play Store.** Au démarrage, l'app interroge Play Core et
+  affiche un dialogue lorsqu'une nouvelle version est disponible. Le bouton
+  ouvre directement la fiche FloraPin dans le Play Store, avec un repli vers sa
+  version web. L'utilisateur peut masquer l'alerte pour le `versionCode` annoncé
+  sans désactiver les alertes des versions suivantes.
+
 ## [1.14.1] — 2026-07-10
 
 ### Ajouté

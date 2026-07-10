@@ -18,6 +18,11 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+### Nouveau
+- **Les mises à jour sont plus faciles à installer.** FloraPin vous prévient
+  lorsqu'une nouvelle version est disponible et vous permet d'ouvrir directement
+  sa page Play Store, ou de masquer le rappel pour cette version.
+
 ## Version 1.14.1 — 10 juillet 2026
 
 ### Nouveau

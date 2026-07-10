@@ -18,6 +18,7 @@ zxing = "3.5.3"
 
 # Localisation
 playServicesLocation = "21.3.0"
+playAppUpdate = "2.1.0"
 
 # Persistance
 room = "2.6.1"
@@ -85,6 +86,8 @@ firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashly
 
 # FusedLocationProvider (GPS)
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+play-app-update = { group = "com.google.android.play", name = "app-update", version.ref = "playAppUpdate" }
+play-app-update-ktx = { group = "com.google.android.play", name = "app-update-ktx", version.ref = "playAppUpdate" }
 
 # Room (base de données locale)
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }

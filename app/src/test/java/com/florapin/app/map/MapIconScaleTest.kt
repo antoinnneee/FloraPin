@@ -1,65 +1,84 @@
 package com.florapin.app.map
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.hypot
+import kotlin.math.abs
 
 class MapIconScaleTest {
 
     @Test
-    fun minSeparation_isNullBelowTwoPoints() {
-        assertNull(minSeparationPx(emptyList()))
-        assertNull(minSeparationPx(listOf(ScreenPoint(10f, 10f))))
-    }
-
-    @Test
-    fun minSeparation_findsClosestPairRegardlessOfOrder() {
-        val points = listOf(
-            ScreenPoint(0f, 0f),
-            ScreenPoint(300f, 400f), // à 500 du premier
-            ScreenPoint(303f, 404f), // à 5 du deuxième
-            ScreenPoint(900f, 0f),
+    fun movementInterpolation_advancesWithoutTeleporting() {
+        val point = interpolateScreenPoint(
+            from = ScreenPoint(0f, 20f),
+            to = ScreenPoint(100f, 220f),
+            fraction = 0.25f,
         )
-        assertEquals(5f, minSeparationPx(points)!!, 0.001f)
+
+        assertEquals(25f, point.x, 0.001f)
+        assertEquals(70f, point.y, 0.001f)
     }
 
     @Test
-    fun scale_growsWithZoom() {
-        val near = photoIconScale(zoom = PHOTO_ICON_MIN_ZOOM.toDouble(), minSeparationPx = null)
-        val nearer = photoIconScale(zoom = PHOTO_ICON_MIN_ZOOM + 1.0, minSeparationPx = null)
-        assertEquals(PHOTO_ICON_SCALE_INITIAL, near, 0.001f)
-        assertTrue("$nearer devrait dépasser $near", nearer > near)
+    fun consecutiveIds_areSpreadAcrossAllSlots() {
+        assertEquals((0 until CALLOUT_SLOT_COUNT).toList(), (0L until 8L).map(::calloutSlot))
     }
 
     @Test
-    fun scale_isCappedSoOverlapStaysUnderTenPercent() {
-        // Voisines distantes de 200 px : un diamètre de 222 px les fait se
-        // recouvrir d'exactement 10 %.
-        val separation = 200f
-        val scale = photoIconScale(zoom = 21.0, minSeparationPx = separation)
-        val diameter = scale * PHOTO_ICON_SIZE_PX
-        val overlap = (diameter - separation) / diameter
-        assertTrue("chevauchement de $overlap", overlap <= 0.1001f)
+    fun slots_wrapAfterOneTurn() {
+        assertEquals(calloutSlot(0), calloutSlot(CALLOUT_SLOT_COUNT.toLong()))
     }
 
     @Test
-    fun scale_ignoresNeighboursWhenTheyAreFarApart() {
-        val unconstrained = photoIconScale(zoom = 17.0, minSeparationPx = null)
-        val roomy = photoIconScale(zoom = 17.0, minSeparationPx = 2000f)
-        assertEquals(unconstrained, roomy, 0.001f)
+    fun negativeIds_stillProduceAValidSlot() {
+        assertTrue(calloutSlot(-1) in 0 until CALLOUT_SLOT_COUNT)
     }
 
     @Test
-    fun scale_keepsPastillesVisibleOnVeryDenseClusters() {
-        // Fleurs superposées : mieux vaut un peu de chevauchement que l'invisible.
-        val scale = photoIconScale(zoom = 18.0, minSeparationPx = 1f)
-        assertTrue("$scale devrait rester perceptible", scale >= 0.3f)
+    fun firstSlotPointsUpAndOppositeSlotPointsDown() {
+        assertEquals((-Math.PI / 2).toFloat(), calloutAngleRadians(0), 0.0001f)
+        assertEquals((Math.PI / 2).toFloat(), calloutAngleRadians(4), 0.0001f)
     }
 
     @Test
-    fun scaleChange_isIgnoredWhenImperceptible() {
-        assertTrue(isScaleChangeVisible(0.70f, 0.75f))
-        assertTrue(!isScaleChangeVisible(0.70f, 0.71f))
+    fun denseFlowers_arePushedApart() {
+        val anchors = (0L until 6L).map { id ->
+            CalloutAnchor(id, ScreenPoint(400f + id * 3f, 600f + id * 2f))
+        }
+
+        val positions = repelCallouts(anchors, viewportWidth = 800f, viewportHeight = 1200f)
+        val minimum = positions.values.flatMapIndexed { index, first ->
+            positions.values.drop(index + 1).map { second ->
+                hypot(second.x - first.x, second.y - first.y)
+            }
+        }.minOrNull()!!
+
+        assertTrue("distance minimale: $minimum", minimum >= CALLOUT_MIN_SEPARATION_PX - 1f)
+    }
+
+    @Test
+    fun isolatedPhoto_leavesItsDottedLinkVisible() {
+        val anchor = CalloutAnchor(1L, ScreenPoint(400f, 600f))
+        val photo = repelCallouts(listOf(anchor), 800f, 1200f).getValue(anchor.id)
+
+        assertTrue(hypot(photo.x - anchor.point.x, photo.y - anchor.point.y) >= 200f)
+        assertTrue("une place libre au-dessus doit être préférée", photo.y < anchor.point.y)
+        assertTrue(abs(photo.x - anchor.point.x) < 1f)
+    }
+
+    @Test
+    fun curvedPath_routesAroundAnEmoji() {
+        val obstacle = ScreenPoint(120f, 100f)
+        val path = harmoniousCalloutPath(
+            anchor = ScreenPoint(0f, 100f),
+            bubble = ScreenPoint(240f, 100f),
+            emojiObstacles = listOf(obstacle),
+        )
+        val closest = path.drop(1).dropLast(1).minOf { point ->
+            hypot(point.x - obstacle.x, point.y - obstacle.y)
+        }
+
+        assertTrue("distance de la courbe à l'emoji: $closest", closest >= 55f)
     }
 }

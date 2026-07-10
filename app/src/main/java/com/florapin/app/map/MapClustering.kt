@@ -2,32 +2,44 @@ package com.florapin.app.map
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.PointF
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.florapin.app.R
 import org.maplibre.android.maps.Style
+import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.PropertyFactory.iconAllowOverlap
 import org.maplibre.android.style.layers.PropertyFactory.iconIgnorePlacement
 import org.maplibre.android.style.layers.PropertyFactory.iconImage
 import org.maplibre.android.style.layers.PropertyFactory.iconSize
+import org.maplibre.android.style.layers.PropertyFactory.lineColor
+import org.maplibre.android.style.layers.PropertyFactory.lineDasharray
+import org.maplibre.android.style.layers.PropertyFactory.lineWidth
 import org.maplibre.android.style.layers.PropertyFactory.textAllowOverlap
 import org.maplibre.android.style.layers.PropertyFactory.textColor
 import org.maplibre.android.style.layers.PropertyFactory.textField
 import org.maplibre.android.style.layers.PropertyFactory.textIgnorePlacement
 import org.maplibre.android.style.layers.PropertyFactory.textSize
+import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonOptions
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
+import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 
 /** Identifiants de la source et des couches de la carte des fleurs. */
 object MapLayers {
     const val SOURCE = "flowers"
+    const val CALLOUT_SOURCE = "flower-callouts"
+    const val CALLOUT_LINE_SOURCE = "flower-callout-lines"
     const val CLUSTERS = "flowers-clusters"
     const val UNCLUSTERED = "flowers-unclustered"
+    const val CALLOUT_LINES = "flower-callout-lines"
+    const val CALLOUTS = "flower-callouts"
 
     /** Propriété de feature portant l'id de la fleur. */
     const val PROP_ID = "id"
@@ -38,11 +50,7 @@ object MapLayers {
     /** Propriété de feature portant l'URL de la photo d'une fleur d'ami. */
     const val PROP_PHOTO = "photo"
 
-    /**
-     * Propriété de feature portant le nom de la pastille photo enregistrée dans
-     * le style. Absente tant que la vignette n'a pas été chargée : l'expression
-     * de la couche retombe alors sur [PROP_EMOJI].
-     */
+    /** Nom de la bulle photo enregistrée dans le style. */
     const val PROP_PHOTO_ICON = "photoIcon"
 }
 
@@ -60,6 +68,14 @@ private const val CLUSTER_LARGE_FROM = 50
 
 /** Échelle des emojis d'espèce (les fleurs isolées non encore illustrées). */
 const val EMOJI_ICON_SCALE = 0.6f
+
+/** Taille stable des appels photo : la proximité ne les rend plus minuscules. */
+private const val PHOTO_CALLOUT_ICON_SCALE = 1f
+
+/** Positions géographiques actuellement affichées, conservées entre deux layouts. */
+class CalloutMotionState internal constructor() {
+    internal var displayedPositions: Map<Long, LatLng> = emptyMap()
+}
 
 /**
  * Ajoute à [style] une source GeoJSON clusterisée et les couches associées :
@@ -87,6 +103,18 @@ fun Style.setupFlowerClustering(context: Context) {
                 .withCluster(true)
                 .withClusterMaxZoom(14)
                 .withClusterRadius(50),
+        ),
+    )
+    addSource(
+        GeoJsonSource(
+            MapLayers.CALLOUT_SOURCE,
+            FeatureCollection.fromFeatures(emptyList()),
+        ),
+    )
+    addSource(
+        GeoJsonSource(
+            MapLayers.CALLOUT_LINE_SOURCE,
+            FeatureCollection.fromFeatures(emptyList()),
         ),
     )
 
@@ -128,30 +156,39 @@ fun Style.setupFlowerClustering(context: Context) {
         ).withFilter(Expression.has("point_count")),
     )
 
-    // Fleurs individuelles (hors cluster) : emoji d'espèce rendu en bitmap, puis
-    // pastille photo une fois zoomé de près (PHOTO_ICON_MIN_ZOOM). Le `coalesce`
-    // retient l'emoji pour les fleurs dont la vignette n'a pas (encore) été
-    // chargée. MapLibre n'accepte le zoom dans une propriété liée aux données
-    // qu'au niveau le plus externe d'un `step` — d'où cette forme.
+    // Les lignes sont sous les emojis et les photos. Leur géométrie est recalculée
+    // après chaque mouvement de caméra par le solveur de répulsion.
+    addLayer(
+        LineLayer(MapLayers.CALLOUT_LINES, MapLayers.CALLOUT_LINE_SOURCE)
+            .withProperties(
+                lineColor(Color.rgb(48, 93, 70)),
+                lineWidth(2.5f),
+                lineDasharray(arrayOf(1f, 2.2f)),
+            )
+            .apply { minZoom = PHOTO_ICON_MIN_ZOOM },
+    )
+
+    // L'emoji reste toujours exactement sur la coordonnée GPS.
     addLayer(
         SymbolLayer(MapLayers.UNCLUSTERED, MapLayers.SOURCE).withProperties(
-            iconImage(
-                Expression.step(
-                    Expression.zoom(),
-                    Expression.get(MapLayers.PROP_EMOJI),
-                    Expression.stop(
-                        PHOTO_ICON_MIN_ZOOM,
-                        Expression.coalesce(
-                            Expression.get(MapLayers.PROP_PHOTO_ICON),
-                            Expression.get(MapLayers.PROP_EMOJI),
-                        ),
-                    ),
-                ),
-            ),
-            iconSize(photoIconSizeExpression(PHOTO_ICON_SCALE_INITIAL)),
+            iconImage(Expression.get(MapLayers.PROP_EMOJI)),
+            iconSize(EMOJI_ICON_SCALE),
             iconAllowOverlap(true),
             iconIgnorePlacement(true),
         ).withFilter(Expression.not(Expression.has("point_count"))),
+    )
+
+    // Les photos vivent dans une source distincte : leur point géographique est
+    // dérivé d'une position écran, donc elles peuvent se repousser librement.
+    addLayer(
+        SymbolLayer(MapLayers.CALLOUTS, MapLayers.CALLOUT_SOURCE)
+            .withProperties(
+                iconImage(Expression.get(MapLayers.PROP_PHOTO_ICON)),
+                iconSize(PHOTO_CALLOUT_ICON_SCALE),
+                iconAllowOverlap(true),
+                iconIgnorePlacement(true),
+            )
+            .apply { minZoom = PHOTO_ICON_MIN_ZOOM },
     )
 }
 
@@ -162,42 +199,13 @@ private fun clusterBadge(context: Context, resId: Int) =
         .withScreenDensity(context)
 
 /**
- * Taille des icônes de fleurs isolées : les emojis gardent [EMOJI_ICON_SCALE],
- * les pastilles photo prennent [scale], qui suit le zoom.
- */
-private fun photoIconSizeExpression(scale: Float): Expression = Expression.step(
-    Expression.zoom(),
-    Expression.literal(EMOJI_ICON_SCALE),
-    Expression.stop(
-        PHOTO_ICON_MIN_ZOOM,
-        Expression.switchCase(
-            Expression.has(MapLayers.PROP_PHOTO_ICON),
-            Expression.literal(scale),
-            Expression.literal(EMOJI_ICON_SCALE),
-        ),
-    ),
-)
-
-/**
- * Redimensionne les pastilles photo. Appelé à chaque mouvement de caméra : le
- * zoom les grossit, le voisinage les bride (cf. [photoIconScale]).
- */
-fun Style.setPhotoIconScale(scale: Float) {
-    val layer = getLayerAs<SymbolLayer>(MapLayers.UNCLUSTERED) ?: return
-    layer.setProperties(iconSize(photoIconSizeExpression(scale)))
-}
-
-/**
  * Remplace les features de la source par les marqueurs fournis.
  *
  * @param photoIconIds ids des marqueurs dont la pastille photo est déjà
  *   enregistrée dans le style. Nommer une image absente ferait disparaître le
  *   marqueur : on ne pose la propriété que pour celles-là.
  */
-fun Style.updateFlowerMarkers(
-    markers: List<FlowerMarker>,
-    photoIconIds: Set<Long> = emptySet(),
-) {
+fun Style.updateFlowerMarkers(markers: List<FlowerMarker>) {
     val source = getSourceAs<GeoJsonSource>(MapLayers.SOURCE) ?: return
     val features = markers.map { marker ->
         Feature.fromGeometry(
@@ -212,10 +220,103 @@ fun Style.updateFlowerMarkers(
                 marker.photoUrl?.let { addStringProperty(MapLayers.PROP_PHOTO, it) }
             }
             addStringProperty(MapLayers.PROP_EMOJI, marker.emoji)
-            if (marker.id in photoIconIds) {
-                addStringProperty(MapLayers.PROP_PHOTO_ICON, photoIconId(marker.id))
-            }
         }
     }
     source.setGeoJson(FeatureCollection.fromFeatures(features))
+}
+
+/** Recalcule les bulles visibles et leurs lignes après un changement de caméra. */
+fun Style.updateFlowerCallouts(
+    map: MapLibreMap,
+    markers: List<FlowerMarker>,
+    photoIconIds: Set<Long>,
+    viewportWidth: Float,
+    viewportHeight: Float,
+    relaxationSteps: Int = CALLOUT_RELAXATION_STEPS,
+    motionState: CalloutMotionState? = null,
+    interpolation: Float = 1f,
+) {
+    val calloutSource = getSourceAs<GeoJsonSource>(MapLayers.CALLOUT_SOURCE) ?: return
+    val lineSource = getSourceAs<GeoJsonSource>(MapLayers.CALLOUT_LINE_SOURCE) ?: return
+    if (map.cameraPosition.zoom < PHOTO_ICON_MIN_ZOOM) {
+        calloutSource.setGeoJson(FeatureCollection.fromFeatures(emptyList()))
+        lineSource.setGeoJson(FeatureCollection.fromFeatures(emptyList()))
+        motionState?.displayedPositions = emptyMap()
+        return
+    }
+
+    val bounds = runCatching { map.projection.visibleRegion.latLngBounds }.getOrNull()
+    val visibleMarkers = markers.filter { marker ->
+        marker.id in photoIconIds &&
+            (bounds == null || bounds.contains(org.maplibre.android.geometry.LatLng(marker.latitude, marker.longitude)))
+    }
+    val anchors = visibleMarkers.map { marker ->
+        val point = map.projection.toScreenLocation(
+            org.maplibre.android.geometry.LatLng(marker.latitude, marker.longitude),
+        )
+        CalloutAnchor(marker.id, ScreenPoint(point.x, point.y))
+    }
+    val anchorsById = anchors.associateBy(CalloutAnchor::id)
+    val targets = repelCallouts(
+        anchors = anchors,
+        viewportWidth = viewportWidth,
+        viewportHeight = viewportHeight,
+        relaxationSteps = relaxationSteps,
+    )
+    val placements = targets.mapValues { (id, target) ->
+        val previousGeo = motionState?.displayedPositions?.get(id)
+        if (previousGeo == null) {
+            target
+        } else {
+            val previous = map.projection.toScreenLocation(previousGeo)
+            interpolateScreenPoint(
+                from = ScreenPoint(previous.x, previous.y),
+                to = target,
+                fraction = interpolation,
+            )
+        }
+    }
+
+    val displayedGeoPositions = placements.mapValues { (_, point) ->
+        map.projection.fromScreenLocation(PointF(point.x, point.y))
+    }
+    motionState?.displayedPositions = displayedGeoPositions
+
+    val callouts = visibleMarkers.mapNotNull { marker ->
+        val bubblePosition = displayedGeoPositions[marker.id] ?: return@mapNotNull null
+        Feature.fromGeometry(Point.fromLngLat(bubblePosition.longitude, bubblePosition.latitude)).apply {
+            addMarkerTargetProperties(marker)
+            addStringProperty(
+                MapLayers.PROP_PHOTO_ICON,
+                photoIconId(marker.id, friend = !marker.navigable),
+            )
+        }
+    }
+    val lines = visibleMarkers.mapNotNull { marker ->
+        val screenPoint = placements[marker.id] ?: return@mapNotNull null
+        val anchor = anchorsById[marker.id]?.point ?: return@mapNotNull null
+        val obstacles = anchors.asSequence()
+            .filter { it.id != marker.id }
+            .map { it.point }
+            .toList()
+        val curvedPath = harmoniousCalloutPath(anchor, screenPoint, obstacles)
+        Feature.fromGeometry(
+            LineString.fromLngLats(
+                curvedPath.map { point ->
+                    val position = map.projection.fromScreenLocation(PointF(point.x, point.y))
+                    Point.fromLngLat(position.longitude, position.latitude)
+                },
+            ),
+        )
+    }
+    calloutSource.setGeoJson(FeatureCollection.fromFeatures(callouts))
+    lineSource.setGeoJson(FeatureCollection.fromFeatures(lines))
+}
+
+private fun Feature.addMarkerTargetProperties(marker: FlowerMarker) {
+    if (marker.navigable) {
+        addNumberProperty(MapLayers.PROP_ID, marker.id)
+    } else {
+        marker.photoUrl?.let { addStringProperty(MapLayers.PROP_PHOTO, it) }
+    }
 }

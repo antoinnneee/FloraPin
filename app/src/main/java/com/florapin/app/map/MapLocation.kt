@@ -8,6 +8,7 @@ import androidx.core.content.ContextCompat
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.location.LocationComponentActivationOptions
+import org.maplibre.android.location.LocationComponentOptions
 import org.maplibre.android.location.modes.CameraMode
 import org.maplibre.android.location.modes.RenderMode
 import org.maplibre.android.maps.MapLibreMap
@@ -29,8 +30,8 @@ val LOCATION_PERMISSIONS = arrayOf(
 )
 
 /**
- * Active l'indicateur « ma position » de MapLibre (point bleu + halo de
- * précision) sur [map]. L'appelant doit avoir vérifié la permission au préalable.
+ * Active l'indicateur « ma position » de MapLibre sans halo de précision.
+ * L'appelant doit avoir vérifié la permission au préalable.
  * Réactiver après un rechargement de style réapplique simplement les réglages.
  */
 @SuppressLint("MissingPermission") // permission vérifiée par l'appelant
@@ -39,6 +40,11 @@ fun MapLibreMap.enableMyLocation(context: Context, style: Style) {
     val component = locationComponent
     component.activateLocationComponent(
         LocationComponentActivationOptions.builder(context, style)
+            .locationComponentOptions(
+                LocationComponentOptions.builder(context)
+                    .accuracyAlpha(0f)
+                    .build(),
+            )
             .useDefaultLocationEngine(true)
             .build(),
     )

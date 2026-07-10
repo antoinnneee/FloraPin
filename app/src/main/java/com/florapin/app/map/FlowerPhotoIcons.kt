@@ -21,13 +21,16 @@ import coil.request.SuccessResult
 const val PHOTO_ICON_MIN_ZOOM = 16f
 
 /**
- * Côté de la pastille source, en pixels. C'est la taille à `iconSize` 1 : le
- * rendu réel est mis à l'échelle selon le zoom (cf. [photoIconScale]).
+ * Côté de la bulle photo source. Son placement est calculé séparément en
+ * coordonnées écran par l'algorithme de répulsion.
  */
-const val PHOTO_ICON_SIZE_PX = 256
+const val PHOTO_ICON_SIZE_PX = 192
 
-/** Épaisseur du liseré blanc qui détache la pastille du fond de carte. */
-private const val ICON_BORDER_PX = 10f
+/** Épaisseur du liseré blanc qui détache la bulle du fond de carte. */
+private const val ICON_BORDER_PX = 8f
+
+/** Liseré chaud distinctif des fleurs provenant des amis. */
+const val FRIEND_PHOTO_BORDER_COLOR: Int = -22963 // #FFA64D
 
 /**
  * Plafond de vignettes chargées en une passe. Chaque pastille est un bitmap
@@ -37,7 +40,8 @@ private const val ICON_BORDER_PX = 10f
 const val MAX_PHOTO_ICONS = 80
 
 /** Nom de l'image enregistrée dans le style pour la fleur [markerId]. */
-fun photoIconId(markerId: Long): String = "flower-photo-$markerId"
+fun photoIconId(markerId: Long, friend: Boolean = false): String =
+    "flower-photo-${if (friend) "friend" else "mine"}-$markerId"
 
 /**
  * Cale la densité du bitmap sur celle de l'écran. MapLibre en déduit le ratio
@@ -51,11 +55,14 @@ fun Bitmap.withScreenDensity(context: Context): Bitmap = apply {
 }
 
 /**
- * Décode [model] (fichier local ou URL) via Coil et en tire une pastille ronde
- * bordée de blanc, prête à être enregistrée dans le style. Retourne null si le
- * chargement échoue : l'appelant garde alors l'emoji d'espèce.
+ * Décode [model] et fabrique la bulle photo ronde. L'emoji et la ligne sont des
+ * couches MapLibre distinctes, ce qui permet de déplacer la photo dynamiquement.
  */
-suspend fun loadCircularIcon(context: Context, model: Any?): Bitmap? {
+suspend fun loadCircularIcon(
+    context: Context,
+    model: Any?,
+    borderColor: Int = Color.WHITE,
+): Bitmap? {
     if (model == null) return null
     val request = ImageRequest.Builder(context)
         .data(model)
@@ -64,11 +71,11 @@ suspend fun loadCircularIcon(context: Context, model: Any?): Bitmap? {
         .build()
     val result = context.imageLoader.execute(request)
     if (result !is SuccessResult) return null
-    return runCatching { result.drawable.toBitmap().toCircle(context) }.getOrNull()
+    return runCatching { result.drawable.toBitmap().toCircle(context, borderColor) }.getOrNull()
 }
 
 /** Recadre au centre, arrondit en cercle et ajoute le liseré. */
-private fun Bitmap.toCircle(context: Context): Bitmap {
+private fun Bitmap.toCircle(context: Context, borderColor: Int): Bitmap {
     val output = Bitmap.createBitmap(
         PHOTO_ICON_SIZE_PX,
         PHOTO_ICON_SIZE_PX,
@@ -96,7 +103,7 @@ private fun Bitmap.toCircle(context: Context): Bitmap {
     val border = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = ICON_BORDER_PX
-        color = Color.WHITE
+        color = borderColor
     }
     canvas.drawCircle(radius, radius, radius - ICON_BORDER_PX / 2f, border)
     return output

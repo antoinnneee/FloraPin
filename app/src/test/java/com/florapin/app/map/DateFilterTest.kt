@@ -1,9 +1,7 @@
 package com.florapin.app.map
 
-import java.util.Calendar
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DateFilterTest {
@@ -28,14 +26,7 @@ class DateFilterTest {
     }
 
     @Test
-    fun thisYear_isStartOfCurrentYear() {
-        val threshold = DateFilter.THIS_YEAR.minTimestamp(now)!!
-        assertTrue(threshold <= now)
-
-        val calendar = Calendar.getInstance().apply { timeInMillis = threshold }
-        assertEquals(Calendar.JANUARY, calendar.get(Calendar.MONTH))
-        assertEquals(1, calendar.get(Calendar.DAY_OF_MONTH))
-        assertEquals(0, calendar.get(Calendar.HOUR_OF_DAY))
-        assertEquals(0, calendar.get(Calendar.MINUTE))
+    fun selector_hasExactlyThreeCompactChoices() {
+        assertEquals(listOf("Toutes", "7 jours", "30 jours"), DateFilter.entries.map { it.label })
     }
 }

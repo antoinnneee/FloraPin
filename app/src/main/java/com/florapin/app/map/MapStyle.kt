@@ -8,19 +8,14 @@ import android.content.Context
  * sélecteur. Tous sont disponibles sur l'offre gratuite MapTiler.
  */
 enum class MapStyle(val id: String, val label: String) {
-    STREETS("streets-v2", "Rues"),
-    OUTDOOR("outdoor-v2", "Plein air"),
-    TOPO("topo-v2", "Topographique"),
+    BRIGHT("bright-v2", "Clair"),
     SATELLITE("satellite", "Satellite"),
     HYBRID("hybrid", "Hybride"),
-    BASIC("basic-v2", "Épuré"),
-    BRIGHT("bright-v2", "Clair"),
-    DATAVIZ("dataviz", "Dataviz"),
     WINTER("winter-v2", "Hiver"),
     ;
 
     companion object {
-        val DEFAULT = STREETS
+        val DEFAULT = BRIGHT
 
         fun fromId(id: String?): MapStyle = entries.find { it.id == id } ?: DEFAULT
     }

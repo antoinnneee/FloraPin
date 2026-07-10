@@ -23,6 +23,27 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   ouvre directement la fiche FloraPin dans le Play Store, avec un repli vers sa
   version web. L'utilisateur peut masquer l'alerte pour le `versionCode` annoncé
   sans désactiver les alertes des versions suivantes.
+- **Appels photo plus lisibles sur la carte.** À fort zoom, l'emoji reste ancré
+  sur la position de la fleur et une ligne pointillée le relie à une bulle photo
+  déportée. Un placement par forces repousse les photos entre elles, les garde
+  à l'écart des emojis et allonge leur liaison si nécessaire, sans les réduire.
+  Les angles sont choisis selon l'espace réellement libre et les liaisons suivent
+  une courbe douce qui contourne les autres fleurs. Le placement suit le drag et
+  le zoom en direct, puis s'affine à l'arrêt avec une interpolation des positions
+  et des courbes pour supprimer les téléportations visuelles.
+- **Filtre de durée compact.** Les quatre grandes chips deviennent un sélecteur
+  segmenté à trois boutons : Toutes, 7 jours et 30 jours.
+- **Styles de carte recentrés.** Le sélecteur propose uniquement Clair, Satellite,
+  Hybride et Hiver dans un contrôle superposé en haut à droite de la carte ; les
+  anciens choix retirés reviennent automatiquement à Clair.
+- **Contrôles de carte allégés.** Le filtre Espèce disparaît ; l'affichage des
+  fleurs d'amis est activé par défaut et piloté depuis un bouton en overlay. Les
+  contrôles superposés gagnent un fond opaque et une ombre pour rester lisibles
+  sur les cartes claires. Les previews d'amis portent un fin liseré orange, contre
+  un fin liseré blanc pour les fleurs personnelles.
+- **Overlay carte affiné.** Les boutons Amis et style sont alignés sur une ligne,
+  Amis à gauche, sans double contour. Le halo bleu de précision GPS est masqué
+  pour ne conserver que l'indicateur de position.
 
 ## [1.14.1] — 2026-07-10
 

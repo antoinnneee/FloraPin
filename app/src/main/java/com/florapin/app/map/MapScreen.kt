@@ -1,24 +1,33 @@
 package com.florapin.app.map
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
 import android.graphics.RectF
+import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -32,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -71,9 +81,7 @@ fun MapScreen(
     val apiKey = BuildConfig.MAPTILER_API_KEY
     val markers by viewModel.markers.collectAsStateWithLifecycle()
     val dateFilter by viewModel.dateFilter.collectAsStateWithLifecycle()
-    val speciesFilter by viewModel.speciesFilter.collectAsStateWithLifecycle()
     val friendsOnly by viewModel.friendsOnly.collectAsStateWithLifecycle()
-    val availableSpecies by viewModel.availableSpecies.collectAsStateWithLifecycle()
     val currentOnFlowerClick by rememberUpdatedState(onFlowerClick)
 
     // Photo d'une fleur d'ami ouverte en plein écran (pas de détail local à ouvrir).
@@ -112,8 +120,7 @@ fun MapScreen(
     Scaffold(
         modifier = modifier,
         topBar = {
-            // Topbar épurée : le style de carte est descendu dans la barre de
-            // filtres (chip « 🗺️ »), comme le reste des contrôles.
+            // Le style de carte vit directement en overlay sur la carte.
             TopAppBar(
                 expandedHeight = topBarHeight,
                 title = { Text("Carte") },
@@ -147,6 +154,13 @@ fun MapScreen(
             mapView.getMapAsync { map ->
                 mapRef.value = map
                 map.cameraPosition = DEFAULT_CAMERA
+                val density = context.resources.displayMetrics.density
+                map.uiSettings.setCompassMargins(
+                    0,
+                    (72 * density).toInt(),
+                    (12 * density).toInt(),
+                    0,
+                )
                 map.addOnMapClickListener { latLng ->
                     handleMapClick(
                         map = map,
@@ -166,29 +180,6 @@ fun MapScreen(
             }
         }
 
-        // Les pastilles grossissent avec le zoom, sans se chevaucher : leur
-        // échelle dépend de l'écart, à l'écran, des deux fleurs les plus proches.
-        // Un rechargement de style repart de l'échelle inscrite dans la couche,
-        // d'où ce suivi hors de `style` (cf. réapplication plus bas).
-        val currentMarkers by rememberUpdatedState(markers)
-        val appliedScale = remember { mutableStateOf(PHOTO_ICON_SCALE_INITIAL) }
-        DisposableEffect(mapRef.value) {
-            val map = mapRef.value ?: return@DisposableEffect onDispose {}
-            val listener = MapLibreMap.OnCameraMoveListener {
-                val loadedStyle = style.value ?: return@OnCameraMoveListener
-                if (map.cameraPosition.zoom < PHOTO_ICON_MIN_ZOOM) {
-                    return@OnCameraMoveListener
-                }
-                val scale = map.photoIconScaleForCamera(currentMarkers)
-                if (isScaleChangeVisible(appliedScale.value, scale)) {
-                    appliedScale.value = scale
-                    loadedStyle.setPhotoIconScale(scale)
-                }
-            }
-            map.addOnCameraMoveListener(listener)
-            onDispose { map.removeOnCameraMoveListener(listener) }
-        }
-
         // Active le point « ma position » dès que le style est prêt et la
         // permission accordée (à réappliquer après chaque rechargement de style).
         LaunchedEffect(style.value, locationGranted) {
@@ -199,41 +190,127 @@ fun MapScreen(
             }
         }
 
-        // Pastilles photo déjà enregistrées dans le style courant. Un rechargement
+        // Appels photo déjà enregistrés dans le style courant. Un rechargement
         // de style (changement de fond de carte) repart sans image : la clé
         // `remember` les fait repartir de zéro avec lui.
         val photoIconIds = remember(style.value) { mutableStateOf(emptySet<Long>()) }
+        val calloutMotionState = remember(style.value) { CalloutMotionState() }
+        val currentMarkers by rememberUpdatedState(markers)
+        val currentPhotoIconIds by rememberUpdatedState(photoIconIds.value)
+
+        // Recalcule aussi pendant le geste : une passe courte suit le drag sans
+        // bloquer l'UI, puis une relaxation complète affine le placement à l'arrêt.
+        DisposableEffect(mapRef.value, style.value, mapView) {
+            val map = mapRef.value
+            val loadedStyle = style.value
+            if (map == null || loadedStyle == null) return@DisposableEffect onDispose {}
+            var lastLiveLayoutAt = 0L
+            fun refreshCallouts(relaxationSteps: Int, interpolation: Float) {
+                loadedStyle.updateFlowerCallouts(
+                    map = map,
+                    markers = currentMarkers,
+                    photoIconIds = currentPhotoIconIds,
+                    viewportWidth = mapView.width.toFloat(),
+                    viewportHeight = mapView.height.toFloat(),
+                    relaxationSteps = relaxationSteps,
+                    motionState = calloutMotionState,
+                    interpolation = interpolation,
+                )
+            }
+            val settleAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = CALLOUT_SETTLE_DURATION_MS
+                addUpdateListener {
+                    refreshCallouts(
+                        relaxationSteps = CALLOUT_RELAXATION_STEPS,
+                        interpolation = SETTLE_INTERPOLATION,
+                    )
+                }
+                addListener(object : AnimatorListenerAdapter() {
+                    private var cancelled = false
+
+                    override fun onAnimationStart(animation: Animator) {
+                        cancelled = false
+                    }
+
+                    override fun onAnimationCancel(animation: Animator) {
+                        cancelled = true
+                    }
+
+                    override fun onAnimationEnd(animation: Animator) {
+                        if (!cancelled) {
+                            refreshCallouts(CALLOUT_RELAXATION_STEPS, 1f)
+                        }
+                    }
+                })
+            }
+            val moveListener = MapLibreMap.OnCameraMoveListener {
+                if (settleAnimator.isRunning) settleAnimator.cancel()
+                val now = SystemClock.uptimeMillis()
+                if (now - lastLiveLayoutAt >= LIVE_LAYOUT_INTERVAL_MS) {
+                    lastLiveLayoutAt = now
+                    refreshCallouts(
+                        relaxationSteps = CALLOUT_LIVE_RELAXATION_STEPS,
+                        interpolation = LIVE_INTERPOLATION,
+                    )
+                }
+            }
+            val idleListener = MapLibreMap.OnCameraIdleListener {
+                if (settleAnimator.isRunning) settleAnimator.cancel()
+                settleAnimator.start()
+            }
+            map.addOnCameraMoveListener(moveListener)
+            map.addOnCameraIdleListener(idleListener)
+            idleListener.onCameraIdle()
+            onDispose {
+                settleAnimator.cancel()
+                map.removeOnCameraMoveListener(moveListener)
+                map.removeOnCameraIdleListener(idleListener)
+            }
+        }
 
         // Met à jour les marqueurs dès que les données ou le style changent. Les
         // vignettes sont décodées après coup : la carte s'affiche tout de suite en
-        // emojis, puis les pastilles apparaissent au fur et à mesure.
+        // emojis, puis les bulles reliées apparaissent au fur et à mesure.
         LaunchedEffect(markers, style.value) {
             val loadedStyle = style.value ?: return@LaunchedEffect
-            loadedStyle.updateFlowerMarkers(markers, photoIconIds.value)
-
-            // Le style neuf porte l'échelle initiale, et un lot de marqueurs peut
-            // resserrer le voisinage sans que la caméra ait bougé.
-            mapRef.value?.let { map ->
-                appliedScale.value = map.photoIconScaleForCamera(markers)
-                loadedStyle.setPhotoIconScale(appliedScale.value)
-            }
+            loadedStyle.updateFlowerMarkers(markers)
 
             val loaded = photoIconIds.value.toMutableSet()
             var added = false
             markers.take(MAX_PHOTO_ICONS).forEach { marker ->
                 if (marker.id in loaded) return@forEach
-                val bitmap = loadCircularIcon(context, marker.thumbnailModel)
-                    ?: return@forEach
+                val bitmap = loadCircularIcon(
+                    context = context,
+                    model = marker.thumbnailModel,
+                    borderColor = if (marker.navigable) {
+                        android.graphics.Color.WHITE
+                    } else {
+                        FRIEND_PHOTO_BORDER_COLOR
+                    },
+                ) ?: return@forEach
                 // Le style a pu être remplacé pendant le décodage : y ajouter une
                 // image lèverait une exception.
                 if (style.value !== loadedStyle) return@LaunchedEffect
-                loadedStyle.addImage(photoIconId(marker.id), bitmap)
+                loadedStyle.addImage(
+                    photoIconId(marker.id, friend = !marker.navigable),
+                    bitmap,
+                )
                 loaded += marker.id
                 added = true
             }
             if (added) {
                 photoIconIds.value = loaded
-                loadedStyle.updateFlowerMarkers(markers, loaded)
+            }
+            mapRef.value?.let { map ->
+                loadedStyle.updateFlowerCallouts(
+                    map = map,
+                    markers = markers,
+                    photoIconIds = loaded,
+                    viewportWidth = mapView.width.toFloat(),
+                    viewportHeight = mapView.height.toFloat(),
+                    motionState = calloutMotionState,
+                    interpolation = LIVE_INTERPOLATION,
+                )
             }
         }
 
@@ -241,92 +318,100 @@ fun MapScreen(
             FilterBar(
                 selected = dateFilter,
                 onSelect = viewModel::setDateFilter,
-                species = availableSpecies,
-                selectedSpecies = speciesFilter,
-                onSelectSpecies = viewModel::setSpeciesFilter,
-                friendsOnly = friendsOnly,
-                onToggleFriends = viewModel::toggleFriendsOnly,
-                style = selectedStyle,
-                onSelectStyle = {
-                    selectedStyle = it
-                    stylePrefs.set(it)
-                },
             )
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { mapView },
-            )
+            Box(modifier = Modifier.fillMaxSize()) {
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { mapView },
+                )
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OverlayFriendChip(
+                        selected = friendsOnly,
+                        onClick = viewModel::toggleFriendsOnly,
+                    )
+                    MapStyleChip(
+                        selected = selectedStyle,
+                        onSelect = {
+                            selectedStyle = it
+                            stylePrefs.set(it)
+                        },
+                    )
+                }
+            }
         }
     }
 }
 
 /**
- * Barre de filtres : période, appartenance (« Ami ») et espèce. Le chip espèce
- * ouvre un menu déroulant alimenté par les espèces présentes ; il est désactivé
- * tant qu'aucune fleur ne porte d'espèce.
+ * Sélecteur compact de période. Les contrôles cartographiques vivent en overlay.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FilterBar(
     selected: DateFilter,
     onSelect: (DateFilter) -> Unit,
-    species: List<String>,
-    selectedSpecies: String?,
-    onSelectSpecies: (String?) -> Unit,
-    friendsOnly: Boolean,
-    onToggleFriends: () -> Unit,
-    style: MapStyle,
-    onSelectStyle: (MapStyle) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
             .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.Center,
     ) {
-        DateFilter.entries.forEach { filter ->
-            FilterChip(
-                selected = filter == selected,
-                onClick = { onSelect(filter) },
-                label = { Text(filter.label) },
-            )
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.height(36.dp)) {
+            DateFilter.entries.forEachIndexed { index, filter ->
+                SegmentedButton(
+                    modifier = Modifier.height(36.dp),
+                    shape = SegmentedButtonDefaults.itemShape(index, DateFilter.entries.size),
+                    selected = filter == selected,
+                    onClick = { onSelect(filter) },
+                    icon = {},
+                    label = {
+                        Text(
+                            text = when (filter) {
+                                DateFilter.ALL -> "Toutes"
+                                DateFilter.LAST_7_DAYS -> "7 j"
+                                DateFilter.LAST_30_DAYS -> "30 j"
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    },
+                )
+            }
         }
-
-        FilterChip(
-            selected = friendsOnly,
-            onClick = onToggleFriends,
-            label = { Text("Ami") },
-        )
-
-        SpeciesFilterChip(
-            species = species,
-            selectedSpecies = selectedSpecies,
-            onSelectSpecies = onSelectSpecies,
-        )
-
-        // Apparence de la carte (distincte des filtres de données) : chip affichant
-        // le style courant en toutes lettres, avec menu de sélection.
-        MapStyleChip(selected = style, onSelect = onSelectStyle)
     }
 }
 
-/** Chip de choix du style (apparence) de la carte, dans la barre de filtres. */
+/** Chip de choix du style, superposé dans le coin supérieur droit de la carte. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MapStyleChip(
     selected: MapStyle,
     onSelect: (MapStyle) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(24.dp)
 
-    Box {
+    Box(modifier = modifier) {
         FilterChip(
+            modifier = Modifier
+                .shadow(6.dp, shape)
+                .background(MaterialTheme.colorScheme.surface, shape),
             selected = false,
             onClick = { expanded = true },
             leadingIcon = { DecorativeEmoji("🗺️") },
             label = { Text(selected.label) },
+            colors = FilterChipDefaults.filterChipColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+            ),
+            border = null,
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             MapStyle.entries.forEach { style ->
@@ -345,42 +430,28 @@ private fun MapStyleChip(
     }
 }
 
-/** Chip « Espèce » avec menu déroulant des espèces disponibles. */
+/** Affichage des fleurs d'amis, activé au démarrage. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SpeciesFilterChip(
-    species: List<String>,
-    selectedSpecies: String?,
-    onSelectSpecies: (String?) -> Unit,
+private fun OverlayFriendChip(
+    selected: Boolean,
+    onClick: () -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Box {
-        FilterChip(
-            selected = selectedSpecies != null,
-            enabled = species.isNotEmpty(),
-            onClick = { expanded = true },
-            label = { Text(selectedSpecies ?: "Espèce") },
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(
-                text = { Text("Toutes") },
-                onClick = {
-                    onSelectSpecies(null)
-                    expanded = false
-                },
-            )
-            species.forEach { name ->
-                DropdownMenuItem(
-                    text = { Text(name) },
-                    onClick = {
-                        onSelectSpecies(name)
-                        expanded = false
-                    },
-                )
-            }
-        }
-    }
+    val shape = RoundedCornerShape(24.dp)
+    FilterChip(
+        modifier = Modifier
+            .shadow(6.dp, shape)
+            .background(MaterialTheme.colorScheme.surface, shape),
+        selected = selected,
+        onClick = onClick,
+        leadingIcon = { DecorativeEmoji("👥") },
+        label = { Text("Amis") },
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+        ),
+        border = null,
+    )
 }
 
 /**
@@ -409,7 +480,11 @@ private fun handleMapClick(
         return true
     }
 
-    val features = map.queryRenderedFeatures(touch, MapLayers.UNCLUSTERED)
+    val features = map.queryRenderedFeatures(
+        touch,
+        MapLayers.CALLOUTS,
+        MapLayers.UNCLUSTERED,
+    )
 
     // Mes fleurs d'abord : leur détail complet prime sur la photo seule d'un ami
     // dont le marqueur se superposerait.
@@ -428,6 +503,10 @@ private fun handleMapClick(
 }
 
 private const val TOUCH_SLOP = 12f
+private const val LIVE_LAYOUT_INTERVAL_MS = 32L
+private const val CALLOUT_SETTLE_DURATION_MS = 240L
+private const val LIVE_INTERPOLATION = 0.24f
+private const val SETTLE_INTERPOLATION = 0.22f
 
 @Composable
 private fun MissingKeyMessage(modifier: Modifier = Modifier) {

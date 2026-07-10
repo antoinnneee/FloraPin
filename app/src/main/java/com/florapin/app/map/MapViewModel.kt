@@ -37,8 +37,8 @@ data class FlowerMarker(
      */
     val photoUrl: String? = null,
     /**
-     * Source de la vignette (fichier local ou URL) affichée en pastille ronde à
-     * fort zoom, à la place de l'emoji d'espèce.
+     * Source de la vignette (fichier local ou URL) affichée dans une bulle
+     * reliée à l'emoji d'espèce à fort zoom.
      */
     val thumbnailModel: Any? = null,
 )
@@ -64,11 +64,15 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     private val _speciesFilter = MutableStateFlow<String?>(null)
     val speciesFilter: StateFlow<String?> = _speciesFilter.asStateFlow()
 
-    private val _friendsOnly = MutableStateFlow(false)
+    private val _friendsOnly = MutableStateFlow(true)
     val friendsOnly: StateFlow<Boolean> = _friendsOnly.asStateFlow()
 
     /** Marqueurs des fleurs d'amis géolocalisées (vide tant que « Ami » est off). */
     private val _friendMarkers = MutableStateFlow<List<FlowerMarker>>(emptyList())
+
+    init {
+        loadFriendMarkers()
+    }
 
     /** Espèces disponibles pour alimenter le sélecteur du filtre. */
     val availableSpecies: StateFlow<List<String>> =

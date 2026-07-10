@@ -23,6 +23,15 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
   lorsqu'une nouvelle version est disponible et vous permet d'ouvrir directement
   sa page Play Store, ou de masquer le rappel pour cette version.
 
+### Amélioré
+- **Les fleurs proches sont beaucoup plus faciles à distinguer sur la carte.**
+  Leur photo s'écarte naturellement des autres, reste reliée à sa position par
+  une courbe pointillée et se déplace sans saut pendant le zoom ou le glissement.
+- **La carte est plus simple à régler.** Un filtre compact choisit la période,
+  les fleurs d'amis sont visibles par défaut et les fonds Clair, Satellite,
+  Hybride et Hiver se choisissent directement sur la carte. Les photos d'amis
+  sont reconnaissables à leur fin contour orange.
+
 ## Version 1.14.1 — 10 juillet 2026
 
 ### Nouveau

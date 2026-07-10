@@ -1,7 +1,9 @@
 package com.florapin.app.gallery
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
@@ -20,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -39,6 +42,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -50,6 +54,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -62,23 +67,26 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.florapin.app.R
 import com.florapin.app.albums.AddToAlbumSheet
 import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.SyncState
 import com.florapin.app.data.thumbnailModel
 import com.florapin.app.notifications.NotificationBell
-import com.florapin.app.ui.components.DecorativeEmoji
 import com.florapin.app.ui.components.EmojiIcon
 import com.florapin.app.ui.components.EmptyState
+import com.florapin.app.ui.layout.isLandscape
 import com.florapin.app.ui.layout.topBarHeight
 import com.florapin.app.ui.transition.FloraSharedScope
 import com.florapin.app.ui.transition.sharedFlowerImage
@@ -120,6 +128,7 @@ fun GalleryScreen(
     val syncEnabled by viewModel.syncEnabled.collectAsStateWithLifecycle()
     val selectedIds by viewModel.selectedIds.collectAsStateWithLifecycle()
     val selectionActive = selectedIds.isNotEmpty()
+    val landscape = isLandscape()
 
     var showAddToAlbum by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -170,20 +179,35 @@ fun GalleryScreen(
             } else {
                 TopAppBar(
                     expandedHeight = topBarHeight,
-                    title = { Text("🌸 FloraPin") },
+                    title = {
+                        Row(
+                            modifier = Modifier.offset(x = if (landscape) (-12).dp else (-20).dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.logo_florapin),
+                                contentDescription = null,
+                                modifier = Modifier.size(if (landscape) 44.dp else 72.dp),
+                            )
+                            Text(
+                                text = "FloraPin",
+                                modifier = Modifier,
+                            )
+                        }
+                    },
                     actions = {
                         // Topbar allégée : seules les entrées « à notifier » restent
                         // ici (identification demandée, invitations d'amis) plus la
                         // cloche du centre de notifications (TÂCHE 2.7). Le tri est
                         // descendu dans la vue, les albums dans la barre du bas.
-                        BadgedEmojiAction(
-                            "🔎",
+                        BadgedIconAction(
+                            icon = R.drawable.ic_identify_botanical,
                             contentDescription = "Identifications demandées",
                             badge = identifyBadge,
                             onClick = onOpenIdentify,
                         )
-                        BadgedEmojiAction(
-                            "🤝",
+                        BadgedIconAction(
+                            icon = R.drawable.ic_friends_botanical,
                             contentDescription = "Amis",
                             badge = friendsBadge,
                             onClick = onOpenFriends,
@@ -207,41 +231,25 @@ fun GalleryScreen(
             }
         },
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
-            SearchBar(
-                query = query,
-                onQueryChange = viewModel::setQuery,
-            )
-            // Tri + densité rendus visibles directement dans la vue, sous forme de
-            // pastilles (façon badge). N'ont de sens que s'il y a des fleurs à
-            // afficher.
-            if (flowers.isNotEmpty()) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    SortChip(selected = sort, onSelect = viewModel::setSort)
-                    DensityChip(selected = density, onSelect = viewModel::setDensity)
-                }
+        // Regroupement par mois (TÂCHE 6.7) : n'a de sens que quand la liste est
+        // triée par date. Pour le tri par espèce, on reste en grille à plat.
+        val grouped = sort == GallerySort.DATE_DESC || sort == GallerySort.DATE_ASC
+        val rows = remember(flowers, grouped) {
+            if (grouped) {
+                flowers.groupedByMonth()
+            } else {
+                flowers.map { GalleryRow.Flower(it, "") }
             }
-            // Regroupement par mois (TÂCHE 6.7) : n'a de sens que quand la liste est
-            // triée par date. Pour le tri par espèce, on reste en grille à plat.
-            val grouped = sort == GallerySort.DATE_DESC || sort == GallerySort.DATE_ASC
-            val rows = remember(flowers, grouped) {
-                if (grouped) {
-                    flowers.groupedByMonth()
-                } else {
-                    // Tri par espèce : pas de regroupement, la clé de mois n'est pas
-                    // utilisée (ni en-têtes ni fast scroller).
-                    flowers.map { GalleryRow.Flower(it, "") }
-                }
-            }
-            val gridState = rememberLazyGridState()
+        }
+        val gridState = rememberLazyGridState()
+
+        val galleryPane: @Composable (Modifier) -> Unit = { paneModifier ->
             // Tirer vers le bas relance une passe de sync (si activée) et rafraîchit
             // les badges — la grille elle-même vient de Room (déjà à jour), device-first.
             PullToRefreshBox(
                 isRefreshing = isRefreshing,
                 onRefresh = viewModel::refresh,
-                modifier = Modifier.fillMaxSize(),
+                modifier = paneModifier,
             ) {
                 when {
                     flowers.isNotEmpty() -> {
@@ -249,9 +257,13 @@ fun GalleryScreen(
                             state = gridState,
                             columns = GridCells.Adaptive(minSize = density.minCellSize),
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(if (landscape) 8.dp else 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(
+                                if (landscape) 8.dp else 12.dp,
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(
+                                if (landscape) 8.dp else 12.dp,
+                            ),
                         ) {
                             rows.forEach { row ->
                                 when (row) {
@@ -313,6 +325,62 @@ fun GalleryScreen(
 
                     else -> RefreshableEmpty { EmptyGallery(onCapture = onCapture) }
                 }
+            }
+        }
+
+        if (landscape) {
+            // Composition paysage dédiée : les commandes vivent dans un panneau
+            // latéral et toute la hauteur restante appartient aux grandes cartes.
+            Row(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .width(300.dp)
+                        .fillMaxHeight()
+                        .padding(top = 4.dp),
+                ) {
+                    SearchBar(
+                        query = query,
+                        onQueryChange = viewModel::setQuery,
+                        compact = true,
+                    )
+                    if (flowers.isNotEmpty()) {
+                        SortChip(selected = sort, onSelect = viewModel::setSort)
+                        DensityChip(selected = density, onSelect = viewModel::setDensity)
+                    }
+                }
+                VerticalDivider()
+                galleryPane(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                )
+            }
+        } else {
+            // Composition portrait : commandes empilées au-dessus de la galerie.
+            Column(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
+            ) {
+                SearchBar(
+                    query = query,
+                    onQueryChange = viewModel::setQuery,
+                )
+                if (flowers.isNotEmpty()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SortChip(selected = sort, onSelect = viewModel::setSort)
+                        DensityChip(selected = density, onSelect = viewModel::setDensity)
+                    }
+                }
+                galleryPane(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                )
             }
         }
     }
@@ -393,8 +461,8 @@ private fun SelectionTopBar(
  * [badge] > 0 (au-delà de 99, affiche « 99+ »).
  */
 @Composable
-private fun BadgedEmojiAction(
-    emoji: String,
+private fun BadgedIconAction(
+    @DrawableRes icon: Int,
     contentDescription: String,
     badge: Int,
     onClick: () -> Unit,
@@ -407,10 +475,11 @@ private fun BadgedEmojiAction(
         },
     ) {
         IconButton(onClick = onClick) {
-            EmojiIcon(
-                emoji,
+            Icon(
+                painter = painterResource(icon),
                 contentDescription = contentDescription,
-                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.size(32.dp),
+                tint = Color.Unspecified,
             )
         }
     }
@@ -421,12 +490,21 @@ private fun BadgedEmojiAction(
 private fun SearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
         singleLine = true,
-        leadingIcon = { DecorativeEmoji("🔍") },
+        leadingIcon = {
+            Icon(
+                painter = painterResource(R.drawable.ic_identify_botanical),
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = Color.Unspecified,
+            )
+        },
         trailingIcon = {
             if (query.isNotEmpty()) {
                 IconButton(onClick = { onQueryChange("") }) {
@@ -435,9 +513,12 @@ private fun SearchBar(
             }
         },
         placeholder = { Text("Rechercher (espèce, notes, étiquette)") },
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(
+                horizontal = 12.dp,
+                vertical = if (compact) 2.dp else 8.dp,
+            ),
     )
 }
 

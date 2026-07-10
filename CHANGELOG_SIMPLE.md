@@ -18,6 +18,8 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.14.2 — 10 juillet 2026
+
 ### Nouveau
 - **Les mises à jour sont plus faciles à installer.** FloraPin vous prévient
   lorsqu'une nouvelle version est disponible et vous permet d'ouvrir directement
@@ -31,6 +33,12 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
   les fleurs d'amis sont visibles par défaut et les fonds Clair, Satellite,
   Hybride et Hiver se choisissent directement sur la carte. Les photos d'amis
   sont reconnaissables à leur fin contour orange.
+- **La galerie s'adapte vraiment à la rotation du téléphone.** En portrait, les
+  commandes restent au-dessus des photos ; en paysage, elles passent dans un
+  panneau latéral pour conserver de grandes images faciles à parcourir.
+- **La barre d'accueil reprend pleinement l'identité FloraPin.** Le vrai logo
+  accompagne le titre et les raccourcis vers l'identification, les amis et les
+  notifications utilisent de nouvelles illustrations botaniques assorties.
 
 ## Version 1.14.1 — 10 juillet 2026
 

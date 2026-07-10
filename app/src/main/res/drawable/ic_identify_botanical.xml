@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Loupe botanique FloraPin : recherche/identification d'une fleur. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M10.2,3.2A7,7 0,1 0,10.2 17.2A7,7 0,1 0,10.2 3.2Z"
+        android:strokeColor="#386A53"
+        android:strokeLineCap="round"
+        android:strokeWidth="1.9" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M15.2,15.2L21,21"
+        android:strokeColor="#386A53"
+        android:strokeLineCap="round"
+        android:strokeWidth="2.3" />
+    <!-- Petite fleur observée dans la loupe. -->
+    <path android:fillColor="#7D83D8" android:pathData="M10.2,5.3A1.65,1.65 0,1 0,10.2 8.6A1.65,1.65 0,1 0,10.2 5.3Z" />
+    <path android:fillColor="#7D83D8" android:pathData="M13.1,7.4A1.65,1.65 0,1 0,13.1 10.7A1.65,1.65 0,1 0,13.1 7.4Z" />
+    <path android:fillColor="#7D83D8" android:pathData="M12,10.7A1.65,1.65 0,1 0,12 14A1.65,1.65 0,1 0,12 10.7Z" />
+    <path android:fillColor="#7D83D8" android:pathData="M8.4,10.7A1.65,1.65 0,1 0,8.4 14A1.65,1.65 0,1 0,8.4 10.7Z" />
+    <path android:fillColor="#7D83D8" android:pathData="M7.3,7.4A1.65,1.65 0,1 0,7.3 10.7A1.65,1.65 0,1 0,7.3 7.4Z" />
+    <path android:fillColor="#F2D56B" android:pathData="M10.2,8.5A1.7,1.7 0,1 0,10.2 11.9A1.7,1.7 0,1 0,10.2 8.5Z" />
+</vector>

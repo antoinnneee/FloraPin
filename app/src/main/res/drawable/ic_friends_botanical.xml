@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Réseau d'amis FloraPin : deux personnes reliées par une feuille. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#7D83D8"
+        android:pathData="M8.3,3.2A3,3 0,1 0,8.3 9.2A3,3 0,1 0,8.3 3.2Z" />
+    <path
+        android:fillColor="#386A53"
+        android:pathData="M15.8,4.4A2.7,2.7 0,1 0,15.8 9.8A2.7,2.7 0,1 0,15.8 4.4Z" />
+    <path
+        android:fillColor="#7D83D8"
+        android:pathData="M2.8,17.2C2.8,13.7 5.1,11.1 8.3,11.1C11.5,11.1 13.8,13.7 13.8,17.2V18H2.8Z" />
+    <path
+        android:fillColor="#386A53"
+        android:pathData="M12.1,12.3C13.1,11.4 14.3,10.9 15.8,10.9C19,10.9 21.2,13.4 21.2,16.8V18H15.3V16.9C15.3,15 14.6,13.4 13.4,12.2Z" />
+    <!-- Feuille commune : lien vivant entre les deux profils. -->
+    <path
+        android:fillColor="#F2D56B"
+        android:pathData="M8.7,19C11.2,18.1 13.3,19 14.2,21.1C11.7,22 9.6,21.2 8.7,19Z" />
+</vector>

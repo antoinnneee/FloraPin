@@ -17,6 +17,8 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.14.2] — 2026-07-10
+
 ### Ajouté
 - **Alerte de mise à jour Play Store.** Au démarrage, l'app interroge Play Core et
   affiche un dialogue lorsqu'une nouvelle version est disponible. Le bouton
@@ -44,6 +46,20 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 - **Overlay carte affiné.** Les boutons Amis et style sont alignés sur une ligne,
   Amis à gauche, sans double contour. Le halo bleu de précision GPS est masqué
   pour ne conserver que l'indicateur de position.
+
+### Modifié
+- **Galerie adaptée à chaque orientation.** En portrait, la recherche et les
+  filtres restent empilés au-dessus d'une grille de grandes cartes. En paysage,
+  ils basculent dans un panneau latéral fixe et la galerie utilise toute la
+  hauteur disponible, sans réduire artificiellement les photos.
+- **Barre d'accueil botanique.** La fleur du titre est remplacée par le logo
+  FloraPin recadré. Les actions identification, amis et notifications utilisent
+  désormais des illustrations vectorielles multicolores cohérentes avec la
+  navigation principale. Le badge non lu se place au cœur de la fleur portée
+  par la cloche.
+- **Validation visuelle sur émulateur.** Un jeu de données instrumenté réservé
+  aux builds de test permet de contrôler la galerie en portrait et en paysage
+  sans compte de production ni données personnelles.
 
 ## [1.14.1] — 2026-07-10
 

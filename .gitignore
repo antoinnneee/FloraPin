@@ -41,3 +41,6 @@ keystore.properties
 
 # Config Firebase Android (propre à chaque projet — ne pas committer)
 google-services.json
+tmp/
+
+asset/*

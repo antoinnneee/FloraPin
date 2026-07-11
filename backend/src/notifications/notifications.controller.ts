@@ -29,6 +29,11 @@ export class NotificationsController {
     return { count: await this.notifications.unreadCount(user.userId) };
   }
 
+  @Post('read-all')
+  async readAll(@CurrentUser() user: AuthenticatedUser) {
+    return { updated: await this.notifications.markAllRead(user.userId) };
+  }
+
   @Post(':id/read')
   read(
     @CurrentUser() user: AuthenticatedUser,

@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -65,6 +66,23 @@ fun NotificationCenterScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         EmojiIcon("←", contentDescription = "Retour")
+                    }
+                },
+                actions = {
+                    if (state.items.any { it.readAt == null }) {
+                        TextButton(
+                            onClick = viewModel::markAllRead,
+                            enabled = !state.markingAllRead,
+                        ) {
+                            if (state.markingAllRead) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            } else {
+                                Text("Tout marquer comme lu")
+                            }
+                        }
                     }
                 },
             )

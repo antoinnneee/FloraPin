@@ -139,6 +139,15 @@ export class NotificationsService {
     });
   }
 
+  /** Marque en une seule requête toutes les notifications de l'utilisateur. */
+  async markAllRead(userId: string): Promise<number> {
+    const result = await this.notifications.update(
+      { userId, readAt: IsNull() },
+      { readAt: new Date() },
+    );
+    return result.affected ?? 0;
+  }
+
   async markRead(userId: string, id: string): Promise<Notification> {
     const notification = await this.notifications.findOne({
       where: { id, userId },

@@ -18,6 +18,21 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.14.3 — 11 juillet 2026
+
+### Nouveau
+- **Toutes les notifications peuvent être marquées comme lues en une fois.** Un
+  bouton dans le centre de notifications évite de devoir les ouvrir une par une.
+
+### Amélioré
+- **Le mot de passe peut être affiché pendant la saisie.** Sur la connexion et
+  l'inscription, un bouton permet de vérifier le texte avant de continuer.
+
+### Réparé
+- **Les photos supprimées restent vraiment privées.** Si le serveur ne confirme
+  pas encore leur suppression, FloraPin réessaie au lieu de les oublier sur le
+  téléphone alors qu'un ancien partage pourrait toujours les rendre visibles.
+
 ## Version 1.14.2 — 10 juillet 2026
 
 ### Nouveau

@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 /** État du centre de notifications. */
 data class NotificationCenterUiState(
     val loading: Boolean = false,
+    val markingAllRead: Boolean = false,
     val items: List<NotificationDto> = emptyList(),
     /**
      * Le service est joignable ? `false` après un échec réseau (hors-ligne,
@@ -84,6 +85,49 @@ class NotificationCenterViewModel(
         }
         viewModelScope.launch {
             runCatching { api.markRead(notification.id) }
+        }
+    }
+
+    /** Marque toute la liste lue et restaure les éléments si la requête échoue. */
+    fun markAllRead() {
+        val unreadIds = _state.value.items
+            .filter { it.readAt == null }
+            .mapTo(mutableSetOf()) { it.id }
+        if (unreadIds.isEmpty() || _state.value.markingAllRead) return
+
+        _state.update { state ->
+            state.copy(
+                markingAllRead = true,
+                items = state.items.map { notification ->
+                    if (notification.id in unreadIds) {
+                        notification.copy(readAt = NOW_PLACEHOLDER)
+                    } else {
+                        notification
+                    }
+                },
+            )
+        }
+        viewModelScope.launch {
+            runCatching { api.markAllRead() }
+                .onSuccess {
+                    _state.update { state -> state.copy(markingAllRead = false) }
+                }
+                .onFailure {
+                    _state.update { state ->
+                        state.copy(
+                            markingAllRead = false,
+                            items = state.items.map { notification ->
+                                if (notification.id in unreadIds &&
+                                    notification.readAt == NOW_PLACEHOLDER
+                                ) {
+                                    notification.copy(readAt = null)
+                                } else {
+                                    notification
+                                }
+                            },
+                        )
+                    }
+                }
         }
     }
 

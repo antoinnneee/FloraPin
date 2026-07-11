@@ -33,3 +33,9 @@ data class NotificationDto(
 data class UnreadCountDto(
     val count: Int = 0,
 )
+
+/** Nombre de notifications effectivement passées à l'état lu. */
+@JsonClass(generateAdapter = true)
+data class MarkAllReadDto(
+    val updated: Int = 0,
+)

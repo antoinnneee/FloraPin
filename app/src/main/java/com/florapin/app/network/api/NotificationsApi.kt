@@ -1,6 +1,7 @@
 package com.florapin.app.network.api
 
 import com.florapin.app.network.dto.NotificationDto
+import com.florapin.app.network.dto.MarkAllReadDto
 import com.florapin.app.network.dto.UnreadCountDto
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -21,6 +22,10 @@ interface NotificationsApi {
     /** Nombre de notifications non lues (pour le badge de la cloche). */
     @GET("notifications/unread-count")
     suspend fun unreadCount(): UnreadCountDto
+
+    /** Marque toutes les notifications de la session comme lues. */
+    @POST("notifications/read-all")
+    suspend fun markAllRead(): MarkAllReadDto
 
     /** Marque une notification comme lue (idempotent côté serveur). */
     @POST("notifications/{id}/read")

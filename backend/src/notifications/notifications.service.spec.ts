@@ -38,6 +38,19 @@ class FakeNotifRepo {
     const found = this.store.get(opts.where.id);
     return found && found.userId === opts.where.userId ? found : null;
   }
+  async update(
+    where: { userId: string; readAt: unknown },
+    values: { readAt: Date },
+  ): Promise<{ affected: number }> {
+    let affected = 0;
+    for (const notification of this.store.values()) {
+      if (notification.userId === where.userId && notification.readAt === null) {
+        notification.readAt = values.readAt;
+        affected += 1;
+      }
+    }
+    return { affected };
+  }
 }
 
 const USER = 'user-1';
@@ -99,6 +112,16 @@ describe('NotificationsService', () => {
     const n = await service.create(USER, 'friend_accepted');
     await service.markRead(USER, n.id);
     expect(await service.unreadCount(USER)).toBe(0);
+  });
+
+  it('marque toutes les notifications de l’utilisateur comme lues', async () => {
+    await service.create(USER, 'friend_request');
+    await service.create(USER, 'friend_accepted');
+    await service.create('autre', 'friend_request');
+
+    expect(await service.markAllRead(USER)).toBe(2);
+    expect(await service.unreadCount(USER)).toBe(0);
+    expect(await service.unreadCount('autre')).toBe(1);
   });
 
   it('refuse de marquer la notification d’un autre', async () => {

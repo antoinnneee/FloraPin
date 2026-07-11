@@ -17,10 +17,20 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.14.3] — 2026-07-11
+
 ### Ajouté
 - **Console de supervision serveur.** Un dashboard d'administration protégé
   par jeton expose les volumes PostgreSQL, les derniers comptes et fleurs ainsi
   qu'un inventaire paginé des médias avec aperçus présignés.
+- **Lecture groupée des notifications.** Le centre propose une action « Tout
+  marquer comme lu ». L'état est appliqué immédiatement dans l'interface puis
+  confirmé par une mise à jour groupée côté serveur, avec restauration en cas
+  d'échec réseau.
+
+### Modifié
+- **Saisie du mot de passe.** Les écrans de connexion et d'inscription disposent
+  désormais d'un bouton accessible pour afficher ou masquer le mot de passe.
 
 ### Corrigé
 - **Suppression de fleurs synchronisées.** Le client ne purge plus sa copie
@@ -30,6 +40,8 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 - **Médias du dashboard dupliqués.** L'inventaire regroupe les références par
   clé de stockage : la couverture présente à la fois sur la fleur et dans sa
   collection de photos ne produit plus deux cartes ni un total gonflé.
+
+_versionName 1.14.3, versionCode 25._
 
 ## [1.14.2] — 2026-07-10
 

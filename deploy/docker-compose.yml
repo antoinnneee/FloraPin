@@ -55,6 +55,8 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       # Exposer Swagger /api/docs même en prod (diagnostic ponctuel).
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-}
+      # Console /api/v1/admin/dashboard. Vide = endpoints de données désactivés.
+      ADMIN_DASHBOARD_TOKEN: ${ADMIN_DASHBOARD_TOKEN:-}
       PORT: ${API_PORT:-3000}
       DATABASE_HOST: db
       DATABASE_PORT: 5432

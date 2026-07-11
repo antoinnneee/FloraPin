@@ -18,6 +18,11 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+### Réparé
+- **Les photos supprimées restent vraiment privées.** Si le serveur ne confirme
+  pas encore leur suppression, FloraPin réessaie au lieu de les oublier sur le
+  téléphone alors qu'un ancien partage pourrait toujours les rendre visibles.
+
 ## Version 1.14.2 — 10 juillet 2026
 
 ### Nouveau

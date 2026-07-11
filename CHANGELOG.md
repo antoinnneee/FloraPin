@@ -17,6 +17,20 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+- **Console de supervision serveur.** Un dashboard d'administration protégé
+  par jeton expose les volumes PostgreSQL, les derniers comptes et fleurs ainsi
+  qu'un inventaire paginé des médias avec aperçus présignés.
+
+### Corrigé
+- **Suppression de fleurs synchronisées.** Le client ne purge plus sa copie
+  locale tant que le serveur n'a pas confirmé la suppression. Les erreurs HTTP
+  restent en attente de nouvelle tentative, ce qui empêche une fleur masquée
+  localement de demeurer accessible via un ancien partage.
+- **Médias du dashboard dupliqués.** L'inventaire regroupe les références par
+  clé de stockage : la couverture présente à la fois sur la fleur et dans sa
+  collection de photos ne produit plus deux cartes ni un total gonflé.
+
 ## [1.14.2] — 2026-07-10
 
 ### Ajouté

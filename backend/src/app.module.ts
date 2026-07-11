@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AlbumsModule } from './albums/albums.module';
+import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { BadgesModule } from './badges/badges.module';
 import { CommentsModule } from './comments/comments.module';
@@ -54,6 +55,7 @@ import { UsersModule } from './users/users.module';
       }),
     }),
     MailModule,
+    AdminModule,
     AuthModule,
     UsersModule,
     FlowersModule,

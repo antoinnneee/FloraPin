@@ -123,8 +123,17 @@ class SyncEngine(
 
         deleted.forEach { flower ->
             try {
-                flowersApi.delete(flower.serverId!!)
-                purgeLocal(flower)
+                val response = flowersApi.delete(flower.serverId!!)
+                when {
+                    response.isSuccessful -> purgeLocal(flower)
+                    // Suppression idempotente : absente du serveur = objectif atteint.
+                    response.code() == 404 -> purgeLocal(flower)
+                    // Retrofit ne lève pas automatiquement quand l'endpoint
+                    // retourne Response<T>. Sans ce contrôle, un 401/403/500
+                    // purgeait la ligne locale alors que la fleur restait sur le
+                    // serveur, donc encore visible via un partage existant.
+                    else -> throw HttpException(response)
+                }
             } catch (e: Exception) {
                 if (e is HttpException && e.code() == 404) {
                     // Déjà supprimée côté serveur : même issue qu'un succès.

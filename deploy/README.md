@@ -26,6 +26,9 @@ docker compose up -d --build
 
 - L'API est servie sous `/api` (base `/api/v1`, doc Swagger sur `/api/docs`) et la
   vitrine à la racine, derrière Caddy.
+- Le dashboard de supervision est disponible sur `/api/v1/admin/dashboard` une
+  fois `ADMIN_DASHBOARD_TOKEN` renseigné dans `deploy/.env`. Il inventorie les
+  données et images ; son jeton ne doit être communiqué qu'aux administrateurs.
 - **Ports** (configurables dans `.env`, défauts entre parenthèses) :
   `HTTP_PORT` (80) publie Caddy sur l'hôte — **mettre une valeur non privilégiée
   (ex. `8088`) quand un reverse-proxy hôte est devant**, cf. `DEPLOYMENT.md` ;

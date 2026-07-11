@@ -122,6 +122,8 @@ private class FakeFlowersApi : FlowersApi {
     val deleted = mutableListOf<String>()
     /** Si non null, `delete` lève cette exception au lieu de réussir. */
     var deleteError: Exception? = null
+    /** Réponse HTTP brute de `delete` (Retrofit ne lève pas pour Response<T>). */
+    var deleteResponse: retrofit2.Response<Unit> = retrofit2.Response.success(null)
     override suspend fun create(body: CreateFlowerRequest) =
         throw UnsupportedOperationException()
     override suspend fun list(species: String?, tag: String?) = emptyList<FlowerDto>()
@@ -138,7 +140,7 @@ private class FakeFlowersApi : FlowersApi {
     override suspend fun delete(id: String): retrofit2.Response<Unit> {
         deleteError?.let { throw it }
         deleted += id
-        return retrofit2.Response.success<Unit>(null)
+        return deleteResponse
     }
 }
 
@@ -592,9 +594,7 @@ class SyncEngineTest {
             ),
         )
         val flowersApi = FakeFlowersApi().apply {
-            deleteError = retrofit2.HttpException(
-                retrofit2.Response.error<Unit>(404, "".toResponseBody()),
-            )
+            deleteResponse = retrofit2.Response.error(404, "".toResponseBody())
         }
         val engine = SyncEngine(
             repository = repo,
@@ -609,6 +609,41 @@ class SyncEngineTest {
 
         // Déjà supprimée côté serveur : même issue qu'un succès, la ligne part.
         assertNull(dao.store[id])
+    }
+
+    @Test
+    fun push_deleteServerError_keepsLocalTombstoneForRetry() = runBlocking {
+        val dao = FakeDao()
+        val repo = FlowerRepository(dao)
+        val id = dao.insert(
+            FlowerEntity(
+                imagePath = "",
+                createdAt = 1_000L,
+                serverId = "srv-still-there",
+                syncState = SyncState.PENDING.name,
+                updatedAt = 2_000L,
+                deletedAt = 2_000L,
+            ),
+        )
+        val flowersApi = FakeFlowersApi().apply {
+            deleteResponse = retrofit2.Response.error(500, "".toResponseBody())
+        }
+        val engine = SyncEngine(
+            repository = repo,
+            syncApi = FakeSyncApi(),
+            flowersApi = flowersApi,
+            uploadFlowerImage = { _, _ -> },
+            lastSyncStore = FakeLastSync(),
+            now = { 5_000L },
+        )
+
+        engine.push()
+
+        // Le serveur n'a pas confirmé la suppression : conserver la tombe
+        // locale empêche toute réapparition dans le dashboard et permet un retry.
+        assertNotNull(dao.store[id])
+        assertNotNull(dao.store[id]!!.deletedAt)
+        assertEquals(SyncState.FAILED.name, dao.store[id]!!.syncState)
     }
 
     @Test

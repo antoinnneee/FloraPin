@@ -18,6 +18,20 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.14.4 — 11 juillet 2026
+
+### Nouveau
+- **FloraPin reste accessible sans connexion.** Après vous être connecté une
+  première fois, vous pouvez rouvrir votre compte hors ligne avec votre dernier
+  mot de passe.
+- **L'accueil de démarrage se parcourt aussi d'un geste.** Faites glisser un
+  écran vers la gauche pour passer à l'étape suivante.
+
+### Amélioré
+- **Vous choisissez chaque autorisation séparément.** Touchez directement la
+  zone Caméra ou Localisation pour demander l'accès correspondant. Le GPS est
+  facultatif et vous pouvez continuer sans partager votre position.
+
 ## Version 1.14.3 — 11 juillet 2026
 
 ### Nouveau

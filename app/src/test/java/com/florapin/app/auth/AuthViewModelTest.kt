@@ -3,6 +3,7 @@ package com.florapin.app.auth
 import com.florapin.app.network.api.AuthApi
 import com.florapin.app.network.auth.SessionManager
 import com.florapin.app.network.auth.TokenStore
+import com.florapin.app.network.auth.OfflineLoginProfile
 import com.florapin.app.network.dto.AuthResponse
 import com.florapin.app.network.dto.DeleteAccountRequest
 import com.florapin.app.network.dto.ForgotPasswordRequest
@@ -28,12 +29,16 @@ import org.junit.Before
 import org.junit.Test
 import retrofit2.HttpException
 import retrofit2.Response
+import java.io.IOException
 
 private class MemTokenStore : TokenStore {
     private var a: String? = null
     private var r: String? = null
     private var uid: String? = null
     private var name: String? = null
+    private var offlineEmail: String? = null
+    private var offlinePassword: String? = null
+    private var offlineProfile: OfflineLoginProfile? = null
     override fun accessToken() = a
     override fun refreshToken() = r
     override fun userId() = uid
@@ -44,14 +49,35 @@ private class MemTokenStore : TokenStore {
         a = accessToken; r = refreshToken
     }
     override fun clear() { a = null; r = null; uid = null; name = null }
+    override fun saveOfflineLogin(
+        email: String,
+        password: String,
+        profile: OfflineLoginProfile,
+    ) {
+        offlineEmail = email.trim().lowercase()
+        offlinePassword = password
+        offlineProfile = profile
+    }
+    override fun offlineLogin(email: String, password: String): OfflineLoginProfile? =
+        offlineProfile?.takeIf {
+            offlineEmail == email.trim().lowercase() && offlinePassword == password
+        }
+    override fun updateOfflinePassword(password: String) { offlinePassword = password }
+    override fun clearOfflineLogin() {
+        offlineEmail = null; offlinePassword = null; offlineProfile = null
+    }
 }
 
 private val USER = UserDto("u1", "a@b.c", "Alice", "2026-06-21T09:00:00Z")
 
-private class FakeAuthApi(private val failLogin: Boolean = false) : AuthApi {
+private class FakeAuthApi(
+    private val failLogin: Boolean = false,
+    private val failLoginOffline: Boolean = false,
+) : AuthApi {
     override suspend fun register(body: RegisterRequest): AuthResponse =
         AuthResponse(USER, "acc", "ref")
     override suspend fun login(body: LoginRequest): AuthResponse {
+        if (failLoginOffline) throw IOException("offline")
         if (failLogin) {
             throw HttpException(Response.error<AuthResponse>(401, "".toResponseBody()))
         }
@@ -196,5 +222,36 @@ class AuthViewModelTest {
 
         assertEquals(null, store.refreshToken())
         assertFalse(cleared)
+    }
+
+    @Test
+    fun login_offline_acceptsOnlyLastSuccessfulPassword() = runTest {
+        val store = MemTokenStore()
+        SessionManager(FakeAuthApi(), store).login("a@b.c", "last-password")
+        SessionManager(FakeAuthApi(), store).logout()
+
+        val offlineSession = SessionManager(FakeAuthApi(failLoginOffline = true), store)
+        val user = offlineSession.login("A@B.C", "last-password")
+
+        assertEquals("u1", user.id)
+        assertEquals("Alice", user.displayName)
+        assertTrue(runCatching {
+            offlineSession.login("a@b.c", "wrong-password")
+        }.exceptionOrNull() is IOException)
+    }
+
+    @Test
+    fun changedPassword_replacesOfflinePassword() = runTest {
+        val store = MemTokenStore()
+        val onlineSession = SessionManager(FakeAuthApi(), store)
+        onlineSession.login("a@b.c", "old-password")
+        onlineSession.changePassword("old-password", "new-password")
+        onlineSession.logout()
+
+        val offlineSession = SessionManager(FakeAuthApi(failLoginOffline = true), store)
+        assertTrue(runCatching {
+            offlineSession.login("a@b.c", "old-password")
+        }.exceptionOrNull() is IOException)
+        assertEquals("u1", offlineSession.login("a@b.c", "new-password").id)
     }
 }

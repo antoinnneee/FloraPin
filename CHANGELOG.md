@@ -17,6 +17,26 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.14.4] — 2026-07-11
+
+### Ajouté
+- **Navigation gestuelle dans l'onboarding.** Un glissement vers la gauche passe
+  à l'étape suivante, y compris sur les choix réseau et de partage, tout en
+  conservant les boutons existants.
+- **Connexion hors ligne.** Après une première authentification réussie, le
+  dernier compte peut se reconnecter sans réseau avec son dernier mot de passe
+  valide. Seul un vérificateur PBKDF2 salé est conservé dans le stockage chiffré,
+  jamais le mot de passe en clair. Le changement de mot de passe remplace ce
+  vérificateur et la suppression du compte l'efface.
+
+### Modifié
+- **Autorisations indépendantes.** Les cartes Caméra et Localisation de
+  l'onboarding déclenchent chacune leur propre demande système. La localisation
+  est explicitement facultative et l'utilisateur peut continuer sans GPS ; la
+  demande principale ne sollicite plus que la caméra.
+
+_versionName 1.14.4, versionCode 26._
+
 ## [1.14.3] — 2026-07-11
 
 ### Ajouté

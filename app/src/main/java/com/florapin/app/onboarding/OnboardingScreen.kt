@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -20,7 +21,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -34,11 +34,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.florapin.app.auth.NetworkOptionsScreen
 import com.florapin.app.permission.AppPermission
+import com.florapin.app.permission.isGranted
 import com.florapin.app.permission.rememberMultiplePermissionsState
+import com.florapin.app.permission.rememberSinglePermissionRequester
 import com.florapin.app.share.SharePreferences
 import com.florapin.app.share.SharingDefaultsForm
 import com.florapin.app.sync.SyncPreferences
 import com.florapin.app.ui.theme.FloraPinTheme
+import com.florapin.app.ui.components.swipeToContinue
 
 /**
  * Onboarding affiché à la première installation uniquement (cf. [OnboardingPrefs]).
@@ -96,6 +99,7 @@ fun OnboardingScreen(
                 // partage seraient sans objet.
                 if (enabled) step = 3 else onFinish()
             },
+            swipeEnabled = true,
             modifier = modifier,
         )
 
@@ -121,13 +125,16 @@ private fun PermissionsStep(
     onContinue: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val (permissions, request) = rememberMultiplePermissionsState(
+    val (permissions, _) = rememberMultiplePermissionsState(
         listOf(AppPermission.CAMERA, AppPermission.LOCATION),
     )
-    val allGranted = permissions.allGranted
+    val requestPermission = rememberSinglePermissionRequester(permissions)
+    val cameraGranted = permissions.statuses[AppPermission.CAMERA]?.isGranted == true
+    val locationGranted = permissions.statuses[AppPermission.LOCATION]?.isGranted == true
 
     OnboardingScaffold(
         step = step,
+        onSwipeNext = onContinue,
         modifier = modifier,
         content = {
             EmojiBadge("📷")
@@ -137,7 +144,12 @@ private fun PermissionsStep(
                 textAlign = TextAlign.Center,
             )
             AppPermission.entries.forEach { permission ->
-                Card(modifier = Modifier.fillMaxWidth()) {
+                val granted = permissions.statuses[permission]?.isGranted == true
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !granted) { requestPermission(permission) },
+                ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -145,7 +157,11 @@ private fun PermissionsStep(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Text(
-                            text = permission.label,
+                            text = permission.label + when {
+                                granted -> " ✅"
+                                permission == AppPermission.LOCATION -> " (facultatif)"
+                                else -> " — toucher pour autoriser"
+                            },
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Text(
@@ -157,29 +173,24 @@ private fun PermissionsStep(
                 }
             }
             Text(
-                text = "Tu pourras toujours les accorder plus tard, au moment de " +
-                    "prendre ta première photo.",
+                text = "La caméra sera nécessaire pour photographier. Le GPS reste " +
+                    "facultatif : tes photos peuvent être enregistrées sans position.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
         },
         actions = {
-            if (allGranted) {
-                Text(
-                    text = "Accès accordés ✅",
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Button(onClick = onContinue, modifier = Modifier.fillMaxWidth()) {
-                    Text("Continuer")
+            if (!cameraGranted) {
+                Button(
+                    onClick = { requestPermission(AppPermission.CAMERA) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Autoriser la caméra")
                 }
-            } else {
-                Button(onClick = request, modifier = Modifier.fillMaxWidth()) {
-                    Text("Autoriser")
-                }
-                TextButton(onClick = onContinue, modifier = Modifier.fillMaxWidth()) {
-                    Text("Plus tard")
-                }
+            }
+            Button(onClick = onContinue, modifier = Modifier.fillMaxWidth()) {
+                Text(if (locationGranted) "Continuer" else "Continuer sans GPS")
             }
         },
     )
@@ -198,6 +209,7 @@ private fun SharingDefaultsStep(
 ) {
     OnboardingScaffold(
         step = step,
+        onSwipeNext = onContinue,
         modifier = modifier,
         content = {
             EmojiBadge("📤")
@@ -238,6 +250,7 @@ private fun OnboardingPage(
 ) {
     OnboardingScaffold(
         step = step,
+        onSwipeNext = onPrimary,
         modifier = modifier,
         content = {
             EmojiBadge(emoji)
@@ -270,12 +283,14 @@ private fun OnboardingScaffold(
     step: Int,
     content: @Composable ColumnScope.() -> Unit,
     actions: @Composable ColumnScope.() -> Unit,
+    onSwipeNext: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .systemBarsPadding()
+            .swipeToContinue(enabled = onSwipeNext != null) { onSwipeNext?.invoke() }
             .padding(24.dp),
     ) {
         Column(

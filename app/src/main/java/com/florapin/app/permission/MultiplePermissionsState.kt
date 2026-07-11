@@ -116,3 +116,16 @@ fun rememberMultiplePermissionsState(
     }
     return state to request
 }
+
+/** Lance la demande systeme pour une seule carte de permission. */
+@Composable
+fun rememberSinglePermissionRequester(
+    state: MultiplePermissionsState,
+): (AppPermission) -> Unit {
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { result -> state.onResult(result) }
+    return { permission ->
+        launcher.launch(arrayOf(permission.manifestPermission))
+    }
+}

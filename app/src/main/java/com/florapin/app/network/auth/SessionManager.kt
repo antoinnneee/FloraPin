@@ -13,6 +13,7 @@ import com.florapin.app.network.dto.UpdateProfileRequest
 import com.florapin.app.network.dto.UserDto
 import com.florapin.app.network.dto.VerifyEmailRequest
 import java.io.File
+import java.io.IOException
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -27,11 +28,21 @@ class SessionManager(
     fun isLoggedIn(): Boolean = tokenStore.refreshToken() != null
 
     suspend fun login(email: String, password: String): UserDto {
-        val res = authApi.login(LoginRequest(email, password))
-        tokenStore.save(res.accessToken, res.refreshToken)
-        tokenStore.saveUserId(res.user.id)
-        tokenStore.saveDisplayName(res.user.displayName)
-        return res.user
+        return try {
+            val res = authApi.login(LoginRequest(email, password))
+            persistOnlineLogin(email, password, res.user, res.accessToken, res.refreshToken)
+            res.user
+        } catch (error: IOException) {
+            val cached = tokenStore.offlineLogin(email, password) ?: throw error
+            UserDto(
+                id = cached.id,
+                email = cached.email,
+                displayName = cached.displayName,
+                createdAt = cached.createdAt,
+                emailVerified = cached.emailVerified,
+                avatarUrl = cached.avatarUrl,
+            )
+        }
     }
 
     suspend fun register(
@@ -43,6 +54,7 @@ class SessionManager(
         tokenStore.save(res.accessToken, res.refreshToken)
         tokenStore.saveUserId(res.user.id)
         tokenStore.saveDisplayName(res.user.displayName)
+        tokenStore.saveOfflineLogin(email, password, res.user.toOfflineProfile())
         return res.user
     }
 
@@ -87,6 +99,7 @@ class SessionManager(
             throw HttpException(response)
         }
         tokenStore.clear()
+        tokenStore.clearOfflineLogin()
         localData?.clearLocalData()
     }
 
@@ -116,6 +129,7 @@ class SessionManager(
             ChangePasswordRequest(oldPassword, newPassword),
         )
         tokenStore.save(pair.accessToken, pair.refreshToken)
+        tokenStore.updateOfflinePassword(newPassword)
     }
 
     /** Demande/renvoie l'email de vérification d'adresse (NODE-117, JWT). */
@@ -160,4 +174,26 @@ class SessionManager(
         val part = MultipartBody.Part.createFormData("file", file.name, body)
         return authApi.uploadAvatar(part)
     }
+
+    private fun persistOnlineLogin(
+        email: String,
+        password: String,
+        user: UserDto,
+        accessToken: String,
+        refreshToken: String,
+    ) {
+        tokenStore.save(accessToken, refreshToken)
+        tokenStore.saveUserId(user.id)
+        tokenStore.saveDisplayName(user.displayName)
+        tokenStore.saveOfflineLogin(email, password, user.toOfflineProfile())
+    }
+
+    private fun UserDto.toOfflineProfile() = OfflineLoginProfile(
+        id = id,
+        email = email,
+        displayName = displayName,
+        createdAt = createdAt,
+        emailVerified = emailVerified,
+        avatarUrl = avatarUrl,
+    )
 }

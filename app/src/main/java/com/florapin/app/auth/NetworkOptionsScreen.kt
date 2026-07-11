@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.florapin.app.ui.theme.FloraPinTheme
+import com.florapin.app.ui.components.swipeToContinue
 
 /**
  * Écran « Options réseau » affiché après une connexion mail/mot de passe.
@@ -40,6 +41,7 @@ import com.florapin.app.ui.theme.FloraPinTheme
 fun NetworkOptionsScreen(
     initialEnabled: Boolean,
     onContinue: (enabled: Boolean) -> Unit,
+    swipeEnabled: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     var enabled by rememberSaveable { mutableStateOf(initialEnabled) }
@@ -48,6 +50,7 @@ fun NetworkOptionsScreen(
         modifier = modifier
             .fillMaxSize()
             .systemBarsPadding()
+            .swipeToContinue(enabled = swipeEnabled) { onContinue(enabled) }
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),

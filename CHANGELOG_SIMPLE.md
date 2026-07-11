@@ -18,6 +18,14 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.14.5 — 11 juillet 2026
+
+### Réparé
+- **La synchronisation ne se bloque plus.** Dans certains cas, une photo prise
+  hors connexion pouvait empêcher toutes les suivantes de se synchroniser
+  (message d'échec récurrent). Vos fleurs remontent de nouveau normalement, et les
+  appareils déjà bloqués se rétablissent tout seuls à la prochaine synchro.
+
 ## Version 1.14.4 — 11 juillet 2026
 
 ### Nouveau

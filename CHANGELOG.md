@@ -17,6 +17,30 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.14.5] — 2026-07-11
+
+### Corrigé
+- **Synchronisation bloquée par `UNIQUE constraint failed: flowers.serverId`
+  (I11).** Une capture poussée dont la réponse était perdue (app tuée / réseau
+  coupé après la création côté serveur, fréquent pendant l'indisponibilité du
+  serveur) restait `serverId=null`. Au `pull`, le garde-fou anti-doublon ne
+  couvrait que les twins déjà synchronisés : la fleur était alors ré-insérée en
+  doublon fantôme, puis le `push` suivant tentait de poser le même `serverId`
+  dessus → collision `UNIQUE`, la synchro échouant à chaque passe. Désormais le
+  `pull` n'insère plus de doublon quand une capture locale correspond (le prochain
+  `push` la lie via la déduplication serveur sur `clientId`), et le `push`
+  auto-répare les bases déjà corrompues en purgeant le doublon fantôme avant le
+  `markSynced`. Couvert par `pull_doesNotDuplicateUnsyncedLocalCapture` et
+  `push_purgesPhantomDuplicateHoldingServerId`.
+- **Déploiement : la stack ne démarrait pas au boot si le démon Docker n'était
+  pas encore prêt.** `florapin.service` pouvait échouer avec « failed to connect
+  to the docker API … daemon is running » (socket `/var/run/docker.sock` absent)
+  et rester en `failed` jusqu'à un restart manuel. L'unité systemd attend
+  maintenant la disponibilité du démon (`docker info`, jusqu'à ~60 s) via un
+  `ExecStartPre` avant de lancer `compose up`.
+
+_versionName 1.14.5, versionCode 27._
+
 ## [1.14.4] — 2026-07-11
 
 ### Ajouté

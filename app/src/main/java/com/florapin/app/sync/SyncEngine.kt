@@ -83,6 +83,16 @@ class SyncEngine(
                 // le serveur en créerait un doublon (fleur « grise » au pull).
                 val serverUpdatedAt = runCatching { isoToMillis(result.flower.updatedAt) }
                     .getOrDefault(now())
+                // Auto-réparation (I11) : une base déjà corrompue peut contenir un
+                // doublon FANTÔME (inséré par un pull antérieur quand le serverId de
+                // cette capture n'était pas encore enregistré) détenant DÉJÀ cet id
+                // serveur. Le purger AVANT markSynced évite la collision
+                // UNIQUE(flowers.serverId) — sinon le push plante à chaque passe et
+                // la sync reste bloquée — et résorbe le doublon. Le fantôme n'a pas
+                // d'image locale (imagePath vide) : rien d'utilisateur n'est perdu.
+                repository.findByServerId(result.flower.id)?.let { duplicate ->
+                    if (duplicate.id != local.id) purgeLocal(duplicate)
+                }
                 repository.markSynced(
                     local.id, result.flower.id, serverUpdatedAt, local.updatedAt,
                 )
@@ -212,13 +222,22 @@ class SyncEngine(
 
             // Fleur distante au serverId inconnu localement. Avant de l'insérer,
             // on vérifie qu'elle ne fait pas doublon avec une de nos captures
-            // locales (même date de capture, image présente) déjà synchronisée
-            // sous un AUTRE serverId : ce serait un orphelin créé par un
-            // double-push. On le supprime côté serveur au lieu de l'afficher en
-            // double (fleur « grise »).
+            // locales (même date de capture, image présente).
             val twin = repository.findLocalTwin(isoToMillis(dto.takenAt))
-            if (twin?.serverId != null && twin.serverId != dto.id) {
-                runCatching { flowersApi.delete(dto.id) }
+            if (twin != null) {
+                if (twin.serverId != null && twin.serverId != dto.id) {
+                    // Notre capture est déjà synchronisée sous un AUTRE serverId :
+                    // cet id distant est un orphelin créé par un double-push. On le
+                    // supprime côté serveur au lieu de l'afficher en double (« grise »).
+                    runCatching { flowersApi.delete(dto.id) }
+                }
+                // Sinon (twin.serverId null) : c'est NOTRE capture, dont le push
+                // précédent n'a pas enregistré l'id serveur (réponse perdue / app
+                // tuée après la création côté serveur). On n'insère PAS de doublon
+                // fantôme : le prochain push la liera à son id serveur (dédup serveur
+                // sur clientId). Insérer ici créerait une ligne détenant ce serverId
+                // qui, au markSynced du push suivant, provoquerait une collision
+                // UNIQUE(flowers.serverId) bloquant toute la synchro (I11).
                 return@forEach
             }
 

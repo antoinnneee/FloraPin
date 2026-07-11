@@ -448,6 +448,114 @@ class SyncEngineTest {
         assertEquals(listOf("srv-orphan"), flowersApi.deleted)
     }
 
+    /**
+     * Régression I11 : une capture locale poussée dont la réponse a été perdue
+     * (serverId jamais enregistré) revient au pull avec son id serveur. On NE doit
+     * PAS insérer un doublon fantôme — sinon le push suivant provoquerait une
+     * collision UNIQUE(flowers.serverId). Le prochain push liera la capture.
+     */
+    @Test
+    fun pull_doesNotDuplicateUnsyncedLocalCapture() = runBlocking {
+        val dao = FakeDao()
+        val repo = FlowerRepository(dao)
+        val takenAtMillis = java.time.Instant.parse("2026-06-21T09:00:00Z").toEpochMilli()
+        // Capture locale PAS encore liée à son id serveur (push interrompu).
+        val localId = dao.insert(
+            FlowerEntity(
+                imagePath = "/p.jpg",
+                createdAt = takenAtMillis,
+                serverId = null,
+                syncState = SyncState.PENDING.name,
+                updatedAt = takenAtMillis,
+            ),
+        )
+        val flowersApi = FakeFlowersApi()
+        val engine = SyncEngine(
+            repository = repo,
+            syncApi = FakeSyncApi(
+                pullResponse = SyncPullResponse(
+                    serverTime = "2026-06-21T12:00:00Z",
+                    // Même capture, désormais connue du serveur (même takenAt).
+                    flowers = listOf(dto("srv-late", "2026-06-21T11:00:00Z")),
+                    deletedIds = emptyList(),
+                ),
+            ),
+            flowersApi = flowersApi,
+            uploadFlowerImage = { _, _ -> },
+            lastSyncStore = FakeLastSync(),
+        )
+
+        engine.pull()
+
+        // Aucun fantôme : une seule ligne, la capture d'origine, inchangée.
+        assertEquals(1, dao.store.size)
+        assertNull(dao.store[localId]!!.serverId)
+        assertEquals("/p.jpg", dao.store[localId]!!.imagePath)
+        // Rien n'est supprimé côté serveur (ce n'est pas un orphelin).
+        assertEquals(emptyList<String>(), flowersApi.deleted)
+    }
+
+    /**
+     * Régression I11 : auto-réparation d'une base déjà corrompue. Un doublon
+     * fantôme (inséré par un pull antérieur) détient déjà l'id serveur que la
+     * capture réelle va recevoir au push. Il doit être purgé avant markSynced pour
+     * éviter la collision UNIQUE et débloquer la synchro.
+     */
+    @Test
+    fun push_purgesPhantomDuplicateHoldingServerId() = runBlocking {
+        val dao = FakeDao()
+        val repo = FlowerRepository(dao)
+        val takenAtMillis = java.time.Instant.parse("2026-06-21T09:00:00Z").toEpochMilli()
+        // Fantôme : ligne distante insérée (pas d'image locale), détient srv-dup.
+        val phantomId = dao.insert(
+            FlowerEntity(
+                imagePath = "",
+                createdAt = takenAtMillis,
+                serverId = "srv-dup",
+                syncState = SyncState.SYNCED.name,
+                updatedAt = takenAtMillis,
+            ),
+        )
+        // Capture réelle (image présente), pas encore liée.
+        val captureId = dao.insert(
+            FlowerEntity(
+                imagePath = "/p.jpg",
+                createdAt = takenAtMillis,
+                serverId = null,
+                syncState = SyncState.PENDING.name,
+                updatedAt = takenAtMillis,
+            ),
+        )
+        val syncApi = FakeSyncApi(
+            pushResults = listOf(
+                SyncPushItemResult(
+                    localId = captureId.toString(),
+                    // Le serveur (dédup sur clientId) renvoie l'id déjà détenu par le fantôme.
+                    flower = dto("srv-dup", "2026-06-21T10:00:00Z"),
+                    upload = PresignedUpload("https://upload", "PUT", 600),
+                ),
+            ),
+        )
+        val engine = SyncEngine(
+            repository = repo,
+            syncApi = syncApi,
+            flowersApi = FakeFlowersApi(),
+            uploadFlowerImage = { _, _ -> },
+            lastSyncStore = FakeLastSync(),
+            now = { 5_000L },
+        )
+
+        engine.push()
+
+        // Le fantôme est purgé ; une seule ligne détient srv-dup : la capture réelle.
+        assertNull(dao.store[phantomId])
+        val bound = dao.store.values.filter { it.serverId == "srv-dup" }
+        assertEquals(1, bound.size)
+        assertEquals(captureId, bound.single().id)
+        assertEquals("/p.jpg", bound.single().imagePath)
+        assertEquals(SyncState.SYNCED.name, bound.single().syncState)
+    }
+
     @Test
     fun pull_reconcilesKnownFlower() = runBlocking {
         val dao = FakeDao()

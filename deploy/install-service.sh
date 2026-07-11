@@ -84,6 +84,12 @@ Wants=network-online.target
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=$APP_DIR
+# Attend que le DÉMON Docker réponde avant de lancer la stack. Even with
+# After=$DOCKER_SVC, le socket /var/run/docker.sock peut ne pas être prêt au boot
+# (démarrage lent du démon) : sans cette attente, `compose up` échoue avec
+# « failed to connect to the docker API ... daemon is running » et le service
+# tombe en failed jusqu'à un restart manuel. On sonde jusqu'à ~60 s.
+ExecStartPre=/bin/sh -c 'for i in \$(seq 1 30); do $DOCKER_BIN info >/dev/null 2>&1 && exit 0; sleep 2; done; echo "démon Docker indisponible" >&2; exit 1'
 ExecStart=$DOCKER_BIN compose -f docker-compose.yml up -d --build
 ExecStop=$DOCKER_BIN compose -f docker-compose.yml down
 ExecReload=$DOCKER_BIN compose -f docker-compose.yml up -d --build

@@ -88,6 +88,31 @@ class NotificationCenterViewModel(
         }
     }
 
+    /** Supprime optimistement une notification et la restaure si le serveur échoue. */
+    fun delete(notification: NotificationDto) {
+        val index = _state.value.items.indexOfFirst { it.id == notification.id }
+        if (index < 0) return
+        _state.update { state ->
+            state.copy(items = state.items.filterNot { it.id == notification.id })
+        }
+        viewModelScope.launch {
+            runCatching {
+                check(api.delete(notification.id).isSuccessful)
+            }.onFailure {
+                _state.update { state ->
+                    if (state.items.any { it.id == notification.id }) {
+                        state
+                    } else {
+                        val restored = state.items.toMutableList().apply {
+                            add(index.coerceAtMost(size), notification)
+                        }
+                        state.copy(items = restored)
+                    }
+                }
+            }
+        }
+    }
+
     /** Marque toute la liste lue et restaure les éléments si la requête échoue. */
     fun markAllRead() {
         val unreadIds = _state.value.items

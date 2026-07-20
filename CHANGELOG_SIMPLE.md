@@ -19,11 +19,23 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 ## En préparation
 
 ### Nouveau
+- **La carte peut maintenant fonctionner sans connexion.** Téléchargez une zone
+  visible, suivez sa progression et gérez les zones conservées sur le téléphone.
+- **Les photos prises à proximité sont visibles sur la fiche d'une plante.** La
+  mini-carte les distingue et un appui sur leur repère ouvre la fleur associée.
+- **Les notifications peuvent être supprimées d'un geste.** Balayez une ligne
+  vers la droite ou vers la gauche pour la retirer de la liste.
+- **L'icône FloraPin peut afficher vos notifications en attente.** Sur les
+  téléphones compatibles, une petite bulle numérique apparaît à côté de l'icône.
+- **Les badges expliquent maintenant comment les obtenir.** Maintenez un badge
+  appuyé pour voir son objectif et les paliers à atteindre.
 - **Les fleurs de vos amis ont maintenant leur fiche depuis la carte.** Depuis
   la photo en plein écran, le bouton « Détails » affiche le nom, le commentaire,
   la date et les tags de la fleur, puis permet de revenir à la photo.
 
 ### Amélioré
+- **Le choix de synchronisation n'est plus demandé deux fois.** Il apparaît
+  uniquement après la connexion et disparaît de la présentation initiale.
 - **Les fleurs sans position prennent moins de place.** Leur indication tient
   maintenant sur une seule ligne dans les cartes partagées.
 - **Le lieu d'une fleur partagée est maintenant facile à comprendre.** La commune,
@@ -35,6 +47,9 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
   petits écrans.
 
 ### Réparé
+- **La carte s'ouvre correctement avec les téléchargements hors ligne.**
+- **Les nouvelles demandes et acceptations d'amis apparaissent immédiatement.**
+  Il n'est plus nécessaire de quitter puis rouvrir la page Amis pour les voir.
 - **Les textes et icônes des photos partagées s'affichent de nouveau correctement.**
   Les accents, étoiles, localisations et boutons de commentaire ne sont plus
   remplacés par des caractères illisibles.

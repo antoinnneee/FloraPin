@@ -9,6 +9,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.RemoteInput
 import com.florapin.app.MainActivity
 import com.florapin.app.R
+import com.florapin.app.friends.FriendshipEvents
 import com.florapin.app.sync.ImageCacher
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -42,6 +43,9 @@ class FloraMessagingService : FirebaseMessagingService() {
         val imageUrl = data["thumbnailUrl"]?.takeIf { it.isNotBlank() }
         val title = message.notification?.title ?: titleFor(type)
         val body = message.notification?.body ?: bodyFor(type, byUserName, species)
+        if (type == "friend_request" || type == "friend_accepted") {
+            FriendshipEvents.notifyChanged()
+        }
         showNotification(title, body, type, flowerId, imageUrl)
     }
 
@@ -72,6 +76,8 @@ class FloraMessagingService : FirebaseMessagingService() {
         val bigPicture = imageUrl?.let { ImageCacher.downloadBitmap(it) }
         val builder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.mipmap.ic_launcher)
+            .setBadgeIconType(NotificationCompat.BADGE_ICON_SMALL)
+            .setNumber(1)
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
@@ -114,6 +120,7 @@ class FloraMessagingService : FirebaseMessagingService() {
         val summaryId = NotificationGrouping.summaryId(type, flowerId)
         val summary = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.mipmap.ic_launcher)
+            .setBadgeIconType(NotificationCompat.BADGE_ICON_SMALL)
             .setContentTitle(summaryTitleFor(flowerId))
             .setAutoCancel(true)
             .setGroup(groupKey)
@@ -141,24 +148,20 @@ class FloraMessagingService : FirebaseMessagingService() {
      */
     @androidx.annotation.RequiresApi(Build.VERSION_CODES.O)
     private fun ensureChannels(manager: NotificationManager) {
-        manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_LIKES, "Cœurs", NotificationManager.IMPORTANCE_DEFAULT),
-        )
-        manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_COMMENTS, "Commentaires", NotificationManager.IMPORTANCE_DEFAULT),
-        )
-        manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_FRIENDS, "Amis", NotificationManager.IMPORTANCE_DEFAULT),
-        )
-        manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_IDENTIFICATION, "Identification", NotificationManager.IMPORTANCE_DEFAULT),
-        )
+        manager.createNotificationChannel(badgeChannel(CHANNEL_LIKES, "Cœurs"))
+        manager.createNotificationChannel(badgeChannel(CHANNEL_COMMENTS, "Commentaires"))
+        manager.createNotificationChannel(badgeChannel(CHANNEL_FRIENDS, "Amis"))
+        manager.createNotificationChannel(badgeChannel(CHANNEL_IDENTIFICATION, "Identification"))
         // Repli : partages et types inconnus. Réutilise l'id historique pour ne pas
         // laisser un canal orphelin dans les réglages système des installations existantes.
-        manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_DEFAULT, "Général", NotificationManager.IMPORTANCE_DEFAULT),
-        )
+        manager.createNotificationChannel(badgeChannel(CHANNEL_DEFAULT, "Général"))
     }
+
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.O)
+    private fun badgeChannel(id: String, name: String): NotificationChannel =
+        NotificationChannel(id, name, NotificationManager.IMPORTANCE_DEFAULT).apply {
+            setShowBadge(true)
+        }
 
     /** Associe un type FCM à son canal ; repli sur [CHANNEL_DEFAULT] si non catégorisé. */
     private fun channelFor(type: String?): String = when (type) {

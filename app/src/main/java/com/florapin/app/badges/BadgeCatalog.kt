@@ -32,6 +32,7 @@ data class BadgeDef(
     val label: String,
     val tiers: List<Int>,
     val source: BadgeSource,
+    val description: String = label,
 )
 
 /**
@@ -44,24 +45,38 @@ object BadgeCatalog {
 
     /** Familles « collection » (calcul local, disponibles hors-ligne). */
     val COLLECTION: List<BadgeDef> = listOf(
-        BadgeDef(BadgeCalculator.PREMIERE_FLEUR, "🌸", "Première fleur", listOf(1), BadgeSource.COLLECTION),
-        BadgeDef(BadgeCalculator.HERBIER, "📚", "Herbier", listOf(10, 50, 100, 250), BadgeSource.COLLECTION),
-        BadgeDef(BadgeCalculator.DIVERSITE, "🌿", "Diversité", listOf(10, 25, 50), BadgeSource.COLLECTION),
-        BadgeDef(SAISONS, "🍂", "Saisons", listOf(1, 2, 3, 4), BadgeSource.COLLECTION),
-        BadgeDef(BadgeCalculator.EXPLORATEUR, "🧭", "Explorateur", listOf(2, 5, 10, 15, 18), BadgeSource.COLLECTION),
-        BadgeDef(OUTRE_MER, "🏝️", "Outre-mer", listOf(1, 2, 3, 4, 5), BadgeSource.COLLECTION),
-        BadgeDef(BadgeCalculator.LIEUX_DISTINCTS, "📍", "Lieux distincts", listOf(5, 15, 30, 50, 100), BadgeSource.COLLECTION),
+        BadgeDef(BadgeCalculator.PREMIERE_FLEUR, "🌸", "Première fleur", listOf(1), BadgeSource.COLLECTION,
+            "Enregistrez votre première fleur dans FloraPin."),
+        BadgeDef(BadgeCalculator.HERBIER, "📚", "Herbier", listOf(10, 50, 100, 250), BadgeSource.COLLECTION,
+            "Progressez en enregistrant de nouvelles fleurs dans votre herbier."),
+        BadgeDef(BadgeCalculator.DIVERSITE, "🌿", "Diversité", listOf(10, 25, 50), BadgeSource.COLLECTION,
+            "Identifiez des espèces différentes dans votre collection."),
+        BadgeDef(SAISONS, "🍂", "Saisons", listOf(1, 2, 3, 4), BadgeSource.COLLECTION,
+            "Photographiez au moins une fleur pendant chaque saison."),
+        BadgeDef(BadgeCalculator.EXPLORATEUR, "🧭", "Explorateur", listOf(2, 5, 10, 15, 18), BadgeSource.COLLECTION,
+            "Photographiez des fleurs dans différentes régions françaises."),
+        BadgeDef(OUTRE_MER, "🏝️", "Outre-mer", listOf(1, 2, 3, 4, 5), BadgeSource.COLLECTION,
+            "Photographiez des fleurs dans différentes régions d'outre-mer."),
+        BadgeDef(BadgeCalculator.LIEUX_DISTINCTS, "📍", "Lieux distincts", listOf(5, 15, 30, 50, 100), BadgeSource.COLLECTION,
+            "Explorez de nouveaux lieux géographiques avec vos fleurs."),
     )
 
     /** Familles « entraide » (compteurs serveur, grisées hors-ligne). */
     val ENTRAIDE: List<BadgeDef> = listOf(
-        BadgeDef(FRIENDS, "🤝", "Amis", listOf(1, 3, 5, 10), BadgeSource.ENTRAIDE),
-        BadgeDef(PROPOSALS_ACCEPTED, "🎓", "Identifications acceptées", listOf(1, 5, 10, 25, 50), BadgeSource.ENTRAIDE),
-        BadgeDef(PROPOSALS_MADE, "🔍", "Propositions faites", listOf(1, 10, 25), BadgeSource.ENTRAIDE),
-        BadgeDef(PROPOSALS_ACCEPTED_AS_OWNER, "✅", "Propositions validées", listOf(1, 10, 25), BadgeSource.ENTRAIDE),
-        BadgeDef(COMMENTS, "💬", "Commentaires", listOf(1, 10, 50), BadgeSource.ENTRAIDE),
-        BadgeDef(REACTIONS_GIVEN, "👍", "Réactions données", listOf(1, 25, 100), BadgeSource.ENTRAIDE),
-        BadgeDef(REACTIONS_RECEIVED, "❤️", "Réactions reçues", listOf(1, 25, 100), BadgeSource.ENTRAIDE),
+        BadgeDef(FRIENDS, "🤝", "Amis", listOf(1, 3, 5, 10), BadgeSource.ENTRAIDE,
+            "Ajoutez des amis à votre réseau FloraPin."),
+        BadgeDef(PROPOSALS_ACCEPTED, "🎓", "Identifications acceptées", listOf(1, 5, 10, 25, 50), BadgeSource.ENTRAIDE,
+            "Aidez vos amis avec des identifications qu'ils acceptent."),
+        BadgeDef(PROPOSALS_MADE, "🔍", "Propositions faites", listOf(1, 10, 25), BadgeSource.ENTRAIDE,
+            "Proposez une espèce pour les fleurs de vos amis."),
+        BadgeDef(PROPOSALS_ACCEPTED_AS_OWNER, "✅", "Propositions validées", listOf(1, 10, 25), BadgeSource.ENTRAIDE,
+            "Validez les propositions reçues sur vos propres fleurs."),
+        BadgeDef(COMMENTS, "💬", "Commentaires", listOf(1, 10, 50), BadgeSource.ENTRAIDE,
+            "Participez aux discussions en commentant des fleurs."),
+        BadgeDef(REACTIONS_GIVEN, "👍", "Réactions données", listOf(1, 25, 100), BadgeSource.ENTRAIDE,
+            "Réagissez aux fleurs partagées par vos amis."),
+        BadgeDef(REACTIONS_RECEIVED, "❤️", "Réactions reçues", listOf(1, 25, 100), BadgeSource.ENTRAIDE,
+            "Recevez des réactions sur les fleurs que vous partagez."),
     )
 
     /** Toutes les familles, dans l'ordre d'affichage (collection puis entraide). */

@@ -6,6 +6,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.RectF
 import android.net.Uri
 import android.view.MotionEvent
 import android.widget.Toast
@@ -39,6 +40,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -72,8 +75,9 @@ import com.florapin.app.identify.IdentificationRequestViewModel
 import com.florapin.app.likes.LikeButton
 import com.florapin.app.likes.LikeViewModel
 import com.florapin.app.location.GeoPoint
-import com.florapin.app.map.FlowerEmoji
 import com.florapin.app.map.FlowerMarker
+import com.florapin.app.map.MapLayers
+import com.florapin.app.map.emojiToBitmap
 import com.florapin.app.map.mapTilerStyleUrl
 import com.florapin.app.map.rememberMapViewWithLifecycle
 import com.florapin.app.map.setupFlowerClustering
@@ -90,6 +94,11 @@ import com.florapin.app.util.formatCaptureDate
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
 import java.io.File
+import kotlinx.coroutines.launch
+import kotlin.math.asin
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * Détail d'une fleur avec navigation par balayage (TÂCHE 6.10) : un
@@ -107,6 +116,7 @@ fun DetailScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     onOpenSpecies: (String) -> Unit = {},
+    onOpenFlower: (Long) -> Unit = {},
     // Suppression annulable (TÂCHE 6.13) : reçoit l'id soft-supprimé pour que
     // l'écran précédent (galerie) propose l'annulation. Par défaut, revient en
     // arrière (compat lorsqu'aucun hôte de snackbar ne traite l'annulation).
@@ -115,6 +125,7 @@ fun DetailScreen(
     sharedScope: FloraSharedScope? = null,
     pagerViewModel: DetailPagerViewModel = viewModel(),
 ) {
+    val allFlowers by pagerViewModel.flowers.collectAsStateWithLifecycle()
     val orderedIds by pagerViewModel.orderedIds.collectAsStateWithLifecycle()
     val startIndex = orderedIds.indexOf(flowerId)
 
@@ -127,6 +138,8 @@ fun DetailScreen(
             onBack = onBack,
             onDeleted = onDeleted,
             onOpenSpecies = onOpenSpecies,
+            allFlowers = allFlowers,
+            onOpenFlower = onOpenFlower,
             sharedScope = sharedScope,
             modifier = modifier,
         )
@@ -134,6 +147,7 @@ fun DetailScreen(
     }
 
     val pagerState = rememberPagerState(initialPage = startIndex) { orderedIds.size }
+    val coroutineScope = rememberCoroutineScope()
     HorizontalPager(
         state = pagerState,
         modifier = modifier.fillMaxSize(),
@@ -147,6 +161,15 @@ fun DetailScreen(
             onBack = onBack,
             onDeleted = onDeleted,
             onOpenSpecies = onOpenSpecies,
+            allFlowers = allFlowers,
+            onOpenFlower = { nearbyFlowerId ->
+                val targetPage = orderedIds.indexOf(nearbyFlowerId)
+                if (targetPage >= 0) {
+                    coroutineScope.launch { pagerState.animateScrollToPage(targetPage) }
+                } else {
+                    onOpenFlower(nearbyFlowerId)
+                }
+            },
             // Seule la page ouverte au démarrage (même id que la vignette
             // tapée) porte l'élément partagé : les pages voisines du balayage
             // n'ont pas de vis-à-vis dans la galerie et s'affichent normalement.
@@ -168,6 +191,8 @@ fun FlowerDetailPage(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     onOpenSpecies: (String) -> Unit = {},
+    allFlowers: List<FlowerEntity> = emptyList(),
+    onOpenFlower: (Long) -> Unit = {},
     onDeleted: (Long) -> Unit = { onBack() },
     sharedScope: FloraSharedScope? = null,
     viewModel: DetailViewModel = viewModel(key = "detail-$flowerId"),
@@ -305,6 +330,8 @@ fun FlowerDetailPage(
                 onOpenLikers = { showLikers = true },
                 commentsVm = commentsVm,
                 onOpenSpecies = onOpenSpecies,
+                allFlowers = allFlowers,
+                onOpenFlower = onOpenFlower,
                 onAddPhoto = { showCamera = true },
                 onDeletePhoto = photosViewModel::deletePhoto,
                 onMakeCover = photosViewModel::makeCover,
@@ -374,6 +401,8 @@ private fun DetailContent(
     onOpenLikers: () -> Unit,
     commentsVm: CommentsViewModel,
     onOpenSpecies: (String) -> Unit,
+    allFlowers: List<FlowerEntity>,
+    onOpenFlower: (Long) -> Unit,
     onAddPhoto: () -> Unit,
     onDeletePhoto: (PhotoEntity) -> Unit,
     onMakeCover: (PhotoEntity) -> Unit,
@@ -442,11 +471,19 @@ private fun DetailContent(
 
             val point = flower.toGeoPoint()
             if (point != null) {
+                val nearbyFlowers = remember(flower.id, point, allFlowers) {
+                    findNearbyFlowers(flower, allFlowers)
+                }
                 Text(
                     text = "📍 ${point.format()}",
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                MiniMap(point, emoji = FlowerEmoji.forSpecies(flower.species))
+                MiniMap(
+                    point = point,
+                    flowerId = flower.id,
+                    nearbyFlowers = nearbyFlowers,
+                    onFlowerClick = onOpenFlower,
+                )
             } else {
                 Text(
                     text = "📍 Position non enregistrée",
@@ -724,13 +761,18 @@ private fun parseTags(raw: String): List<String> =
 
 /**
  * Mini-carte interactive (NODE-11) : situe la fleur sur une carte MapLibre
- * (tuiles MapTiler) centrée sur sa position, avec un marqueur emoji d'espèce.
+ * (tuiles MapTiler) centrée sur sa position, avec les autres observations proches.
  * Réutilise l'infrastructure de la fonctionnalité Carte. Sans clé MapTiler, on
  * retombe sur un aperçu textuel des coordonnées.
  */
 @SuppressLint("ClickableViewAccessibility")
 @Composable
-private fun MiniMap(point: GeoPoint, emoji: String) {
+private fun MiniMap(
+    point: GeoPoint,
+    flowerId: Long,
+    nearbyFlowers: List<FlowerEntity>,
+    onFlowerClick: (Long) -> Unit,
+) {
     val apiKey = BuildConfig.MAPTILER_API_KEY
     val context = LocalContext.current
     val mapStyle = remember { com.florapin.app.map.MapStylePreferences(context).get() }
@@ -748,7 +790,14 @@ private fun MiniMap(point: GeoPoint, emoji: String) {
             if (apiKey.isBlank()) {
                 MiniMapFallback(point)
             } else {
-                MiniMapView(point, emoji, apiKey, mapStyle)
+                MiniMapView(
+                    point = point,
+                    flowerId = flowerId,
+                    nearbyFlowers = nearbyFlowers,
+                    apiKey = apiKey,
+                    mapStyle = mapStyle,
+                    onFlowerClick = onFlowerClick,
+                )
             }
         }
         // Menu superposé (NODE-6.11) : ouvrir dans Maps / copier les coordonnées.
@@ -764,57 +813,138 @@ private fun MiniMap(point: GeoPoint, emoji: String) {
 @Composable
 private fun MiniMapView(
     point: GeoPoint,
-    emoji: String,
+    flowerId: Long,
+    nearbyFlowers: List<FlowerEntity>,
     apiKey: String,
     mapStyle: com.florapin.app.map.MapStyle,
+    onFlowerClick: (Long) -> Unit,
 ) {
-
-        val target = remember(point.latitude, point.longitude) {
-            LatLng(point.latitude, point.longitude)
+    val target = remember(point.latitude, point.longitude) {
+        LatLng(point.latitude, point.longitude)
+    }
+    val mapView = rememberMapViewWithLifecycle()
+    val currentOnFlowerClick by rememberUpdatedState(onFlowerClick)
+    val currentFlowerId by rememberUpdatedState(flowerId)
+    val markers = remember(flowerId, point, nearbyFlowers) {
+        buildList {
+            add(
+                FlowerMarker(
+                    id = flowerId,
+                    latitude = point.latitude,
+                    longitude = point.longitude,
+                    emoji = MINI_MAP_CURRENT_ICON,
+                    navigable = true,
+                ),
+            )
+            nearbyFlowers.forEach { nearby ->
+                add(
+                    FlowerMarker(
+                        id = nearby.id,
+                        latitude = nearby.latitude ?: return@forEach,
+                        longitude = nearby.longitude ?: return@forEach,
+                        emoji = MINI_MAP_NEARBY_ICON,
+                        navigable = true,
+                    ),
+                )
+            }
         }
-        val mapView = rememberMapViewWithLifecycle()
+    }
 
-        androidx.compose.runtime.LaunchedEffect(mapView, target, emoji, mapStyle) {
-            mapView.getMapAsync { map ->
-                map.cameraPosition = CameraPosition.Builder()
-                    .target(target)
-                    .zoom(MINI_MAP_ZOOM)
-                    .build()
-                map.setStyle(mapTilerStyleUrl(apiKey, mapStyle)) { style ->
-                    style.setupFlowerClustering(mapView.context)
-                    style.updateFlowerMarkers(
-                        listOf(
-                            FlowerMarker(
-                                id = 0L,
-                                latitude = point.latitude,
-                                longitude = point.longitude,
-                                emoji = emoji,
-                            ),
-                        ),
-                    )
+    androidx.compose.runtime.LaunchedEffect(mapView) {
+        mapView.getMapAsync { map ->
+            map.addOnMapClickListener { latLng ->
+                val screenPoint = map.projection.toScreenLocation(latLng)
+                val hitArea = RectF(
+                    screenPoint.x - MINI_MAP_TOUCH_SLOP,
+                    screenPoint.y - MINI_MAP_TOUCH_SLOP,
+                    screenPoint.x + MINI_MAP_TOUCH_SLOP,
+                    screenPoint.y + MINI_MAP_TOUCH_SLOP,
+                )
+                val clickedId = map.queryRenderedFeatures(hitArea, MapLayers.UNCLUSTERED)
+                    .firstOrNull { it.hasProperty(MapLayers.PROP_ID) }
+                    ?.getNumberProperty(MapLayers.PROP_ID)
+                    ?.toLong()
+                if (clickedId != null && clickedId != currentFlowerId) {
+                    currentOnFlowerClick(clickedId)
+                    true
+                } else {
+                    false
                 }
             }
         }
+    }
 
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = {
-                // Empêche la Column scrollable parente d'intercepter les gestes
-                // tant qu'on manipule la carte (sinon le scroll vertical vole le
-                // déplacement/zoom de la carte).
-                mapView.apply {
-                    setOnTouchListener { view, event ->
-                        when (event.actionMasked) {
-                            MotionEvent.ACTION_DOWN ->
-                                view.parent?.requestDisallowInterceptTouchEvent(true)
-                            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
-                                view.parent?.requestDisallowInterceptTouchEvent(false)
-                        }
-                        false
+    androidx.compose.runtime.LaunchedEffect(mapView, target, markers, mapStyle) {
+        mapView.getMapAsync { map ->
+            map.cameraPosition = CameraPosition.Builder()
+                .target(target)
+                .zoom(MINI_MAP_ZOOM)
+                .build()
+            map.setStyle(mapTilerStyleUrl(apiKey, mapStyle)) { style ->
+                style.setupFlowerClustering(mapView.context)
+                style.addImage(MINI_MAP_CURRENT_ICON, emojiToBitmap("📍", 84))
+                style.addImage(MINI_MAP_NEARBY_ICON, emojiToBitmap("📷", 68))
+                style.updateFlowerMarkers(markers)
+            }
+        }
+    }
+
+    AndroidView(
+        modifier = Modifier.fillMaxSize(),
+        factory = {
+            // Empêche la Column scrollable parente d'intercepter les gestes
+            // tant qu'on manipule la carte (sinon le scroll vertical vole le
+            // déplacement/zoom de la carte).
+            mapView.apply {
+                setOnTouchListener { view, event ->
+                    when (event.actionMasked) {
+                        MotionEvent.ACTION_DOWN ->
+                            view.parent?.requestDisallowInterceptTouchEvent(true)
+                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                            view.parent?.requestDisallowInterceptTouchEvent(false)
                     }
+                    false
                 }
-            },
-        )
+            }
+        },
+    )
+}
+
+private fun findNearbyFlowers(
+    current: FlowerEntity,
+    flowers: List<FlowerEntity>,
+): List<FlowerEntity> {
+    val latitude = current.latitude ?: return emptyList()
+    val longitude = current.longitude ?: return emptyList()
+    return flowers.asSequence()
+        .filter { it.id != current.id && it.latitude != null && it.longitude != null }
+        .map { flower ->
+            flower to distanceMeters(
+                latitude,
+                longitude,
+                flower.latitude!!,
+                flower.longitude!!,
+            )
+        }
+        .filter { (_, distance) -> distance <= MINI_MAP_NEARBY_RADIUS_METERS }
+        .sortedBy { (_, distance) -> distance }
+        .take(MINI_MAP_MAX_NEARBY_FLOWERS)
+        .map { (flower, _) -> flower }
+        .toList()
+}
+
+private fun distanceMeters(
+    latitudeA: Double,
+    longitudeA: Double,
+    latitudeB: Double,
+    longitudeB: Double,
+): Double {
+    val latitudeDelta = Math.toRadians(latitudeB - latitudeA)
+    val longitudeDelta = Math.toRadians(longitudeB - longitudeA)
+    val a = sin(latitudeDelta / 2) * sin(latitudeDelta / 2) +
+        cos(Math.toRadians(latitudeA)) * cos(Math.toRadians(latitudeB)) *
+        sin(longitudeDelta / 2) * sin(longitudeDelta / 2)
+    return 2 * EARTH_RADIUS_METERS * asin(sqrt(a))
 }
 
 /**
@@ -913,8 +1043,14 @@ private fun copyPointCoordinates(context: Context, point: GeoPoint) {
     Toast.makeText(context, "Coordonnées copiées", Toast.LENGTH_SHORT).show()
 }
 
-/** Zoom de la mini-carte du détail : assez serré pour situer la fleur. */
-private const val MINI_MAP_ZOOM = 14.0
+/** Zoom de la mini-carte du détail : assez serré pour distinguer les observations. */
+private const val MINI_MAP_ZOOM = 16.0
+private const val MINI_MAP_NEARBY_RADIUS_METERS = 500.0
+private const val MINI_MAP_MAX_NEARBY_FLOWERS = 20
+private const val MINI_MAP_TOUCH_SLOP = 18f
+private const val MINI_MAP_CURRENT_ICON = "detail-current-flower"
+private const val MINI_MAP_NEARBY_ICON = "detail-nearby-flower"
+private const val EARTH_RADIUS_METERS = 6_371_000.0
 
 /** Aperçu textuel des coordonnées quand la carte ne peut pas s'afficher. */
 @Composable

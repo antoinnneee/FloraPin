@@ -158,4 +158,11 @@ export class NotificationsService {
     notification.readAt ??= new Date();
     return this.notifications.save(notification);
   }
+
+  async remove(userId: string, id: string): Promise<void> {
+    const result = await this.notifications.delete({ id, userId });
+    if (!result.affected) {
+      throw new NotFoundException('Notification introuvable.');
+    }
+  }
 }

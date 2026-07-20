@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /** État de l'écran amis : listes catégorisées + chargement/erreur. */
@@ -42,14 +44,23 @@ class FriendsViewModel(
 
     private val _state = MutableStateFlow(FriendsUiState(loading = true))
     val state: StateFlow<FriendsUiState> = _state.asStateFlow()
+    private var refreshJob: Job? = null
 
     init {
         refresh()
+        viewModelScope.launch {
+            FriendshipEvents.changes.collectLatest {
+                refresh(showLoading = false)
+            }
+        }
     }
 
-    fun refresh() {
-        _state.update { it.copy(loading = true, error = null) }
-        viewModelScope.launch {
+    fun refresh(showLoading: Boolean = true) {
+        if (showLoading) {
+            _state.update { it.copy(loading = true, error = null) }
+        }
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
             try {
                 val categorized = categorize(api.list())
                 _state.value = categorized
@@ -57,7 +68,12 @@ class FriendsViewModel(
                 // à 0, même sans avoir accepté/refusé.
                 badgeStore?.markSeen(categorized.incoming.map { it.id }.toSet())
             } catch (e: Exception) {
-                _state.update { it.copy(loading = false, error = messageOf(e)) }
+                _state.update {
+                    it.copy(
+                        loading = false,
+                        error = if (showLoading) messageOf(e) else it.error,
+                    )
+                }
             }
         }
     }

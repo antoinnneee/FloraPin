@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -50,6 +51,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.BuildConfig
+import com.florapin.app.ui.components.BloomDownloadIndicator
 import com.florapin.app.ui.components.DecorativeEmoji
 import com.florapin.app.ui.components.EmojiIcon
 import com.florapin.app.ui.components.FullscreenPhotoViewer
@@ -81,6 +83,7 @@ fun MapScreen(
     onFlowerClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MapViewModel = viewModel(),
+    offlineViewModel: OfflineMapViewModel = viewModel(),
 ) {
     val apiKey = BuildConfig.MAPTILER_API_KEY
     val markers by viewModel.markers.collectAsStateWithLifecycle()
@@ -106,14 +109,46 @@ fun MapScreen(
     val context = LocalContext.current
     val stylePrefs = remember { MapStylePreferences(context) }
     var selectedStyle by remember { mutableStateOf(stylePrefs.get()) }
+    val offlineRegions by offlineViewModel.regions.collectAsStateWithLifecycle()
+    val offlineCreating by offlineViewModel.isCreating.collectAsStateWithLifecycle()
+    val offlineError by offlineViewModel.error.collectAsStateWithLifecycle()
 
     // Position de l'utilisateur : permission + référence carte partagées entre le
     // bouton de recentrage (FAB) et le contenu.
     val mapRef = remember { mutableStateOf<MapLibreMap?>(null) }
+    var showOfflineDialog by remember { mutableStateOf(false) }
+    var offlineSelection by remember { mutableStateOf<OfflineMapSelection?>(null) }
     var locationGranted by remember { mutableStateOf(hasLocationPermission(context)) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { locationGranted = hasLocationPermission(context) }
+
+    if (showOfflineDialog) {
+        OfflineMapDialog(
+            selection = offlineSelection,
+            regions = offlineRegions,
+            isCreating = offlineCreating,
+            error = offlineError,
+            onDownload = { name, detail ->
+                offlineSelection?.let { selection ->
+                    offlineViewModel.download(
+                        name = name,
+                        style = selectedStyle,
+                        styleUrl = mapTilerStyleUrl(apiKey, selectedStyle),
+                        selection = selection,
+                        detail = detail,
+                        pixelRatio = context.resources.displayMetrics.density,
+                    )
+                }
+            },
+            onToggle = offlineViewModel::toggle,
+            onDelete = offlineViewModel::delete,
+            onDismiss = {
+                offlineViewModel.clearError()
+                showOfflineDialog = false
+            },
+        )
+    }
 
     // À l'ouverture de la carte, demande la localisation si pas encore accordée.
     LaunchedEffect(Unit) {
@@ -337,6 +372,21 @@ fun MapScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    OfflineMapChip(
+                        availableCount = offlineRegions.count { it.isComplete },
+                        downloading = offlineRegions.any { it.isActive },
+                        onClick = {
+                            val map = mapRef.value
+                            offlineSelection = map?.let {
+                                OfflineMapSelection(
+                                    bounds = it.projection.visibleRegion.latLngBounds,
+                                    currentZoom = it.cameraPosition.zoom,
+                                )
+                            }
+                            offlineViewModel.refresh()
+                            showOfflineDialog = true
+                        },
+                    )
                     OverlayFriendChip(
                         selected = friendsOnly,
                         onClick = viewModel::toggleFriendsOnly,
@@ -357,6 +407,39 @@ fun MapScreen(
 /**
  * Sélecteur compact de période. Les contrôles cartographiques vivent en overlay.
  */
+/** Accès aux téléchargements de fond de carte, superposé sur la carte. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OfflineMapChip(
+    availableCount: Int,
+    downloading: Boolean,
+    onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(24.dp)
+    FilterChip(
+        modifier = Modifier
+            .shadow(6.dp, shape)
+            .background(MaterialTheme.colorScheme.surface, shape),
+        selected = availableCount > 0,
+        onClick = onClick,
+        leadingIcon = {
+            if (downloading) {
+                BloomDownloadIndicator(modifier = Modifier.size(28.dp))
+            } else {
+                DecorativeEmoji("⬇️")
+            }
+        },
+        label = {
+            Text(if (availableCount > 0) "Hors ligne · $availableCount" else "Hors ligne")
+        },
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+        ),
+        border = null,
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FilterBar(

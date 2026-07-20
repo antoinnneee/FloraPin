@@ -185,6 +185,7 @@ private fun BadgeDef.toUiState(
     id = id,
     emoji = emoji,
     title = label,
+    description = description,
     tiers = tiers,
     currentValue = currentValue,
     available = available,

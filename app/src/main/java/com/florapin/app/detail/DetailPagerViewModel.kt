@@ -3,6 +3,7 @@ package com.florapin.app.detail
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.FlowerRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,8 +23,16 @@ class DetailPagerViewModel(application: Application) : AndroidViewModel(applicat
 
     private val repository = FlowerRepository.from(application)
 
+    /** Fleurs locales utilisées par le pager et par l'aperçu cartographique. */
+    val flowers: StateFlow<List<FlowerEntity>> = repository.flowers
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
+
     /** Identifiants locaux des fleurs, dans l'ordre d'affichage de la galerie. */
-    val orderedIds: StateFlow<List<Long>> = repository.flowers
+    val orderedIds: StateFlow<List<Long>> = flowers
         .map { flowers -> flowers.map { it.id } }
         .stateIn(
             scope = viewModelScope,

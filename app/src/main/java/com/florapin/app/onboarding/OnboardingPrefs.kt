@@ -5,7 +5,7 @@ import android.content.Context
 /**
  * Préférence locale « onboarding déjà vu » (réglage par appareil).
  *
- * L'onboarding (promesse sociale, permissions, choix de synchronisation) ne
+ * L'onboarding (promesse sociale, permissions, préférences de partage) ne
  * s'affiche qu'à la toute première installation. Une fois parcouru (ou figé pour
  * une installation existante), le drapeau reste vrai et l'app démarre directement
  * sur Login ou la galerie.

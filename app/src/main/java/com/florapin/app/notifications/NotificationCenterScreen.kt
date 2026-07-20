@@ -1,6 +1,7 @@
 package com.florapin.app.notifications
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -112,8 +116,9 @@ fun NotificationCenterScreen(
 
                 else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(state.items, key = { it.id }) { notification ->
-                        NotificationRow(
+                        DismissibleNotificationRow(
                             notification = notification,
+                            onDelete = { viewModel.delete(notification) },
                             onClick = {
                                 viewModel.markRead(notification)
                                 onOpen(
@@ -124,10 +129,51 @@ fun NotificationCenterScreen(
                                 )
                             },
                         )
-                        HorizontalDivider()
                     }
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DismissibleNotificationRow(
+    notification: NotificationDto,
+    onDelete: () -> Unit,
+    onClick: () -> Unit,
+) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value != SwipeToDismissBoxValue.Settled) {
+                onDelete()
+                true
+            } else {
+                false
+            }
+        },
+    )
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true,
+        backgroundContent = {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.errorContainer)
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Supprimer", color = MaterialTheme.colorScheme.onErrorContainer)
+                Text("Supprimer", color = MaterialTheme.colorScheme.onErrorContainer)
+            }
+        },
+    ) {
+        Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
+            NotificationRow(notification = notification, onClick = onClick)
+            HorizontalDivider()
         }
     }
 }

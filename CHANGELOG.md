@@ -18,6 +18,24 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Zones cartographiques hors ligne.** La zone visible peut être téléchargée
+  depuis la carte avec deux niveaux de détail. MapLibre conserve les tuiles du
+  style choisi, expose la progression et la taille occupée, et permet de mettre
+  en pause, reprendre ou supprimer chaque zone enregistrée.
+- **Observations proches dans le détail d'une plante.** La mini-carte distingue
+  la plante ouverte des autres photos prises dans un rayon de 500 mètres. Un appui
+  sur un repère photo ouvre directement la fiche de la fleur correspondante.
+- **Suppression des notifications par swipe.** Une ligne du centre peut être
+  balayée vers la droite ou la gauche. Elle disparaît immédiatement, est supprimée
+  côté serveur via `DELETE /notifications/:id`, puis restaurée à sa position si
+  l'appel échoue; le serveur vérifie systématiquement son propriétaire.
+- **Badge sur l'icône de l'application.** Tous les canaux Android autorisent
+  explicitement les badges et chaque notification est déclarée comme un événement
+  comptable. Les launchers compatibles, dont Samsung One UI, peuvent afficher le
+  nombre de notifications système en attente à côté de l'icône FloraPin.
+- **Explication des badges par appui long.** Chaque famille de badge possède une
+  description métier et ses paliers. Un maintien sur sa carte ouvre une infobulle
+  Material 3; la même explication est exposée aux lecteurs d'écran.
 - **Détails des fleurs d'amis depuis la carte.** La visionneuse plein écran
   propose désormais un bouton « Détails » donnant accès à l'espèce, au
   commentaire, à la date de prise de vue et aux tags, avec retour direct à la
@@ -25,6 +43,10 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   marqueur sélectionné sans créer de copie locale de la fleur.
 
 ### Modifié
+- **Synchronisation demandée une seule fois.** L'onboarding de première
+  installation passe directement des permissions aux préférences de partage et
+  comporte désormais trois étapes. Le choix de synchronisation reste proposé
+  après la connexion, où il est pertinent et n'est plus présenté en double.
 - **Libellé compact sans GPS dans le flux partagé.** Une fleur dont la position
   n'est pas diffusée affiche « Sans position », sur une seule ligne dans les
   cartes étroites, au lieu de « Position non partagée ».
@@ -39,6 +61,13 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   sur petits écrans grâce à un affichage plus compact et un scroll horizontal.
 
 ### Corrigé
+- **Ouverture de la carte avec le mode hors ligne.** MapLibre est maintenant
+  initialisé avant son gestionnaire de régions, ce qui évite le crash immédiat
+  lors de l'entrée sur la carte après l'ajout des téléchargements.
+- **Liste d'amis actualisée en direct.** Les push `friend_request` et
+  `friend_accepted` émettent maintenant un événement interne consommé par l'écran
+  Amis. Une demande ou une acceptation reçue pendant que la page est visible
+  apparaît immédiatement, sans changement d'onglet ni clignotement de chargement.
 - **Encodage de l'écran « Partagées avec moi ».** Les libellés accentués et les
   pictogrammes de favori, localisation, espèce et commentaire utilisent désormais
   des échappements Unicode stables et ne s'affichent plus sous forme de caractères

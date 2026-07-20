@@ -10,7 +10,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +44,7 @@ data class BadgeUiState(
     val id: String,
     val emoji: String,
     val title: String,
+    val description: String = title,
     val tiers: List<Int>,
     val currentValue: Int,
     val available: Boolean = true,
@@ -72,6 +78,7 @@ data class BadgeUiState(
  *  - **Complété** → toutes les étoiles remplies, mention « Complété ».
  *  - **Indisponible** (serveur hors-ligne / géo sans résolveur) → grisé, « Hors ligne ».
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BadgeCard(
     state: BadgeUiState,
@@ -82,46 +89,67 @@ fun BadgeCard(
     } else {
         Modifier
     }
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .then(highlight)
-            .semantics { contentDescription = describe(state) },
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+        tooltip = {
+            PlainTooltip {
+                Text(tooltipText(state))
+            }
+        },
+        state = rememberTooltipState(),
     ) {
-        Column(
-            modifier = Modifier
+        Card(
+            modifier = modifier
                 .fillMaxWidth()
-                .defaultMinSize(minHeight = 128.dp)
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
-        ) {
-            Text(
-                text = state.emoji,
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.alpha(if (state.unlocked) 1f else 0.35f),
-            )
-            Text(
-                text = state.title,
-                style = MaterialTheme.typography.labelLarge,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                color = if (state.unlocked) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                .then(highlight)
+                .semantics {
+                    contentDescription = "${describe(state)}. ${state.description}"
                 },
-            )
-            StarRow(total = state.tiers.size, filled = state.unlockedTiers)
-            Text(
-                text = progressionLabel(state),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = 128.dp)
+                    .padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
+            ) {
+                Text(
+                    text = state.emoji,
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.alpha(if (state.unlocked) 1f else 0.35f),
+                )
+                Text(
+                    text = state.title,
+                    style = MaterialTheme.typography.labelLarge,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (state.unlocked) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+                StarRow(total = state.tiers.size, filled = state.unlockedTiers)
+                Text(
+                    text = progressionLabel(state),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
     }
+}
+
+private fun tooltipText(state: BadgeUiState): String {
+    val thresholds = if (state.singleTier) {
+        "Palier : ${state.tiers.first()}"
+    } else {
+        "Paliers : ${state.tiers.joinToString()}"
+    }
+    return "${state.description}\n$thresholds"
 }
 
 /** Rangée d'étoiles : [filled] pleines (or) puis le reste creuses (gris). */

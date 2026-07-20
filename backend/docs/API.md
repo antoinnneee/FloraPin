@@ -285,6 +285,7 @@ La liste paginée renvoie `{ items, total, page, limit }`.
 | GET     | `/notifications`             | Mes notifications |
 | GET     | `/notifications/unread-count`| `{ count }` — nombre de non lues |
 | POST    | `/notifications/:id/read`    | Marque une notification comme lue |
+| DELETE  | `/notifications/:id`         | Supprime définitivement une de mes notifications (`204`) |
 
 Types (`type`) : `friend_request`, `friend_accepted`, `flower_shared`,
 `species_proposed`, `species_confirmed`, `identification_requested`,

@@ -24,7 +24,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -32,14 +31,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.florapin.app.auth.NetworkOptionsScreen
 import com.florapin.app.permission.AppPermission
 import com.florapin.app.permission.isGranted
 import com.florapin.app.permission.rememberMultiplePermissionsState
 import com.florapin.app.permission.rememberSinglePermissionRequester
 import com.florapin.app.share.SharePreferences
 import com.florapin.app.share.SharingDefaultsForm
-import com.florapin.app.sync.SyncPreferences
 import com.florapin.app.ui.theme.FloraPinTheme
 import com.florapin.app.ui.components.swipeToContinue
 
@@ -50,14 +47,8 @@ import com.florapin.app.ui.components.swipeToContinue
  *     amis.
  *  2. Permissions contextualisées : caméra + localisation, expliquées avant la
  *     sollicitation système (réutilise le socle [rememberMultiplePermissionsState]).
- *  3. Choix de synchronisation : délègue à [NetworkOptionsScreen] pour respecter
- *     le device-first (sync OFF par défaut, choix par appareil).
- *  4. Partage par défaut : destinataire, GPS, partage automatique — les valeurs
+ *  3. Partage par défaut : destinataire, GPS, partage automatique — les valeurs
  *     qui prérempliront la feuille de partage (cf. [SharePreferences]).
- *
- * Le dernier écran n'a de sens qu'avec la synchronisation : partager suppose des
- * fleurs déposées sur le serveur. Refuser le cloud à l'écran 3 clôt donc
- * l'onboarding, et les réglages de partage gardent leurs valeurs par défaut.
  *
  * @param onFinish invoqué à la fin du dernier écran ; l'appelant persiste le
  *   drapeau « déjà vu » puis navigue vers Login ou la galerie.
@@ -86,20 +77,6 @@ fun OnboardingScreen(
         1 -> PermissionsStep(
             step = step,
             onContinue = { step = 2 },
-            modifier = modifier,
-        )
-
-        2 -> NetworkOptionsScreen(
-            // Pré-rempli sur le défaut device-first (OFF) ; le choix est mémorisé
-            // par appareil et re-proposé, déjà coché, après connexion.
-            initialEnabled = remember { SyncPreferences(context).isEnabled() },
-            onContinue = { enabled ->
-                SyncPreferences(context).setEnabled(enabled)
-                // Sans cloud, aucune fleur n'atteint le serveur : les questions de
-                // partage seraient sans objet.
-                if (enabled) step = 3 else onFinish()
-            },
-            swipeEnabled = true,
             modifier = modifier,
         )
 
@@ -353,7 +330,7 @@ private fun StepIndicator(current: Int, total: Int) {
 }
 
 /** Nombre total d'écrans de l'onboarding. */
-private const val ONBOARDING_STEPS = 4
+private const val ONBOARDING_STEPS = 3
 
 @androidx.compose.ui.tooling.preview.Preview(showBackground = true)
 @Composable

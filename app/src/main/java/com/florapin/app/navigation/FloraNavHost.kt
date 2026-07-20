@@ -469,6 +469,9 @@ fun FloraNavHost(
                 onOpenSpecies = { sid ->
                     navController.navigate(Routes.speciesDetail(sid))
                 },
+                onOpenFlower = { nearbyFlowerId ->
+                    navController.navigate(Routes.detail(nearbyFlowerId))
+                },
                 onDeleted = { deletedId ->
                     // Dépose l'id soft-supprimé pour l'écran d'où l'on vient (la
                     // galerie l'exploite pour l'annulation) puis dépile. Si le

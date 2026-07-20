@@ -113,6 +113,7 @@ fun FullscreenPhotoViewer(
     models: List<Any?>,
     startIndex: Int,
     onDismiss: () -> Unit,
+    detailsContent: (@Composable () -> Unit)? = null,
 ) {
     if (models.isEmpty()) return
     Dialog(
@@ -124,22 +125,27 @@ fun FullscreenPhotoViewer(
             pageCount = { models.size },
         )
         var zoomed by remember { mutableStateOf(false) }
+        var showDetails by remember { mutableStateOf(false) }
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black),
         ) {
-            HorizontalPager(
-                state = pagerState,
-                userScrollEnabled = !zoomed,
-                modifier = Modifier.fillMaxSize(),
-            ) { page ->
-                ZoomableImage(
-                    model = models[page],
-                    onZoomChange = { zoomed = it },
+            if (showDetails && detailsContent != null) {
+                detailsContent()
+            } else {
+                HorizontalPager(
+                    state = pagerState,
+                    userScrollEnabled = !zoomed,
                     modifier = Modifier.fillMaxSize(),
-                )
+                ) { page ->
+                    ZoomableImage(
+                        model = models[page],
+                        onZoomChange = { zoomed = it },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
 
             Row(
@@ -149,7 +155,7 @@ fun FullscreenPhotoViewer(
                     .padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (models.size > 1) {
+                if (!showDetails && models.size > 1) {
                     Text(
                         text = "${pagerState.currentPage + 1} / ${models.size}",
                         color = Color.White,
@@ -157,12 +163,28 @@ fun FullscreenPhotoViewer(
                         modifier = Modifier.padding(end = 12.dp),
                     )
                 }
+                if (detailsContent != null) {
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.55f),
+                        shape = CircleShape,
+                        onClick = { showDetails = !showDetails },
+                    ) {
+                        Text(
+                            text = if (showDetails) "Photo" else "Details",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelLarge,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                        )
+                    }
+                }
                 Surface(
                     color = Color.Black.copy(alpha = 0.4f),
                     shape = CircleShape,
                     onClick = onDismiss,
                     // Cible tactile ≥ 48 dp (TÂCHE 6.18, accessibilité).
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier
+                        .padding(start = 8.dp)
+                        .size(48.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         // Glyphe « ✕ » lu littéralement par TalkBack : libellé parlant

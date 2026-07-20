@@ -17,6 +17,33 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+- **Détails des fleurs d'amis depuis la carte.** La visionneuse plein écran
+  propose désormais un bouton « Détails » donnant accès à l'espèce, au
+  commentaire, à la date de prise de vue et aux tags, avec retour direct à la
+  photo. Les métadonnées et toutes les photos du flux sont conservées dans le
+  marqueur sélectionné sans créer de copie locale de la fleur.
+
+### Modifié
+- **Libellé compact sans GPS dans le flux partagé.** Une fleur dont la position
+  n'est pas diffusée affiche « Sans position », sur une seule ligne dans les
+  cartes étroites, au lieu de « Position non partagée ».
+- **Lieu lisible dans le flux partagé.** Les coordonnées GPS brutes sont remplacées
+  par la commune ou le village obtenu par géocodage inverse Android. La région
+  embarquée sert de repli hors ligne, et les résultats sont mis en cache par zone.
+- **Zoom des groupes sur la carte.** Un appui sur un groupe centre désormais la
+  caméra sur son point réel et utilise le niveau d'expansion calculé par
+  MapLibre, au lieu d'ajouter arbitrairement deux niveaux de zoom.
+- Barre de tri compacte sur la page « Partagées avec moi » : les boutons
+  « Récentes », « Meilleures photos » et « Ma sélection » prennent moins de place
+  sur petits écrans grâce à un affichage plus compact et un scroll horizontal.
+
+### Corrigé
+- **Encodage de l'écran « Partagées avec moi ».** Les libellés accentués et les
+  pictogrammes de favori, localisation, espèce et commentaire utilisent désormais
+  des échappements Unicode stables et ne s'affichent plus sous forme de caractères
+  UTF-8 corrompus dans l'APK release.
+
 ## [1.14.5] — 2026-07-11
 
 ### Corrigé
@@ -1289,3 +1316,4 @@ synchronisation cloud optionnelle et partage entre amis.
 
 [Non publié]: https://github.com/antoinnneee/FloraPin/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/antoinnneee/FloraPin/releases/tag/v1.0.0
+

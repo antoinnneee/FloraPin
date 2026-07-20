@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -57,6 +59,8 @@ import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.geojson.Point
 
 /** Caméra par défaut : vue large centrée sur la France métropolitaine. */
 private val DEFAULT_CAMERA: CameraPosition = CameraPosition.Builder()
@@ -85,16 +89,17 @@ fun MapScreen(
     val currentOnFlowerClick by rememberUpdatedState(onFlowerClick)
 
     // Photo d'une fleur d'ami ouverte en plein écran (pas de détail local à ouvrir).
-    var friendPhoto by remember { mutableStateOf<String?>(null) }
-    val currentOnFriendPhotoClick by rememberUpdatedState<(String) -> Unit> {
-        friendPhoto = it
+    var friendFlower by remember { mutableStateOf<FlowerMarker?>(null) }
+    val currentOnFriendPhotoClick by rememberUpdatedState<(Long) -> Unit> { markerId ->
+        friendFlower = markers.firstOrNull { !it.navigable && it.id == markerId }
     }
 
-    friendPhoto?.let { url ->
+    friendFlower?.let { marker ->
         FullscreenPhotoViewer(
-            models = listOf(url),
+            models = marker.photoUrls.ifEmpty { listOfNotNull(marker.photoUrl) },
             startIndex = 0,
-            onDismiss = { friendPhoto = null },
+            onDismiss = { friendFlower = null },
+            detailsContent = { FriendFlowerDetails(marker) },
         )
     }
 
@@ -164,9 +169,10 @@ fun MapScreen(
                 map.addOnMapClickListener { latLng ->
                     handleMapClick(
                         map = map,
+                        style = style.value,
                         latLng = latLng,
                         onFlowerClick = { id -> currentOnFlowerClick(id) },
-                        onFriendPhotoClick = { url -> currentOnFriendPhotoClick(url) },
+                        onFriendPhotoClick = { id -> currentOnFriendPhotoClick(id) },
                     )
                 }
             }
@@ -461,9 +467,10 @@ private fun OverlayFriendChip(
  */
 private fun handleMapClick(
     map: MapLibreMap,
+    style: Style?,
     latLng: LatLng,
     onFlowerClick: (Long) -> Unit,
-    onFriendPhotoClick: (String) -> Unit,
+    onFriendPhotoClick: (Long) -> Unit,
 ): Boolean {
     val screenPoint = map.projection.toScreenLocation(latLng)
     val touch = RectF(
@@ -473,9 +480,19 @@ private fun handleMapClick(
         screenPoint.y + TOUCH_SLOP,
     )
 
-    if (map.queryRenderedFeatures(touch, MapLayers.CLUSTERS).isNotEmpty()) {
+    val cluster = map.queryRenderedFeatures(touch, MapLayers.CLUSTERS).firstOrNull()
+    if (cluster != null) {
+        val source = style?.getSourceAs<GeoJsonSource>(MapLayers.SOURCE)
+        val expansionZoom = runCatching {
+            source?.getClusterExpansionZoom(cluster)?.toDouble()
+        }.getOrNull()
+        val clusterPoint = cluster.geometry() as? Point
+        val target = clusterPoint?.let { LatLng(it.latitude(), it.longitude()) } ?: latLng
         map.animateCamera(
-            CameraUpdateFactory.newLatLngZoom(latLng, map.cameraPosition.zoom + 2),
+            CameraUpdateFactory.newLatLngZoom(
+                target,
+                expansionZoom ?: (map.cameraPosition.zoom + 2),
+            ),
         )
         return true
     }
@@ -494,12 +511,63 @@ private fun handleMapClick(
         return true
     }
 
-    val friend = features.firstOrNull { it.hasProperty(MapLayers.PROP_PHOTO) }
+    val friend = features.firstOrNull {
+        it.hasProperty(MapLayers.PROP_PHOTO) && it.hasProperty(MapLayers.PROP_MARKER_ID)
+    }
     if (friend != null) {
-        onFriendPhotoClick(friend.getStringProperty(MapLayers.PROP_PHOTO))
+        onFriendPhotoClick(friend.getNumberProperty(MapLayers.PROP_MARKER_ID).toLong())
         return true
     }
     return false
+}
+
+@Composable
+private fun FriendFlowerDetails(marker: FlowerMarker) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        Text(
+            text = marker.species?.takeIf { it.isNotBlank() } ?: "Espece non identifiee",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        DetailField(
+            label = "Commentaire",
+            value = marker.notes?.takeIf { it.isNotBlank() } ?: "Aucun commentaire",
+        )
+        formatFriendDate(marker.takenAt)?.let { date ->
+            DetailField(label = "Date", value = date)
+        }
+        if (marker.tags.isNotEmpty()) {
+            DetailField(label = "Tags", value = marker.tags.joinToString("  "))
+        }
+    }
+}
+
+@Composable
+private fun DetailField(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+private fun formatFriendDate(value: String?): String? {
+    val parts = value?.take(10)?.split("-") ?: return null
+    return if (parts.size == 3) "${parts[2]}/${parts[1]}/${parts[0]}" else value
 }
 
 private const val TOUCH_SLOP = 12f

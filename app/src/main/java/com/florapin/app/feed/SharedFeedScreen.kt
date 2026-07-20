@@ -1,4 +1,4 @@
-package com.florapin.app.feed
+﻿package com.florapin.app.feed
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
@@ -38,11 +40,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -50,6 +55,7 @@ import coil.compose.AsyncImage
 import com.florapin.app.data.SavedFlowerEntity
 import com.florapin.app.data.imageModel
 import com.florapin.app.detail.CommentsBottomSheet
+import com.florapin.app.geo.PlaceNameResolver
 import com.florapin.app.likes.LikeButton
 import com.florapin.app.notifications.NotificationBell
 import com.florapin.app.network.dto.fullPhotoUrls
@@ -90,7 +96,7 @@ fun SharedFeedScreen(
         topBar = {
             TopAppBar(
                 expandedHeight = topBarHeight,
-                title = { Text("Partagées avec moi") },
+                title = { Text("Partag\u00E9es avec moi") },
                 actions = {
                     NotificationBell(onOpen = onOpenNotifications)
                 },
@@ -124,8 +130,8 @@ fun SharedFeedScreen(
                                 )
                             } else {
                                 EmptyState(
-                                    title = "Rien de partagé",
-                                    message = "Aucune fleur partagée avec vous pour l'instant.",
+                                    title = "Rien de partag\u00E9",
+                                    message = "Aucune fleur partag\u00E9e avec vous pour l'instant.",
                                 )
                             }
                         }
@@ -188,9 +194,9 @@ fun SharedFeedScreen(
                     if (state.saved.isEmpty()) {
                         item(key = "selection-empty", span = StaggeredGridItemSpan.FullLine) {
                             EmptyState(
-                                title = "Sélection vide",
-                                message = "Enregistrez une fleur d'ami avec ⭐ " +
-                                    "pour la retrouver ici, même hors ligne.",
+                                title = "S\u00E9lection vide",
+                                message = "Enregistrez une fleur d'ami avec \u2B50 " +
+                                    "pour la retrouver ici, m\u00EAme hors ligne.",
                             )
                         }
                     } else {
@@ -282,12 +288,22 @@ fun SharedFeedScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SortBar(selected: FeedSort, onSelect: (FeedSort) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
         FeedSort.entries.forEach { sort ->
             FilterChip(
+                modifier = Modifier.height(32.dp),
                 selected = sort == selected,
                 onClick = { onSelect(sort) },
-                label = { Text(sort.label) },
+                label = {
+                    Text(
+                        text = sort.label,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                },
             )
         }
     }
@@ -308,18 +324,26 @@ private fun FeedFilterBar(
     savedCount: Int,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (!selectionOnly) {
             SortBar(selected = sort, onSelect = onSelectSort)
         }
         FilterChip(
+            modifier = Modifier.height(32.dp),
             selected = selectionOnly,
             onClick = { onToggleSelection(!selectionOnly) },
             label = {
-                Text(if (savedCount > 0) "⭐ Ma sélection ($savedCount)" else "⭐ Ma sélection")
+                Text(
+                    text = if (savedCount > 0) "\u2605 Ma sélection ($savedCount)" else "\u2605 Ma sélection",
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.labelSmall,
+                )
             },
         )
     }
@@ -337,7 +361,7 @@ private fun SaveButton(saved: Boolean, onClick: () -> Unit) {
         modifier = Modifier.clickable(onClick = onClick),
     ) {
         Text(
-            text = if (saved) "⭐" else "☆",
+            text = if (saved) "\u2B50" else "\u2606",
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
         )
@@ -362,7 +386,7 @@ private fun SavedFlowerCard(
         ) {
             AsyncImage(
                 model = saved.imageModel(),
-                contentDescription = "Fleur enregistrée",
+                contentDescription = "Fleur enregistr\u00E9e",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(72.dp)
@@ -373,20 +397,18 @@ private fun SavedFlowerCard(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    text = saved.species?.takeIf { it.isNotBlank() }?.let { "🌿 $it" }
-                        ?: "🌸 Fleur enregistrée",
+                    text = saved.species?.takeIf { it.isNotBlank() }?.let {
+                        "\uD83C\uDF3F $it"
+                    } ?: "\uD83C\uDF38 Fleur enregistr\u00E9e",
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 saved.ownerName?.let {
-                    Text("Partagée par $it", style = MaterialTheme.typography.bodySmall)
+                    Text("Partag\u00E9e par $it", style = MaterialTheme.typography.bodySmall)
                 }
                 val lat = saved.latitude
                 val lng = saved.longitude
                 if (lat != null && lng != null) {
-                    Text(
-                        text = "📍 %.5f, %.5f".format(lat, lng),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    SharedLocationText(latitude = lat, longitude = lng)
                 }
             }
             SaveButton(saved = true, onClick = onRemove)
@@ -407,7 +429,7 @@ private fun NewSinceLastVisitSeparator() {
     ) {
         HorizontalDivider(modifier = Modifier.weight(1f))
         Text(
-            text = "Nouveau depuis votre dernière visite",
+            text = "Nouveau depuis votre derni\u00E8re visite",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary,
         )
@@ -452,17 +474,21 @@ private fun BatchHeaderCard(
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "$who a partagé $count fleurs",
+                    text = "$who a partag\u00E9 $count fleurs",
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 Text(
-                    text = if (expanded) "Toucher pour réduire" else "Toucher pour ouvrir le lot",
+                    text = if (expanded) {
+                        "Toucher pour r\u00E9duire"
+                    } else {
+                        "Toucher pour ouvrir le lot"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
             Text(
-                text = if (expanded) "▲" else "▼",
+                text = if (expanded) "\u25B2" else "\u25BC",
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
@@ -488,7 +514,7 @@ private fun SharedFlowerCard(
                 PhotoCarousel(
                     previewModels = flower.previewPhotoUrls(),
                     fullModels = flower.fullPhotoUrls(),
-                    contentDescription = "Fleur partagée",
+                    contentDescription = "Fleur partag\u00E9e",
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(1f),
@@ -522,33 +548,46 @@ private fun SharedFlowerCard(
                 item.ownerName?.let {
                     // Tap sur « Partagée par X » → profil de l'ami (TÂCHE 5.7).
                     Text(
-                        text = "Partagée par $it",
+                        text = "Partag\u00E9e par $it",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.clickable(onClick = onOpenProfile),
                     )
                 }
                 flower.species?.takeIf { it.isNotBlank() }?.let {
-                    Text("🌿 $it", style = MaterialTheme.typography.bodyMedium)
+                    Text("\uD83C\uDF3F $it", style = MaterialTheme.typography.bodyMedium)
                 }
                 val lat = flower.latitude
                 val lng = flower.longitude
                 if (lat != null && lng != null) {
-                    Text(
-                        text = "📍 %.5f, %.5f".format(lat, lng),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    SharedLocationText(latitude = lat, longitude = lng)
                 } else {
                     Text(
-                        text = "📍 Position non partagée",
+                        text = "\uD83D\uDCCD Sans position",
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
                 TextButton(onClick = onComment) {
-                    Text("💬 Commenter")
+                    Text("\uD83D\uDCAC Commenter")
                 }
             }
         }
     }
 }
 
+@Composable
+private fun SharedLocationText(latitude: Double, longitude: Double) {
+    val context = LocalContext.current
+    val placeName by produceState(
+        initialValue = "Localisation",
+        context,
+        latitude,
+        longitude,
+    ) {
+        value = PlaceNameResolver.resolve(context, latitude, longitude) ?: "Lieu partage"
+    }
+    Text(
+        text = "\uD83D\uDCCD $placeName",
+        style = MaterialTheme.typography.bodySmall,
+    )
+}

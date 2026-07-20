@@ -44,6 +44,9 @@ object MapLayers {
     /** Propriété de feature portant l'id de la fleur. */
     const val PROP_ID = "id"
 
+    /** Id interne de tout marqueur, y compris une fleur d'ami non navigable. */
+    const val PROP_MARKER_ID = "markerId"
+
     /** Propriété de feature portant le nom de l'image emoji à afficher. */
     const val PROP_EMOJI = "emoji"
 
@@ -211,6 +214,7 @@ fun Style.updateFlowerMarkers(markers: List<FlowerMarker>) {
         Feature.fromGeometry(
             Point.fromLngLat(marker.longitude, marker.latitude),
         ).apply {
+            addNumberProperty(MapLayers.PROP_MARKER_ID, marker.id)
             // Seules mes fleurs portent un id : un tap ouvre leur détail local.
             // Une fleur d'ami n'a pas de détail local : elle porte l'URL de sa
             // photo, qu'un tap affiche en plein écran.
@@ -314,6 +318,7 @@ fun Style.updateFlowerCallouts(
 }
 
 private fun Feature.addMarkerTargetProperties(marker: FlowerMarker) {
+    addNumberProperty(MapLayers.PROP_MARKER_ID, marker.id)
     if (marker.navigable) {
         addNumberProperty(MapLayers.PROP_ID, marker.id)
     } else {

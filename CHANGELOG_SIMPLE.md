@@ -18,6 +18,27 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+### Nouveau
+- **Les fleurs de vos amis ont maintenant leur fiche depuis la carte.** Depuis
+  la photo en plein écran, le bouton « Détails » affiche le nom, le commentaire,
+  la date et les tags de la fleur, puis permet de revenir à la photo.
+
+### Amélioré
+- **Les fleurs sans position prennent moins de place.** Leur indication tient
+  maintenant sur une seule ligne dans les cartes partagées.
+- **Le lieu d'une fleur partagée est maintenant facile à comprendre.** La commune,
+  le village ou, à défaut, la région remplace les coordonnées GPS brutes.
+- **Les groupes de fleurs s'ouvrent au bon niveau de zoom.** Un appui centre le
+  groupe et agrandit immédiatement la carte jusqu'au niveau où ses fleurs se
+  séparent.
+- La barre de filtres des photos partagées a été rendue plus compacte pour les
+  petits écrans.
+
+### Réparé
+- **Les textes et icônes des photos partagées s'affichent de nouveau correctement.**
+  Les accents, étoiles, localisations et boutons de commentaire ne sont plus
+  remplacés par des caractères illisibles.
+
 ## Version 1.14.5 — 11 juillet 2026
 
 ### Réparé
@@ -364,3 +385,4 @@ connexion, avec une synchronisation cloud facultative et le partage entre amis.
 - **Une synchronisation cloud facultative**, désactivée par défaut : sans elle,
   tout reste sur votre téléphone.
 - **Des notifications** pour ne rien manquer.
+

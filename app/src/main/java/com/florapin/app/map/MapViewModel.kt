@@ -36,6 +36,13 @@ data class FlowerMarker(
      * de détail local à ouvrir, le tap affiche la photo en plein écran.
      */
     val photoUrl: String? = null,
+    /** Toutes les photos pleine resolution, pour la visionneuse d'une fleur d'ami. */
+    val photoUrls: List<String> = emptyList(),
+    /** Metadonnees affichees dans la fiche accessible depuis la photo plein ecran. */
+    val species: String? = null,
+    val notes: String? = null,
+    val takenAt: String? = null,
+    val tags: List<String> = emptyList(),
     /**
      * Source de la vignette (fichier local ou URL) affichée dans une bulle
      * reliée à l'emoji d'espèce à fort zoom.
@@ -150,6 +157,11 @@ private fun List<FlowerDto>.toFriendMarkers(): List<FlowerMarker> =
                 emoji = FlowerEmoji.forSpecies(dto.species),
                 navigable = false,
                 photoUrl = dto.fullPhotoUrls().firstOrNull(),
+                photoUrls = dto.fullPhotoUrls(),
+                species = dto.species,
+                notes = dto.notes,
+                takenAt = dto.takenAt,
+                tags = dto.tags,
                 thumbnailModel = dto.previewPhotoUrls().firstOrNull(),
             )
         } else {

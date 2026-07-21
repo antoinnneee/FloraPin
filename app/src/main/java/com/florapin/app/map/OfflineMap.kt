@@ -1,11 +1,13 @@
 package com.florapin.app.map
 
 import android.app.Application
+import android.location.Geocoder
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,6 +24,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,10 +33,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.florapin.app.ui.components.BloomDownloadIndicator
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.maplibre.android.MapLibre
 import org.maplibre.android.geometry.LatLngBounds
@@ -44,6 +51,7 @@ import org.maplibre.android.offline.OfflineRegionStatus
 import org.maplibre.android.offline.OfflineTilePyramidRegionDefinition
 import java.text.DateFormat
 import java.util.Date
+import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.ceil
 import kotlin.math.cos
@@ -72,6 +80,7 @@ data class OfflineMapRegionUi(
     val isComplete: Boolean,
     val isActive: Boolean,
     val createdAt: Long,
+    val bounds: LatLngBounds,
 )
 
 /** Gère les régions persistantes du cache hors ligne MapLibre. */
@@ -92,6 +101,9 @@ class OfflineMapViewModel(application: Application) : AndroidViewModel(applicati
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
+
+    private val _suggestedName = MutableStateFlow<String?>(null)
+    val suggestedName: StateFlow<String?> = _suggestedName.asStateFlow()
 
     init {
         manager.setOfflineMapboxTileCountLimit(OFFLINE_TOTAL_TILE_LIMIT)
@@ -197,6 +209,28 @@ class OfflineMapViewModel(application: Application) : AndroidViewModel(applicati
         _error.value = null
     }
 
+    fun suggestName(selection: OfflineMapSelection) {
+        _suggestedName.value = null
+        viewModelScope.launch {
+            val center = selection.bounds.center
+            _suggestedName.value = withContext(Dispatchers.IO) {
+                resolvePlaceName(center.latitude, center.longitude)
+            }
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun resolvePlaceName(latitude: Double, longitude: Double): String? = runCatching {
+        val address = Geocoder(getApplication(), Locale.getDefault())
+            .getFromLocation(latitude, longitude, 1)
+            ?.firstOrNull()
+            ?: return@runCatching null
+        address.locality
+            ?.takeIf { it.isNotBlank() }
+            ?: address.subAdminArea?.takeIf { it.isNotBlank() }
+            ?: address.adminArea?.takeIf { it.isNotBlank() }
+    }.getOrNull()
+
     private fun observe(
         region: OfflineRegion,
         knownMetadata: RegionMetadata? = null,
@@ -235,6 +269,7 @@ class OfflineMapViewModel(application: Application) : AndroidViewModel(applicati
 
     private fun update(region: OfflineRegion, status: OfflineRegionStatus) {
         val metadata = regionMetadata[region.id] ?: RegionMetadata.DEFAULT
+        val bounds = region.definition.bounds ?: return
         val required = status.requiredResourceCount
         val progress = when {
             status.isComplete -> 1f
@@ -250,6 +285,7 @@ class OfflineMapViewModel(application: Application) : AndroidViewModel(applicati
             isComplete = status.isComplete,
             isActive = status.downloadState == OfflineRegion.STATE_ACTIVE,
             createdAt = metadata.createdAt,
+            bounds = bounds,
         )
         publish()
     }
@@ -294,16 +330,21 @@ class OfflineMapViewModel(application: Application) : AndroidViewModel(applicati
 @Composable
 fun OfflineMapDialog(
     selection: OfflineMapSelection?,
+    suggestedName: String?,
     regions: List<OfflineMapRegionUi>,
     isCreating: Boolean,
     error: String?,
     onDownload: (String, OfflineMapDetail) -> Unit,
     onToggle: (Long) -> Unit,
     onDelete: (Long) -> Unit,
+    onShow: (OfflineMapRegionUi) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var name by remember(selection) { mutableStateOf(defaultRegionName()) }
     var detail by remember { mutableStateOf(OfflineMapDetail.STANDARD) }
+    LaunchedEffect(selection, suggestedName) {
+        if (!suggestedName.isNullOrBlank()) name = suggestedName
+    }
     val maximumZoom = selection?.let { max(detail.maximumZoom, ceil(it.currentZoom)) }
     val tileCount = if (selection != null && maximumZoom != null) {
         estimateTileCount(selection.bounds, selection.currentZoom, maximumZoom)
@@ -395,7 +436,7 @@ fun OfflineMapDialog(
                     Text("Aucune zone téléchargée.", style = MaterialTheme.typography.bodyMedium)
                 } else {
                     regions.forEach { region ->
-                        OfflineRegionRow(region, onToggle, onDelete)
+                        OfflineRegionRow(region, onToggle, onDelete, onShow)
                     }
                 }
             }
@@ -411,15 +452,16 @@ private fun OfflineRegionRow(
     region: OfflineMapRegionUi,
     onToggle: (Long) -> Unit,
     onDelete: (Long) -> Unit,
+    onShow: (OfflineMapRegionUi) -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        tonalElevation = 2.dp,
+        tonalElevation = 0.dp,
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -428,12 +470,15 @@ private fun OfflineRegionRow(
             ) {
                 BloomDownloadIndicator(
                     progress = region.progress,
-                    modifier = Modifier.size(56.dp),
+                    modifier = Modifier.size(36.dp),
                 )
-                Spacer(Modifier.size(10.dp))
+                Spacer(Modifier.size(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(region.name, style = MaterialTheme.typography.titleSmall)
-                    Text(region.styleLabel, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "${region.styleLabel} · ${formatBytes(region.completedBytes)}",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
                 Text(
                     if (region.isComplete) "Disponible" else "${(region.progress * 100).toInt()} %",
@@ -449,17 +494,28 @@ private fun OfflineRegionRow(
                 progress = { region.progress },
                 modifier = Modifier.fillMaxWidth(),
             )
-            Text(formatBytes(region.completedBytes), style = MaterialTheme.typography.bodySmall)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
             ) {
                 if (!region.isComplete) {
-                    TextButton(onClick = { onToggle(region.id) }) {
+                    TextButton(
+                        onClick = { onToggle(region.id) },
+                        modifier = Modifier.height(32.dp),
+                    ) {
                         Text(if (region.isActive) "Pause" else "Reprendre")
                     }
                 }
-                TextButton(onClick = { onDelete(region.id) }) {
+                TextButton(
+                    onClick = { onShow(region) },
+                    modifier = Modifier.height(32.dp),
+                ) {
+                    Text("Voir")
+                }
+                TextButton(
+                    onClick = { onDelete(region.id) },
+                    modifier = Modifier.height(32.dp),
+                ) {
                     Text("Supprimer")
                 }
             }
@@ -512,5 +568,5 @@ private fun formatBytes(bytes: Long): String = when {
 }
 
 private const val OFFLINE_MINIMUM_SELECTION_ZOOM = 11.0
-private const val OFFLINE_REGION_TILE_LIMIT = 12_000L
-private const val OFFLINE_TOTAL_TILE_LIMIT = 50_000L
+private const val OFFLINE_REGION_TILE_LIMIT = 40_000L
+private const val OFFLINE_TOTAL_TILE_LIMIT = 250_000L

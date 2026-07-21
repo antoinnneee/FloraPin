@@ -7,6 +7,7 @@ import android.graphics.RectF
 import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,17 +23,21 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Badge
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -44,7 +49,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -112,6 +116,7 @@ fun MapScreen(
     val offlineRegions by offlineViewModel.regions.collectAsStateWithLifecycle()
     val offlineCreating by offlineViewModel.isCreating.collectAsStateWithLifecycle()
     val offlineError by offlineViewModel.error.collectAsStateWithLifecycle()
+    val offlineSuggestedName by offlineViewModel.suggestedName.collectAsStateWithLifecycle()
 
     // Position de l'utilisateur : permission + référence carte partagées entre le
     // bouton de recentrage (FAB) et le contenu.
@@ -123,9 +128,14 @@ fun MapScreen(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { locationGranted = hasLocationPermission(context) }
 
+    LaunchedEffect(offlineSelection) {
+        offlineSelection?.let(offlineViewModel::suggestName)
+    }
+
     if (showOfflineDialog) {
         OfflineMapDialog(
             selection = offlineSelection,
+            suggestedName = offlineSuggestedName,
             regions = offlineRegions,
             isCreating = offlineCreating,
             error = offlineError,
@@ -143,6 +153,12 @@ fun MapScreen(
             },
             onToggle = offlineViewModel::toggle,
             onDelete = offlineViewModel::delete,
+            onShow = { region ->
+                showOfflineDialog = false
+                mapRef.value?.animateCamera(
+                    CameraUpdateFactory.newLatLngBounds(region.bounds, 64),
+                )
+            },
             onDismiss = {
                 offlineViewModel.clearError()
                 showOfflineDialog = false
@@ -229,6 +245,10 @@ fun MapScreen(
             if (loadedStyle != null && map != null && locationGranted) {
                 map.enableMyLocation(context, loadedStyle)
             }
+        }
+
+        LaunchedEffect(offlineRegions, style.value) {
+            style.value?.updateOfflineRegionLayers(offlineRegions)
         }
 
         // Appels photo déjà enregistrés dans le style courant. Un rechargement
@@ -323,11 +343,7 @@ fun MapScreen(
                 val bitmap = loadCircularIcon(
                     context = context,
                     model = marker.thumbnailModel,
-                    borderColor = if (marker.navigable) {
-                        android.graphics.Color.WHITE
-                    } else {
-                        FRIEND_PHOTO_BORDER_COLOR
-                    },
+                    borderColor = connectorColor(marker.id, friend = !marker.navigable),
                 ) ?: return@forEach
                 // Le style a pu être remplacé pendant le décodage : y ajouter une
                 // image lèverait une exception.
@@ -356,10 +372,6 @@ fun MapScreen(
         }
 
         Column(modifier = Modifier.padding(innerPadding)) {
-            FilterBar(
-                selected = dateFilter,
-                onSelect = viewModel::setDateFilter,
-            )
             Box(modifier = Modifier.fillMaxSize()) {
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
@@ -372,32 +384,52 @@ fun MapScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    OfflineMapChip(
-                        availableCount = offlineRegions.count { it.isComplete },
-                        downloading = offlineRegions.any { it.isActive },
-                        onClick = {
-                            val map = mapRef.value
-                            offlineSelection = map?.let {
-                                OfflineMapSelection(
-                                    bounds = it.projection.visibleRegion.latLngBounds,
-                                    currentZoom = it.cameraPosition.zoom,
-                                )
-                            }
-                            offlineViewModel.refresh()
-                            showOfflineDialog = true
-                        },
-                    )
                     OverlayFriendChip(
                         selected = friendsOnly,
                         onClick = viewModel::toggleFriendsOnly,
                     )
-                    MapStyleChip(
-                        selected = selectedStyle,
-                        onSelect = {
-                            selectedStyle = it
-                            stylePrefs.set(it)
-                        },
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(22.dp),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
+                        ),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            DateFilterMenu(
+                                selected = dateFilter,
+                                onSelect = viewModel::setDateFilter,
+                            )
+                            CompactControlDivider()
+                            OfflineMapButton(
+                                availableCount = offlineRegions.count { it.isComplete },
+                                downloading = offlineRegions.any { it.isActive },
+                                onClick = {
+                                    val map = mapRef.value
+                                    offlineSelection = map?.let {
+                                        OfflineMapSelection(
+                                            bounds = it.projection.visibleRegion.latLngBounds,
+                                            currentZoom = it.cameraPosition.zoom,
+                                        )
+                                    }
+                                    offlineViewModel.refresh()
+                                    showOfflineDialog = true
+                                },
+                            )
+                            CompactControlDivider()
+                            MapStyleButton(
+                                selected = selectedStyle,
+                                onSelect = {
+                                    selectedStyle = it
+                                    stylePrefs.set(it)
+                                },
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -410,33 +442,75 @@ fun MapScreen(
 /** Accès aux téléchargements de fond de carte, superposé sur la carte. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun OfflineMapChip(
+private fun OfflineMapButton(
     availableCount: Int,
     downloading: Boolean,
     onClick: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(24.dp)
-    FilterChip(
-        modifier = Modifier
-            .shadow(6.dp, shape)
-            .background(MaterialTheme.colorScheme.surface, shape),
-        selected = availableCount > 0,
-        onClick = onClick,
-        leadingIcon = {
+    Box {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.size(40.dp),
+        ) {
             if (downloading) {
-                BloomDownloadIndicator(modifier = Modifier.size(28.dp))
+                BloomDownloadIndicator(modifier = Modifier.size(26.dp))
             } else {
-                DecorativeEmoji("⬇️")
+                EmojiIcon("⬇️", contentDescription = "Cartes hors ligne")
             }
-        },
-        label = {
-            Text(if (availableCount > 0) "Hors ligne · $availableCount" else "Hors ligne")
-        },
-        colors = FilterChipDefaults.filterChipColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-        ),
-        border = null,
+        }
+        if (availableCount > 0) {
+            Badge(modifier = Modifier.align(Alignment.TopEnd)) {
+                Text(availableCount.coerceAtMost(99).toString())
+            }
+        }
+    }
+}
+
+@Composable
+private fun DateFilterMenu(
+    selected: DateFilter,
+    onSelect: (DateFilter) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(
+            onClick = { expanded = true },
+            modifier = Modifier.size(40.dp),
+        ) {
+            EmojiIcon("🕒", contentDescription = "Filtrer par période")
+        }
+        if (selected != DateFilter.ALL) {
+            Badge(modifier = Modifier.align(Alignment.TopEnd)) {
+                Text(if (selected == DateFilter.LAST_7_DAYS) "7" else "30")
+            }
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DateFilter.entries.forEach { filter ->
+                DropdownMenuItem(
+                    text = {
+                        val mark = if (filter == selected) "✓ " else ""
+                        val label = when (filter) {
+                            DateFilter.ALL -> "Toutes les dates"
+                            DateFilter.LAST_7_DAYS -> "7 derniers jours"
+                            DateFilter.LAST_30_DAYS -> "30 derniers jours"
+                        }
+                        Text("$mark$label")
+                    },
+                    onClick = {
+                        onSelect(filter)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactControlDivider() {
+    VerticalDivider(
+        modifier = Modifier.height(22.dp),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
     )
 }
 
@@ -480,28 +554,20 @@ private fun FilterBar(
 /** Chip de choix du style, superposé dans le coin supérieur droit de la carte. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MapStyleChip(
+private fun MapStyleButton(
     selected: MapStyle,
     onSelect: (MapStyle) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(24.dp)
 
     Box(modifier = modifier) {
-        FilterChip(
-            modifier = Modifier
-                .shadow(6.dp, shape)
-                .background(MaterialTheme.colorScheme.surface, shape),
-            selected = false,
+        IconButton(
             onClick = { expanded = true },
-            leadingIcon = { DecorativeEmoji("🗺️") },
-            label = { Text(selected.label) },
-            colors = FilterChipDefaults.filterChipColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-            ),
-            border = null,
-        )
+            modifier = Modifier.size(40.dp),
+        ) {
+            EmojiIcon("🗺️", contentDescription = "Choisir le thème de carte")
+        }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             MapStyle.entries.forEach { style ->
                 DropdownMenuItem(
@@ -528,18 +594,25 @@ private fun OverlayFriendChip(
 ) {
     val shape = RoundedCornerShape(24.dp)
     FilterChip(
-        modifier = Modifier
-            .shadow(6.dp, shape)
-            .background(MaterialTheme.colorScheme.surface, shape),
+        modifier = Modifier,
         selected = selected,
         onClick = onClick,
         leadingIcon = { DecorativeEmoji("👥") },
         label = { Text("Amis") },
         colors = FilterChipDefaults.filterChipColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+            labelColor = MaterialTheme.colorScheme.onSurface,
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
         ),
-        border = null,
+        border = BorderStroke(
+            1.dp,
+            if (selected) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
+            } else {
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.75f)
+            },
+        ),
     )
 }
 
@@ -626,6 +699,7 @@ private fun FriendFlowerDetails(marker: FlowerMarker) {
         formatFriendDate(marker.takenAt)?.let { date ->
             DetailField(label = "Date", value = date)
         }
+
         if (marker.tags.isNotEmpty()) {
             DetailField(label = "Tags", value = marker.tags.joinToString("  "))
         }

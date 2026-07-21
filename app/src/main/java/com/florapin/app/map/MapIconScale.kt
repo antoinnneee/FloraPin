@@ -35,6 +35,8 @@ const val CALLOUT_RELAXATION_STEPS = 64
 const val CALLOUT_LIVE_RELAXATION_STEPS = 18
 private const val SPRING_STRENGTH = 0.025f
 private const val LINE_EMOJI_CLEARANCE_PX = 58f
+private const val PATH_CLEARANCE_PX = 20f
+private const val CONNECTOR_CROSSING_PENALTY = 2_000_000f
 
 /** Directions testées : haut, diagonales hautes, côtés, bas. */
 private val PREFERRED_SLOT_ORDER = listOf(0, 7, 1, 6, 2, 5, 3, 4)
@@ -100,6 +102,11 @@ fun repelCallouts(
         }
     }
 
+    // La répulsion peut déplacer deux bulles de part et d'autre de leurs ancres.
+    // Échanger leurs positions conserve exactement leur espacement tout en
+    // supprimant le croisement et, dans la majorité des cas, raccourcit les liens.
+    uncrossConnectorSegments(nodes)
+
     return nodes.associate { it.id to ScreenPoint(it.x, it.y) }
 }
 
@@ -132,6 +139,16 @@ private fun choosePreferredPosition(
         val distance = hypot(candidate.x - bubble.x, candidate.y - bubble.y)
         val overlap = (CALLOUT_MIN_SEPARATION_PX - distance).coerceAtLeast(0f)
         score += overlap * overlap * 10f
+        if (
+            segmentsProperlyIntersect(
+                anchor.point,
+                candidate,
+                ScreenPoint(bubble.anchorX, bubble.anchorY),
+                ScreenPoint(bubble.x, bubble.y),
+            )
+        ) {
+            score += CONNECTOR_CROSSING_PENALTY
+        }
     }
     score += viewportPenalty(candidate, viewportWidth, viewportHeight)
     candidate to score
@@ -145,6 +162,7 @@ fun harmoniousCalloutPath(
     anchor: ScreenPoint,
     bubble: ScreenPoint,
     emojiObstacles: List<ScreenPoint>,
+    pathObstacles: List<ScreenPoint> = emptyList(),
     samples: Int = 14,
 ): List<ScreenPoint> {
     val dx = bubble.x - anchor.x
@@ -170,6 +188,11 @@ fun harmoniousCalloutPath(
                 val distance = hypot(point.x - obstacle.x, point.y - obstacle.y)
                 val overlap = (LINE_EMOJI_CLEARANCE_PX - distance).coerceAtLeast(0f)
                 score += overlap * overlap * 20f
+            }
+            pathObstacles.forEach { obstacle ->
+                val distance = hypot(point.x - obstacle.x, point.y - obstacle.y)
+                val overlap = (PATH_CLEARANCE_PX - distance).coerceAtLeast(0f)
+                score += overlap * overlap * 60f
             }
         }
         score
@@ -221,6 +244,74 @@ private fun distanceToSegment(point: ScreenPoint, start: ScreenPoint, end: Scree
     val t = (((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared)
         .coerceIn(0f, 1f)
     return hypot(point.x - (start.x + t * dx), point.y - (start.y + t * dy))
+}
+
+/** Supprime les croisements intérieurs de segments par échanges d'extrémités. */
+private fun uncrossConnectorSegments(nodes: MutableList<BubbleNode>) {
+    repeat(nodes.size.coerceAtMost(12)) {
+        var changed = false
+        for (firstIndex in 0 until nodes.lastIndex) {
+            for (secondIndex in firstIndex + 1 until nodes.size) {
+                val first = nodes[firstIndex]
+                val second = nodes[secondIndex]
+                val firstAnchor = ScreenPoint(first.anchorX, first.anchorY)
+                val secondAnchor = ScreenPoint(second.anchorX, second.anchorY)
+                val firstBubble = ScreenPoint(first.x, first.y)
+                val secondBubble = ScreenPoint(second.x, second.y)
+                if (!segmentsProperlyIntersect(firstAnchor, firstBubble, secondAnchor, secondBubble)) {
+                    continue
+                }
+
+                val firstSwappedDistance = hypot(
+                    secondBubble.x - first.anchorX,
+                    secondBubble.y - first.anchorY,
+                )
+                val secondSwappedDistance = hypot(
+                    firstBubble.x - second.anchorX,
+                    firstBubble.y - second.anchorY,
+                )
+                val currentDistance = hypot(
+                    firstBubble.x - first.anchorX,
+                    firstBubble.y - first.anchorY,
+                ) + hypot(
+                    secondBubble.x - second.anchorX,
+                    secondBubble.y - second.anchorY,
+                )
+                if (
+                    firstSwappedDistance <= MAX_TETHER_PX &&
+                    secondSwappedDistance <= MAX_TETHER_PX &&
+                    firstSwappedDistance + secondSwappedDistance <= currentDistance
+                ) {
+                    first.x = secondBubble.x
+                    first.y = secondBubble.y
+                    second.x = firstBubble.x
+                    second.y = firstBubble.y
+                    changed = true
+                }
+            }
+        }
+        if (!changed) return
+    }
+}
+
+/** Intersection stricte, sans compter les extrémités presque communes. */
+private fun segmentsProperlyIntersect(
+    firstStart: ScreenPoint,
+    firstEnd: ScreenPoint,
+    secondStart: ScreenPoint,
+    secondEnd: ScreenPoint,
+): Boolean {
+    val firstDx = firstEnd.x - firstStart.x
+    val firstDy = firstEnd.y - firstStart.y
+    val secondDx = secondEnd.x - secondStart.x
+    val secondDy = secondEnd.y - secondStart.y
+    val denominator = firstDx * secondDy - firstDy * secondDx
+    if (abs(denominator) < 0.001f) return false
+    val offsetX = secondStart.x - firstStart.x
+    val offsetY = secondStart.y - firstStart.y
+    val firstRatio = (offsetX * secondDy - offsetY * secondDx) / denominator
+    val secondRatio = (offsetX * firstDy - offsetY * firstDx) / denominator
+    return firstRatio in 0.06f..0.94f && secondRatio in 0.06f..0.94f
 }
 
 private class BubbleNode(

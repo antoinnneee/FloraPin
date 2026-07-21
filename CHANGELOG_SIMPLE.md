@@ -19,6 +19,8 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 ## En préparation
 
 ### Nouveau
+- **Vos zones hors ligne apparaissent directement sur la carte.** Vous pouvez
+  aussi toucher « Voir » pour retrouver immédiatement une zone enregistrée.
 - **La carte peut maintenant fonctionner sans connexion.** Téléchargez une zone
   visible, suivez sa progression et gérez les zones conservées sur le téléphone.
 - **Les photos prises à proximité sont visibles sur la fiche d'une plante.** La
@@ -34,6 +36,14 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
   la date et les tags de la fleur, puis permet de revenir à la photo.
 
 ### Amélioré
+- **La carte laisse plus de place au contenu.** La période se choisit dans un
+  petit menu et les boutons de téléchargement et de thème deviennent des icônes.
+- **Il est plus facile de relier chaque photo à sa fleur sur la carte.** Les
+  chemins se croisent moins et leur couleur correspond au contour de la photo.
+- **Les téléchargements de carte acceptent de plus grandes zones.** Leur liste
+  est plus compacte et propose automatiquement un nom géographique pertinent.
+- **Les boutons de la carte sont plus lisibles.** Leur sélection est maintenant
+  indiquée clairement en vert, sans ombre ni double fond sombre.
 - **Le choix de synchronisation n'est plus demandé deux fois.** Il apparaît
   uniquement après la connexion et disparaît de la présentation initiale.
 - **Les fleurs sans position prennent moins de place.** Leur indication tient

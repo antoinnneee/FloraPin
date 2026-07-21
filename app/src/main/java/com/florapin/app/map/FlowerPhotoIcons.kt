@@ -29,8 +29,33 @@ const val PHOTO_ICON_SIZE_PX = 192
 /** Épaisseur du liseré blanc qui détache la bulle du fond de carte. */
 private const val ICON_BORDER_PX = 8f
 
-/** Liseré chaud distinctif des fleurs provenant des amis. */
-const val FRIEND_PHOTO_BORDER_COLOR: Int = -22963 // #FFA64D
+/** Palettes stables : froides pour mes fleurs, chaudes pour celles des amis. */
+private val MINE_CONNECTOR_COLORS = intArrayOf(
+    Color.rgb(36, 112, 86),
+    Color.rgb(48, 94, 145),
+    Color.rgb(0, 121, 107),
+    Color.rgb(85, 89, 160),
+    Color.rgb(76, 128, 62),
+    Color.rgb(0, 105, 120),
+)
+
+private val FRIEND_CONNECTOR_COLORS = intArrayOf(
+    Color.rgb(255, 166, 77),
+    Color.rgb(221, 104, 82),
+    Color.rgb(208, 139, 43),
+    Color.rgb(190, 76, 64),
+    Color.rgb(176, 72, 105),
+    Color.rgb(180, 119, 45),
+)
+
+/** Couleur déterministe partagée par la bordure photo et sa ligne d'attache. */
+fun connectorColor(markerId: Long, friend: Boolean): Int {
+    val palette = if (friend) FRIEND_CONNECTOR_COLORS else MINE_CONNECTOR_COLORS
+    return palette[Math.floorMod(markerId.hashCode(), palette.size)]
+}
+
+fun connectorColorHex(markerId: Long, friend: Boolean): String =
+    String.format("#%06X", connectorColor(markerId, friend) and 0xFFFFFF)
 
 /**
  * Plafond de vignettes chargées en une passe. Chaque pastille est un bitmap

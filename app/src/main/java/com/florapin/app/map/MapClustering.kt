@@ -55,6 +55,9 @@ object MapLayers {
 
     /** Nom de la bulle photo enregistrée dans le style. */
     const val PROP_PHOTO_ICON = "photoIcon"
+
+    /** Couleur stable reliant visuellement une photo à son ancrage. */
+    const val PROP_CONNECTOR_COLOR = "connectorColor"
 }
 
 /** Badges de cluster, par palier croissant de nombre de fleurs. */
@@ -164,9 +167,8 @@ fun Style.setupFlowerClustering(context: Context) {
     addLayer(
         LineLayer(MapLayers.CALLOUT_LINES, MapLayers.CALLOUT_LINE_SOURCE)
             .withProperties(
-                lineColor(Color.rgb(48, 93, 70)),
-                lineWidth(2.5f),
-                lineDasharray(arrayOf(1f, 2.2f)),
+                lineColor(Expression.get(MapLayers.PROP_CONNECTOR_COLOR)),
+                lineWidth(3f),
             )
             .apply { minZoom = PHOTO_ICON_MIN_ZOOM },
     )
@@ -296,14 +298,21 @@ fun Style.updateFlowerCallouts(
             )
         }
     }
-    val lines = visibleMarkers.mapNotNull { marker ->
+    val routedPathPoints = mutableListOf<ScreenPoint>()
+    val lines = visibleMarkers.sortedBy { it.id }.mapNotNull { marker ->
         val screenPoint = placements[marker.id] ?: return@mapNotNull null
         val anchor = anchorsById[marker.id]?.point ?: return@mapNotNull null
         val obstacles = anchors.asSequence()
             .filter { it.id != marker.id }
             .map { it.point }
             .toList()
-        val curvedPath = harmoniousCalloutPath(anchor, screenPoint, obstacles)
+        val curvedPath = harmoniousCalloutPath(
+            anchor = anchor,
+            bubble = screenPoint,
+            emojiObstacles = obstacles,
+            pathObstacles = routedPathPoints,
+        )
+        routedPathPoints += curvedPath.drop(2).dropLast(2)
         Feature.fromGeometry(
             LineString.fromLngLats(
                 curvedPath.map { point ->
@@ -311,7 +320,12 @@ fun Style.updateFlowerCallouts(
                     Point.fromLngLat(position.longitude, position.latitude)
                 },
             ),
-        )
+        ).apply {
+            addStringProperty(
+                MapLayers.PROP_CONNECTOR_COLOR,
+                connectorColorHex(marker.id, friend = !marker.navigable),
+            )
+        }
     }
     calloutSource.setGeoJson(FeatureCollection.fromFeatures(callouts))
     lineSource.setGeoJson(FeatureCollection.fromFeatures(lines))

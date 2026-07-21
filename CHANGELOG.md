@@ -18,6 +18,8 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **Emprises des cartes hors ligne.** Les zones téléchargées sont dessinées sur
+  la carte et l'action « Voir » recentre la vue sur l'emprise correspondante.
 - **Zones cartographiques hors ligne.** La zone visible peut être téléchargée
   depuis la carte avec deux niveaux de détail. MapLibre conserve les tuiles du
   style choisi, expose la progression et la taille occupée, et permet de mettre
@@ -43,6 +45,20 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   marqueur sélectionné sans créer de copie locale de la fleur.
 
 ### Modifié
+- **Contrôles compacts sur la carte.** Le sélecteur de période quitte la barre
+  permanente pour un menu contextuel. Le filtre de temps, les cartes hors ligne
+  et le thème sont regroupés dans un dock discret à icônes, avec micro-badges pour
+  la période active et le nombre de zones enregistrées.
+- **Association visuelle entre pins et photos.** Le placement pénalise désormais
+  les croisements, effectue une passe finale de démêlage et route chaque courbe en
+  tenant compte des chemins existants. Chaque liaison partage une couleur stable
+  avec la bordure de sa photo, dans une palette distincte pour les fleurs d'amis.
+- **Gestion étendue des zones hors ligne.** Le plafond passe à 40 000 tuiles par
+  zone et 250 000 au total. Le géocodeur Android propose la commune ou la région
+  comme nom, et les zones enregistrées utilisent une ligne nettement plus compacte.
+- **États des contrôles superposés de la carte.** Les boutons hors ligne, amis et
+  style utilisent désormais un rendu plat avec un contour fin. Seuls un filtre
+  réellement actif ou un téléchargement en cours reçoivent l'accent vert.
 - **Synchronisation demandée une seule fois.** L'onboarding de première
   installation passe directement des permissions aux préférences de partage et
   comporte désormais trois étapes. Le choix de synchronisation reste proposé

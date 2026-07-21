@@ -17,6 +17,8 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.14.6] — 2026-07-21
+
 ### Ajouté
 - **Emprises des cartes hors ligne.** Les zones téléchargées sont dessinées sur
   la carte et l'action « Voir » recentre la vue sur l'emprise correspondante.
@@ -88,6 +90,8 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   pictogrammes de favori, localisation, espèce et commentaire utilisent désormais
   des échappements Unicode stables et ne s'affichent plus sous forme de caractères
   UTF-8 corrompus dans l'APK release.
+
+_versionName 1.14.6, versionCode 28._
 
 ## [1.14.5] — 2026-07-11
 

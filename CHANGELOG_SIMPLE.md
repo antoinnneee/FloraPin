@@ -18,6 +18,8 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.14.6 — 21 juillet 2026
+
 ### Nouveau
 - **Vos zones hors ligne apparaissent directement sur la carte.** Vous pouvez
   aussi toucher « Voir » pour retrouver immédiatement une zone enregistrée.

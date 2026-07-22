@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { PresignedUpload, StorageService } from './storage.service';
+import { PresignedUpload, StorageService, StoredObject } from './storage.service';
 
 /**
  * Implémentation de remplacement (placeholder) du stockage objet.
@@ -15,6 +15,10 @@ export class StubStorageService extends StorageService {
 
   buildKey(ownerId: string, extension: string): string {
     return `flowers/${ownerId}/${randomUUID()}.${extension}`;
+  }
+
+  buildContentKey(ownerId: string, sha256: string, extension: string): string {
+    return `flowers/${ownerId}/${sha256}.${extension}`;
   }
 
   async presignUpload(key: string): Promise<PresignedUpload> {
@@ -39,5 +43,10 @@ export class StubStorageService extends StorageService {
 
   async delete(_key: string): Promise<void> {
     // Aucun objet réel à supprimer (placeholder).
+  }
+
+
+  async list(_prefix = ''): Promise<StoredObject[]> {
+    return [];
   }
 }

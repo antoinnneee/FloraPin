@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Menu secondaire FloraPin : trois graines et une jeune feuille. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#386A53" android:pathData="M6,10.3A1.7,1.7 0,1 0,6 13.7A1.7,1.7 0,1 0,6 10.3Z" />
+    <path android:fillColor="#386A53" android:pathData="M12,10.3A1.7,1.7 0,1 0,12 13.7A1.7,1.7 0,1 0,12 10.3Z" />
+    <path android:fillColor="#386A53" android:pathData="M18,10.3A1.7,1.7 0,1 0,18 13.7A1.7,1.7 0,1 0,18 10.3Z" />
+    <path
+        android:fillColor="#7D83D8"
+        android:pathData="M14.9,4C17.7,3.4 19.6,4.8 20,7.2C17.2,7.8 15.3,6.4 14.9,4Z" />
+    <path
+        android:fillColor="#F2D56B"
+        android:pathData="M15.8,4.8L19.2,6.4L18.9,7.1L15.5,5.5Z" />
+</vector>

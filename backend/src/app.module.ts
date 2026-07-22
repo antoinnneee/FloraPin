@@ -24,6 +24,7 @@ import { PushModule } from './push/push.module';
 import { SharesModule } from './shares/shares.module';
 import { SpeciesModule } from './species/species.module';
 import { SyncModule } from './sync/sync.module';
+import { StorageCleanupModule } from './storage/storage-cleanup.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -75,6 +76,7 @@ import { UsersModule } from './users/users.module';
     BadgesModule,
     PushModule,
     SyncModule,
+    StorageCleanupModule,
   ],
   providers: [
     // Applique le rate limiting à toutes les routes HTTP.

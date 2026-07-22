@@ -81,7 +81,8 @@ Le binaire image se téléverse ensuite de **deux** façons :
 | Méthode | Chemin              | Description |
 |---------|---------------------|-------------|
 | PUT     | `upload.url`        | Upload présigné **direct** sur MinIO (via `upload.url` renvoyé à la création). |
-| POST    | `/flowers/:id/image`| Upload **multipart** (champ `file`) transitant par l'API, qui **réencode en WebP** (pleine résolution + miniature) avant stockage. Voir limites d'upload plus bas. |
+| POST    | `/flowers/:id/image-variants`| Upload multipart `file` + `thumbnail`, deux WebP produits par l'app, validés et stockés sans réencodage. |
+| POST    | `/flowers/:id/image`| Compatibilité de migration : JPEG d'un ancien client, réencodé côté API. |
 
 ### Lecture / liste
 
@@ -119,7 +120,8 @@ d'amis passent par le feed / les partages). Paramètres de filtre (combinables) 
 | Méthode | Chemin                              | Description |
 |---------|-------------------------------------|-------------|
 | POST    | `/flowers/:id/photos`               | Ajoute une photo → `{ photo, upload }` (PUT présigné direct) |
-| POST    | `/flowers/:id/photos/:photoId/image`| Upload **multipart** (champ `file`) du binaire, réencodé en WebP par l'API |
+| POST    | `/flowers/:id/photos/:photoId/image-variants`| Upload multipart `file` + `thumbnail` WebP, sans réencodage |
+| POST    | `/flowers/:id/photos/:photoId/image`| Compatibilité de migration pour les anciens clients |
 | DELETE  | `/flowers/:id/photos/:photoId`      | Retire une photo (promeut une couverture si besoin) |
 | PATCH   | `/flowers/:id/photos/order`         | `{ photoIds: [...] }` → réordonne |
 | PATCH   | `/flowers/:id/photos/:photoId/cover`| Définit la photo de couverture |
@@ -315,12 +317,13 @@ contextuel et un `readAt` (null tant que non lue).
 
 Dépassement → `429 Too Many Requests`.
 
-**Upload d'image** (`POST /flowers/:id/image` et `POST /flowers/:id/photos/:photoId/image`) :
+**Upload d'image** (`image-variants`) :
 
 - taille max **15 Mo** (dépassement → `413 Payload Too Large`) ;
-- types MIME acceptés : `image/jpeg`, `image/png`, `image/webp`, `image/heic`,
-  `image/heif` (type refusé → `400`) ;
-- le type déclaré est re-vérifié (magic bytes) au réencodage WebP côté serveur.
+- deux champs requis : `file` (WebP, définition choisie par le profil client) et `thumbnail` (WebP,
+  bord ≤ 400 px) ;
+- le type, les magic bytes et les dimensions sont vérifiés côté serveur ;
+- les objets sont adressés par SHA-256 et dédupliqués par propriétaire.
 
 ## Récapitulatif des codes
 

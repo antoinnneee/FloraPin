@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Partage FloraPin : pousse ascendante vers l'extérieur. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M12,15V4M7.6,8.4L12,4L16.4,8.4M6,12.5H4.5V20H19.5V12.5H18"
+        android:strokeColor="#386A53"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="1.9" />
+    <path
+        android:fillColor="#7D83D8"
+        android:pathData="M14.3,13.8C17.1,13.1 19.1,14.4 19.6,16.8C16.8,17.5 14.8,16.2 14.3,13.8Z" />
+    <path
+        android:fillColor="#F2D56B"
+        android:pathData="M15.2,14.6L18.8,16.2L18.5,16.9L14.9,15.3Z" />
+</vector>

@@ -533,7 +533,6 @@ private fun SharedFlowerCard(
                         count = flower.likeCount,
                         onToggle = onToggleLike,
                         onReact = onReact,
-                        reactionCounts = flower.reactionCounts,
                         showCount = false,
                     )
                     // Enregistrer dans « Ma sélection » (TÂCHE 3.11) : favori privé

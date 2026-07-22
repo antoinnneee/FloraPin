@@ -30,10 +30,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.layout.aspectRatio
 import coil.compose.AsyncImage
+import com.florapin.app.R
 import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.imageModel
 import com.florapin.app.network.dto.SpeciesDto
-import com.florapin.app.ui.components.EmojiIcon
+import com.florapin.app.ui.components.BotanicalIcon
 
 /**
  * Fiche d'une espèce (NODE-151) : nom scientifique + commun + famille +
@@ -65,7 +66,7 @@ fun SpeciesDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        EmojiIcon("←", contentDescription = "Retour")
+                        BotanicalIcon(R.drawable.ic_back_botanical, "Retour")
                     }
                 },
             )

@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PresignedUpload, StorageService } from '../storage/storage.service';
+import { validateClientImageVariants } from '../storage/client-image-variants';
 import { encodeWebp } from '../storage/image-processing';
 import { FlowerPhoto } from './flower-photo.entity';
 import { PhotoResponse } from './flowers.service';
@@ -46,40 +47,51 @@ export class FlowerPhotosService {
   }
 
   /**
-   * Réencode et stocke le binaire d'une photo additionnelle (WebP pleine
-   * résolution + miniature). Si la photo est la couverture, met aussi à jour
-   * `flowers.image_key`/`thumbnail_key`.
+   * Valide et stocke les deux WebP produits par l'app. Si la photo est la
+   * couverture, met aussi à jour `flowers.image_key`/`thumbnail_key`.
    */
   async uploadImage(
     ownerId: string,
     flowerId: string,
     photoId: string,
     input: Buffer,
+    thumbnailInput: Buffer,
   ): Promise<PhotoResponse> {
     await this.requireFlower(ownerId, flowerId);
     const photo = await this.requirePhoto(flowerId, photoId);
 
-    const { full, thumbnail } = await encodeWebp(input);
-    const imageKey = this.storage.buildKey(ownerId, 'webp');
-    const thumbnailKey = this.storage.buildKey(ownerId, 'webp');
-    await this.storage.putObject(imageKey, full, 'image/webp');
-    await this.storage.putObject(thumbnailKey, thumbnail, 'image/webp');
+    const hashes = await validateClientImageVariants(input, thumbnailInput);
+    const imageKey = this.storage.buildContentKey(ownerId, hashes.fullSha256, 'webp');
+    const thumbnailKey = this.storage.buildContentKey(
+      ownerId,
+      hashes.thumbnailSha256,
+      'webp',
+    );
+    await this.storage.putObject(imageKey, input, 'image/webp');
+    await this.storage.putObject(thumbnailKey, thumbnailInput, 'image/webp');
 
     // Inclut l'ancienne miniature : sans ça, un ré-upload de photo laissait un
     // thumbnail orphelin (écrasé en base, jamais supprimé de MinIO).
-    const oldKeys = [photo.imageKey, photo.thumbnailKey];
     photo.imageKey = imageKey;
     photo.thumbnailKey = thumbnailKey;
     await this.photos.save(photo);
     if (photo.isCover) {
       await this.flowers.update(flowerId, { imageKey, thumbnailKey });
     }
-    await Promise.all(
-      oldKeys
-        .filter((k): k is string => !!k && k !== imageKey && k !== thumbnailKey)
-        .map((k) => this.storage.delete(k).catch(() => undefined)),
-    );
+    // Suppression différée : une clé SHA-256 peut être partagée par plusieurs
+    // photos du même propriétaire.
     return this.toResponse(photo);
+  }
+
+  /** Migration : conversion serveur réservée aux versions clientes historiques. */
+  async uploadLegacyImage(
+    ownerId: string,
+    flowerId: string,
+    photoId: string,
+    input: Buffer,
+  ): Promise<PhotoResponse> {
+    const { full, thumbnail } = await encodeWebp(input);
+    return this.uploadImage(ownerId, flowerId, photoId, full, thumbnail);
   }
 
   async remove(
@@ -91,13 +103,8 @@ export class FlowerPhotosService {
     const photo = await this.requirePhoto(flowerId, photoId);
     await this.photos.remove(photo);
 
-    // Purge les objets MinIO de la photo supprimée (image + miniature) : sinon
-    // ils fuient définitivement (RGPD + stockage). Best-effort.
-    await Promise.all(
-      [photo.imageKey, photo.thumbnailKey]
-        .filter((k): k is string => !!k)
-        .map((k) => this.storage.delete(k).catch(() => undefined)),
-    );
+    // Le ramasse-miettes supprimera les objets uniquement lorsqu'ils ne sont
+    // plus référencés par aucune autre fleur/photo dédupliquée.
 
     // Si on retire la couverture, en promouvoir une autre (la première restante).
     if (photo.isCover) {

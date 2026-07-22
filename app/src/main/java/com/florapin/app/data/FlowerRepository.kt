@@ -1,6 +1,7 @@
 package com.florapin.app.data
 
 import android.content.Context
+import com.florapin.app.capture.PhotoStorage
 import com.florapin.app.location.GeoPoint
 import java.io.File
 import kotlinx.coroutines.flow.Flow
@@ -110,7 +111,7 @@ class FlowerRepository(private val dao: FlowerDao) {
         if (flower.serverId == null) {
             dao.delete(flower)
             if (flower.imagePath.isNotEmpty()) {
-                runCatching { File(flower.imagePath).delete() }
+                runCatching { PhotoStorage.deleteWithThumbnail(flower.imagePath) }
             }
         } else {
             val now = System.currentTimeMillis()
@@ -175,7 +176,7 @@ class FlowerRepository(private val dao: FlowerDao) {
         if (flower.serverId == null) {
             dao.delete(flower)
             if (flower.imagePath.isNotEmpty()) {
-                runCatching { File(flower.imagePath).delete() }
+                runCatching { PhotoStorage.deleteWithThumbnail(flower.imagePath) }
             }
         }
     }
@@ -205,6 +206,17 @@ class FlowerRepository(private val dao: FlowerDao) {
 
     /** Fleurs locales restant à synchroniser. */
     suspend fun pendingSync(): List<FlowerEntity> = dao.pendingSync()
+
+    suspend fun imagesForCompression(): List<FlowerEntity> =
+        dao.allActive().filter { it.imagePath.endsWith(".jpg", ignoreCase = true) }
+
+    suspend fun replaceImagePath(id: Long, expectedPath: String, newPath: String) {
+        val flower = dao.getById(id)
+        check(flower != null && flower.imagePath == expectedPath) {
+            "La capture a changé pendant sa compression"
+        }
+        dao.update(flower.copy(imagePath = newPath))
+    }
 
     /**
      * Marque une fleur comme synchronisée et associe son id serveur.

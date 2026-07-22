@@ -73,7 +73,7 @@ backend/
 │  ├─ app.module.ts            # assemblage des modules + ThrottlerModule (rate limit)
 │  ├─ auth/                    # login/refresh, reset/vérif email, JwtStrategy, guards (NODE-17)
 │  ├─ users/                   # profil courant, changement d'email, suppression RGPD
-│  ├─ flowers/                 # CRUD fleurs + photos + upload/réencodage WebP (NODE-27/104)
+│  ├─ flowers/                 # CRUD fleurs + photos + validation des WebP clients (NODE-27/104)
 │  ├─ albums/                  # albums (regroupements nommés de fleurs) — NODE-98
 │  ├─ friendships/             # demandes/relations d'amitié par email (NODE-20)
 │  ├─ shares/                  # partage ciblé de fleurs/albums entre amis (NODE-20/22)
@@ -87,7 +87,7 @@ backend/
 │  ├─ notifications/           # notifications in-app
 │  ├─ push/                    # jetons d'appareil FCM/APNs + envoi push
 │  ├─ mail/                    # envoi d'emails (SMTP ou stub)
-│  ├─ storage/                 # service MinIO : presign + traitement d'image WebP (NODE-28)
+│  ├─ storage/                 # MinIO : SHA-256, déduplication et nettoyage des orphelins (NODE-28)
 │  ├─ sync/                    # endpoints de synchronisation delta (NODE-19)
 │  └─ observability/           # filtre d'exceptions global + reporting d'erreurs
 ├─ db/schema.sql               # schéma PostgreSQL + PostGIS de référence

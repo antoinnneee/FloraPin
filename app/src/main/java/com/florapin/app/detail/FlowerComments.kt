@@ -47,6 +47,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.florapin.app.R
 import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.api.CommentsApi
 import com.florapin.app.network.api.FriendshipsApi
@@ -55,7 +56,7 @@ import com.florapin.app.network.dto.CreateCommentRequest
 import com.florapin.app.network.dto.FlowerCommentDto
 import com.florapin.app.network.dto.FriendUserDto
 import com.florapin.app.network.dto.UpdateCommentRequest
-import com.florapin.app.ui.components.EmojiIcon
+import com.florapin.app.ui.components.BotanicalIcon
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -651,12 +652,10 @@ private fun CommentActionsMenu(
 ) {
     var expanded by remember { mutableStateOf(false) }
     IconButton(onClick = { expanded = true }, enabled = !deleting) {
-        // Glyphe « ⋮ » lu littéralement par TalkBack : on lui donne un libellé
-        // parlant et on masque le caractère de l'arbre d'accessibilité (TÂCHE 6.18).
-        EmojiIcon(
-            emoji = "⋮",
+        BotanicalIcon(
+            iconRes = R.drawable.ic_more_botanical,
             contentDescription = "Actions du commentaire",
-            style = MaterialTheme.typography.bodyMedium,
+            size = 24.dp,
         )
     }
     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {

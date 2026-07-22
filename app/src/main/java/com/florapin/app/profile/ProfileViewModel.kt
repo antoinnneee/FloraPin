@@ -2,6 +2,7 @@ package com.florapin.app.profile
 
 import android.content.Context
 import android.net.Uri
+import androidx.annotation.DrawableRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -20,6 +21,7 @@ import retrofit2.HttpException
 
 /** État du profil de l'utilisateur courant. */
 data class ProfileUiState(
+    val userId: String = "",
     val displayName: String = "",
     val email: String = "",
     val emailVerified: Boolean = false,
@@ -77,7 +79,10 @@ class ProfileViewModel(
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
-        ProfileUiState(displayName = tokenStore.displayName().orEmpty()),
+        ProfileUiState(
+            userId = tokenStore.userId().orEmpty(),
+            displayName = tokenStore.displayName().orEmpty(),
+        ),
     )
     val state: StateFlow<ProfileUiState> = _state.asStateFlow()
 
@@ -117,6 +122,7 @@ class ProfileViewModel(
             _state.value = try {
                 val user = session.fetchCurrentUser()
                 _state.value.copy(
+                    userId = user.id,
                     displayName = user.displayName,
                     email = user.email,
                     emailVerified = user.emailVerified,
@@ -348,6 +354,25 @@ class ProfileViewModel(
         viewModelScope.launch {
             _state.value = try {
                 val url = avatar.upload(source)
+                _state.value.copy(
+                    avatarUploading = false,
+                    avatarUrl = url ?: _state.value.avatarUrl,
+                )
+            } catch (e: Exception) {
+                _state.value.copy(
+                    avatarUploading = false,
+                    avatarError = "Échec de la mise à jour de la photo. Réessayez.",
+                )
+            }
+        }
+    }
+
+    /** Téléverse l'un des compagnons botaniques préinstallés comme avatar. */
+    fun uploadDefaultAvatar(@DrawableRes resourceId: Int) {
+        _state.update { it.copy(avatarUploading = true, avatarError = null) }
+        viewModelScope.launch {
+            _state.value = try {
+                val url = avatar.uploadDefault(resourceId)
                 _state.value.copy(
                     avatarUploading = false,
                     avatarUrl = url ?: _state.value.avatarUrl,

@@ -31,14 +31,15 @@ interface FlowersApi {
     suspend fun get(@Path("id") id: String): FlowerDto
 
     /**
-     * Téléverse le binaire image (multipart, champ `file`) ; le serveur réencode
-     * en WebP (pleine résolution + miniature) et renvoie la fleur à jour.
+     * Téléverse les deux WebP déjà optimisés (`file` + `thumbnail`) ; le serveur
+     * les valide sans les réencoder et renvoie la fleur à jour.
      */
     @Multipart
-    @POST("flowers/{id}/image")
+    @POST("flowers/{id}/image-variants")
     suspend fun uploadImage(
         @Path("id") id: String,
         @Part file: MultipartBody.Part,
+        @Part thumbnail: MultipartBody.Part,
     ): FlowerDto
 
     @GET("flowers/{id}/image-url")

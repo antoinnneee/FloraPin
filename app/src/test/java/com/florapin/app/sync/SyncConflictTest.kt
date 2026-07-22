@@ -85,7 +85,11 @@ private class ConflictFlowersApi : FlowersApi {
     override suspend fun create(body: CreateFlowerRequest) = throw UnsupportedOperationException()
     override suspend fun list(species: String?, tag: String?) = emptyList<FlowerDto>()
     override suspend fun get(id: String) = throw UnsupportedOperationException()
-    override suspend fun uploadImage(id: String, file: okhttp3.MultipartBody.Part) =
+    override suspend fun uploadImage(
+        id: String,
+        file: okhttp3.MultipartBody.Part,
+        thumbnail: okhttp3.MultipartBody.Part,
+    ) =
         throw UnsupportedOperationException()
     override suspend fun imageUrl(id: String) = ImageUrlResponse("u")
     override suspend fun update(id: String, body: UpdateFlowerRequest): FlowerDto =

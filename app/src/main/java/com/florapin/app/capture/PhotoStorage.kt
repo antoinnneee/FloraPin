@@ -28,6 +28,19 @@ object PhotoStorage {
         return File(photosDir(context), "$FILE_PREFIX$timestamp$FILE_EXTENSION")
     }
 
+    fun webpFileFor(source: File): File =
+        File(source.parentFile, "${source.nameWithoutExtension}.webp")
+
+    fun thumbnailFileFor(full: File): File =
+        File(full.parentFile, "${full.nameWithoutExtension}.thumb.webp")
+
+    fun deleteWithThumbnail(path: String) {
+        if (path.isEmpty()) return
+        val full = File(path)
+        full.delete()
+        thumbnailFileFor(full).delete()
+    }
+
     /** Supprime toutes les photos stockées (purge au changement de compte). */
     fun clearAll(context: Context) {
         photosDir(context).listFiles()?.forEach { it.delete() }

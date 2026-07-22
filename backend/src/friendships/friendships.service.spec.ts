@@ -69,6 +69,9 @@ class FakeUsersService {
     );
     return id ? this.findById(id) : null;
   }
+  async avatarUrl(user: { id: string }) {
+    return `https://avatars.test/${user.id}`;
+  }
 }
 
 const ALICE = 'alice';
@@ -107,6 +110,7 @@ describe('FriendshipsService', () => {
     expect(res.status).toBe('pending');
     expect(res.direction).toBe('outgoing');
     expect(res.user.id).toBe(BOB);
+    expect(res.user.avatarUrl).toBe(`https://avatars.test/${BOB}`);
   });
 
   it('invite par email (résout l’utilisateur)', async () => {

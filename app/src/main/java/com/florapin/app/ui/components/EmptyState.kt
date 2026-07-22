@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -26,9 +27,11 @@ import com.florapin.app.R
 
 /**
  * État vide illustré réutilisable (NODE-86, enrichi TÂCHE 6.9) : une icône
- * botanique teintée par le thème, posée dans une pastille circulaire douce sur
+ * botanique posée dans une pastille circulaire douce sur
  * un dégradé vertical (surface → teinte primaire), surmontée d'un titre et d'un
- * message. Utilisé par la galerie, le feed et les albums.
+ * message. L'icône est teintée par le thème par défaut ; [tintIcon] permet de
+ * préserver la palette d'une illustration multicolore. Utilisé par la galerie,
+ * le feed et les albums.
  *
  * Optionnellement, un bouton d'action (call-to-action) peut être affiché sous
  * le message pour guider l'utilisateur vers le prochain geste (ex. « Capturer
@@ -42,6 +45,7 @@ fun EmptyState(
     message: String,
     modifier: Modifier = Modifier,
     @DrawableRes iconRes: Int = R.drawable.ic_flower_botanical,
+    tintIcon: Boolean = true,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
 ) {
@@ -76,7 +80,11 @@ fun EmptyState(
                 Icon(
                     painter = painterResource(iconRes),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = if (tintIcon) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        Color.Unspecified
+                    },
                     modifier = Modifier.size(72.dp),
                 )
             }

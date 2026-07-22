@@ -12,6 +12,7 @@ import {
 } from '../likes/flower-like.entity';
 import { FlowerComment } from '../comments/flower-comment.entity';
 import { StorageService, PresignedUpload } from '../storage/storage.service';
+import { validateClientImageVariants } from '../storage/client-image-variants';
 import { encodeWebp } from '../storage/image-processing';
 import { CreateFlowerDto, UpdateFlowerDto } from './dto/flower.dto';
 import { Flower } from './flower.entity';
@@ -169,14 +170,14 @@ export class FlowersService {
   }
 
   /**
-   * Réencode l'image reçue en WebP (pleine résolution + miniature), la stocke
-   * sur MinIO et met à jour la fleur + sa photo de couverture. Remplace l'upload
-   * présigné direct : l'octet transite par l'API pour être réencodé.
+   * Valide les deux variantes WebP produites par l'app, les stocke sous leurs
+   * clés SHA-256 et met à jour la fleur + sa photo de couverture.
    */
   async uploadImage(
     ownerId: string,
     id: string,
     input: Buffer,
+    thumbnailInput: Buffer,
   ): Promise<FlowerResponse> {
     const flower = await this.flowers.findOne({
       where: { id, ownerId },
@@ -186,15 +187,18 @@ export class FlowersService {
       throw new NotFoundException('Fleur introuvable.');
     }
 
-    const { full, thumbnail } = await encodeWebp(input);
-    const imageKey = this.storage.buildKey(ownerId, 'webp');
-    const thumbnailKey = this.storage.buildKey(ownerId, 'webp');
-    await this.storage.putObject(imageKey, full, 'image/webp');
-    await this.storage.putObject(thumbnailKey, thumbnail, 'image/webp');
+    const hashes = await validateClientImageVariants(input, thumbnailInput);
+    const imageKey = this.storage.buildContentKey(ownerId, hashes.fullSha256, 'webp');
+    const thumbnailKey = this.storage.buildContentKey(
+      ownerId,
+      hashes.thumbnailSha256,
+      'webp',
+    );
+    await this.storage.putObject(imageKey, input, 'image/webp');
+    await this.storage.putObject(thumbnailKey, thumbnailInput, 'image/webp');
 
     // Inclut l'ancienne miniature : sinon un ré-upload laissait un thumbnail
     // orphelin sur MinIO à chaque remplacement d'image.
-    const oldKeys = [flower.imageKey, flower.thumbnailKey];
     flower.imageKey = imageKey;
     flower.thumbnailKey = thumbnailKey;
     const saved = await this.flowers.save(flower);
@@ -205,17 +209,20 @@ export class FlowersService {
       { imageKey, thumbnailKey },
     );
 
-    // Best-effort : retire les anciens objets (image + miniature, souvent le
-    // placeholder .jpg initial).
-    await Promise.all(
-      oldKeys
-        .filter(
-          (k): k is string => !!k && k !== imageKey && k !== thumbnailKey,
-        )
-        .map((k) => this.storage.delete(k).catch(() => undefined)),
-    );
+    // Les anciennes clés peuvent être partagées par déduplication. Le nettoyeur
+    // d'orphelins les supprimera après avoir vérifié qu'aucune ligne ne les cite.
 
     return this.toResponse(saved, ownerId);
+  }
+
+  /** Migration : conversion serveur réservée aux versions clientes historiques. */
+  async uploadLegacyImage(
+    ownerId: string,
+    id: string,
+    input: Buffer,
+  ): Promise<FlowerResponse> {
+    const { full, thumbnail } = await encodeWebp(input);
+    return this.uploadImage(ownerId, id, full, thumbnail);
   }
 
   async getImageUrl(ownerId: string, id: string): Promise<{ imageUrl: string }> {

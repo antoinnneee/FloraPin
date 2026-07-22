@@ -4,6 +4,9 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.florapin.app.network.auth.EncryptedTokenStore
+import com.florapin.app.capture.ImageCompressionEngine
+import com.florapin.app.data.FlowerRepository
+import com.florapin.app.data.PhotoRepository
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -17,6 +20,13 @@ class SyncWorker(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = SYNC_LOCK.withLock {
+        // Aucun JPEG brut ne quitte l'app, quel que soit le déclencheur de sync.
+        val compressed = ImageCompressionEngine(
+            FlowerRepository.from(applicationContext),
+            PhotoRepository.from(applicationContext),
+        ).compressPending()
+        if (!compressed) return@withLock Result.retry()
+
         // Une passe forcée (bouton « Tout synchroniser ») s'exécute même quand la
         // sync automatique est désactivée ; sinon on respecte le réglage.
         val forced = inputData.getBoolean(SyncScheduler.KEY_FORCE, false)

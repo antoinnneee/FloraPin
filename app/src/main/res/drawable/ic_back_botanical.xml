@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Retour FloraPin : flèche souple et jeune feuille. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M20,12H5M10.5,6.2L4.7,12L10.5,17.8"
+        android:strokeColor="#386A53"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="2.1" />
+    <path
+        android:fillColor="#7D83D8"
+        android:pathData="M15.3,6.3C17.8,5.8 19.5,7 19.9,9.2C17.4,9.7 15.7,8.5 15.3,6.3Z" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M16.1,7L19.2,8.5"
+        android:strokeColor="#F2D56B"
+        android:strokeLineCap="round"
+        android:strokeWidth="0.8" />
+</vector>

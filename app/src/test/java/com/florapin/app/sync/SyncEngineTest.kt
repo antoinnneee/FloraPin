@@ -131,6 +131,7 @@ private class FakeFlowersApi : FlowersApi {
     override suspend fun uploadImage(
         id: String,
         file: okhttp3.MultipartBody.Part,
+        thumbnail: okhttp3.MultipartBody.Part,
     ) = dto(id, "2026-06-21T10:00:00Z")
     override suspend fun imageUrl(id: String) = ImageUrlResponse("u")
     override suspend fun update(id: String, body: UpdateFlowerRequest): FlowerDto {

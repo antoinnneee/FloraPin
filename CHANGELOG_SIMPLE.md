@@ -18,6 +18,33 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.15.0 — 22 juillet 2026
+
+### Nouveau
+- **Vous pouvez tester plusieurs réglages avant de choisir la compression finale.**
+  Le laboratoire photo combine différentes résolutions, qualités et méthodes de
+  réduction — désormais jusqu'aux qualités 70 et 75 —, affiche leur poids réel
+  et permet de comparer les détails à 100 %.
+- **Onze compagnons botaniques peuvent maintenant devenir votre image de
+  profil.** Un avatar vous est attribué tant que vous n'avez rien choisi, puis
+  vous pouvez sélectionner un compagnon FloraPin ou une photo du téléphone.
+
+### Amélioré
+- **Les nouvelles photos occupent moins de place sans interrompre l'utilisation.**
+  FloraPin les optimise en arrière-plan après la capture, puis les sauvegarde dans
+  un format plus léger lorsque la synchronisation est activée. Pendant la bêta,
+  tous les comptes profitent du profil Premium jusqu'à 4 000 px et en haute
+  qualité ; le palier Standard à 3 200 px sera activé après la bêta.
+- **Les albums et les fiches de fleurs utilisent maintenant les mêmes icônes que
+  l'accueil.** Les actions sont plus cohérentes et plus faciles à reconnaître dans
+  toute l'application.
+- **La fiche d'une fleur est plus claire.** Le cœur ne se répète plus lorsqu'il
+  est activé, la ville remplace les coordonnées GPS et le champ d'étiquettes
+  inutilisé a été retiré.
+- **La liste d'amis est plus facile à parcourir.** L'image de profil de chaque
+  personne apparaît désormais à gauche de son nom, sans afficher son email.
+  Les photos choisies avant cette mise à jour sont conservées.
+
 ## Version 1.14.6 — 21 juillet 2026
 
 ### Nouveau

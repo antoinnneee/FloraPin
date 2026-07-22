@@ -34,9 +34,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.florapin.app.R
 import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.thumbnailModel
-import com.florapin.app.ui.components.EmojiIcon
+import com.florapin.app.ui.components.BotanicalIcon
 import com.florapin.app.ui.components.EmptyState
 import com.florapin.app.util.formatCaptureDate
 
@@ -72,7 +73,7 @@ fun AlbumDetailScreen(
                 title = { Text(album?.name ?: "Album") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        EmojiIcon("←", contentDescription = "Retour")
+                        BotanicalIcon(R.drawable.ic_back_botanical, "Retour")
                     }
                 },
                 actions = {
@@ -82,13 +83,19 @@ fun AlbumDetailScreen(
                         // synchronisé (serverId requis pour l'API groupes).
                         if (current.serverId != null) {
                             IconButton(onClick = { showCollaboration = true }) {
-                                EmojiIcon("👥", contentDescription = "Collaboration")
+                                BotanicalIcon(
+                                    R.drawable.ic_friends_botanical,
+                                    "Collaboration",
+                                )
                             }
                         }
                         // Renommage réservé à qui peut éditer (owner ou droits).
                         if (current.canEdit) {
                             IconButton(onClick = { renaming = true }) {
-                                EmojiIcon("✏️", contentDescription = "Renommer l'album")
+                                BotanicalIcon(
+                                    R.drawable.ic_edit_botanical,
+                                    "Renommer l'album",
+                                )
                             }
                         }
                     }
@@ -101,6 +108,8 @@ fun AlbumDetailScreen(
                 title = "Album vide",
                 message = "Ajoutez des fleurs depuis leur écran de détail.",
                 modifier = Modifier.padding(innerPadding),
+                iconRes = R.drawable.ic_nav_albums,
+                tintIcon = false,
             )
         } else {
             LazyVerticalGrid(

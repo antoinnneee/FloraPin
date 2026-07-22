@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Édition FloraPin : crayon vert et feuille lavande. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M4.2,19.8L5.1,15.5L15.8,4.8L19.2,8.2L8.5,18.9L4.2,19.8ZM14.4,6.2L17.8,9.6"
+        android:strokeColor="#386A53"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="1.8" />
+    <path
+        android:fillColor="#7D83D8"
+        android:pathData="M13.7,15.7C16.8,14.9 19,16.3 19.6,19C16.5,19.8 14.3,18.4 13.7,15.7Z" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M14.7,16.5L18.8,18.5"
+        android:strokeColor="#F2D56B"
+        android:strokeLineCap="round"
+        android:strokeWidth="0.8" />
+</vector>

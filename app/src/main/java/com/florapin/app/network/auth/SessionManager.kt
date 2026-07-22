@@ -170,7 +170,12 @@ class SessionManager(
      * qui la réencode en WebP. Renvoie le profil à jour (avec `avatarUrl`).
      */
     suspend fun uploadAvatar(file: File): UserDto {
-        val body = file.asRequestBody("image/jpeg".toMediaType())
+        val mediaType = when (file.extension.lowercase()) {
+            "webp" -> "image/webp"
+            "png" -> "image/png"
+            else -> "image/jpeg"
+        }
+        val body = file.asRequestBody(mediaType.toMediaType())
         val part = MultipartBody.Part.createFormData("file", file.name, body)
         return authApi.uploadAvatar(part)
     }

@@ -1,6 +1,7 @@
 package com.florapin.app.sync
 
 import com.florapin.app.data.PhotoRepository
+import com.florapin.app.capture.PhotoStorage
 import com.florapin.app.data.SyncState
 import com.florapin.app.data.applyTo
 import com.florapin.app.data.toEntity
@@ -18,7 +19,7 @@ import retrofit2.HttpException
 class PhotoSyncEngine(
     private val photos: PhotoRepository,
     private val photosApi: PhotosApi,
-    /** Téléverse l'image d'une photo (multipart) ; le serveur la réencode en WebP. */
+    /** Téléverse les variantes WebP finales d'une photo (multipart). */
     private val uploadPhotoImage:
         suspend (flowerServerId: String, photoServerId: String, file: File) -> Unit,
     /**
@@ -73,7 +74,7 @@ class PhotoSyncEngine(
                     // La fleur n'existe plus côté serveur : la photo ne pourra
                     // jamais être poussée, on la purge localement.
                     if (photo.imagePath.isNotEmpty()) {
-                        runCatching { File(photo.imagePath).delete() }
+                        runCatching { PhotoStorage.deleteWithThumbnail(photo.imagePath) }
                     }
                     photos.hardDelete(photo.id)
                 }
@@ -109,7 +110,7 @@ class PhotoSyncEngine(
     suspend fun purgeForFlower(flowerLocalId: Long) {
         photos.allForFlower(flowerLocalId).forEach { photo ->
             if (photo.imagePath.isNotEmpty()) {
-                runCatching { File(photo.imagePath).delete() }
+                runCatching { PhotoStorage.deleteWithThumbnail(photo.imagePath) }
             }
             photos.hardDelete(photo.id)
         }

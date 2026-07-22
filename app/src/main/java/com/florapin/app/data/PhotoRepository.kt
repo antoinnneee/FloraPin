@@ -46,6 +46,17 @@ class PhotoRepository(
 
     suspend fun pendingSync(): List<PhotoEntity> = dao.pendingSync()
 
+    suspend fun imagesForCompression(): List<PhotoEntity> =
+        dao.allActive().filter { it.imagePath.endsWith(".jpg", ignoreCase = true) }
+
+    suspend fun replaceImagePath(id: Long, expectedPath: String, newPath: String) {
+        val photo = dao.getById(id)
+        check(photo != null && photo.imagePath == expectedPath) {
+            "La photo a changé pendant sa compression"
+        }
+        dao.update(photo.copy(imagePath = newPath))
+    }
+
     suspend fun getById(id: Long): PhotoEntity? = dao.getById(id)
 
     suspend fun findByServerId(serverId: String): PhotoEntity? =

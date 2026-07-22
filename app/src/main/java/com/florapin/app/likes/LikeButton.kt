@@ -27,10 +27,10 @@ import com.florapin.app.util.Haptics
 /**
  * Bouton de réaction (NODE-140 / TÂCHE 3.5). Un tap sur l'emoji bascule la
  * réaction par défaut (❤️) ; un appui long ouvre le sélecteur des 7 réactions
- * enrichies (😍 🌸 🌹 🌼 🪻 🔍 👍). Le libellé résume les types présents
- * ([reactionCounts]) suivis du total ; un tap dessus ouvre la liste des likers
- * via [onCountClick] (sinon bascule aussi la réaction). Mise à jour optimiste
- * gérée côté ViewModel.
+ * enrichies (😍 🌸 🌹 🌼 🪻 🔍 👍). Le libellé affiche uniquement le total :
+ * la réaction courante est déjà portée par l'emoji interactif, qu'il ne faut pas
+ * dupliquer. Un tap sur le total ouvre la liste des likers via [onCountClick]
+ * (sinon bascule aussi la réaction). Mise à jour optimiste gérée côté ViewModel.
  *
  * @param myReaction code de la réaction du spectateur, ou null s'il n'a pas réagi.
  * @param showCount affiche le libellé (aperçu des types + total). À false, seul
@@ -45,7 +45,6 @@ fun LikeButton(
     onToggle: () -> Unit,
     onReact: (String) -> Unit,
     modifier: Modifier = Modifier,
-    reactionCounts: Map<String, Int> = emptyMap(),
     onCountClick: (() -> Unit)? = null,
     showCount: Boolean = true,
 ) {
@@ -60,13 +59,6 @@ fun LikeButton(
         Haptics.tap(haptic)
         onReact(code)
     }
-    // Emojis des types présents, du plus fréquent au moins fréquent (max 3), en
-    // aperçu à côté du total : rendu visible des « compteurs par type ».
-    val summary = reactionCounts.entries
-        .sortedByDescending { it.value }
-        .take(3)
-        .joinToString(" ") { Reactions.emoji(it.key) }
-
     Surface(
         shape = RoundedCornerShape(16.dp),
         tonalElevation = 1.dp,
@@ -96,7 +88,7 @@ fun LikeButton(
             }
             if (showCount) {
                 Text(
-                    text = if (summary.isBlank()) count.toString() else "$summary $count",
+                    text = count.toString(),
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.clickable(onClick = onCountClick ?: toggle),
                 )

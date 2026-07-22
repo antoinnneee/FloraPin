@@ -45,8 +45,12 @@ déploiement). Documents liés :
 
 Organisation par fonctionnalité sous `com.florapin.app` :
 
-- `capture/` — `CameraScreen` (preview + obturateur), `PhotoStorage` (JPEG dans
-  le stockage privé), `CaptureFlow` (permission → capture → GPS → persistance).
+- `capture/` — `CameraScreen` (preview + obturateur), `PhotoStorage` (JPEG
+  temporaire puis WebP privé), `CaptureFlow` (permission → capture → GPS →
+  persistance), `ImageCompressionEngine` (Lanczos3 + WebP + miniature en
+  arrière-plan). `ImageQualityPolicy` centralise les profils Standard
+  (3 200 px/Q70) et Premium (4 000 px/Q90). Le flag de build
+  `PREMIUM_FOR_ALL_BETA` force temporairement Premium pour tous les comptes.
 - `location/` — `LocationProvider` (FusedLocationProvider, coroutine), `GeoPoint`.
 - `data/` — `FlowerEntity`, `FlowerDao`, `FloraDatabase` (Room), `FlowerRepository`.
 - `gallery/`, `detail/` — listes/écran détail (ViewModels + Flows).
@@ -86,11 +90,13 @@ Index clés : GiST sur `flowers.location` (requêtes géo), GIN sur `flowers.tag
 ## 6. Flux de données principaux
 
 1. **Capture (hors-ligne)** : photo CameraX → fichier privé + position GPS →
-   ligne Room (`FlowerRepository.saveCapture`).
+   ligne Room (`FlowerRepository.saveCapture`). Après validation, WorkManager
+   applique en arrière-plan le profil d'image courant, sans bloquer Compose.
 2. **Authentification** : `register`/`login` → access JWT (court) + refresh
    (rotaté). Le client joint `Authorization: Bearer`.
-3. **Upload cloud** : `POST /flowers` (métadonnées) → URL présignée PUT → le
-   client envoie le binaire à MinIO. Lecture via URL présignée GET.
+3. **Upload cloud** : `POST /flowers` (métadonnées), puis l'app envoie les deux
+   variantes WebP à `/image-variants`. L'API valide et stocke sans réencoder ;
+   les clés SHA-256 dédupliquent le contenu par propriétaire.
 4. **Synchronisation** : `GET /sync?since=` (delta créées/maj + ids supprimés) ;
    `POST /sync/flowers` (push par lot). Conflits : last-write-wins (POC).
 5. **Partage & feed** : partage configurable (périmètre + GPS) → `GET /shared` /

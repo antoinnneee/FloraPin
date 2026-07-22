@@ -39,6 +39,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -70,6 +71,7 @@ import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.PhotoEntity
 import com.florapin.app.data.imageModel
 import com.florapin.app.data.thumbnailModel
+import com.florapin.app.geo.PlaceNameResolver
 import com.florapin.app.identify.IdentificationRequestSection
 import com.florapin.app.identify.IdentificationRequestViewModel
 import com.florapin.app.likes.LikeButton
@@ -84,8 +86,7 @@ import com.florapin.app.map.setupFlowerClustering
 import com.florapin.app.map.updateFlowerMarkers
 import com.florapin.app.network.dto.SpeciesDto
 import com.florapin.app.share.ShareFlowerSheet
-import com.florapin.app.ui.components.DecorativeEmoji
-import com.florapin.app.ui.components.EmojiIcon
+import com.florapin.app.ui.components.BotanicalIcon
 import com.florapin.app.ui.components.FullscreenPhotoViewer
 import com.florapin.app.ui.layout.topBarHeight
 import com.florapin.app.ui.transition.FloraSharedScope
@@ -255,7 +256,7 @@ fun FlowerDetailPage(
                 title = { Text("Détail") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        EmojiIcon("←", contentDescription = "Retour")
+                        BotanicalIcon(R.drawable.ic_back_botanical, "Retour")
                     }
                 },
                 actions = {
@@ -263,10 +264,13 @@ fun FlowerDetailPage(
                     if (current != null) {
                         val context = LocalContext.current
                         IconButton(onClick = { showAddToAlbum = true }) {
-                            EmojiIcon("📁", contentDescription = "Ajouter à un album")
+                            BotanicalIcon(
+                                R.drawable.ic_nav_albums,
+                                "Ajouter à un album",
+                            )
                         }
                         IconButton(onClick = { showShare = true }) {
-                            EmojiIcon("📤", contentDescription = "Partager")
+                            BotanicalIcon(R.drawable.ic_share_botanical, "Partager")
                         }
                         // Suppression (destructive) reléguée dans un menu de
                         // débordement pour éviter un toucher accidentel à côté des
@@ -274,7 +278,10 @@ fun FlowerDetailPage(
                         var menuOpen by remember { mutableStateOf(false) }
                         Box {
                             IconButton(onClick = { menuOpen = true }) {
-                                EmojiIcon("⋮", contentDescription = "Plus d'options")
+                                BotanicalIcon(
+                                    R.drawable.ic_more_botanical,
+                                    "Plus d'options",
+                                )
                             }
                             DropdownMenu(
                                 expanded = menuOpen,
@@ -283,14 +290,28 @@ fun FlowerDetailPage(
                                 // Partage externe de la photo (TÂCHE 6.12) vers
                                 // une autre application (via FileProvider).
                                 DropdownMenuItem(
-                                    text = { Text("📷 Partager la photo") },
+                                    text = { Text("Partager la photo") },
+                                    leadingIcon = {
+                                        BotanicalIcon(
+                                            R.drawable.ic_photo_botanical,
+                                            contentDescription = null,
+                                            size = 24.dp,
+                                        )
+                                    },
                                     onClick = {
                                         menuOpen = false
                                         shareFlowerPhoto(context, current)
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("🗑️ Supprimer") },
+                                    text = { Text("Supprimer") },
+                                    leadingIcon = {
+                                        BotanicalIcon(
+                                            R.drawable.ic_delete_botanical,
+                                            contentDescription = null,
+                                            size = 24.dp,
+                                        )
+                                    },
                                     onClick = {
                                         menuOpen = false
                                         showDeleteConfirm = true
@@ -463,7 +484,6 @@ private fun DetailContent(
                         count = likeState.count,
                         onToggle = onToggleLike,
                         onReact = onReact,
-                        reactionCounts = likeState.reactionCounts,
                         onCountClick = onOpenLikers.takeIf { likeState.count > 0 },
                     )
                 }
@@ -474,10 +494,7 @@ private fun DetailContent(
                 val nearbyFlowers = remember(flower.id, point, allFlowers) {
                     findNearbyFlowers(flower, allFlowers)
                 }
-                Text(
-                    text = "📍 ${point.format()}",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                DetailLocationLabel(point)
                 MiniMap(
                     point = point,
                     flowerId = flower.id,
@@ -485,18 +502,31 @@ private fun DetailContent(
                     onFlowerClick = onOpenFlower,
                 )
             } else {
-                Text(
-                    text = "📍 Position non enregistrée",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    BotanicalIcon(
+                        R.drawable.ic_nav_map,
+                        contentDescription = null,
+                        size = 22.dp,
+                    )
+                    Text(
+                        text = "Position non enregistrée",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
             }
 
             ClassificationEditor(
                 flowerId = flower.id,
                 initialSpecies = flower.species.orEmpty(),
-                initialTags = flower.tags,
                 speciesPicker = speciesPicker,
-                onSave = onSaveClassification,
+                // Les anciennes étiquettes restent conservées dans les données,
+                // mais ne sont plus exposées dans cette interface.
+                onSave = { species, selected ->
+                    onSaveClassification(species, flower.tags, selected)
+                },
             )
 
             // Lien vers la fiche d'espèce quand la fleur est rattachée (NODE-151).
@@ -505,15 +535,25 @@ private fun DetailContent(
                     ?: flower.speciesScientificName
                     ?: flower.species
                     ?: "cette espèce"
-                Text(
-                    text = "🌿 Voir la fiche : $label",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onOpenSpecies(speciesId) }
                         .padding(vertical = 4.dp),
-                )
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    BotanicalIcon(
+                        R.drawable.ic_identify_botanical,
+                        contentDescription = null,
+                        size = 24.dp,
+                    )
+                    Text(
+                        text = "Voir la fiche : $label",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
 
             // Demande d'identification aux amis quand l'espèce est absente (NODE-134).
@@ -598,7 +638,14 @@ private fun PhotoGallery(
                 text = "Photos (${photos.size + 1})",
                 style = MaterialTheme.typography.titleMedium,
             )
-            Button(onClick = onAddPhoto) { Text("➕ Ajouter une photo") }
+            Button(onClick = onAddPhoto) {
+                BotanicalIcon(
+                    R.drawable.ic_add_botanical,
+                    contentDescription = null,
+                    size = 22.dp,
+                )
+                Text("Ajouter une photo", modifier = Modifier.padding(start = 8.dp))
+            }
         }
         if (photos.isNotEmpty()) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -636,19 +683,24 @@ private fun PhotoThumbnail(
             // « Définir comme couverture » seulement si la photo a un fichier local.
             if (photo.imagePath.isNotEmpty()) {
                 IconButton(onClick = onMakeCover, modifier = Modifier.size(48.dp)) {
-                    EmojiIcon("⭐", contentDescription = "Définir comme couverture")
+                    BotanicalIcon(
+                        R.drawable.ic_cover_botanical,
+                        "Définir comme couverture",
+                    )
                 }
             }
             IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
-                EmojiIcon("🗑️", contentDescription = "Supprimer cette photo")
+                BotanicalIcon(
+                    R.drawable.ic_delete_botanical,
+                    "Supprimer cette photo",
+                )
             }
         }
     }
 }
 
 /**
- * Édition de l'espèce (autocomplétée sur le référentiel, NODE-150) et des
- * étiquettes (saisies séparées par des virgules).
+ * Édition de l'espèce, autocomplétée sur le référentiel (NODE-150).
  *
  * Le champ espèce interroge /species/search ; sélectionner une suggestion fixe
  * le nom scientifique et rattache la fleur (species_id). Une saisie libre reste
@@ -658,24 +710,19 @@ private fun PhotoThumbnail(
 private fun ClassificationEditor(
     flowerId: Long,
     initialSpecies: String,
-    initialTags: List<String>,
     speciesPicker: SpeciesPickerViewModel,
-    onSave: (String, List<String>, SpeciesDto?) -> Unit,
+    onSave: (String, SpeciesDto?) -> Unit,
 ) {
-    val initialTagsText = initialTags.joinToString(", ")
     // Clés incluant la valeur initiale : le champ se resynchronise quand l'espèce
     // change de l'extérieur (ex. acceptation d'une proposition d'ami). Comme
     // initialSpecies ne bouge qu'à la sauvegarde/acceptation, la frappe en cours
     // n'est pas perturbée.
     var species by remember(flowerId, initialSpecies) { mutableStateOf(initialSpecies) }
-    var tagsText by remember(flowerId, initialTagsText) { mutableStateOf(initialTagsText) }
     // Fiche du référentiel sélectionnée ; null tant que l'utilisateur tape librement.
     var selected by remember(flowerId, initialSpecies) { mutableStateOf<SpeciesDto?>(null) }
     val suggestions by speciesPicker.suggestions.collectAsStateWithLifecycle()
 
-    val changed = species != initialSpecies ||
-        tagsText != initialTagsText ||
-        selected != null
+    val changed = species != initialSpecies || selected != null
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
@@ -702,18 +749,12 @@ private fun ClassificationEditor(
                 },
             )
         }
-        OutlinedTextField(
-            value = tagsText,
-            onValueChange = { tagsText = it },
-            label = { Text("Étiquettes (séparées par des virgules)") },
-            modifier = Modifier.fillMaxWidth(),
-        )
         Button(
-            onClick = { onSave(species, parseTags(tagsText), selected) },
+            onClick = { onSave(species, selected) },
             enabled = changed,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Enregistrer espèce & étiquettes")
+            Text("Enregistrer l'espèce")
         }
     }
 }
@@ -751,13 +792,6 @@ private fun SpeciesSuggestions(
         }
     }
 }
-
-/** Découpe une saisie « a, b ,c » en liste nettoyée, sans doublons ni vides. */
-private fun parseTags(raw: String): List<String> =
-    raw.split(",")
-        .map { it.trim() }
-        .filter { it.isNotEmpty() }
-        .distinct()
 
 /**
  * Mini-carte interactive (NODE-11) : situe la fleur sur une carte MapLibre
@@ -958,18 +992,35 @@ private fun MiniMapMenu(point: GeoPoint, modifier: Modifier = Modifier) {
     var open by remember { mutableStateOf(false) }
     Box(modifier) {
         IconButton(onClick = { open = true }) {
-            EmojiIcon("⋮", contentDescription = "Options de localisation")
+            BotanicalIcon(
+                R.drawable.ic_more_botanical,
+                "Options de localisation",
+            )
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(
-                text = { Text("🗺️ Ouvrir dans Maps") },
+                text = { Text("Ouvrir dans Maps") },
+                leadingIcon = {
+                    BotanicalIcon(
+                        R.drawable.ic_nav_map,
+                        contentDescription = null,
+                        size = 24.dp,
+                    )
+                },
                 onClick = {
                     open = false
                     openPointInMaps(context, point)
                 },
             )
             DropdownMenuItem(
-                text = { Text("📋 Copier les coordonnées") },
+                text = { Text("Copier les coordonnées") },
+                leadingIcon = {
+                    BotanicalIcon(
+                        R.drawable.ic_copy_botanical,
+                        contentDescription = null,
+                        size = 24.dp,
+                    )
+                },
                 onClick = {
                     open = false
                     copyPointCoordinates(context, point)
@@ -1063,7 +1114,11 @@ private fun MiniMapFallback(point: GeoPoint) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            DecorativeEmoji("🗺️", style = MaterialTheme.typography.headlineMedium)
+            BotanicalIcon(
+                R.drawable.ic_nav_map,
+                contentDescription = null,
+                size = 48.dp,
+            )
             Text(
                 text = "${"%.5f".format(point.latitude)}, " +
                     "%.5f".format(point.longitude),
@@ -1074,6 +1129,35 @@ private fun MiniMapFallback(point: GeoPoint) {
                 style = MaterialTheme.typography.labelSmall,
             )
         }
+    }
+}
+
+/** Nom de ville/région résolu avec la même logique que le flux partagé. */
+@Composable
+private fun DetailLocationLabel(point: GeoPoint) {
+    val context = LocalContext.current
+    val placeName by produceState(
+        initialValue = "Localisation…",
+        context,
+        point.latitude,
+        point.longitude,
+    ) {
+        value = PlaceNameResolver.resolve(context, point.latitude, point.longitude)
+            ?: "Lieu non identifié"
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        BotanicalIcon(
+            R.drawable.ic_nav_map,
+            contentDescription = null,
+            size = 22.dp,
+        )
+        Text(
+            text = placeName,
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }
 

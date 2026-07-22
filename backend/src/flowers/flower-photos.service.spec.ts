@@ -3,12 +3,10 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 
-// Le réencodage réel (sharp) exige une vraie image : on le simule ici pour
-// tester la gestion des clés (image + miniature), pas l'encodage lui-même.
-jest.mock('../storage/image-processing', () => ({
-  encodeWebp: jest.fn(async () => ({
-    full: Buffer.from('full'),
-    thumbnail: Buffer.from('thumb'),
+jest.mock('../storage/client-image-variants', () => ({
+  validateClientImageVariants: jest.fn(async () => ({
+    fullSha256: 'a'.repeat(64),
+    thumbnailSha256: 'b'.repeat(64),
   })),
 }));
 import { StorageService } from '../storage/storage.service';
@@ -161,7 +159,7 @@ describe('FlowerPhotosService', () => {
     );
   });
 
-  it('supprime les objets MinIO (image + miniature) à la suppression d’une photo', async () => {
+  it('diffère la suppression MinIO pour protéger les objets dédupliqués', async () => {
     const flower = flowers.seed(OWNER);
     const first = await service.add(OWNER, flower.id);
     const second = await service.add(OWNER, flower.id);
@@ -173,11 +171,10 @@ describe('FlowerPhotosService', () => {
     deleteSpy.mockClear();
     await service.remove(OWNER, flower.id, second.photo.id);
 
-    const deleted = deleteSpy.mock.calls.map((c) => c[0]).sort();
-    expect(deleted).toEqual(['flowers/o/img.webp', 'flowers/o/thumb.webp']);
+    expect(deleteSpy).not.toHaveBeenCalled();
   });
 
-  it('supprime l’ancienne miniature au ré-upload d’une photo', async () => {
+  it('stocke un ré-upload sous ses clés SHA-256 sans supprimer trop tôt', async () => {
     const flower = flowers.seed(OWNER);
     const added = await service.add(OWNER, flower.id);
     const stored = photos.store.get(added.photo.id)!;
@@ -185,10 +182,17 @@ describe('FlowerPhotosService', () => {
     stored.thumbnailKey = 'flowers/o/old-thumb.webp';
 
     deleteSpy.mockClear();
-    await service.uploadImage(OWNER, flower.id, added.photo.id, Buffer.from('x'));
+    await service.uploadImage(
+      OWNER,
+      flower.id,
+      added.photo.id,
+      Buffer.from('full'),
+      Buffer.from('thumb'),
+    );
 
-    const deleted = deleteSpy.mock.calls.map((c) => c[0]).sort();
-    expect(deleted).toEqual(['flowers/o/old-thumb.webp', 'flowers/o/old.webp']);
+    expect(deleteSpy).not.toHaveBeenCalled();
+    expect(stored.imageKey).toContain('a'.repeat(64));
+    expect(stored.thumbnailKey).toContain('b'.repeat(64));
   });
 
   it('setCover synchronise image_key ET thumbnail_key de la fleur', async () => {

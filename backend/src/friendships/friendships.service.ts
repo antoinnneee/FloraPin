@@ -16,7 +16,12 @@ export interface FriendshipResponse {
   id: string;
   status: string;
   direction: 'incoming' | 'outgoing';
-  user: { id: string; displayName: string; email: string };
+  user: {
+    id: string;
+    displayName: string;
+    email: string;
+    avatarUrl: string | null;
+  };
   createdAt: Date;
 }
 
@@ -44,7 +49,12 @@ export class FriendshipsService {
         id: randomUUID(),
         status: 'pending',
         direction: 'outgoing',
-        user: { id: randomUUID(), displayName: '', email: email.trim() },
+        user: {
+          id: randomUUID(),
+          displayName: '',
+          email: email.trim(),
+          avatarUrl: null,
+        },
         createdAt: new Date(),
       };
     }
@@ -234,6 +244,7 @@ export class FriendshipsService {
         id: otherId,
         displayName: other?.displayName ?? '',
         email: other?.email ?? '',
+        avatarUrl: other ? await this.users.avatarUrl(other) : null,
       },
       createdAt: friendship.createdAt,
     };

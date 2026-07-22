@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copier FloraPin : deux feuilles de papier et une pousse lavande. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M8,7H19V20H8ZM5,16H4V4H15V5"
+        android:strokeColor="#386A53"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="1.8" />
+    <path
+        android:fillColor="#7D83D8"
+        android:pathData="M13.3,9.5C16.3,8.8 18.4,10.1 18.9,12.7C15.9,13.4 13.8,12.1 13.3,9.5Z" />
+    <path
+        android:fillColor="#F2D56B"
+        android:pathData="M14.2,10.3L18,12L17.7,12.7L13.9,11Z" />
+</vector>

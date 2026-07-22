@@ -39,3 +39,12 @@ export const imageUploadOptions: MulterOptions = {
     }
   },
 };
+
+/** Deux WebP déjà optimisés par l'app : plein format + miniature. */
+export const imageVariantsUploadOptions: MulterOptions = {
+  limits: { fileSize: MAX_IMAGE_UPLOAD_BYTES, files: 2 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype === 'image/webp') cb(null, true);
+    else cb(new BadRequestException('Les variantes doivent être en WebP.'), false);
+  },
+};

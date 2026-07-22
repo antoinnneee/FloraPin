@@ -1,6 +1,5 @@
 package com.florapin.app.friends
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
@@ -40,6 +38,7 @@ import com.florapin.app.network.dto.FriendProfileDto
 import com.florapin.app.network.dto.previewPhotoUrls
 import com.florapin.app.ui.components.EmojiIcon
 import com.florapin.app.ui.components.EmptyState
+import com.florapin.app.ui.components.FloraAvatar
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -160,28 +159,12 @@ private fun ProfileHeader(profile: FriendProfileDto) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(88.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (profile.avatarUrl != null) {
-                    AsyncImage(
-                        model = profile.avatarUrl,
-                        contentDescription = "Photo de profil",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Text(
-                        text = initialsOf(profile.displayName),
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            FloraAvatar(
+                avatarUrl = profile.avatarUrl,
+                seed = profile.id,
+                contentDescription = "Photo de profil de ${profile.displayName}",
+                modifier = Modifier.size(88.dp),
+            )
             Text(
                 text = profile.displayName.ifBlank { "—" },
                 style = MaterialTheme.typography.headlineSmall,
@@ -260,15 +243,6 @@ private fun FlowerThumbnail(flower: FlowerDto) {
     )
 }
 
-/** Initiales (1 à 2 lettres) pour l'avatar par défaut. */
-private fun initialsOf(displayName: String): String {
-    val parts = displayName.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
-    return when {
-        parts.isEmpty() -> "?"
-        parts.size == 1 -> parts[0].take(1).uppercase()
-        else -> (parts[0].take(1) + parts[1].take(1)).uppercase()
-    }
-}
 
 /** Formate une date ISO8601 en « mois année » français (ex. « mai 2026 »). */
 private fun formatMonthYear(iso: String): String {

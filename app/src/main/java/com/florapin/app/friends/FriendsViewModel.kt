@@ -11,13 +11,16 @@ import com.florapin.app.network.dto.AddFriendByIdRequest
 import com.florapin.app.network.dto.CreateFriendshipRequest
 import com.florapin.app.network.dto.FriendshipDto
 import com.florapin.app.ui.components.networkErrorMessage
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 
 /** État de l'écran amis : listes catégorisées + chargement/erreur. */
 data class FriendsUiState(
@@ -62,7 +65,8 @@ class FriendsViewModel(
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
             try {
-                val categorized = categorize(api.list())
+                val friendships = enrichExistingAvatars(api.list())
+                val categorized = categorize(friendships)
                 _state.value = categorized
                 // Ouvrir l'écran « voit » les demandes entrantes : le badge revient
                 // à 0, même sans avoir accepté/refusé.
@@ -76,6 +80,36 @@ class FriendsViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * Compatibilité avec les serveurs qui ne renvoient pas encore `avatarUrl`
+     * dans la liste des amitiés. Le profil public permet de conserver les
+     * photos choisies avant l'ajout des avatars illustrés.
+     */
+    private suspend fun enrichExistingAvatars(
+        friendships: List<FriendshipDto>,
+    ): List<FriendshipDto> = supervisorScope {
+        friendships.map { friendship ->
+            async {
+                if (friendship.status != "accepted" ||
+                    !friendship.user.avatarUrl.isNullOrBlank()
+                ) {
+                    return@async friendship
+                }
+
+                val avatarUrl = try {
+                    api.profile(friendship.user.id).avatarUrl
+                } catch (_: Exception) {
+                    null
+                }
+                if (avatarUrl.isNullOrBlank()) {
+                    friendship
+                } else {
+                    friendship.copy(user = friendship.user.copy(avatarUrl = avatarUrl))
+                }
+            }
+        }.awaitAll()
     }
 
     /** Envoie une demande d'ami à un utilisateur (par son email). */

@@ -18,13 +18,14 @@ interface PhotosApi {
     @POST("flowers/{id}/photos")
     suspend fun add(@Path("id") flowerId: String): AddPhotoResponse
 
-    /** Téléverse le binaire d'une photo (multipart `file`), réencodé en WebP. */
+    /** Téléverse les WebP finaux (`file` + `thumbnail`) sans réencodage. */
     @Multipart
-    @POST("flowers/{id}/photos/{photoId}/image")
+    @POST("flowers/{id}/photos/{photoId}/image-variants")
     suspend fun uploadImage(
         @Path("id") flowerId: String,
         @Path("photoId") photoId: String,
         @Part file: MultipartBody.Part,
+        @Part thumbnail: MultipartBody.Part,
     ): PhotoDto
 
     @DELETE("flowers/{id}/photos/{photoId}")

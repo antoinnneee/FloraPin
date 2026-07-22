@@ -1,6 +1,6 @@
 import { Logger, OnModuleInit } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { PresignedUpload, StorageService } from './storage.service';
+import { PresignedUpload, StorageService, StoredObject } from './storage.service';
 
 /**
  * Sous-ensemble du client MinIO/S3 utilisé par le service. Facilite le test
@@ -19,6 +19,7 @@ export interface ObjectStorageClient {
   bucketExists(bucket: string): Promise<boolean>;
   makeBucket(bucket: string, region?: string): Promise<void>;
   removeObject(bucket: string, key: string): Promise<void>;
+  listObjectsV2?: (...args: any[]) => any;
 }
 
 /**
@@ -78,13 +79,18 @@ export class MinioStorageService
     return `flowers/${ownerId}/${randomUUID()}.${extension}`;
   }
 
+  buildContentKey(ownerId: string, sha256: string, extension: string): string {
+    return `flowers/${ownerId}/${sha256}.${extension}`;
+  }
+
   /**
    * Durée de vie maximale d'une URL d'upload présignée (secondes). Volontairement
    * courte : un PUT présigné SigV4 ne peut imposer NI taille maximale NI type de
    * contenu, et aucun point de confirmation serveur ne re-vérifie l'objet après
    * coup (le client Android actuel n'utilise d'ailleurs plus ce flux : il passe
    * par les endpoints multipart `POST /flowers/:id/image` et
-   * `POST /flowers/:id/photos/:photoId/image`, validés et réencodés par l'API).
+   * Les nouvelles apps utilisent les endpoints `image-variants`, validés sans
+   * réencodage. Les URLs PUT restent réservées à la compatibilité.
    * Réduire la fenêtre limite l'abus d'une URL fuitée ; ne pas l'allonger sans
    * ajouter une validation `statObject` post-upload.
    */
@@ -123,5 +129,24 @@ export class MinioStorageService
 
   async delete(key: string): Promise<void> {
     await this.client.removeObject(this.bucket, key);
+  }
+
+
+  async list(prefix = ''): Promise<StoredObject[]> {
+    if (!this.client.listObjectsV2) return [];
+    return new Promise((resolve, reject) => {
+      const objects: StoredObject[] = [];
+      const stream = this.client.listObjectsV2!(this.bucket, prefix, true);
+      stream.on('data', (item: { name?: string; lastModified?: Date }) => {
+        if (item.name) {
+          objects.push({
+            key: item.name,
+            lastModified: item.lastModified ?? new Date(0),
+          });
+        }
+      });
+      stream.on('error', reject);
+      stream.on('end', () => resolve(objects));
+    });
   }
 }

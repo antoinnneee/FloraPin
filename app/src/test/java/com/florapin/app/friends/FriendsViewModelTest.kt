@@ -3,6 +3,7 @@ package com.florapin.app.friends
 import com.florapin.app.network.api.FriendshipsApi
 import com.florapin.app.network.dto.AddFriendByIdRequest
 import com.florapin.app.network.dto.CreateFriendshipRequest
+import com.florapin.app.network.dto.FriendProfileDto
 import com.florapin.app.network.dto.FriendUserDto
 import com.florapin.app.network.dto.FriendshipDto
 import kotlinx.coroutines.Dispatchers
@@ -32,11 +33,13 @@ private fun friendship(
 
 private class FakeFriendshipsApi(
     var data: MutableList<FriendshipDto> = mutableListOf(),
+    var profiles: Map<String, FriendProfileDto> = emptyMap(),
 ) : FriendshipsApi {
     var requested: String? = null
     var requestedById: String? = null
     var accepted: String? = null
     var removed: String? = null
+    val requestedProfiles = mutableListOf<String>()
 
     override suspend fun list(): List<FriendshipDto> = data
     override suspend fun request(body: CreateFriendshipRequest): FriendshipDto {
@@ -51,8 +54,10 @@ private class FakeFriendshipsApi(
         accepted = id
         return friendship(id, "accepted", "incoming")
     }
-    override suspend fun profile(id: String) =
-        throw UnsupportedOperationException()
+    override suspend fun profile(id: String): FriendProfileDto {
+        requestedProfiles += id
+        return profiles[id] ?: throw UnsupportedOperationException()
+    }
     override suspend fun remove(id: String): Response<Unit> {
         removed = id
         return Response.success(null)
@@ -94,6 +99,30 @@ class FriendsViewModelTest {
 
         assertEquals(1, vm.state.value.friends.size)
         assertEquals(false, vm.state.value.loading)
+    }
+
+    @Test
+    fun init_recoversExistingAvatarFromPublicProfile() = runTest {
+        val relation = friendship("3", "accepted", "outgoing")
+        val avatarUrl = "https://avatars.test/existing.webp"
+        val api = FakeFriendshipsApi(
+            data = mutableListOf(relation),
+            profiles = mapOf(
+                relation.user.id to FriendProfileDto(
+                    id = relation.user.id,
+                    displayName = relation.user.displayName,
+                    avatarUrl = avatarUrl,
+                    memberSince = "2025-01-01T00:00:00Z",
+                    friendsSince = "2026-01-01T00:00:00Z",
+                ),
+            ),
+        )
+
+        val vm = FriendsViewModel(api)
+        advanceUntilIdle()
+
+        assertEquals(avatarUrl, vm.state.value.friends.single().user.avatarUrl)
+        assertEquals(listOf(relation.user.id), api.requestedProfiles)
     }
 
     @Test

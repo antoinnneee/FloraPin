@@ -5,6 +5,11 @@ export interface PresignedUpload {
   expiresIn: number; // secondes
 }
 
+export interface StoredObject {
+  key: string;
+  lastModified: Date;
+}
+
 /**
  * Abstraction du stockage objet des images. L'implémentation MinIO/S3 réelle
  * (URLs présignées) est fournie par NODE-28 ; le module flowers ne dépend que
@@ -14,12 +19,19 @@ export abstract class StorageService {
   /** Construit une clé d'objet déterministe pour une nouvelle image. */
   abstract buildKey(ownerId: string, extension: string): string;
 
+  /** Clé stable, dédupliquée dans le périmètre d'un propriétaire. */
+  abstract buildContentKey(
+    ownerId: string,
+    sha256: string,
+    extension: string,
+  ): string;
+
   /** URL présignée pour téléverser l'objet (PUT direct par le client). */
   abstract presignUpload(key: string): Promise<PresignedUpload>;
 
   /**
-   * Téléverse un objet depuis le serveur (utilisé quand l'API réencode l'image
-   * en WebP avant de la stocker, plutôt que l'upload présigné direct).
+   * Téléverse un objet depuis le serveur après validation (ou après encodage
+   * pour les seuls endpoints historiques de compatibilité).
    */
   abstract putObject(
     key: string,
@@ -35,4 +47,7 @@ export abstract class StorageService {
    * NODE-118). Idempotent : ne lève pas si l'objet est déjà absent.
    */
   abstract delete(key: string): Promise<void>;
+
+  /** Inventaire utilisé par le ramasse-miettes d'objets orphelins. */
+  abstract list(prefix?: string): Promise<StoredObject[]>;
 }

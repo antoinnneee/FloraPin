@@ -222,7 +222,7 @@ fun CaptureFlow(
                     scope.launch {
                         // Pousse la fleur et toutes ses photos d'un coup ; no-op si
                         // la synchronisation cloud est désactivée (reste sur l'appareil).
-                        if (flowerId != null) SyncScheduler.syncNow(context)
+                        if (flowerId != null) SyncScheduler.processCapture(context)
                         onFinished()
                     }
                 },

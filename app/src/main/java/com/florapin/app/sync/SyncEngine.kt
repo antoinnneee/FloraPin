@@ -1,6 +1,7 @@
 package com.florapin.app.sync
 
 import com.florapin.app.data.FlowerEntity
+import com.florapin.app.capture.PhotoStorage
 import com.florapin.app.data.FlowerRepository
 import com.florapin.app.data.SyncState
 import com.florapin.app.data.applyTo
@@ -25,7 +26,7 @@ class SyncEngine(
     private val repository: FlowerRepository,
     private val syncApi: SyncApi,
     private val flowersApi: FlowersApi,
-    /** Téléverse l'image d'une fleur (serverId) ; le serveur la réencode en WebP. */
+    /** Téléverse les variantes WebP finales d'une fleur (serverId). */
     private val uploadFlowerImage: suspend (serverId: String, file: File) -> Unit,
     private val lastSyncStore: LastSyncStore,
     /**
@@ -179,7 +180,7 @@ class SyncEngine(
     private suspend fun purgeLocal(flower: FlowerEntity) {
         photoSync?.purgeForFlower(flower.id)
         if (flower.imagePath.isNotEmpty()) {
-            runCatching { File(flower.imagePath).delete() }
+            runCatching { PhotoStorage.deleteWithThumbnail(flower.imagePath) }
         }
         repository.hardDelete(flower)
     }

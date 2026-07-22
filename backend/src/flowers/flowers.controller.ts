@@ -12,10 +12,11 @@ import {
   Post,
   Query,
   UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
@@ -25,7 +26,10 @@ import {
   SearchFlowersQueryDto,
   UpdateFlowerDto,
 } from './dto/flower.dto';
-import { imageUploadOptions } from './image-upload.options';
+import {
+  imageUploadOptions,
+  imageVariantsUploadOptions,
+} from './image-upload.options';
 import { FlowersService } from './flowers.service';
 
 @ApiTags('flowers')
@@ -60,21 +64,40 @@ export class FlowersController {
   }
 
   /**
-   * Téléverse le binaire image d'une fleur (multipart, champ `file`). Le serveur
-   * réencode en WebP (pleine résolution + miniature) avant stockage.
+   * Reçoit les deux WebP finaux de l'app et les valide sans réencodage.
    */
+  @Post(':id/image-variants')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [{ name: 'file', maxCount: 1 }, { name: 'thumbnail', maxCount: 1 }],
+      imageVariantsUploadOptions,
+    ),
+  )
+  uploadImage(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFiles() files: Record<string, Array<{ buffer: Buffer }>> | undefined,
+  ) {
+    const full = files?.file?.[0]?.buffer;
+    const thumbnail = files?.thumbnail?.[0]?.buffer;
+    if (!full?.length || !thumbnail?.length) {
+      throw new BadRequestException('Image principale ou miniature manquante.');
+    }
+    return this.flowers.uploadImage(user.userId, id, full, thumbnail);
+  }
+
+  /** Compatibilité temporaire avec les anciennes apps qui envoient un JPEG. */
   @Post(':id/image')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', imageUploadOptions))
-  uploadImage(
+  uploadLegacyImage(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFile() file: { buffer: Buffer } | undefined,
   ) {
-    if (!file?.buffer?.length) {
-      throw new BadRequestException('Fichier image manquant.');
-    }
-    return this.flowers.uploadImage(user.userId, id, file.buffer);
+    if (!file?.buffer?.length) throw new BadRequestException('Fichier image manquant.');
+    return this.flowers.uploadLegacyImage(user.userId, id, file.buffer);
   }
 
   @Get(':id/image-url')

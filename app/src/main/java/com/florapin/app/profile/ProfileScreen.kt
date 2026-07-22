@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,9 +14,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -30,6 +35,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -50,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -64,6 +71,8 @@ import com.florapin.app.sync.SyncPreferences
 import com.florapin.app.sync.SyncScheduler
 import com.florapin.app.sync.SyncStatus
 import com.florapin.app.sync.SyncStatusStore
+import com.florapin.app.ui.components.DefaultAvatars
+import com.florapin.app.ui.components.FloraAvatar
 import com.florapin.app.ui.layout.topBarHeight
 import com.florapin.app.util.formatCaptureDate
 
@@ -163,6 +172,7 @@ fun ProfileScreen(
                 0 -> ProfileTab(
                     state = state,
                     onPickAvatar = viewModel::uploadAvatar,
+                    onPickDefaultAvatar = viewModel::uploadDefaultAvatar,
                     onEditName = { showNameDialog = true },
                     onVerify = viewModel::requestEmailVerification,
                     onChangeEmail = viewModel::changeEmail,
@@ -194,6 +204,7 @@ fun ProfileScreen(
 private fun ProfileTab(
     state: ProfileUiState,
     onPickAvatar: (Uri) -> Unit,
+    onPickDefaultAvatar: (Int) -> Unit,
     onEditName: () -> Unit,
     onVerify: () -> Unit,
     onChangeEmail: (String) -> Unit,
@@ -216,9 +227,12 @@ private fun ProfileTab(
             ) {
                 AvatarPicker(
                     avatarUrl = state.avatarUrl,
-                    displayName = state.displayName,
+                    seed = state.userId.ifBlank {
+                        state.email.ifBlank { state.displayName }
+                    },
                     uploading = state.avatarUploading,
                     onPick = onPickAvatar,
+                    onPickDefault = onPickDefaultAvatar,
                 )
                 state.avatarError?.let {
                     Text(
@@ -408,18 +422,17 @@ private fun RecentFlowersSection(
     }
 }
 
-/**
- * Avatar circulaire (TÂCHE 5.1) : affiche l'image via Coil, ou les initiales si
- * absente. Un tap ouvre le sélecteur média système (`PickVisualMedia`) ; pendant
- * l'upload, un indicateur de progression se superpose.
- */
+/** Avatar courant et choix entre compagnons FloraPin ou galerie du téléphone. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AvatarPicker(
     avatarUrl: String?,
-    displayName: String,
+    seed: String,
     uploading: Boolean,
     onPick: (Uri) -> Unit,
+    onPickDefault: (Int) -> Unit,
 ) {
+    var showChoices by remember { mutableStateOf(false) }
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
     ) { uri -> uri?.let(onPick) }
@@ -430,26 +443,16 @@ private fun AvatarPicker(
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable(enabled = !uploading) {
-                launcher.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                )
+                showChoices = true
             },
         contentAlignment = Alignment.Center,
     ) {
-        if (avatarUrl != null) {
-            AsyncImage(
-                model = avatarUrl,
-                contentDescription = "Photo de profil",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        } else {
-            Text(
-                text = initialsOf(displayName),
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        FloraAvatar(
+            avatarUrl = avatarUrl,
+            seed = seed,
+            contentDescription = "Photo de profil",
+            modifier = Modifier.fillMaxSize(),
+        )
         if (uploading) {
             Box(
                 modifier = Modifier
@@ -465,16 +468,66 @@ private fun AvatarPicker(
         text = "Modifier la photo",
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.clickable(enabled = !uploading) { showChoices = true },
     )
-}
 
-/** Initiales (1 à 2 lettres) pour l'avatar par défaut. */
-private fun initialsOf(displayName: String): String {
-    val parts = displayName.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
-    return when {
-        parts.isEmpty() -> "?"
-        parts.size == 1 -> parts[0].take(1).uppercase()
-        else -> (parts[0].take(1) + parts[1].take(1)).uppercase()
+    if (showChoices) {
+        ModalBottomSheet(onDismissRequest = { showChoices = false }) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = "Choisir une image de profil",
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                Text(
+                    text = "Compagnons FloraPin",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(4),
+                    modifier = Modifier.fillMaxWidth().height(208.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    gridItems(DefaultAvatars.all, key = { it.id }) { avatar ->
+                        Image(
+                            painter = painterResource(avatar.resourceId),
+                            contentDescription = avatar.label,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .clickable {
+                                    showChoices = false
+                                    onPickDefault(avatar.resourceId)
+                                },
+                        )
+                    }
+                }
+                OutlinedButton(
+                    onClick = {
+                        showChoices = false
+                        launcher.launch(
+                            PickVisualMediaRequest(
+                                ActivityResultContracts.PickVisualMedia.ImageOnly,
+                            ),
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Choisir une photo du téléphone")
+                }
+                Text(
+                    text = "Sans choix, un compagnon vous est attribué automatiquement.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+            }
+        }
     }
 }
 

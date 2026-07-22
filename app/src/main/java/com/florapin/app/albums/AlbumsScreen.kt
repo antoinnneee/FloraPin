@@ -31,8 +31,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.florapin.app.R
 import com.florapin.app.data.AlbumEntity
-import com.florapin.app.ui.components.EmojiIcon
+import com.florapin.app.ui.components.BotanicalIcon
 import com.florapin.app.ui.components.EmptyState
 import com.florapin.app.ui.layout.topBarHeight
 
@@ -64,7 +65,7 @@ fun AlbumsScreen(
                 navigationIcon = {
                     if (onBack != null) {
                         IconButton(onClick = onBack) {
-                            EmojiIcon("←", contentDescription = "Retour")
+                            BotanicalIcon(R.drawable.ic_back_botanical, "Retour")
                         }
                     }
                 },
@@ -72,7 +73,7 @@ fun AlbumsScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showCreate = true }) {
-                EmojiIcon("➕", contentDescription = "Créer un album")
+                BotanicalIcon(R.drawable.ic_add_botanical, "Créer un album")
             }
         },
     ) { innerPadding ->
@@ -82,7 +83,9 @@ fun AlbumsScreen(
                 message = "Regroupez vos fleurs par thème, saison ou lieu pour " +
                     "les retrouver facilement.",
                 modifier = Modifier.padding(innerPadding),
-                actionLabel = "➕ Créer un album",
+                iconRes = R.drawable.ic_nav_albums,
+                tintIcon = false,
+                actionLabel = "Créer un album",
                 onAction = { showCreate = true },
             )
         } else {
@@ -160,10 +163,10 @@ private fun AlbumRow(
                 modifier = Modifier.weight(1f),
             )
             IconButton(onClick = onRename) {
-                EmojiIcon("✏️", contentDescription = "Renommer l'album")
+                BotanicalIcon(R.drawable.ic_edit_botanical, "Renommer l'album")
             }
             IconButton(onClick = onDelete) {
-                EmojiIcon("🗑️", contentDescription = "Supprimer l'album")
+                BotanicalIcon(R.drawable.ic_delete_botanical, "Supprimer l'album")
             }
         }
     }

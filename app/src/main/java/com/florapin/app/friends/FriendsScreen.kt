@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,6 +34,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.network.dto.FriendshipDto
 import com.florapin.app.ui.components.EmojiIcon
+import com.florapin.app.ui.components.FloraAvatar
 
 /**
  * Écran de gestion des amis (NODE-70) : demandes reçues/envoyées, liste d'amis,
@@ -262,14 +264,17 @@ private fun FriendRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            val friendName = friendship.user.displayName.ifBlank { "Utilisateur FloraPin" }
+            FloraAvatar(
+                avatarUrl = friendship.user.avatarUrl,
+                seed = friendship.user.id,
+                contentDescription = "Photo de profil de $friendName",
+                modifier = Modifier.size(48.dp),
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    friendship.user.displayName.ifBlank { friendship.user.email },
+                    friendName,
                     style = MaterialTheme.typography.bodyLarge,
-                )
-                Text(
-                    friendship.user.email,
-                    style = MaterialTheme.typography.bodySmall,
                 )
             }
             if (primaryLabel != null) {

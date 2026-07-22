@@ -17,6 +17,7 @@ object SyncScheduler {
 
     private const val PERIODIC = "florapin-sync-periodic"
     private const val ONESHOT = "florapin-sync-now"
+    private const val COMPRESSION = "florapin-image-compression"
 
     /** Clé d'entrée : forcer la passe même si la sync automatique est désactivée. */
     const val KEY_FORCE = "force"
@@ -44,6 +45,20 @@ object SyncScheduler {
         val wm = WorkManager.getInstance(context)
         wm.cancelUniqueWork(PERIODIC)
         wm.cancelUniqueWork(ONESHOT)
+        wm.cancelUniqueWork(COMPRESSION)
+    }
+
+    /** Optimise la capture en arrière-plan puis lance, si activée, sa sync. */
+    fun processCapture(context: Context) {
+        val compression = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+            .build()
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            COMPRESSION,
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
+            compression,
+        )
+        syncNow(context)
     }
 
     /**

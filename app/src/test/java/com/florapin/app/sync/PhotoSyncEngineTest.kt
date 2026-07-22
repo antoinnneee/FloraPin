@@ -71,6 +71,7 @@ private class FakePhotosApi : PhotosApi {
         flowerId: String,
         photoId: String,
         file: okhttp3.MultipartBody.Part,
+        thumbnail: okhttp3.MultipartBody.Part,
     ): PhotoDto {
         uploaded.add(flowerId to photoId)
         return PhotoDto(photoId, "url", position = 0, isCover = false)

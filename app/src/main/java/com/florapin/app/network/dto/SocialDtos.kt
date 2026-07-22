@@ -19,6 +19,7 @@ data class FriendUserDto(
     val id: String,
     val displayName: String,
     val email: String,
+    val avatarUrl: String? = null,
 )
 
 @JsonClass(generateAdapter = true)

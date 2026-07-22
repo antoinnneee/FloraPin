@@ -17,6 +17,55 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.15.0] — 2026-07-22
+
+### Ajouté
+- **Nettoyage des images orphelines et déduplication du stockage.** Les variantes
+  WebP sont adressées par leur empreinte SHA-256 afin qu'un même fichier ne soit
+  stocké qu'une fois par propriétaire. Une tâche périodique supprime les objets
+  MinIO anciens qui ne sont plus référencés, après un délai de sécurité.
+- **Présentation interactive du flux photo.** La landing explique le parcours de
+  la capture au serveur et propose un comparateur avant/après sur une photo réelle.
+  Son laboratoire plein écran combine cinq résolutions, six qualités (Q70 à Q95)
+  et trois filtres de réduction sur 78 fichiers réels, avec taille mesurée,
+  comparaison par séparation et inspection à 100 %. Le sans-perte reste disponible
+  comme témoin à la définition originale ; Lanczos3 est présélectionné comme filtre retenu.
+- **Bibliothèque d'avatars FloraPin.** Onze compagnons botaniques générés sont
+  embarqués en WebP 256 px Q80. Un avatar stable est attribué par identifiant aux
+  profils sans photo, et le sélecteur permet soit d'en téléverser un, soit de
+  conserver le choix d'une image du téléphone.
+
+### Modifié
+- **Compression des photos déplacée dans l'app.** Après la capture, un Worker
+  applique Lanczos3 puis encode hors du thread d'interface l'image principale en
+  WebP. Le profil Standard limite le bord à 3 200 px en Q70 ; le profil Premium à
+  4 000 px en Q90. `PREMIUM_FOR_ALL_BETA=true` attribue temporairement le profil
+  Premium à tous les comptes. La miniature reste limitée à 400 px en Q70,
+  l'utilisateur peut continuer à naviguer pendant le traitement et l'upload
+  attend des fichiers valides.
+- **Upload des variantes sans réencodage serveur.** Les nouveaux clients envoient
+  directement l'image principale et la miniature WebP ; l'API valide leur format
+  et leurs dimensions avant stockage. L'ancien endpoint de conversion reste
+  temporairement disponible pour les versions de l'app pas encore mises à jour.
+- **Icônes botaniques harmonisées.** Les écrans Albums, détail d'album, détail de
+  fleur, fiche espèce et commentaires remplacent leurs emojis système par des
+  ressources FloraPin multicolores. Les icônes existantes de l'accueil sont
+  réutilisées lorsque leur action correspond, avec de nouveaux pictogrammes pour
+  le retour, l'ajout, l'édition, la suppression, le partage et les menus.
+- **Fiche fleur simplifiée.** Le bouton de réaction affiche un unique emoji dont
+  l'état change, suivi du seul compteur numérique. La localisation réutilise le
+  géocodage ville/région du flux partagé à la place des coordonnées brutes, et
+  l'éditeur d'espèce masque les étiquettes tout en préservant les valeurs déjà
+  enregistrées.
+- **Avatars dans les relations sociales.** La liste d'amis affiche à gauche du
+  nom, sans email, la photo distante ou le compagnon attribué. Les photos choisies
+  avant cette mise à jour sont récupérées depuis le profil public lorsque
+  l'ancienne réponse de liste ne contient pas encore l'avatar. Les réponses de
+  l'API d'amitié exposent maintenant l'URL présignée de l'avatar, et la fiche
+  publique d'un ami utilise le même repli botanique.
+
+_versionName 1.15.0, versionCode 29._
+
 ## [1.14.6] — 2026-07-21
 
 ### Ajouté

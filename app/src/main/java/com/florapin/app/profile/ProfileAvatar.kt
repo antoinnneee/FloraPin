@@ -2,6 +2,7 @@ package com.florapin.app.profile
 
 import android.content.Context
 import android.net.Uri
+import androidx.annotation.DrawableRes
 import com.florapin.app.network.auth.SessionManager
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -21,10 +22,16 @@ interface ProfileAvatar {
      */
     suspend fun upload(source: Uri): String?
 
+    /** Téléverse un compagnon botanique embarqué dans les ressources. */
+    suspend fun uploadDefault(@DrawableRes resourceId: Int): String?
+
     companion object {
         /** Implémentation par défaut inerte (tests / factory absente). */
         val NOOP: ProfileAvatar = object : ProfileAvatar {
             override suspend fun upload(source: Uri): String? =
+                throw UnsupportedOperationException("Avatar non disponible")
+
+            override suspend fun uploadDefault(resourceId: Int): String? =
                 throw UnsupportedOperationException("Avatar non disponible")
         }
 
@@ -51,4 +58,17 @@ private class AndroidProfileAvatar(
             temp.delete()
         }
     }
+
+    override suspend fun uploadDefault(resourceId: Int): String? =
+        withContext(Dispatchers.IO) {
+            val temp = File.createTempFile("avatar-default-", ".webp", context.cacheDir)
+            try {
+                context.resources.openRawResource(resourceId).use { input ->
+                    temp.outputStream().use { output -> input.copyTo(output) }
+                }
+                session.uploadAvatar(temp).avatarUrl
+            } finally {
+                temp.delete()
+            }
+        }
 }

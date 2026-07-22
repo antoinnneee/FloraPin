@@ -1,0 +1,544 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="FloraPin — de la photo à la sauvegarde"
+  description="Le parcours réel d'une photo FloraPin, de CameraX à MinIO, en passant par Room et la synchronisation hors-ligne."
+>
+  <main>
+    <section class="hero">
+      <div class="container hero-inner">
+        <a class="back" href="/">← Retour à FloraPin</a>
+        <p class="kicker">TRACE PRODUIT · CAPTURE → CLOUD</p>
+        <h1>Une photo ne part<br /><em>jamais tout de suite.</em></h1>
+        <p class="lede">
+          FloraPin enregistre d’abord la trouvaille sur le téléphone. La sauvegarde
+          serveur ne commence qu’après <strong>Terminer</strong>, avec un compte,
+          la synchronisation activée et du réseau.
+        </p>
+        <div class="hero-facts" aria-label="Principes du flux">
+          <span><b>01</b> Locale avant tout</span>
+          <span><b>02</b> GPS facultatif</span>
+          <span><b>03</b> Upload retentable</span>
+        </div>
+      </div>
+      <div class="specimen" aria-hidden="true">
+        <div class="lens"><i></i><i></i><i></i></div>
+        <div class="stem"></div>
+        <div class="petal p1"></div><div class="petal p2"></div><div class="petal p3"></div>
+        <div class="core"></div>
+      </div>
+    </section>
+
+    <nav class="jump-nav" aria-label="Étapes du flux">
+      <div class="container">
+        <a href="#capture">Sur le téléphone</a>
+        <a href="#demo">Avant / après</a>
+        <a href="#sync">Passage au cloud</a>
+        <a href="#serveur">Côté serveur</a>
+        <a href="#resilience">En cas d’aléa</a>
+      </div>
+    </nav>
+
+    <section id="capture" class="section local-section">
+      <div class="container">
+        <header class="section-intro reveal">
+          <p class="kicker">ÉTAPE 1 · SANS RÉSEAU REQUIS</p>
+          <h2>La capture devient immédiatement une <em>trouvaille locale.</em></h2>
+          <p>Le chemin critique tient entièrement dans l’app Android. La carte et la galerie peuvent déjà exploiter cette capture avant toute connexion.</p>
+        </header>
+
+        <ol class="local-flow" aria-label="Flux local de capture">
+          <li class="reveal">
+            <span class="step-no">A</span>
+            <div><h3>Viser & déclencher</h3><p>CameraX affiche l’aperçu, puis écrit un JPEG dans <code>filesDir/photos</code>, le stockage privé de l’app.</p></div>
+            <span class="file-chip">FLORA_…jpg</span>
+          </li>
+          <li class="reveal">
+            <span class="step-no">B</span>
+            <div><h3>Associer le lieu</h3><p>Le fix GPS est sondé pendant la visée. Au déclenchement, il est réutilisé ou redemandé ; sans fix, la capture reste valide, sans coordonnées.</p></div>
+            <span class="gps-chip">± précision</span>
+          </li>
+          <li class="reveal">
+            <span class="step-no">C</span>
+            <div><h3>Écrire dans Room</h3><p>La première image crée une fleur locale avec son chemin, sa date et son GPS. Les prises suivantes deviennent des photos additionnelles du même groupe.</p></div>
+            <span class="db-chip">PENDING</span>
+          </li>
+          <li class="reveal">
+            <span class="step-no">D</span>
+            <div><h3>Revoir & décider</h3><p>On peut annuler, ajouter une image ou terminer. Après « Terminer », WorkManager compresse en arrière-plan : l’utilisateur peut continuer immédiatement à utiliser l’app.</p></div>
+            <span class="action-chip">Terminer</span>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="demo" class="section demo-section">
+      <div class="container">
+        <header class="demo-heading reveal">
+          <div>
+            <p class="kicker">DÉMONSTRATION · PHOTO RÉELLE</p>
+            <h2>Moins d’octets.<br /><em>Le même regard.</em></h2>
+          </div>
+          <div class="demo-stats" aria-label="Résultat de la compression" aria-live="polite">
+            <div><span>JPEG original</span><strong>3,79 Mo</strong></div>
+            <div><span data-variant-stat>WebP · Q90</span><strong data-variant-size>2,74 Mo</strong></div>
+            <div class="saved"><span>Écart de taille</span><strong data-variant-saving>−28 %</strong></div>
+          </div>
+        </header>
+
+        <div class="variant-picker reveal" role="group" aria-label="Qualité WebP à comparer">
+          <span class="variant-picker-title">Choisir l’échantillon</span>
+          <div class="variant-options">
+            <button type="button" aria-pressed="false" data-variant data-src="/img/photo-demo-webp-q80.webp" data-label="WebP · Q80" data-short-label="Optimisé · Q80" data-size="1,92 Mo" data-saving="−49 %">
+              <span>Qualité 80</span><strong>1,92 Mo</strong>
+            </button>
+            <button type="button" aria-pressed="false" data-variant data-src="/img/photo-demo-webp.webp" data-label="WebP · Q85" data-short-label="Optimisé · Q85" data-size="2,30 Mo" data-saving="−39 %">
+              <span>Qualité 85</span><strong>2,30 Mo</strong>
+            </button>
+            <button type="button" aria-pressed="true" data-variant data-src="/img/photo-demo-webp-q90.webp" data-label="WebP · Q90" data-short-label="Optimisé · Q90" data-size="2,74 Mo" data-saving="−28 %">
+              <span>Qualité 90</span><strong>2,74 Mo</strong>
+            </button>
+            <button type="button" aria-pressed="false" data-variant data-src="/img/photo-demo-webp-q95.webp" data-label="WebP · Q95" data-short-label="Optimisé · Q95" data-size="3,39 Mo" data-saving="−10 %">
+              <span>Qualité 95</span><strong>3,39 Mo</strong>
+            </button>
+            <button type="button" aria-pressed="false" data-variant data-src="/img/photo-demo-webp-lossless.webp" data-label="WebP · sans perte" data-short-label="WebP · sans perte" data-size="9,04 Mo" data-saving="+139 %">
+              <span>Sans perte</span><strong>9,04 Mo</strong>
+            </button>
+          </div>
+        </div>
+
+        <div class="quality-profiles reveal" aria-label="Profils de qualité retenus">
+          <article>
+            <div><span>Standard</span><small>Après la bêta</small></div>
+            <strong>3 200 px · Lanczos3 · Q70</strong>
+            <p>1,16 Mo sur la photo test <b>−69 %</b></p>
+          </article>
+          <article class="premium-profile">
+            <div><span>Premium</span><small>Actif pour tous en bêta</small></div>
+            <strong>4 000 px · Lanczos3 · Q90</strong>
+            <p>2,74 Mo sur la photo test <b>−28 %</b></p>
+          </article>
+        </div>
+
+        <div class="comparison reveal" data-comparison style="--split: 50%">
+          <img
+            class="comparison-image comparison-original"
+            src="/img/photo-demo-original.jpg"
+            alt="Photo de démonstration originale au format JPEG"
+          />
+          <div class="comparison-after" aria-hidden="true">
+            <img
+              class="comparison-image"
+              data-optimized-image
+              src="/img/photo-demo-webp-q90.webp"
+              alt=""
+            />
+          </div>
+          <span class="comparison-label label-original">Original · JPEG</span>
+          <span class="comparison-label label-webp" data-optimized-label>Optimisé · Q90</span>
+          <div class="comparison-handle" aria-hidden="true"><span>↔</span></div>
+          <button class="comparison-expand" type="button" data-open-comparison aria-haspopup="dialog">⤢ Ouvrir le laboratoire</button>
+          <label class="sr-only" for="comparison-range">Comparer l’image originale et l’image WebP</label>
+          <input
+            id="comparison-range"
+            class="comparison-range"
+            type="range"
+            min="0"
+            max="100"
+            value="50"
+            aria-valuetext="50 % d’image WebP visible"
+          />
+        </div>
+        <p class="demo-caption reveal">
+          Faites glisser la ligne pour un premier aperçu, puis ouvrez le laboratoire. En plein
+          écran, combinez résolution, qualité et filtre avant de passer à 100 % pour inspecter
+          les détails réels. Chaque choix charge un fichier véritable et sa taille mesurée.
+          Les profils Standard et Premium affichés ci-dessus sont les réglages définitifs.
+        </p>
+
+        <dialog class="comparison-dialog" data-comparison-dialog aria-labelledby="comparison-dialog-title">
+          <header class="dialog-header">
+            <div>
+              <small>Laboratoire de compression · fichiers réels</small>
+              <strong id="comparison-dialog-title" data-lab-title>4 000 px · Q90 · sans redimensionnement</strong>
+              <span class="dialog-metric" data-lab-metric aria-live="polite">2,74 Mo · −28 %</span>
+            </div>
+            <div class="dialog-actions">
+              <button type="button" data-dialog-zoom>Voir à 100 %</button>
+              <button type="button" data-close-comparison>Fermer</button>
+            </div>
+          </header>
+          <div class="lab-controls" aria-label="Configuration de l’image comparée">
+            <label>
+              <span>Résolution</span>
+              <select data-lab-resolution>
+                <option value="4000">Originale · 4 000 px</option>
+                <option value="3600">3 600 px</option>
+                <option value="3200">3 200 px</option>
+                <option value="2560">2 560 px</option>
+                <option value="2048">2 048 px</option>
+              </select>
+            </label>
+            <label>
+              <span>Qualité</span>
+              <select data-lab-quality>
+                <option value="70">Q70</option>
+                <option value="75">Q75</option>
+                <option value="80">Q80</option>
+                <option value="85">Q85</option>
+                <option value="90" selected>Q90</option>
+                <option value="95">Q95</option>
+                <option value="lossless">Sans perte · original uniquement</option>
+              </select>
+            </label>
+            <label>
+              <span>Filtre de réduction</span>
+              <select data-lab-filter disabled>
+                <option value="lanczos3">Lanczos3 · filtre retenu</option>
+                <option value="cubic">Bicubique · équilibre</option>
+                <option value="mitchell">Mitchell · douceur</option>
+              </select>
+            </label>
+            <p data-lab-note>À la définition originale, aucun filtre de réduction n’est appliqué.</p>
+          </div>
+          <div class="dialog-viewport" data-dialog-viewport>
+            <div class="comparison dialog-comparison" data-dialog-comparison data-comparison style="--split:50%">
+              <img class="comparison-image comparison-original" src="/img/photo-demo-original.jpg" alt="Photo originale" />
+              <div class="comparison-after" aria-hidden="true">
+                <img class="comparison-image" data-lab-image src="/img/photo-lab/r4000-q90.webp" alt="" />
+              </div>
+              <span class="comparison-label label-original">Original · JPEG</span>
+              <span class="comparison-label label-webp" data-lab-label>4 000 px · Q90</span>
+              <div class="comparison-handle" aria-hidden="true"><span>↔</span></div>
+              <label class="sr-only" for="dialog-comparison-range">Comparer l’image originale et l’image WebP agrandies</label>
+              <input id="dialog-comparison-range" class="comparison-range" type="range" min="0" max="100" value="50" aria-valuetext="50 % d’image WebP visible" />
+            </div>
+          </div>
+        </dialog>
+      </div>
+    </section>
+
+    <section id="sync" class="section sync-section">
+      <div class="container">
+        <div class="sync-heading reveal">
+          <div>
+            <p class="kicker">ÉTAPE 2 · DÉCLENCHEMENT CONTRÔLÉ</p>
+            <h2>« Terminer » ne fait pas un upload immédiat.</h2>
+          </div>
+          <p>Il planifie un travail WorkManager. Celui-ci attend une connexion et vérifie les préférences ainsi que la session avant d’ouvrir le moindre échange réseau.</p>
+        </div>
+
+        <div class="gate reveal">
+          <div class="gate-question">La synchronisation peut-elle partir&nbsp;?</div>
+          <div class="gate-answers">
+            <div><span class="yes">Oui</span><p>compte connecté<br />sync activée<br />réseau disponible</p><b>Worker lancé</b></div>
+            <div><span class="no">Non</span><p>mode local, session absente<br />ou pas de réseau</p><b>Capture conservée</b></div>
+          </div>
+        </div>
+
+        <div class="exchange reveal">
+          <div class="actor phone"><span class="actor-icon">▣</span><b>Android</b><small>Room + fichiers privés</small></div>
+          <div class="messages">
+            <div class="message out"><code>POST /sync/flowers</code><span>Métadonnées + <code>localId</code></span></div>
+            <div class="arrow">→</div>
+            <div class="message back"><code>201 / mapping</code><span><code>localId → serverId</code></span></div>
+            <div class="arrow reverse">←</div>
+            <div class="message out"><code>POST /flowers/:id/image-variants</code><span>2 WebP multipart</span></div>
+            <div class="arrow">→</div>
+          </div>
+          <div class="actor api"><span class="actor-icon">⌘</span><b>API NestJS</b><small>JWT · validation</small></div>
+        </div>
+
+        <aside class="note reveal">
+          <span>Point important</span>
+          <p>Pendant la bêta, tous les comptes utilisent le profil Premium : bord maximal de 4 000 px, réduction Lanczos3 si nécessaire et WebP Q90. Une miniature de 400 px est aussi produite, puis <strong>le serveur valide les deux fichiers sans les réencoder</strong>.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section id="serveur" class="section server-section">
+      <div class="container">
+        <header class="section-intro reveal">
+          <p class="kicker">ÉTAPE 3 · TRAITEMENT & PERSISTANCE</p>
+          <h2>Le serveur sépare la <em>fiche</em> de la <em>matière photo.</em></h2>
+        </header>
+
+        <div class="server-map reveal" aria-label="Architecture de persistance serveur">
+          <div class="server-node api-node">
+            <span class="node-label">API NESTJS</span>
+            <h3>Réception contrôlée</h3>
+            <p>JWT, propriétaire, MIME, octets réels, dimensions et SHA-256 sont vérifiés sans modifier l’image.</p>
+          </div>
+          <div class="server-line line-one"><span>métadonnées</span></div>
+          <div class="server-node pg-node">
+            <span class="node-label">POSTGRES + POSTGIS</span>
+            <h3>Fleur & position</h3>
+            <p>UUID, date, notes, visibilité et point WGS84 ; la base ne contient que des clés d’objets image.</p>
+          </div>
+          <div class="server-line line-two"><span>WebP + miniature</span></div>
+          <div class="server-node minio-node">
+            <span class="node-label">MINIO · S3</span>
+            <h3>Fichiers optimisés</h3>
+            <p><b>Standard</b> : bord max. 3 200 px, Lanczos3, Q70<br /><b>Premium bêta</b> : bord max. 4 000 px, Lanczos3, Q90<br /><b>Aperçu</b> : bord max. 400 px, qualité 70</p>
+          </div>
+        </div>
+
+        <div class="processing reveal">
+          <p class="processing-label">Dans l’app, après « Terminer », sans bloquer l’interface</p>
+          <div class="processing-track">
+            <span>orientation EXIF corrigée</span><i>→</i><span>2 WebP produits</span><i>→</i><span>upload en arrière-plan</span><i>→</i><span>déduplication SHA-256</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="resilience" class="section resilience-section">
+      <div class="container">
+        <div class="resilience-copy reveal">
+          <p class="kicker">GARDE-FOUS DU FLUX</p>
+          <h2>Le réseau échoue.<br /><em>La capture, non.</em></h2>
+          <p>Le système est conçu pour préserver le lien entre la fleur et son image même quand l’app s’arrête, que le réseau coupe ou qu’un upload expire.</p>
+        </div>
+        <div class="resilience-grid">
+          <article class="reveal"><span>01</span><h3>Idempotence</h3><p>Le <code>localId</code> reste stable : rejouer un push renvoie la même fleur serveur plutôt que de créer un doublon.</p></article>
+          <article class="reveal"><span>02</span><h3>Écriture avant upload</h3><p>Le <code>serverId</code> est conservé localement avant l’envoi du fichier. Une interruption ne fait donc pas recréer la fleur.</p></article>
+          <article class="reveal"><span>03</span><h3>Reprise automatique</h3><p>Si le binaire échoue après la création, <code>imagePendingUpload</code> le marque pour un nouvel essai au prochain cycle.</p></article>
+          <article class="reveal"><span>04</span><h3>Réconciliation</h3><p>Le worker pousse, tire le delta <code>GET /sync?since=</code>, puis applique le dernier état connu du serveur.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="summary">
+      <div class="container summary-inner reveal">
+        <p class="kicker">EN UNE PHRASE</p>
+        <p class="quote">La photo est d’abord <strong>locale, puis optimisée en arrière-plan</strong> ; le serveur la valide, la déduplique et la rend récupérable sans jamais la réencoder.</p>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-comparison]').forEach((comparison) => {
+    const range = comparison.querySelector<HTMLInputElement>('.comparison-range');
+    if (!range) return;
+    const update = () => {
+      const value = Number(range.value);
+      comparison.style.setProperty('--split', `${value}%`);
+      range.setAttribute('aria-valuetext', `${value} % d’image WebP visible`);
+    };
+    range.addEventListener('input', update);
+    update();
+  });
+
+  const variantButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-variant]'));
+  const optimizedImages = Array.from(document.querySelectorAll<HTMLImageElement>('[data-optimized-image]'));
+  const optimizedLabels = Array.from(document.querySelectorAll<HTMLElement>('[data-optimized-label]'));
+  const variantStat = document.querySelector<HTMLElement>('[data-variant-stat]');
+  const variantSize = document.querySelector<HTMLElement>('[data-variant-size]');
+  const variantSaving = document.querySelector<HTMLElement>('[data-variant-saving]');
+
+  variantButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      variantButtons.forEach((candidate) => candidate.setAttribute('aria-pressed', String(candidate === button)));
+      if (button.dataset.src) optimizedImages.forEach((image) => { image.src = button.dataset.src!; });
+      if (button.dataset.shortLabel) optimizedLabels.forEach((label) => { label.textContent = button.dataset.shortLabel!; });
+      if (variantStat && button.dataset.label) variantStat.textContent = button.dataset.label;
+      if (variantSize && button.dataset.size) variantSize.textContent = button.dataset.size;
+      if (variantSaving && button.dataset.saving) variantSaving.textContent = button.dataset.saving;
+    });
+  });
+
+  const comparisonDialog = document.querySelector<HTMLDialogElement>('[data-comparison-dialog]');
+  const dialogComparison = document.querySelector<HTMLElement>('[data-dialog-comparison]');
+  const dialogViewport = document.querySelector<HTMLElement>('[data-dialog-viewport]');
+  const zoomButton = document.querySelector<HTMLButtonElement>('[data-dialog-zoom]');
+  const labResolution = document.querySelector<HTMLSelectElement>('[data-lab-resolution]');
+  const labQuality = document.querySelector<HTMLSelectElement>('[data-lab-quality]');
+  const labFilter = document.querySelector<HTMLSelectElement>('[data-lab-filter]');
+  const labImage = document.querySelector<HTMLImageElement>('[data-lab-image]');
+  const labLabel = document.querySelector<HTMLElement>('[data-lab-label]');
+  const labTitle = document.querySelector<HTMLElement>('[data-lab-title]');
+  const labMetric = document.querySelector<HTMLElement>('[data-lab-metric]');
+  const labNote = document.querySelector<HTMLElement>('[data-lab-note]');
+  const originalBytes = 3_975_223;
+  const filterLabels: Record<string, string> = {
+    lanczos3: 'Lanczos3',
+    cubic: 'Bicubique',
+    mitchell: 'Mitchell',
+  };
+
+  const formatBytes = (bytes: number) => {
+    const value = bytes / 1_048_576;
+    return `${value.toFixed(2).replace('.', ',')} Mo`;
+  };
+
+  let labRequest = 0;
+  const updateLab = async () => {
+    if (!labResolution || !labQuality || !labFilter || !labImage) return;
+    const lossless = labQuality.value === 'lossless';
+    if (lossless) labResolution.value = '4000';
+    const resolution = Number(labResolution.value);
+    const quality = labQuality.value;
+    const resized = resolution !== 4000;
+    labResolution.disabled = lossless;
+    labFilter.disabled = lossless || !resized;
+    const filter = labFilter.value;
+    const filterName = resized ? filterLabels[filter] : 'sans redimensionnement';
+    const path = lossless
+      ? '/img/photo-demo-webp-lossless.webp'
+      : resized
+        ? `/img/photo-lab/r${resolution}-q${quality}-${filter}.webp`
+        : `/img/photo-lab/r4000-q${quality}.webp`;
+    const qualityName = lossless ? 'sans perte' : `Q${quality}`;
+    if (labTitle) labTitle.textContent = `${resolution.toLocaleString('fr-FR')} px · ${qualityName} · ${filterName}`;
+    if (labLabel) labLabel.textContent = `${resolution.toLocaleString('fr-FR')} px · ${qualityName}`;
+    if (labNote) labNote.textContent = resized
+      ? `${filterName} est appliqué en une seule passe avant l’encodage WebP.`
+      : lossless
+        ? 'Le sans-perte est mesuré uniquement à la définition originale.'
+        : 'À la définition originale, aucun filtre de réduction n’est appliqué.';
+    if (labMetric) labMetric.textContent = 'Mesure du fichier…';
+    labImage.src = path;
+    const request = ++labRequest;
+    try {
+      const response = await fetch(path, { method: 'HEAD', cache: 'force-cache' });
+      const bytes = Number(response.headers.get('content-length'));
+      if (request !== labRequest || !bytes) return;
+      const delta = ((bytes / originalBytes) - 1) * 100;
+      const signedDelta = `${delta > 0 ? '+' : '−'}${Math.abs(Math.round(delta))} %`;
+      if (labMetric) labMetric.textContent = `${formatBytes(bytes)} · ${signedDelta}`;
+    } catch {
+      if (request === labRequest && labMetric) labMetric.textContent = 'Taille indisponible';
+    }
+  };
+
+  [labResolution, labQuality, labFilter].forEach((control) => control?.addEventListener('change', updateLab));
+  labImage?.addEventListener('load', () => {
+    if (!dialogComparison || !labImage.naturalWidth || !labImage.naturalHeight) return;
+    dialogComparison.style.setProperty('--image-width', `${labImage.naturalWidth}px`);
+    dialogComparison.style.setProperty('--image-height', `${labImage.naturalHeight}px`);
+  });
+
+  document.querySelector('[data-open-comparison]')?.addEventListener('click', () => {
+    void updateLab();
+    comparisonDialog?.showModal();
+  });
+  document.querySelector('[data-close-comparison]')?.addEventListener('click', () => comparisonDialog?.close());
+  zoomButton?.addEventListener('click', () => {
+    if (!dialogComparison || !dialogViewport) return;
+    const zoomed = dialogComparison.dataset.zoomed === 'true';
+    dialogComparison.dataset.zoomed = String(!zoomed);
+    zoomButton.textContent = zoomed ? 'Voir à 100 %' : 'Ajuster à l’écran';
+    if (!zoomed) requestAnimationFrame(() => {
+      dialogViewport.scrollLeft = (dialogViewport.scrollWidth - dialogViewport.clientWidth) / 2;
+      dialogViewport.scrollTop = (dialogViewport.scrollHeight - dialogViewport.clientHeight) / 2;
+    });
+  });
+  comparisonDialog?.addEventListener('close', () => {
+    if (dialogComparison) dialogComparison.dataset.zoomed = 'false';
+    if (zoomButton) zoomButton.textContent = 'Voir à 100 %';
+  });
+</script>
+
+<style>
+  :global(body) { background: #f1f3eb; }
+  .hero { min-height: 620px; overflow: hidden; position: relative; color: #f4f6eb; background: #183a31; isolation: isolate; }
+  .hero::before { content: ''; position: absolute; z-index: -1; inset: 0; opacity: .34; background-image: radial-gradient(#c6db8d 1px, transparent 1px); background-size: 21px 21px; mask-image: linear-gradient(90deg, black, transparent 67%); }
+  .hero-inner { padding-top: 46px; padding-bottom: 116px; position: relative; z-index: 2; }
+  .back { display: inline-block; color: #bad2ae; font-family: var(--font-mono); font-size: .76rem; letter-spacing: .03em; margin-bottom: clamp(72px, 12vw, 150px); }
+  .kicker { color: #bcd699; font: 500 .73rem var(--font-mono); letter-spacing: .16em; text-transform: uppercase; }
+  h1, h2, h3, p { margin: 0; }
+  h1 { max-width: 690px; margin-top: 20px; font: 500 clamp(3rem, 7vw, 6.6rem)/.96 var(--font-display); letter-spacing: -.055em; }
+  h1 em, h2 em { color: #e8b4ca; font-weight: 400; }
+  .lede { max-width: 540px; margin-top: 29px; color: #cfddcb; font-size: 1.15rem; line-height: 1.58; }
+  .hero-facts { display: flex; flex-wrap: wrap; gap: 10px 26px; margin-top: 46px; color: #dce9c3; font-size: .88rem; }
+  .hero-facts b { color: #f3d45a; font-family: var(--font-mono); font-size: .68rem; margin-right: 7px; }
+  .specimen { position: absolute; width: 360px; height: 380px; right: clamp(-76px, 5vw, 90px); bottom: -43px; transform: rotate(-15deg); z-index: 1; }
+  .lens { width: 245px; height: 245px; position: absolute; top: 0; left: 0; border: 13px solid #dceaa9; border-radius: 50%; box-shadow: inset 0 0 0 9px #34634c; background: #264b3d; overflow: hidden; }
+  .lens i { position: absolute; width: 147px; height: 51px; border: 2px solid #9abd77; border-radius: 50%; transform: rotate(35deg); opacity: .65; }
+  .lens i:nth-child(1) { left: 43px; top: 73px; }.lens i:nth-child(2) { left: -25px; top: 25px; transform: rotate(120deg); }.lens i:nth-child(3) { left: 113px; top: 25px; transform: rotate(117deg); }
+  .stem { position: absolute; height: 190px; width: 15px; left: 238px; top: 188px; border-radius: 50%; background: #9abd77; transform: rotate(-37deg); transform-origin: top; }.petal,.core { position:absolute; border-radius: 50%; }.petal { width: 94px; height: 58px; background:#dc71a4; transform-origin: 100% 50%; }.p1 { left:238px; top:186px; transform:rotate(10deg); }.p2 { left:225px; top:218px; transform:rotate(130deg); }.p3 { left:198px; top:189px; transform:rotate(250deg); }.core { width:39px; height:39px; left:226px; top:200px; background:#f3d45a; }
+  .jump-nav { position: sticky; top: 0; z-index: 5; background: #fbfcf4; border-bottom: 1px solid #dbe4ce; }.jump-nav > div { min-height: 58px; display: flex; overflow-x: auto; align-items: center; gap: clamp(18px,4vw,52px); }.jump-nav a { flex: 0 0 auto; color: #466253; font: 500 .72rem var(--font-mono); letter-spacing: .04em; text-transform: uppercase; }.jump-nav a:hover { color: #b34776; }
+  .section { padding: clamp(82px, 11vw, 144px) 0; }.section-intro { max-width: 720px; }.section-intro h2, .sync-heading h2, .resilience-copy h2 { margin-top: 15px; color:#1b392e; font: 500 clamp(2.25rem, 4vw, 4rem)/1.05 var(--font-display); letter-spacing: -.04em; }.section-intro > p:last-child { margin-top: 23px; color:#5c7163; font-size: 1.08rem; }
+  .local-section { background:#f7f8f1; }.local-flow { margin-top: clamp(48px,7vw,82px); list-style:none; border-top: 1px solid #cfdbce; }.local-flow li { display:grid; grid-template-columns: 52px minmax(0,1fr) auto; align-items:center; gap: 22px; padding: 27px 8px; border-bottom:1px solid #cfdbce; }.step-no { color:#bb507e; font:500 1.3rem var(--font-mono); }.local-flow h3 { color:#244335; font:700 1.12rem var(--font-body); }.local-flow p { max-width: 690px; margin-top:5px; color:#607466; }.file-chip,.gps-chip,.db-chip,.action-chip { padding:5px 9px; border-radius: 4px; color:#315242; background:#e2ecd8; font:500 .67rem var(--font-mono); white-space:nowrap; }.db-chip { color:#995d10; background:#f5e9bd; }.action-chip { color:#fff; background:#b34776; }
+  .demo-section { color:#eef4e9; background:#24483c; overflow:hidden; }.demo-heading { display:flex; align-items:end; justify-content:space-between; gap:50px; }.demo-heading h2 { margin-top:15px; color:#f7f8ed; font:500 clamp(2.25rem,4vw,4rem)/1.05 var(--font-display); letter-spacing:-.04em; }.demo-stats { display:grid; grid-template-columns:repeat(3,1fr); min-width:min(100%,490px); border:1px solid #587565; }.demo-stats>div { padding:14px 16px; }.demo-stats>div+div { border-left:1px solid #587565; }.demo-stats span { display:block; color:#b8cbb9; font:500 .61rem var(--font-mono); text-transform:uppercase; letter-spacing:.08em; }.demo-stats strong { display:block; margin-top:5px; color:#f5f7e9; font:500 1.16rem var(--font-mono); }.demo-stats .saved { background:#d9e9a9; }.demo-stats .saved span,.demo-stats .saved strong { color:#24483c; }.comparison { --split:50%; position:relative; aspect-ratio:2048/799; margin-top:55px; overflow:hidden; border:10px solid #f1f4e8; background:#17352c; box-shadow:0 28px 70px rgba(5,22,16,.28); user-select:none; }.comparison-image { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }.comparison-after { position:absolute; inset:0; clip-path:inset(0 calc(100% - var(--split)) 0 0); }.comparison-label { position:absolute; top:16px; z-index:2; padding:7px 10px; color:white; background:rgba(16,43,34,.76); backdrop-filter:blur(8px); font:500 .65rem var(--font-mono); letter-spacing:.04em; text-transform:uppercase; }.label-original { right:16px; }.label-webp { left:16px; }.comparison-handle { position:absolute; z-index:3; top:0; bottom:0; left:var(--split); width:3px; background:#f4dc74; transform:translateX(-50%); pointer-events:none; }.comparison-handle span { position:absolute; top:50%; left:50%; display:grid; place-items:center; width:48px; height:48px; border:3px solid #f4dc74; border-radius:50%; color:#24483c; background:#fffef5; font:700 1.15rem var(--font-mono); transform:translate(-50%,-50%); box-shadow:0 5px 18px rgba(0,0,0,.24); }.comparison-range { position:absolute; z-index:4; inset:0; width:100%; height:100%; opacity:0; cursor:ew-resize; }.comparison-range:focus-visible + * { outline:none; }.comparison:has(.comparison-range:focus-visible) { outline:4px solid #f4dc74; outline-offset:5px; }.demo-caption { max-width:720px; margin:24px auto 0; color:#c3d2c3; text-align:center; font-size:.91rem; }.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  .sync-section { color:#e8f0df; background:#173c32; }.sync-section .kicker { color:#c5dd96; }.sync-heading { display:flex; align-items:end; justify-content:space-between; gap:40px; }.sync-heading h2 { color:#f5f7e9; max-width:670px; }.sync-heading > p { max-width:360px; color:#b8cebb; }.gate { margin-top:61px; border:1px solid #4d7061; }.gate-question { padding:14px 20px; color:#dceac1; background:#244b40; font:500 .73rem var(--font-mono); text-transform:uppercase; letter-spacing:.1em; }.gate-answers { display:grid; grid-template-columns: 1fr 1fr; }.gate-answers>div { min-height:152px; padding:22px 26px; }.gate-answers>div+div { border-left:1px solid #4d7061; }.gate-answers span { display:inline-block; padding:2px 7px; font:600 .68rem var(--font-mono); }.yes { color:#1f432f; background:#cbe58a; }.no { color:#f3c4d7; border:1px solid #b65480; }.gate-answers p { color:#b6cbb7; margin:10px 0; line-height:1.42; }.gate-answers b { color:#f2f3dc; font-size:.85rem; }.exchange { position:relative; margin-top:70px; min-height:190px; display:grid; grid-template-columns: 170px 1fr 170px; align-items:center; gap:30px; }.actor { min-height:145px; padding:18px; border:1px solid #5d806e; background:#20473b; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }.actor-icon { color:#eac3d3; font: 2.2rem var(--font-mono); }.actor b { color:#f3f5e9; margin-top:5px; }.actor small { color:#aec5b4; }.messages { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:9px; }.message { width:170px; padding:10px; border-radius:8px; font-size:.77rem; }.message code { display:block; font:500 .7rem var(--font-mono); }.message span { display:block; margin-top:4px; }.message.out { color:#e4efce; background:#315f4a; }.message.back { color:#f1c8d9; background:#70445b; }.arrow { color:#bdd88c; font:1.35rem var(--font-mono); }.reverse { color:#e4b6ca; }.note { display:flex; gap:24px; margin-top:55px; padding:20px 24px; border-left:4px solid #e8bc4e; color:#c7d5c5; background:#204539; }.note span { flex:0 0 auto; color:#f5da76; font:500 .69rem var(--font-mono); text-transform:uppercase; letter-spacing:.09em; }.note strong { color:#fff; }
+  .server-section { background:#e9efe0; }.server-map { display:grid; grid-template-columns: 1fr 80px 1fr 80px 1fr; align-items:center; margin-top:70px; }.server-node { min-height:260px; padding:26px; border-radius: 50% 50% 10px 10px; }.node-label,.processing-label { color:#5b7867; font:500 .67rem var(--font-mono); letter-spacing:.1em; }.server-node h3 { margin-top:22px; color:#1e412f; font:500 1.5rem var(--font-display); }.server-node p { margin-top:12px; color:#526a5b; line-height:1.5; }.api-node { background:#d0e3ab; }.pg-node { background:#e6bfd0; }.minio-node { background:#d4e4e1; }.server-line { position:relative; height:1px; background:#78967f; }.server-line::after { content:'→'; position:absolute; right:-3px; top:-17px; color:#426953; font-size:1.3rem; }.server-line span { position:absolute; top:-29px; width:100%; color:#60796a; text-align:center; font:500 .62rem var(--font-mono); }.processing { margin-top:45px; padding:24px; background:#f9fbf5; border:1px solid #d2ddcf; }.processing-track { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:13px; color:#30503e; font-size:.9rem; }.processing-track span { flex:1; }.processing-track i { color:#c15683; font-style:normal; }
+  .resilience-section { background:#f7f8f1; }.resilience-section > .container { display:grid; grid-template-columns: .8fr 1.2fr; gap:clamp(45px,8vw,100px); }.resilience-copy p:last-child { margin-top:22px; color:#607466; }.resilience-grid { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#d4dfd1; border:1px solid #d4dfd1; }.resilience-grid article { min-height:210px; padding:25px; background:#f7f8f1; }.resilience-grid article>span { color:#bc527f; font:500 .78rem var(--font-mono); }.resilience-grid h3 { margin-top:19px; color:#254335; font-size:1.05rem; }.resilience-grid p { margin-top:9px; color:#607466; font-size:.92rem; line-height:1.54; }
+  .summary { padding:clamp(82px,11vw,145px) 0; background:#ba507d; color:#fff9f2; }.summary-inner { max-width:860px; }.summary .kicker { color:#f1d177; }.quote { margin-top:17px; font:500 clamp(2rem,4vw,3.8rem)/1.13 var(--font-display); letter-spacing:-.035em; }.quote strong { color:#f3dc93; font-weight:500; }
+  code { font-family:var(--font-mono); font-size:.89em; }
+  @media (max-width: 780px) { .specimen { opacity:.55; right:-140px; }.hero { min-height:570px; }.hero-inner { padding-bottom:90px; }.sync-heading, .demo-heading, .resilience-section > .container { display:block; }.sync-heading > p { margin-top:22px; }.demo-stats { margin-top:30px; grid-template-columns:1fr; }.demo-stats>div+div { border-left:0; border-top:1px solid #587565; }.comparison { margin-top:35px; border-width:5px; min-height:280px; aspect-ratio:auto; }.exchange { grid-template-columns: 1fr; }.actor { min-height:110px; }.messages { padding:7px 0; }.server-map { grid-template-columns: 1fr; gap:30px; }.server-line { width:1px; height:38px; margin:auto; }.server-line::after { top:23px; right:-8px; transform:rotate(90deg); }.server-line span { top:9px; left:12px; width:max-content; text-align:left; }.server-node { min-height:auto; border-radius: 22px 22px 7px 7px; }.processing-track { align-items:flex-start; flex-direction:column; }.processing-track i { transform:rotate(90deg); margin: -5px 0; }.local-flow li { grid-template-columns: 36px 1fr; }.local-flow li > :last-child { grid-column:2; justify-self:start; }.gate-answers { grid-template-columns:1fr; }.gate-answers>div+div { border-left:0; border-top:1px solid #4d7061; }.resilience-grid { grid-template-columns:1fr; }.note { flex-direction:column; gap:8px; } }
+</style>
+
+<style>
+  .comparison { aspect-ratio:4000/1560; }
+  .variant-picker { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:24px; margin-top:50px; padding:10px; border:1px solid #587565; background:#1c3d33; }
+  .variant-picker-title { padding-left:10px; color:#b8cbb9; font:500 .65rem var(--font-mono); letter-spacing:.1em; text-transform:uppercase; white-space:nowrap; }
+  .variant-options { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
+  .variant-options button { min-width:0; padding:13px 14px; border:1px solid transparent; color:#c8d7c8; background:#294d40; text-align:left; cursor:pointer; transition:background .18s ease,color .18s ease,border-color .18s ease; }
+  .variant-options button:hover { border-color:#779282; color:#fff; }
+  .variant-options button[aria-pressed="true"] { border-color:#f4dc74; color:#213f35; background:#f4dc74; }
+  .variant-options button:focus-visible { outline:3px solid #e8bfd0; outline-offset:3px; }
+  .variant-options span { display:block; font:600 .72rem var(--font-mono); text-transform:uppercase; letter-spacing:.04em; }
+  .variant-options strong { display:block; margin-top:4px; font:500 .9rem var(--font-mono); }
+  .quality-profiles { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:18px; }
+  .quality-profiles article { display:grid; grid-template-columns:minmax(0,.75fr) minmax(0,1.25fr) auto; align-items:center; gap:18px; padding:17px 20px; border:1px solid #587565; background:#1c3d33; }
+  .quality-profiles article>div span,.quality-profiles article>div small { display:block; }
+  .quality-profiles article>div span { color:#f5f7e9; font:650 .76rem var(--font-mono); letter-spacing:.08em; text-transform:uppercase; }
+  .quality-profiles article>div small { margin-top:3px; color:#a9c0b0; font-size:.7rem; }
+  .quality-profiles article>strong { color:#f5f7e9; font:500 .82rem var(--font-mono); }
+  .quality-profiles article>p { color:#b9ccbd; font-size:.72rem; text-align:right; }
+  .quality-profiles article>p b { display:block; margin-top:2px; color:#d9e9a9; font:600 .72rem var(--font-mono); }
+  .quality-profiles .premium-profile { border-color:#f4dc74; background:#2c5143; box-shadow:inset 4px 0 0 #f4dc74; }
+  .quality-profiles .premium-profile>div span { color:#f4dc74; }
+  .comparison-expand { position:absolute; z-index:5; right:16px; bottom:16px; padding:9px 12px; border:1px solid rgba(255,255,255,.45); color:#fff; background:rgba(16,43,34,.82); backdrop-filter:blur(8px); font:600 .68rem var(--font-mono); letter-spacing:.04em; text-transform:uppercase; cursor:pointer; }
+  .comparison-expand:hover { color:#24483c; background:#f4dc74; border-color:#f4dc74; }
+  .comparison-expand:focus-visible { outline:3px solid #f4dc74; outline-offset:3px; }
+  .comparison-dialog { width:calc(100vw - 24px); max-width:none; height:calc(100dvh - 24px); max-height:none; margin:auto; padding:0; border:1px solid #789487; color:#eef4e9; background:#102d25; box-shadow:0 24px 100px rgba(0,0,0,.55); }
+  .comparison-dialog[open] { display:grid; grid-template-rows:auto auto minmax(0,1fr); }
+  .comparison-dialog::backdrop { background:rgba(5,18,14,.82); backdrop-filter:blur(6px); }
+  .dialog-header { min-height:72px; display:flex; align-items:center; justify-content:space-between; gap:24px; padding:12px 18px; border-bottom:1px solid #496b5d; background:#183a31; }
+  .dialog-header small { display:block; color:#adc5b5; font:500 .62rem var(--font-mono); letter-spacing:.1em; text-transform:uppercase; }
+  .dialog-header strong { display:block; margin-top:3px; color:#fff; font:500 1rem var(--font-mono); }
+  .dialog-metric { display:block; margin-top:3px; color:#f4dc74; font:600 .72rem var(--font-mono); }
+  .dialog-actions { display:flex; gap:8px; }
+  .dialog-actions button { padding:9px 12px; border:1px solid #668576; color:#eef4e9; background:#24483c; font:600 .68rem var(--font-mono); text-transform:uppercase; cursor:pointer; }
+  .dialog-actions button:hover { color:#24483c; background:#f4dc74; border-color:#f4dc74; }
+  .dialog-actions button:focus-visible { outline:3px solid #e8bfd0; outline-offset:2px; }
+  .lab-controls { display:grid; grid-template-columns:repeat(3,minmax(150px,1fr)) minmax(220px,1.2fr); align-items:end; gap:10px; padding:10px 18px; border-bottom:1px solid #496b5d; background:#14342b; }
+  .lab-controls label>span { display:block; margin-bottom:5px; color:#aac1b2; font:500 .59rem var(--font-mono); text-transform:uppercase; letter-spacing:.08em; }
+  .lab-controls select { width:100%; height:36px; padding:0 30px 0 10px; border:1px solid #58796a; border-radius:0; color:#f5f7ed; background:#23483c; font:500 .72rem var(--font-mono); cursor:pointer; }
+  .lab-controls select:focus-visible { outline:3px solid #f4dc74; outline-offset:2px; }
+  .lab-controls select:disabled { color:#80998b; cursor:not-allowed; opacity:.7; }
+  .lab-controls p { align-self:center; color:#a9bdb0; font-size:.75rem; line-height:1.35; }
+  .dialog-viewport { min-height:0; padding:18px; overflow:auto; display:grid; place-items:center; overscroll-behavior:contain; }
+  .dialog-comparison { width:min(100%,calc((100dvh - 230px) * 2.5641)); max-width:none; margin:0; border-width:4px; box-shadow:none; flex:none; }
+  .dialog-comparison[data-zoomed="true"] { width:var(--image-width,4000px); height:var(--image-height,1560px); aspect-ratio:auto; }
+  .dialog-viewport:has(.dialog-comparison[data-zoomed="true"]) { display:block; }
+
+  @media (max-width:780px) {
+    .variant-picker { display:block; margin-top:34px; padding:12px; }
+    .variant-picker-title { display:block; padding:2px 2px 11px; }
+    .variant-options { grid-template-columns:1fr 1fr; }
+    .quality-profiles { grid-template-columns:1fr; }
+    .quality-profiles article { grid-template-columns:1fr; gap:7px; }
+    .quality-profiles article>p { text-align:left; }
+    .comparison-expand { right:10px; bottom:10px; }
+    .comparison-dialog { width:100vw; height:100dvh; border:0; }
+    .dialog-header { align-items:flex-start; padding:10px 12px; }
+    .dialog-header small { display:none; }
+    .dialog-header strong { max-width:38vw; font-size:.76rem; }
+    .dialog-metric { font-size:.63rem; }
+    .dialog-actions button { padding:8px; font-size:.6rem; }
+    .lab-controls { grid-template-columns:repeat(3,minmax(145px,1fr)); padding:8px 10px; overflow-x:auto; }
+    .lab-controls p { display:none; }
+    .dialog-viewport { padding:8px; }
+    .dialog-comparison { width:100%; min-height:0; }
+  }
+
+  @media (prefers-reduced-motion:reduce) {
+    .variant-options button { transition:none; }
+  }
+</style>

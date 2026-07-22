@@ -10,16 +10,20 @@ import {
   Patch,
   Post,
   UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ReorderPhotosDto } from './dto/photo.dto';
-import { imageUploadOptions } from './image-upload.options';
+import {
+  imageUploadOptions,
+  imageVariantsUploadOptions,
+} from './image-upload.options';
 import { FlowerPhotosService } from './flower-photos.service';
 
 @ApiTags('flowers')
@@ -37,20 +41,41 @@ export class FlowerPhotosController {
     return this.photos.add(user.userId, flowerId);
   }
 
-  /** Téléverse le binaire d'une photo (multipart `file`), réencodé en WebP. */
+  /** Reçoit les deux variantes WebP finales, sans réencodage. */
+  @Post(':photoId/image-variants')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [{ name: 'file', maxCount: 1 }, { name: 'thumbnail', maxCount: 1 }],
+      imageVariantsUploadOptions,
+    ),
+  )
+  uploadImage(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) flowerId: string,
+    @Param('photoId', ParseUUIDPipe) photoId: string,
+    @UploadedFiles() files: Record<string, Array<{ buffer: Buffer }>> | undefined,
+  ) {
+    const full = files?.file?.[0]?.buffer;
+    const thumbnail = files?.thumbnail?.[0]?.buffer;
+    if (!full?.length || !thumbnail?.length) {
+      throw new BadRequestException('Image principale ou miniature manquante.');
+    }
+    return this.photos.uploadImage(user.userId, flowerId, photoId, full, thumbnail);
+  }
+
+  /** Compatibilité temporaire avec les anciennes apps qui envoient un JPEG. */
   @Post(':photoId/image')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', imageUploadOptions))
-  uploadImage(
+  uploadLegacyImage(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) flowerId: string,
     @Param('photoId', ParseUUIDPipe) photoId: string,
     @UploadedFile() file: { buffer: Buffer } | undefined,
   ) {
-    if (!file?.buffer?.length) {
-      throw new BadRequestException('Fichier image manquant.');
-    }
-    return this.photos.uploadImage(user.userId, flowerId, photoId, file.buffer);
+    if (!file?.buffer?.length) throw new BadRequestException('Fichier image manquant.');
+    return this.photos.uploadLegacyImage(user.userId, flowerId, photoId, file.buffer);
   }
 
   @Patch('order')

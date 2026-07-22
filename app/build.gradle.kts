@@ -68,13 +68,16 @@ android {
         applicationId = "com.florapin.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 28
-        versionName = "1.14.6"
+        versionCode = 29
+        versionName = "1.15.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "MAPTILER_API_KEY", "\"$maptilerApiKey\"")
         buildConfigField("String", "PRIVACY_POLICY_URL", "\"$privacyPolicyUrl\"")
+        // Toute la bêta bénéficie du profil photo premium. À désactiver lorsque
+        // le véritable droit premium sera fourni par le compte en version stable.
+        buildConfigField("boolean", "PREMIUM_FOR_ALL_BETA", "true")
     }
 
     signingConfigs {

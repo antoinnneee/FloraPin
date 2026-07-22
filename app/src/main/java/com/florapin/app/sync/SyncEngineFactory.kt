@@ -37,9 +37,13 @@ object SyncEngineFactory {
             repository = flowerRepo,
             syncApi = apis.sync,
             flowersApi = apis.flowers,
-            // L'image transite par l'API (multipart) qui la réencode en WebP.
+            // Les deux WebP produits en arrière-plan transitent sans réencodage.
             uploadFlowerImage = { serverId, file ->
-                apis.flowers.uploadImage(serverId, filePart(file))
+                apis.flowers.uploadImage(
+                    serverId,
+                    filePart("file", file),
+                    filePart("thumbnail", requireThumbnail(file)),
+                )
             },
             lastSyncStore = PrefsLastSyncStore(context),
             cacheRemoteImage = { serverId, url -> imageCacher.cache(serverId, url) },
@@ -56,7 +60,12 @@ object SyncEngineFactory {
                 photos = PhotoRepository.from(context),
                 photosApi = apis.photos,
                 uploadPhotoImage = { flowerServerId, photoServerId, file ->
-                    apis.photos.uploadImage(flowerServerId, photoServerId, filePart(file))
+                    apis.photos.uploadImage(
+                        flowerServerId,
+                        photoServerId,
+                        filePart("file", file),
+                        filePart("thumbnail", requireThumbnail(file)),
+                    )
                 },
                 cacheRemoteImage = { photoServerId, url ->
                     imageCacher.cache(photoServerId, url)
@@ -87,8 +96,13 @@ object SyncEngineFactory {
     }
 
     /** Construit la part multipart « file » attendue par les endpoints d'upload. */
-    private fun filePart(file: File): MultipartBody.Part {
-        val body = file.asRequestBody("image/jpeg".toMediaType())
-        return MultipartBody.Part.createFormData("file", file.name, body)
+    private fun filePart(field: String, file: File): MultipartBody.Part {
+        val body = file.asRequestBody("image/webp".toMediaType())
+        return MultipartBody.Part.createFormData(field, file.name, body)
     }
+
+    private fun requireThumbnail(full: File): File =
+        PhotoStorage.thumbnailFileFor(full).also {
+            require(it.isFile && it.length() > 0L) { "Miniature WebP absente" }
+        }
 }

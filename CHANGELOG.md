@@ -17,6 +17,19 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.15.1] — 2026-07-22
+
+### Corrigé
+- **Validation du bundle Android.** Les ressources d'avatars et le chargement des
+  libellés de localisation passent désormais les contrôles de la build release.
+
+### Infrastructure
+- **Publication Play Store automatisée.** Un workflow GitHub Actions construit
+  et signe l'Android App Bundle depuis un tag, s'authentifie auprès de Google
+  Cloud par fédération d'identité, puis publie la version sur la piste choisie.
+
+_versionName 1.15.1, versionCode 30._
+
 ## [1.15.0] — 2026-07-22
 
 ### Ajouté

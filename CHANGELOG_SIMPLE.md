@@ -18,6 +18,12 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.15.1 — 22 juillet 2026
+
+### Amélioré
+- **Cette mise à jour fiabilise l'installation de FloraPin.** Elle apporte des
+  ajustements techniques aux avatars et aux libellés de localisation.
+
 ## Version 1.15.0 — 22 juillet 2026
 
 ### Nouveau

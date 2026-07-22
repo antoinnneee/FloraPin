@@ -221,11 +221,15 @@ fun GalleryScreen(
             // Le bouton de capture s'efface pendant la sélection : les actions du
             // moment sont celles de la barre contextuelle.
             if (!selectionActive) {
-                FloatingActionButton(onClick = onCapture) {
-                    EmojiIcon(
-                        "📷",
+                FloatingActionButton(
+                    onClick = onCapture,
+                    containerColor = Color(0xFFA8D5BA),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_photo_botanical),
                         contentDescription = "Capturer une fleur",
-                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.size(32.dp),
+                        tint = Color.Unspecified,
                     )
                 }
             }
@@ -438,21 +442,46 @@ private fun SelectionTopBar(
         expandedHeight = topBarHeight,
         navigationIcon = {
             IconButton(onClick = onClose) {
-                EmojiIcon("✕", contentDescription = "Quitter la sélection")
+                SelectionActionIcon(
+                    icon = R.drawable.ic_close_botanical,
+                    contentDescription = "Quitter la sélection",
+                )
             }
         },
         title = { Text("$count sélectionnée${if (count > 1) "s" else ""}") },
         actions = {
             IconButton(onClick = onSelectAll) {
-                EmojiIcon("☑️", contentDescription = "Tout sélectionner")
+                SelectionActionIcon(
+                    icon = R.drawable.ic_select_all_botanical,
+                    contentDescription = "Tout sélectionner",
+                )
             }
             IconButton(onClick = onAddToAlbum) {
-                EmojiIcon("📁", contentDescription = "Ajouter à un album")
+                SelectionActionIcon(
+                    icon = R.drawable.ic_album_add_botanical,
+                    contentDescription = "Ajouter à un album",
+                )
             }
             IconButton(onClick = onDelete) {
-                EmojiIcon("🗑️", contentDescription = "Supprimer")
+                SelectionActionIcon(
+                    icon = R.drawable.ic_delete_botanical,
+                    contentDescription = "Supprimer",
+                )
             }
         },
+    )
+}
+
+@Composable
+private fun SelectionActionIcon(
+    @DrawableRes icon: Int,
+    contentDescription: String,
+) {
+    Icon(
+        painter = painterResource(icon),
+        contentDescription = contentDescription,
+        modifier = Modifier.size(28.dp),
+        tint = Color.Unspecified,
     )
 }
 
@@ -617,7 +646,7 @@ private fun EmptyGallery(
         title = "Aucune fleur pour l'instant",
         message = "Capturez votre première fleur pour commencer votre herbier.",
         modifier = modifier,
-        actionLabel = onCapture?.let { "📷 Capturer une fleur" },
+        actionLabel = onCapture?.let { "Capturer une fleur" },
         onAction = onCapture,
     )
 }

@@ -97,7 +97,8 @@ fun FloraBottomBar(
                         Text(
                             text = destination.label,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                            softWrap = false,
+                            overflow = TextOverflow.Visible,
                         )
                     }
                 },

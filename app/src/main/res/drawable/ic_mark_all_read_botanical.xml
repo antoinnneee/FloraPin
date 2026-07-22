@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Marquer toutes les notifications comme lues : double validation botanique. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M3.5,12.2L7.2,15.9L13.4,8.3"
+        android:strokeColor="#386A53"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="2.1" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M10.2,14.1L13.3,17.2L20.8,7.8"
+        android:strokeColor="#386A53"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="2.1" />
+    <path
+        android:fillColor="#7D83D8"
+        android:pathData="M18.9,2.1A1.4,1.4 0,1 0,18.9 4.9A1.4,1.4 0,1 0,18.9 2.1Z" />
+</vector>

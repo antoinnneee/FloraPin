@@ -17,6 +17,31 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Modifié
+- **Raccourcis du profil harmonisés.** La statistique des identifications
+  acceptées adopte l'alignement des cartes Badge et Herbier avec l'icône loupe
+  botanique. Les libellés « Configuration » et « Partagées » restent complets
+  sur une seule ligne, dans une barre d'onglets pleine largeur dont chaque onglet
+  occupe un tiers de l'écran.
+  La statistique d'identifications est regroupée directement sous les badges.
+- **États des badges plus distincts.** Les cartes utilisent désormais le vert
+  botanique et un sceau doré une fois tous les paliers obtenus, et un vert plus
+  doux tant qu'une progression reste à compléter.
+
+### Corrigé
+- **Retrait involontaire d'une fleur d'album.** Un appui long sur une photo ouvre
+  désormais une confirmation avant de retirer la fleur de l'album ; la fleur
+  reste dans la collection.
+- **En-tête du centre de notifications sur petits écrans.** Le titre ne revient
+  plus à la ligne et l'action « Tout marquer comme lu » devient une icône de
+  double validation, accessible avec son libellé complet.
+- **Demandes d'amis lisibles sur petits écrans.** Le nom et les actions d'une
+  demande reçue ne se compressent plus dans une même ligne : les boutons sont
+  placés sous l'identité de la personne.
+- **Barres Android pendant la capture.** La visée et la revue d'une photo
+  réservent maintenant les zones système, afin que les barres d'état et de
+  navigation ne recouvrent plus l'application.
+
 ## [1.15.1] — 2026-07-22
 
 ### Corrigé

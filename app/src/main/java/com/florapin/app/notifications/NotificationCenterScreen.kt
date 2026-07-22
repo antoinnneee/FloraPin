@@ -24,18 +24,20 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.florapin.app.R
 import com.florapin.app.network.dto.NotificationDto
 import com.florapin.app.push.NotificationTarget
+import com.florapin.app.ui.components.BotanicalIcon
 import com.florapin.app.ui.components.EmojiIcon
 import com.florapin.app.ui.components.EmptyState
 import java.time.Instant
@@ -66,7 +68,14 @@ fun NotificationCenterScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Notifications") },
+                title = {
+                    Text(
+                        text = "Notifications",
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         EmojiIcon("←", contentDescription = "Retour")
@@ -74,7 +83,7 @@ fun NotificationCenterScreen(
                 },
                 actions = {
                     if (state.items.any { it.readAt == null }) {
-                        TextButton(
+                        IconButton(
                             onClick = viewModel::markAllRead,
                             enabled = !state.markingAllRead,
                         ) {
@@ -84,7 +93,11 @@ fun NotificationCenterScreen(
                                     strokeWidth = 2.dp,
                                 )
                             } else {
-                                Text("Tout marquer comme lu")
+                                BotanicalIcon(
+                                    iconRes = R.drawable.ic_mark_all_read_botanical,
+                                    contentDescription = "Tout marquer comme lu",
+                                    size = 24.dp,
+                                )
                             }
                         }
                     }

@@ -18,6 +18,27 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+### Amélioré
+- **Votre profil et la navigation sont plus lisibles.** Les intitulés
+  Configuration et Partagées reçoivent la place nécessaire pour rester complets
+  sur une seule ligne dans des onglets de largeur égale, et la carte des
+  identifications reprend le style des autres raccourcis avec une loupe botanique,
+  directement sous les badges.
+- **L'avancement de vos badges se repère au premier regard.** Les badges
+  complétés reçoivent un fond vert et un sceau doré, ceux déjà commencés un vert
+  plus doux, et les badges encore à débloquer restent neutres.
+
+### Réparé
+- **Vos fleurs ne peuvent plus disparaître d'un album par mégarde.** Un appui
+  long sur une photo demande maintenant votre confirmation avant de la retirer
+  de l'album, sans la supprimer de votre collection.
+- **Le titre des notifications reste lisible.** L'action pour tout marquer comme
+  lu devient une icône compacte, sans réduire le titre à deux lignes.
+- **Les demandes d'amis restent lisibles sur tous les écrans.** Le nom de la
+  personne et les boutons d'action ne se chevauchent plus.
+- **La prise de photo ne passe plus sous les barres Android.** La visée et
+  l'écran de confirmation restent entièrement visibles.
+
 ## Version 1.15.1 — 22 juillet 2026
 
 ### Amélioré

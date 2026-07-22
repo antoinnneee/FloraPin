@@ -257,30 +257,48 @@ private fun FriendRow(
         Modifier.fillMaxWidth()
     }
     Card(modifier = cardModifier) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             val friendName = friendship.user.displayName.ifBlank { "Utilisateur FloraPin" }
-            FloraAvatar(
-                avatarUrl = friendship.user.avatarUrl,
-                seed = friendship.user.id,
-                contentDescription = "Photo de profil de $friendName",
-                modifier = Modifier.size(48.dp),
-            )
-            Column(modifier = Modifier.weight(1f)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                FloraAvatar(
+                    avatarUrl = friendship.user.avatarUrl,
+                    seed = friendship.user.id,
+                    contentDescription = "Photo de profil de $friendName",
+                    modifier = Modifier.size(48.dp),
+                )
                 Text(
-                    friendName,
+                    text = friendName,
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }
             if (primaryLabel != null) {
-                Button(onClick = onPrimary) { Text(primaryLabel) }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Button(
+                        onClick = onPrimary,
+                        modifier = Modifier.weight(1f),
+                    ) { Text(primaryLabel) }
+                    OutlinedButton(
+                        onClick = onSecondary,
+                        modifier = Modifier.weight(1f),
+                    ) { Text(secondaryLabel) }
+                }
+            } else {
+                OutlinedButton(
+                    onClick = onSecondary,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(secondaryLabel) }
             }
-            OutlinedButton(onClick = onSecondary) { Text(secondaryLabel) }
         }
     }
 }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,13 +35,13 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -54,16 +55,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.florapin.app.BuildConfig
+import com.florapin.app.R
 import com.florapin.app.share.SharingDefaultsForm
 import com.florapin.app.sync.PrefsLastSyncStore
 import com.florapin.app.sync.SyncOutcome
@@ -146,6 +152,7 @@ fun ProfileScreen(
     }
 
     val tabs = listOf("Profil", "Badges", "Configuration")
+    val tabWeights = List(tabs.size) { 1f }
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
 
     Scaffold(
@@ -158,14 +165,47 @@ fun ProfileScreen(
         },
     ) { innerPadding ->
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-            TabRow(selectedTabIndex = selectedTab) {
+            val selectedTabColor = MaterialTheme.colorScheme.primary
+            Column {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                ) {
                 tabs.forEachIndexed { index, label ->
+                    val isSelected = selectedTab == index
                     Tab(
-                        selected = selectedTab == index,
+                        selected = isSelected,
                         onClick = { selectedTab = index },
-                        text = { Text(label) },
+                        modifier = Modifier
+                            .weight(tabWeights[index])
+                            .fillMaxHeight()
+                            .then(
+                                if (isSelected) {
+                                    Modifier.drawBehind {
+                                        val indicatorHeight = 3.dp.toPx()
+                                        drawRect(
+                                            color = selectedTabColor,
+                                            topLeft = Offset(0f, size.height - indicatorHeight),
+                                            size = Size(size.width, indicatorHeight),
+                                        )
+                                    }
+                                } else {
+                                    Modifier
+                                },
+                            ),
+                        text = {
+                            Text(
+                                text = label,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                softWrap = false,
+                            )
+                        },
                     )
                 }
+            }
+                HorizontalDivider()
             }
 
             when (selectedTab) {
@@ -302,6 +342,38 @@ private fun ProfileTab(
             }
         }
 
+        // Statistiques collaboratives : nombre de mes propositions acceptées.
+        state.acceptedProposals?.let { count ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_identify_botanical),
+                        contentDescription = "Identifications acceptées",
+                        modifier = Modifier.size(32.dp),
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = count.toString(),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            text = if (count == 1) {
+                                "identification acceptée par un ami"
+                            } else {
+                                "identifications acceptées par des amis"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+
         // Accès à l'herbier (TÂCHE 5.6) : espèces distinctes regroupées par famille.
         Card(
             modifier = Modifier.fillMaxWidth().clickable { onOpenHerbier() },
@@ -333,30 +405,6 @@ private fun ProfileTab(
                 flowers = state.recentFlowers,
                 onOpenFlower = onOpenFlower,
             )
-        }
-
-        // Statistiques collaboratives : nombre de mes propositions acceptées.
-        state.acceptedProposals?.let { count ->
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    Text(
-                        text = "🌿 $count",
-                        style = MaterialTheme.typography.headlineSmall,
-                    )
-                    Text(
-                        text = if (count == 1) {
-                            "identification acceptée par un ami"
-                        } else {
-                            "identifications acceptées par des amis"
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
         }
 
         if (!state.emailVerified && state.email.isNotBlank()) {

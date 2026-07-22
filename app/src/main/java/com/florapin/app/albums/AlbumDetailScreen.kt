@@ -60,6 +60,7 @@ fun AlbumDetailScreen(
     val flowers by viewModel.flowers.collectAsStateWithLifecycle()
     var renaming by remember { mutableStateOf(false) }
     var showCollaboration by remember { mutableStateOf(false) }
+    var flowerPendingRemoval by remember { mutableStateOf<FlowerEntity?>(null) }
 
     // Recharge l'état de collaboration quand l'album (ou son groupe) change.
     androidx.compose.runtime.LaunchedEffect(album?.id, album?.groupId) {
@@ -125,7 +126,7 @@ fun AlbumDetailScreen(
                         flower = flower,
                         onClick = { onFlowerClick(flower.id) },
                         // Retrait par appui long réservé à qui peut éditer l'album.
-                        onLongClick = { if (canEdit) viewModel.removeFlower(flower.id) },
+                        onLongClick = { if (canEdit) flowerPendingRemoval = flower },
                     )
                 }
             }
@@ -169,6 +170,29 @@ fun AlbumDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { renaming = false }) { Text("Annuler") }
+            },
+        )
+    }
+
+    flowerPendingRemoval?.let { flower ->
+        AlertDialog(
+            onDismissRequest = { flowerPendingRemoval = null },
+            title = { Text("Retirer cette fleur de l'album ?") },
+            text = {
+                Text(
+                    "La fleur restera dans votre collection ; elle sera seulement retirée de cet album.",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.removeFlower(flower.id)
+                        flowerPendingRemoval = null
+                    },
+                ) { Text("Retirer") }
+            },
+            dismissButton = {
+                TextButton(onClick = { flowerPendingRemoval = null }) { Text("Annuler") }
             },
         )
     }

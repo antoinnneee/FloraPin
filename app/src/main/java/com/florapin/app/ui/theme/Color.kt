@@ -97,3 +97,4 @@ val md_dark_scrim = Color(0xFF000000)
 val BadgeStarFilled = Color(0xFFF5B301)   // or chaud — palier atteint
 val BadgeStarEmpty = Color(0xFFB9BDB5)    // gris doux — palier atteignable
 val BadgeNewHighlight = Color(0xFFF5B301) // liseré de célébration (nouveau palier)
+val BadgeCompletedBanner = Color(0xFFF2D56B) // bandeau d'une collection accomplie

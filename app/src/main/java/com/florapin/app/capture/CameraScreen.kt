@@ -26,10 +26,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
@@ -37,6 +36,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -53,11 +53,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
+import com.florapin.app.R
 import com.florapin.app.MainActivity
 import com.florapin.app.location.GpsFixState
 import com.florapin.app.permission.findActivity
@@ -232,7 +234,11 @@ fun CameraScreen(
         }
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.systemBars),
+    ) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { previewView },
@@ -252,7 +258,6 @@ fun CameraScreen(
             state = gpsFix,
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(16.dp),
         )
 
@@ -261,7 +266,6 @@ fun CameraScreen(
         Row(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -293,9 +297,6 @@ fun CameraScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                // Évite que la barre de navigation système (mode 3 boutons sur
-                // certains Xiaomi/MIUI) recouvre les contrôles.
-                .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -333,10 +334,23 @@ fun CameraScreen(
                 onClick = onShutter,
                 enabled = !isCapturing,
                 shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFFBFDFB),
+                    contentColor = Color(0xFF386A53),
+                    disabledContainerColor = Color(0xFFFBFDFB).copy(alpha = 0.62f),
+                ),
                 modifier = Modifier.size(80.dp),
             ) {
-                Text(if (isCapturing) "…" else "📷")
+                if (isCapturing) {
+                    Text("…")
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_photo_botanical),
+                        contentDescription = "Prendre la photo",
+                        modifier = Modifier.size(38.dp),
+                        tint = Color.Unspecified,
+                    )
+                }
             }
         }
     }

@@ -1,0 +1,235 @@
+name: Publish Play Store
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Tag de release à publier (ex. v1.15.0)"
+        required: true
+        type: string
+      track:
+        description: "Piste Google Play cible"
+        required: true
+        default: internal
+        type: choice
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+      status:
+        description: "Brouillon ou publication immédiate sur la piste choisie"
+        required: true
+        default: completed
+        type: choice
+        options:
+          - completed
+          - draft
+      release_notes:
+        description: "Note fr-FR (500 caractères max). Vide = fichier versionné."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: play-store-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: ${{ inputs.release_tag }} → ${{ inputs.track }}
+    runs-on: ubuntu-latest
+    # Configurer des approbateurs obligatoires sur cet environnement, surtout
+    # lorsque le compte de service est autorisé à publier en production.
+    environment: play-store
+    env:
+      PACKAGE_NAME: com.florapin.app
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      TARGET_TRACK: ${{ inputs.track }}
+      RELEASE_STATUS: ${{ inputs.status }}
+
+    steps:
+      - name: Checkout du tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+
+      - name: Valider le tag et la version Android
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Le tag doit respecter le format vMAJEUR.MINEUR.CORRECTIF." >&2
+            exit 1
+          fi
+
+          actual_tag="$(git describe --tags --exact-match HEAD)"
+          if [[ "$actual_tag" != "$RELEASE_TAG" ]]; then
+            echo "Le commit extrait ne correspond pas exactement à $RELEASE_TAG." >&2
+            exit 1
+          fi
+
+          version_name="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' app/build.gradle.kts | head -n 1)"
+          version_code="$(sed -nE 's/^[[:space:]]*versionCode[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p' app/build.gradle.kts | head -n 1)"
+
+          if [[ -z "$version_name" || -z "$version_code" ]]; then
+            echo "versionName/versionCode introuvable dans app/build.gradle.kts." >&2
+            exit 1
+          fi
+          if [[ "$RELEASE_TAG" != "v$version_name" ]]; then
+            echo "Le tag $RELEASE_TAG ne correspond pas à versionName $version_name." >&2
+            exit 1
+          fi
+
+          echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
+          echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
+
+      - name: Vérifier la configuration protégée
+        env:
+          WIF_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          PLAY_SERVICE_ACCOUNT: ${{ vars.GCP_PLAY_PUBLISHER_SERVICE_ACCOUNT }}
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for variable in \
+            WIF_PROVIDER PLAY_SERVICE_ACCOUNT GOOGLE_SERVICES_JSON_BASE64 \
+            RELEASE_KEYSTORE_BASE64 RELEASE_STORE_PASSWORD RELEASE_KEY_ALIAS \
+            RELEASE_KEY_PASSWORD; do
+            if [[ -z "${!variable:-}" ]]; then
+              echo "Configuration GitHub manquante : $variable" >&2
+              exit 1
+            fi
+          done
+
+      - name: Authentification Google Cloud sans clé longue durée
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_PLAY_PUBLISHER_SERVICE_ACCOUNT }}
+
+      - name: Restaurer les fichiers de build protégés
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+
+          printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > app/google-services.json
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > play-upload-keystore.jks
+
+          jq empty app/google-services.json
+          keytool -list \
+            -keystore play-upload-keystore.jks \
+            -storepass "$RELEASE_STORE_PASSWORD" \
+            -alias "$RELEASE_KEY_ALIAS" >/dev/null
+
+      - name: Construire l'Android App Bundle signé
+        env:
+          RELEASE_STORE_FILE: play-upload-keystore.jks
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        shell: bash
+        run: ./gradlew bundleRelease --stacktrace
+
+      - name: Vérifier l'AAB et les symboles
+        id: artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle="app/build/outputs/bundle/release/app-release.aab"
+          mapping="app/build/outputs/mapping/release/mapping.txt"
+
+          test -s "$bundle"
+          test -s "$mapping"
+          jarsigner -verify "$bundle"
+
+          sha256="$(sha256sum "$bundle" | cut -d ' ' -f 1)"
+          size="$(stat -c '%s' "$bundle")"
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+          echo "size=$size" >> "$GITHUB_OUTPUT"
+
+      - name: Préparer la note de version française
+        env:
+          RELEASE_NOTES_INPUT: ${{ inputs.release_notes }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          notes_file="distribution/whatsnew/whatsnew-fr-FR"
+          output_dir="build/play-store-notes"
+          mkdir -p "$output_dir"
+
+          if [[ -n "$RELEASE_NOTES_INPUT" ]]; then
+            notes="$RELEASE_NOTES_INPUT"
+          elif [[ -s "$notes_file" ]]; then
+            notes="$(cat "$notes_file")"
+          else
+            echo "Aucune note de version fournie ou versionnée." >&2
+            exit 1
+          fi
+
+          character_count="$(printf '%s' "$notes" | wc -m | tr -d ' ')"
+          if (( character_count == 0 || character_count > 500 )); then
+            echo "La note Play Store contient $character_count caractères (limite : 500)." >&2
+            exit 1
+          fi
+
+          printf '%s\n' "$notes" > "$output_dir/whatsnew-fr-FR"
+
+      - name: Publier dans Google Play
+        id: publish
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJson: ${{ steps.auth.outputs.credentials_file_path }}
+          packageName: ${{ env.PACKAGE_NAME }}
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          tracks: ${{ env.TARGET_TRACK }}
+          status: ${{ env.RELEASE_STATUS }}
+          releaseName: ${{ steps.version.outputs.version_name }}
+          whatsNewDirectory: build/play-store-notes
+          mappingFile: app/build/outputs/mapping/release/mapping.txt
+
+      - name: Résumé de publication
+        shell: bash
+        run: |
+          {
+            echo "## Publication Google Play"
+            echo
+            echo "- Version : ${{ steps.version.outputs.version_name }}"
+            echo "- Version code : ${{ steps.version.outputs.version_code }}"
+            echo "- Piste : $TARGET_TRACK"
+            echo "- Statut : $RELEASE_STATUS"
+            echo "- Taille AAB : ${{ steps.artifact.outputs.size }} octets"
+            echo "- SHA-256 : \`${{ steps.artifact.outputs.sha256 }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Supprimer les identifiants temporaires
+        if: always()
+        shell: bash
+        run: rm -f play-upload-keystore.jks app/google-services.json gha-creds-*.json

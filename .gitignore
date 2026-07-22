@@ -41,6 +41,8 @@ keystore.properties
 
 # Config Firebase Android (propre à chaque projet — ne pas committer)
 google-services.json
+# Identifiants temporaires générés par google-github-actions/auth (OIDC/WIF)
+gha-creds-*.json
 tmp/
 
 asset/*

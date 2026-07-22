@@ -18,6 +18,8 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.16.0 — 23 juillet 2026
+
 ### Amélioré
 - **Votre profil et la navigation sont plus lisibles.** Les intitulés
   Configuration et Partagées reçoivent la place nécessaire pour rester complets

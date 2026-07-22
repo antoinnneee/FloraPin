@@ -17,6 +17,8 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.16.0] — 2026-07-23
+
 ### Modifié
 - **Raccourcis du profil harmonisés.** La statistique des identifications
   acceptées adopte l'alignement des cartes Badge et Herbier avec l'icône loupe
@@ -41,6 +43,8 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 - **Barres Android pendant la capture.** La visée et la revue d'une photo
   réservent maintenant les zones système, afin que les barres d'état et de
   navigation ne recouvrent plus l'application.
+
+_versionName 1.16.0, versionCode 31._
 
 ## [1.15.1] — 2026-07-22
 

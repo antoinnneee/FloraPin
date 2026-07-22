@@ -41,6 +41,10 @@ keystore.properties
 
 # Config Firebase Android (propre à chaque projet — ne pas committer)
 google-services.json
+# Clés privées de comptes de service Firebase / Google Cloud
+*firebase-adminsdk*.json
+/service-account*.json
+/florapin-*.json
 # Identifiants temporaires générés par google-github-actions/auth (OIDC/WIF)
 gha-creds-*.json
 tmp/

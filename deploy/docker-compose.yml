@@ -82,6 +82,12 @@ services:
       MINIO_PUBLIC_PORT: ${MINIO_PUBLIC_PORT:-443}
       MINIO_PUBLIC_USE_SSL: ${MINIO_PUBLIC_USE_SSL:-true}
       PLANTNET_API_KEY: ${PLANTNET_API_KEY:-}
+      # Notifications push Firebase Cloud Messaging. La clé privée reste dans
+      # deploy/.env sur le VPS et n'est jamais copiée dans l'image.
+      PUSH_DRIVER: ${PUSH_DRIVER:-stub}
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
+      FCM_CLIENT_EMAIL: ${FCM_CLIENT_EMAIL:-}
+      FCM_PRIVATE_KEY: ${FCM_PRIVATE_KEY:-}
 
   proxy:
     image: caddy:2-alpine

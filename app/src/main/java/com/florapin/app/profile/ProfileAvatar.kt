@@ -1,5 +1,6 @@
 package com.florapin.app.profile
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
 import androidx.annotation.DrawableRes
@@ -59,10 +60,13 @@ private class AndroidProfileAvatar(
         }
     }
 
+    @SuppressLint("ResourceType")
     override suspend fun uploadDefault(resourceId: Int): String? =
         withContext(Dispatchers.IO) {
             val temp = File.createTempFile("avatar-default-", ".webp", context.cacheDir)
             try {
+                // openRawResource can stream file-based drawable resources. Keeping
+                // the WebP in drawable-nodpi also lets Compose display the same asset.
                 context.resources.openRawResource(resourceId).use { input ->
                     temp.outputStream().use { output -> input.copyTo(output) }
                 }

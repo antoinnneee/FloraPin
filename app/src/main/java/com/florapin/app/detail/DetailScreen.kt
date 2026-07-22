@@ -37,9 +37,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -1136,13 +1136,11 @@ private fun MiniMapFallback(point: GeoPoint) {
 @Composable
 private fun DetailLocationLabel(point: GeoPoint) {
     val context = LocalContext.current
-    val placeName by produceState(
-        initialValue = "Localisation…",
-        context,
-        point.latitude,
-        point.longitude,
-    ) {
-        value = PlaceNameResolver.resolve(context, point.latitude, point.longitude)
+    var placeName by remember(context, point.latitude, point.longitude) {
+        mutableStateOf("Localisation…")
+    }
+    LaunchedEffect(context, point.latitude, point.longitude) {
+        placeName = PlaceNameResolver.resolve(context, point.latitude, point.longitude)
             ?: "Lieu non identifié"
     }
     Row(

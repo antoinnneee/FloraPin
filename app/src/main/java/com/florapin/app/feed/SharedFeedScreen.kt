@@ -40,7 +40,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -577,13 +576,11 @@ private fun SharedFlowerCard(
 @Composable
 private fun SharedLocationText(latitude: Double, longitude: Double) {
     val context = LocalContext.current
-    val placeName by produceState(
-        initialValue = "Localisation",
-        context,
-        latitude,
-        longitude,
-    ) {
-        value = PlaceNameResolver.resolve(context, latitude, longitude) ?: "Lieu partage"
+    var placeName by remember(context, latitude, longitude) {
+        mutableStateOf("Localisation")
+    }
+    LaunchedEffect(context, latitude, longitude) {
+        placeName = PlaceNameResolver.resolve(context, latitude, longitude) ?: "Lieu partage"
     }
     Text(
         text = "\uD83D\uDCCD $placeName",

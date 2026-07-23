@@ -18,6 +18,24 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.17.0 — 23 juillet 2026
+
+### Nouveau
+- **La prise de photo propose maintenant deux modes.** Le mode Classique permet
+  de photographier immédiatement avec les aides essentielles ; le mode Pro
+  permet de régler finement la sensibilité, le temps de pose, la mise au point,
+  la balance des blancs, l'exposition et le zoom selon les capacités du téléphone.
+
+### Amélioré
+- **Le viseur laisse davantage de place à la photo.** Les commandes deviennent
+  compactes et visuelles, la mise au point est matérialisée à l'écran et les
+  réglages Pro restent regroupés dans une réglette facile à parcourir.
+- **Les albums sont plus faciles à reconnaître.** Un nouveau pictogramme
+  botanique avec marque-page apparaît dans la navigation et sur l'écran vide.
+
+### Réparé
+- **La carte s'affiche à nouveau dans l'application installée depuis le Play Store.**
+
 ## Version 1.16.0 — 23 juillet 2026
 
 ### Amélioré

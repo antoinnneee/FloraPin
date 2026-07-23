@@ -38,7 +38,7 @@ enum class TopLevelDestination(
     val label: String,
 ) {
     HOME("gallery", R.drawable.ic_nav_home, "Accueil"),
-    ALBUMS("albums", R.drawable.ic_nav_albums, "Albums"),
+    ALBUMS("albums", R.drawable.ic_album_option_01_bookmark, "Albums"),
     MAP("map", R.drawable.ic_nav_map, "Carte"),
     FEED("feed", R.drawable.ic_nav_feed, "Partagées"),
     PROFILE("profile", R.drawable.ic_nav_profile, "Profil"),

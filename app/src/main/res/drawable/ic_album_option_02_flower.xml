@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Proposition 2 : couverture d'album ornée d'une fleur, sans photo. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="30dp"
+    android:height="30dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#A8D5BA" android:pathData="M2.9,7.1H16.7V20.4H2.9Z" />
+    <path android:fillColor="#386A53" android:pathData="M5.5,3.5H20.1C20.8,3.5 21.3,4 21.3,4.7V17.5C21.3,18.2 20.8,18.7 20.1,18.7H5.5Z" />
+    <path android:fillColor="#00000000" android:pathData="M5.5,3.5H20.1C20.8,3.5 21.3,4 21.3,4.7V17.5C21.3,18.2 20.8,18.7 20.1,18.7H5.5Z" android:strokeColor="#202A23" android:strokeWidth="1.1" android:strokeLineJoin="round" />
+    <path android:fillColor="#7D83D8" android:pathData="M13.4,6.7m-2.3,0a2.3,2.3 0,1 0,4.6,0a2.3,2.3 0,1 0,-4.6,0M17.2,9.5m-2.3,0a2.3,2.3 0,1 0,4.6,0a2.3,2.3 0,1 0,-4.6,0M15.7,14m-2.3,0a2.3,2.3 0,1 0,4.6,0a2.3,2.3 0,1 0,-4.6,0M10.9,14m-2.3,0a2.3,2.3 0,1 0,4.6,0a2.3,2.3 0,1 0,-4.6,0M9.4,9.5m-2.3,0a2.3,2.3 0,1 0,4.6,0a2.3,2.3 0,1 0,-4.6,0" />
+    <path android:fillColor="#F2D56B" android:pathData="M13.3,10.6m-1.7,0a1.7,1.7 0,1 0,3.4,0a1.7,1.7 0,1 0,-3.4,0" />
+</vector>

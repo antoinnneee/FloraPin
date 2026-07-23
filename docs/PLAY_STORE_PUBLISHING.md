@@ -53,6 +53,7 @@ Ajouter les secrets suivants :
 | Secret | Contenu |
 | --- | --- |
 | `GOOGLE_SERVICES_JSON_BASE64` | `app/google-services.json` encodé en Base64 |
+| `MAPTILER_API_KEY` | Clé API MapTiler intégrée au bundle Android |
 | `RELEASE_KEYSTORE_BASE64` | Keystore d'upload Play Store encodé en Base64 |
 | `RELEASE_STORE_PASSWORD` | Mot de passe du keystore |
 | `RELEASE_KEY_ALIAS` | Alias de la clé d'upload |
@@ -67,6 +68,11 @@ Sous PowerShell, encoder un fichier sans l'afficher :
 
 Remplacer le chemin par celui du keystore pour créer
 `RELEASE_KEYSTORE_BASE64`. Ne jamais coller ces valeurs dans un fichier suivi.
+
+La clé MapTiler est nécessaire au moment de la compilation : toute modification
+du secret exige donc de construire et publier un nouveau bundle. Comme une clé
+embarquée dans une application Android peut être extraite, limiter ses droits et
+ses quotas dans MapTiler.
 
 ## 3. Maintenir la note Play Store
 

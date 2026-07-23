@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Proposition 4 : album et feuille monogramme, sans reproduction de plante. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="30dp"
+    android:height="30dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#A8D5BA" android:pathData="M3.1,6.9H16.8V20.3H3.1Z" />
+    <path android:fillColor="#386A53" android:pathData="M5.8,3.6H20.5C21.1,3.6 21.5,4 21.5,4.6V17.5C21.5,18.1 21.1,18.5 20.5,18.5H5.8Z" />
+    <path android:fillColor="#00000000" android:pathData="M5.8,3.6H20.5C21.1,3.6 21.5,4 21.5,4.6V17.5C21.5,18.1 21.1,18.5 20.5,18.5H5.8Z" android:strokeColor="#202A23" android:strokeWidth="1.1" android:strokeLineJoin="round" />
+    <path android:fillColor="#A8D5BA" android:pathData="M10.2,13.8C10.4,8.3 14.2,6.3 18.5,6.5C18.4,11.4 15.5,14.8 10.2,13.8Z" />
+    <path android:fillColor="#00000000" android:pathData="M9.3,16.1C11.6,12.8 14.4,10.4 18.1,7.5" android:strokeColor="#202A23" android:strokeWidth="1" android:strokeLineCap="round" />
+    <path android:fillColor="#7D83D8" android:pathData="M8,6.5H9.8V15.8H8Z" />
+    <path android:fillColor="#F2D56B" android:pathData="M7.9,17H18.8V18.2H7.9Z" />
+</vector>

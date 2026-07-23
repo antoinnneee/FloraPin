@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Proposition 5 : carnet-album à onglets, le plus compact des cinq. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="30dp"
+    android:height="30dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#A8D5BA" android:pathData="M3.1,6.4H17.2V20.3H3.1Z" />
+    <path android:fillColor="#386A53" android:pathData="M5.4,3.4H18.6V18.3H5.4Z" />
+    <path android:fillColor="#00000000" android:pathData="M5.4,3.4H18.6V18.3H5.4Z" android:strokeColor="#202A23" android:strokeWidth="1.1" android:strokeLineJoin="round" />
+    <path android:fillColor="#7D83D8" android:pathData="M18.6,5.7H21.3V8.5H18.6ZM18.6,10.1H21.3V12.9H18.6ZM18.6,14.5H21.3V17.3H18.6Z" />
+    <path android:fillColor="#F2D56B" android:pathData="M8,6.7H15.9V8.1H8ZM8,10.2H14.1V11.6H8ZM8,13.7H15.2V15.1H8Z" />
+</vector>

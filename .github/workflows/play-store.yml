@@ -104,6 +104,7 @@ jobs:
           WIF_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           PLAY_SERVICE_ACCOUNT: ${{ vars.GCP_PLAY_PUBLISHER_SERVICE_ACCOUNT }}
           GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+          MAPTILER_API_KEY: ${{ secrets.MAPTILER_API_KEY }}
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
@@ -114,8 +115,8 @@ jobs:
 
           for variable in \
             WIF_PROVIDER PLAY_SERVICE_ACCOUNT GOOGLE_SERVICES_JSON_BASE64 \
-            RELEASE_KEYSTORE_BASE64 RELEASE_STORE_PASSWORD RELEASE_KEY_ALIAS \
-            RELEASE_KEY_PASSWORD; do
+            MAPTILER_API_KEY RELEASE_KEYSTORE_BASE64 RELEASE_STORE_PASSWORD \
+            RELEASE_KEY_ALIAS RELEASE_KEY_PASSWORD; do
             if [[ -z "${!variable:-}" ]]; then
               echo "Configuration GitHub manquante : $variable" >&2
               exit 1
@@ -151,6 +152,7 @@ jobs:
 
       - name: Construire l'Android App Bundle signé
         env:
+          MAPTILER_API_KEY: ${{ secrets.MAPTILER_API_KEY }}
           RELEASE_STORE_FILE: play-upload-keystore.jks
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}

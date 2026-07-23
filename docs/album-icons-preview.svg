@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="520" viewBox="0 0 1440 520">
+  <rect width="1440" height="520" fill="#FBFDFB"/>
+  <text x="72" y="78" fill="#1B1C1A" font-family="Arial, sans-serif" font-size="38" font-weight="700">Propositions d’icône Albums</text>
+  <text x="72" y="116" fill="#52635B" font-family="Arial, sans-serif" font-size="21">Pictogrammes vectoriels FloraPin — sans image ni vignette photo</text>
+
+  <g transform="translate(72 164)">
+    <rect width="235" height="280" rx="28" fill="#FFFFFF" stroke="#C0C9C0" stroke-width="2"/>
+    <g transform="translate(46 30) scale(6)">
+      <path fill="#A8D5BA" d="M3.2 6.5H16.9V20.2H3.2Z"/><path fill="#386A53" d="M5.6 3.7H20.2C20.9 3.7 21.3 4.2 21.3 4.9V17.4C21.3 18.1 20.9 18.5 20.2 18.5H5.6Z"/><path fill="none" d="M5.6 3.7H20.2C20.9 3.7 21.3 4.2 21.3 4.9V17.4C21.3 18.1 20.9 18.5 20.2 18.5H5.6Z" stroke="#202A23" stroke-width="1.1" stroke-linejoin="round"/><path fill="#7D83D8" d="M14.5 3.8V11.3L16.9 9.7L19.3 11.3V3.8Z"/><path fill="#F2D56B" d="M8.5 8.1H12.2V9.5H8.5ZM8.5 11H15.8V12.4H8.5ZM8.5 13.9H13.6V15.3H8.5Z"/>
+    </g>
+    <text x="24" y="220" fill="#386A53" font-family="Arial, sans-serif" font-size="18" font-weight="700">01 · Marque-page</text><text x="24" y="250" fill="#52635B" font-family="Arial, sans-serif" font-size="15">Album organisé</text>
+  </g>
+
+  <g transform="translate(341 164)">
+    <rect width="235" height="280" rx="28" fill="#FFFFFF" stroke="#C0C9C0" stroke-width="2"/>
+    <g transform="translate(46 30) scale(6)">
+      <path fill="#A8D5BA" d="M2.9 7.1H16.7V20.4H2.9Z"/><path fill="#386A53" d="M5.5 3.5H20.1C20.8 3.5 21.3 4 21.3 4.7V17.5C21.3 18.2 20.8 18.7 20.1 18.7H5.5Z"/><path fill="none" d="M5.5 3.5H20.1C20.8 3.5 21.3 4 21.3 4.7V17.5C21.3 18.2 20.8 18.7 20.1 18.7H5.5Z" stroke="#202A23" stroke-width="1.1" stroke-linejoin="round"/><path fill="#7D83D8" d="M13.4 6.7m-2.3 0a2.3 2.3 0 1 0 4.6 0a2.3 2.3 0 1 0-4.6 0M17.2 9.5m-2.3 0a2.3 2.3 0 1 0 4.6 0a2.3 2.3 0 1 0-4.6 0M15.7 14m-2.3 0a2.3 2.3 0 1 0 4.6 0a2.3 2.3 0 1 0-4.6 0M10.9 14m-2.3 0a2.3 2.3 0 1 0 4.6 0a2.3 2.3 0 1 0-4.6 0M9.4 9.5m-2.3 0a2.3 2.3 0 1 0 4.6 0a2.3 2.3 0 1 0-4.6 0"/><path fill="#F2D56B" d="M13.3 10.6m-1.7 0a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0-3.4 0"/>
+    </g>
+    <text x="24" y="220" fill="#386A53" font-family="Arial, sans-serif" font-size="18" font-weight="700">02 · Fleur</text><text x="24" y="250" fill="#52635B" font-family="Arial, sans-serif" font-size="15">Le plus botanique</text>
+  </g>
+
+  <g transform="translate(610 164)">
+    <rect width="235" height="280" rx="28" fill="#FFFFFF" stroke="#C0C9C0" stroke-width="2"/>
+    <g transform="translate(46 30) scale(6)">
+      <path fill="#A8D5BA" d="M2.7 7.2H16.9V20.4H2.7Z"/><path fill="none" d="M2.7 7.2H16.9V20.4H2.7Z" stroke="#202A23" stroke-width="1.1" stroke-linejoin="round"/><path fill="#386A53" d="M6.1 3.6H21.1V17.7H6.1Z"/><path fill="none" d="M6.1 3.6H21.1V17.7H6.1Z" stroke="#202A23" stroke-width="1.1" stroke-linejoin="round"/><path fill="#7D83D8" d="M8.2 6.2H10.3V15.1H8.2Z"/><path fill="#F2D56B" d="M12.7 7.6H18.4V9.1H12.7ZM12.7 10.8H17.1V12.3H12.7ZM12.7 14H18.8V15.5H12.7Z"/>
+    </g>
+    <text x="24" y="220" fill="#386A53" font-family="Arial, sans-serif" font-size="18" font-weight="700">03 · Pile</text><text x="24" y="250" fill="#52635B" font-family="Arial, sans-serif" font-size="15">Le plus “collection”</text>
+  </g>
+
+  <g transform="translate(879 164)">
+    <rect width="235" height="280" rx="28" fill="#FFFFFF" stroke="#C0C9C0" stroke-width="2"/>
+    <g transform="translate(46 30) scale(6)">
+      <path fill="#A8D5BA" d="M3.1 6.9H16.8V20.3H3.1Z"/><path fill="#386A53" d="M5.8 3.6H20.5C21.1 3.6 21.5 4 21.5 4.6V17.5C21.5 18.1 21.1 18.5 20.5 18.5H5.8Z"/><path fill="none" d="M5.8 3.6H20.5C21.1 3.6 21.5 4 21.5 4.6V17.5C21.5 18.1 21.1 18.5 20.5 18.5H5.8Z" stroke="#202A23" stroke-width="1.1" stroke-linejoin="round"/><path fill="#A8D5BA" d="M10.2 13.8C10.4 8.3 14.2 6.3 18.5 6.5C18.4 11.4 15.5 14.8 10.2 13.8Z"/><path fill="none" d="M9.3 16.1C11.6 12.8 14.4 10.4 18.1 7.5" stroke="#202A23" stroke-width="1" stroke-linecap="round"/><path fill="#7D83D8" d="M8 6.5H9.8V15.8H8Z"/><path fill="#F2D56B" d="M7.9 17H18.8V18.2H7.9Z"/>
+    </g>
+    <text x="24" y="220" fill="#386A53" font-family="Arial, sans-serif" font-size="18" font-weight="700">04 · Feuille</text><text x="24" y="250" fill="#52635B" font-family="Arial, sans-serif" font-size="15">Le plus nature</text>
+  </g>
+
+  <g transform="translate(1148 164)">
+    <rect width="235" height="280" rx="28" fill="#FFFFFF" stroke="#C0C9C0" stroke-width="2"/>
+    <g transform="translate(46 30) scale(6)">
+      <path fill="#A8D5BA" d="M3.1 6.4H17.2V20.3H3.1Z"/><path fill="#386A53" d="M5.4 3.4H18.6V18.3H5.4Z"/><path fill="none" d="M5.4 3.4H18.6V18.3H5.4Z" stroke="#202A23" stroke-width="1.1" stroke-linejoin="round"/><path fill="#7D83D8" d="M18.6 5.7H21.3V8.5H18.6ZM18.6 10.1H21.3V12.9H18.6ZM18.6 14.5H21.3V17.3H18.6Z"/><path fill="#F2D56B" d="M8 6.7H15.9V8.1H8ZM8 10.2H14.1V11.6H8ZM8 13.7H15.2V15.1H8Z"/>
+    </g>
+    <text x="24" y="220" fill="#386A53" font-family="Arial, sans-serif" font-size="18" font-weight="700">05 · Onglets</text><text x="24" y="250" fill="#52635B" font-family="Arial, sans-serif" font-size="15">Le plus structuré</text>
+  </g>
+</svg>

@@ -17,6 +17,34 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.17.0] — 2026-07-23
+
+### Ajouté
+- **Deux expériences de prise de vue.** Le nouveau mode Classique privilégie une
+  capture immédiate avec des commandes compactes pour le zoom, le macro, le
+  flash, la torche et la grille. Le mode Pro expose les réglages ISO, temps de
+  pose, mise au point manuelle, balance des blancs, compensation d'exposition et
+  zoom lorsque le capteur les prend en charge.
+- **Contrôles Pro reliés au capteur.** Les plages disponibles sont lues depuis
+  Camera2, les paramètres incompatibles sont désactivés et la capture Pro
+  privilégie la qualité maximale.
+- **Nouvelle collection d'icônes Albums.** Cinq propositions vectorielles
+  botaniques sont ajoutées avec une planche de comparaison.
+
+### Modifié
+- **Viseur entièrement redessiné.** L'interface adopte des surfaces fumées, un
+  réticule de mise au point, des données techniques compactes, un obturateur
+  personnalisé et un accent ambre réservé au mode Pro.
+- **Pictogramme Albums harmonisé.** L'état vide et la navigation principale
+  utilisent désormais l'album avec marque-page botanique.
+
+### Corrigé
+- **Clé MapTiler des builds Play Store.** Le workflow de publication injecte
+  désormais la clé MapTiler dans le bundle Android et interrompt la release si
+  le secret GitHub correspondant est absent.
+
+_versionName 1.17.0, versionCode 32._
+
 ## [1.16.0] — 2026-07-23
 
 ### Modifié

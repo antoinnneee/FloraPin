@@ -83,7 +83,7 @@ fun AlbumsScreen(
                 message = "Regroupez vos fleurs par thème, saison ou lieu pour " +
                     "les retrouver facilement.",
                 modifier = Modifier.padding(innerPadding),
-                iconRes = R.drawable.ic_nav_albums,
+                iconRes = R.drawable.ic_album_option_01_bookmark,
                 tintIcon = false,
                 actionLabel = "Créer un album",
                 onAction = { showCreate = true },

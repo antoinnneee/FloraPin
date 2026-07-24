@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,11 +35,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.florapin.app.R
 import com.florapin.app.network.dto.NotificationDto
 import com.florapin.app.push.NotificationTarget
@@ -235,10 +239,7 @@ private fun NotificationRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            text = notification.emoji(),
-            style = MaterialTheme.typography.titleLarge,
-        )
+        NotificationLeadingVisual(notification)
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -277,6 +278,36 @@ private fun NotificationRow(
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(10.dp),
             ) {}
+        }
+    }
+}
+
+/**
+ * La photo remplace l'emoji uniquement pour une demande d'identification.
+ * Le cadre fixe de 36 dp reste sous la hauteur du bloc texte et ne grandit donc
+ * pas les lignes de la liste.
+ */
+@Composable
+private fun NotificationLeadingVisual(notification: NotificationDto) {
+    Box(
+        modifier = Modifier.size(36.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        val thumbnailUrl = notification.thumbnailUrl
+        if (notification.type == "identification_requested" && thumbnailUrl != null) {
+            AsyncImage(
+                model = thumbnailUrl,
+                contentDescription = "Photo de la fleur à identifier",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+            )
+        } else {
+            Text(
+                text = notification.emoji(),
+                style = MaterialTheme.typography.titleLarge,
+            )
         }
     }
 }

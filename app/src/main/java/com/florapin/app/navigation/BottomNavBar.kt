@@ -286,7 +286,11 @@ private fun RowScope.DestinationItem(
     NavigationBarItem(
         selected = currentRoute == destination.route,
         onClick = { onSelect(destination) },
-        modifier = Modifier.weight(1f),
+        // Le retrait empêche l'indicateur des deux destinations centrales de
+        // venir toucher visuellement le bouton photo.
+        modifier = Modifier
+            .weight(1f)
+            .padding(horizontal = 3.dp),
         icon = {
             BadgedBox(
                 badge = {

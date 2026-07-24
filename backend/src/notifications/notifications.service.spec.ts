@@ -108,6 +108,26 @@ describe('NotificationsService', () => {
     expect(list[0].type).toBe('friend_request');
   });
 
+  it('ajoute une miniature fraîche aux demandes d’identification listées', async () => {
+    flowers.store.set('flower-1', {
+      id: 'flower-1',
+      thumbnailKey: 'thumbs/flower-1.webp',
+    });
+    await service.create(USER, 'identification_requested', {
+      flowerId: 'flower-1',
+      byUserId: 'marie',
+    });
+
+    const [listed] = await service.list(USER);
+    expect(listed.data).toEqual({
+      flowerId: 'flower-1',
+      byUserId: 'marie',
+      thumbnailUrl: 'https://cdn/thumbs/flower-1.webp',
+    });
+    // L'URL présignée reste une donnée de réponse, jamais une donnée persistée.
+    expect([...repo.store.values()][0].data).not.toHaveProperty('thumbnailUrl');
+  });
+
   it('marque comme lue et décrémente le compteur', async () => {
     const n = await service.create(USER, 'friend_accepted');
     await service.markRead(USER, n.id);

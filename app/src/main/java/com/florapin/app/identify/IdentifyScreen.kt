@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -28,6 +29,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -66,6 +68,7 @@ fun IdentifyScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     onOpenProfile: (String) -> Unit = {},
+    focusedFlowerId: String? = null,
     viewModel: IdentifyViewModel = viewModel(
         factory = IdentifyViewModel.factory(LocalContext.current),
     ),
@@ -119,6 +122,7 @@ fun IdentifyScreen(
             when (selectedTab) {
                 0 -> ToIdentifyTab(
                     viewModel = viewModel,
+                    focusedFlowerId = focusedFlowerId,
                     onComment = { commentsFor = it },
                 )
                 else -> MyRequestsTab(
@@ -138,9 +142,18 @@ fun IdentifyScreen(
 @Composable
 private fun ToIdentifyTab(
     viewModel: IdentifyViewModel,
+    focusedFlowerId: String?,
     onComment: (String) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(focusedFlowerId, state.loading, state.flowers) {
+        val index = state.flowers.indexOfFirst { it.id == focusedFlowerId }
+        if (index >= 0) {
+            listState.scrollToItem(index)
+        }
+    }
 
     PullToRefreshBox(
         isRefreshing = state.refreshing,
@@ -168,6 +181,7 @@ private fun ToIdentifyTab(
             }
 
             else -> LazyColumn(
+                state = listState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),

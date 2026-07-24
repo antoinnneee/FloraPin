@@ -125,12 +125,48 @@ export class NotificationsService {
     return enriched;
   }
 
-  list(userId: string): Promise<Notification[]> {
-    return this.notifications.find({
+  async list(userId: string): Promise<Notification[]> {
+    const notifications = await this.notifications.find({
       where: { userId },
       order: { createdAt: 'DESC' },
       take: 100,
     });
+
+    // Le centre de notifications affiche une petite photo pour les demandes
+    // d'identification. L'URL est générée à la lecture (et non persistée) afin
+    // qu'elle soit encore valide même pour une notification ancienne.
+    return Promise.all(
+      notifications.map(async (notification) => {
+        if (notification.type !== 'identification_requested') {
+          return notification;
+        }
+        const flowerId = notification.data.flowerId;
+        if (typeof flowerId !== 'string' || !flowerId) {
+          return notification;
+        }
+        try {
+          const flower = await this.flowers.findOne({ where: { id: flowerId } });
+          if (!flower?.thumbnailKey) {
+            return notification;
+          }
+          return {
+            ...notification,
+            data: {
+              ...notification.data,
+              thumbnailUrl: await this.storage.presignDownload(
+                flower.thumbnailKey,
+              ),
+            },
+          };
+        } catch (error) {
+          // Une miniature indisponible ne doit pas masquer toute la liste.
+          this.logger.warn(
+            `Échec de la miniature de notification pour ${flowerId} : ${String(error)}`,
+          );
+          return notification;
+        }
+      }),
+    );
   }
 
   unreadCount(userId: string): Promise<number> {

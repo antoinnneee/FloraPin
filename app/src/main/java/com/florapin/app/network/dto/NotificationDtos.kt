@@ -34,6 +34,10 @@ data class NotificationDto(
     /** Nom de l'album/groupe fourni avec l'invitation. */
     val groupName: String?
         get() = data["groupName"]?.takeIf { it.isNotBlank() }
+
+    /** Miniature fraîche de la fleur, fournie pour une demande d'identification. */
+    val thumbnailUrl: String?
+        get() = data["thumbnailUrl"]?.takeIf { it.isNotBlank() }
 }
 
 /** Réponse de `GET notifications/unread-count`. */

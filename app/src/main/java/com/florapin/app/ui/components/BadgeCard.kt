@@ -194,7 +194,7 @@ fun BadgeCard(
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
                         )
-                    } else {
+                    } else if (!state.maxed) {
                         Text(
                             text = progressionLabel(state),
                             style = MaterialTheme.typography.bodySmall,

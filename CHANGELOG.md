@@ -17,6 +17,34 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.20.0] — 2026-07-24
+
+### Ajouté
+- **Demandes d'identification illustrées dans les notifications.** Le centre de
+  notifications affiche une miniature de la fleur sans augmenter la hauteur de
+  la ligne. L'API génère l'URL signée au chargement pour éviter de conserver une
+  adresse expirée.
+
+### Modifié
+- **Ouverture ciblée des demandes d'identification.** Toucher la notification
+  système ou sa ligne dans le centre ouvre désormais l'écran Identification et
+  positionne directement la liste sur la fleur concernée, au lieu de rediriger
+  vers le fil partagé.
+
+### Corrigé
+- **État final des badges dédupliqué.** Lorsqu'un badge affiche déjà le bandeau
+  « Complété » ou « Débloqué », le même libellé n'est plus répété sous les
+  étoiles.
+- **Aperçu caméra dégagé.** Le dégradé sombre auparavant superposé en haut et en
+  bas du viseur est retiré afin que toute l'image reste visible lors du cadrage.
+  Les commandes conservent leurs fonds individuels translucides pour rester
+  lisibles.
+- **Indicateurs de navigation mieux espacés.** Le fond de sélection des
+  destinations de la barre inférieure dispose d'un retrait horizontal de
+  quelques pixels et ne touche plus le bouton photo central.
+
+_versionName 1.20.0, versionCode 35._
+
 ## [1.19.0] — 2026-07-24
 
 ### Ajouté

@@ -1,5 +1,7 @@
 package com.florapin.app.navigation
 
+import android.net.Uri
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
@@ -83,7 +85,7 @@ private object Routes {
     const val ALBUM_INVITATION = "album-invitation/{groupId}"
     const val DETAIL = "detail/{id}"
     const val SPECIES_DETAIL = "species/{id}"
-    const val IDENTIFY = "identify"
+    const val IDENTIFY = "identify?flowerId={flowerId}"
     const val NOTIFICATIONS = "notifications"
 
     fun detail(id: Long) = "detail/$id"
@@ -96,6 +98,8 @@ private object Routes {
         albumId?.let { "capture?albumId=$it" } ?: "capture"
     fun speciesDetail(id: String) = "species/$id"
     fun friendProfile(userId: String) = "friend/$userId"
+    fun identify(flowerId: String? = null) =
+        flowerId?.let { "identify?flowerId=${Uri.encode(it)}" } ?: "identify"
 }
 
 /**
@@ -365,7 +369,7 @@ fun FloraNavHost(
                 onCapture = { navController.navigate(Routes.capture()) },
                 onFlowerClick = { id -> navController.navigate(Routes.detail(id)) },
                 onOpenFriends = { navController.navigate(Routes.FRIENDS) },
-                onOpenIdentify = { navController.navigate(Routes.IDENTIFY) },
+                onOpenIdentify = { navController.navigate(Routes.identify()) },
                 onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 onOpenMap = { navController.navigate(Routes.MAP) },
                 deletedFlowerId = deletedFlowerId,
@@ -375,10 +379,20 @@ fun FloraNavHost(
                 sharedScope = FloraSharedScope(transitionScope, this),
             )
         }
-        composable(Routes.IDENTIFY) {
+        composable(
+            route = Routes.IDENTIFY,
+            arguments = listOf(
+                navArgument("flowerId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
+        ) { backStackEntry ->
             IdentifyScreen(
                 onBack = { navController.popBackStack() },
                 onOpenProfile = { uid -> navController.navigate(Routes.friendProfile(uid)) },
+                focusedFlowerId = backStackEntry.arguments?.getString("flowerId"),
             )
         }
         composable(Routes.NOTIFICATIONS) {
@@ -564,6 +578,14 @@ private suspend fun routeFromNotification(
     homeRoute: String,
 ) {
     val serverId = target.flowerServerId
+    // Une demande d'identification ouvre la liste spécialisée et positionne
+    // directement la carte de la fleur, qui contient son carrousel de photos.
+    if (target.type == "identification_requested") {
+        navController.navigate(Routes.identify(serverId)) {
+            launchSingleTop = true
+        }
+        return
+    }
     if (serverId != null) {
         val local = withContext(Dispatchers.IO) {
             FloraDatabase.getInstance(context).flowerDao().findByServerId(serverId)
@@ -587,7 +609,7 @@ private suspend fun routeFromNotification(
         "friend_request", "friend_accepted" ->
             navController.navigate(Routes.FRIENDS) { launchSingleTop = true }
         // Contenu d'ami sans fleur ciblée (partage 'all'/'album'…) → feed.
-        "flower_shared", "identification_requested" ->
+        "flower_shared" ->
             navController.navigateToTab(Routes.FEED)
         else -> navController.navigateToTab(homeRoute)
     }

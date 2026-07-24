@@ -18,6 +18,20 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.20.0 — 24 juillet 2026
+
+### Nouveau
+- **Les demandes d'identification montrent maintenant la photo de la fleur dans
+  les notifications.** Touchez la notification pour arriver directement sur la
+  demande concernée.
+
+### Réparé
+- **Les badges terminés sont plus lisibles.** La mention « Complété » ou
+  « Débloqué » n'apparaît plus deux fois sur la même carte.
+- **Le viseur de l'appareil photo n'est plus assombri en haut et en bas.** Toute
+  la scène reste visible pour faciliter le cadrage.
+- **Le fond de l'onglet sélectionné reste bien séparé du bouton photo central.**
+
 ## Version 1.19.0 — 24 juillet 2026
 
 ### Nouveau

@@ -1,16 +1,15 @@
 package com.florapin.app.notifications
 
 import android.content.Context
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -32,9 +31,8 @@ import kotlinx.coroutines.launch
 
 /**
  * Cloche du centre de notifications (TÂCHE 2.7), à poser dans les `actions` d'une
- * top bar. Signale par un point la présence de notifications non lues — sans en
- * afficher le nombre, le détail appartenant au centre — et l'ouvre au clic. Le
- * compteur est rafraîchi à chaque (ré)affichage de l'écran hôte, y compris au
+ * top bar. Signale les notifications non lues par un badge chiffré et ouvre le
+ * centre au clic. Le compteur est rafraîchi à chaque (ré)affichage de l'écran hôte, y compris au
  * retour depuis le centre, où l'on vient d'en lire.
  *
  * Device-first : hors-ligne / non connecté, le comptage échoue silencieusement
@@ -43,6 +41,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun NotificationBell(
     onOpen: () -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: NotificationBellViewModel = viewModel(
         factory = NotificationBellViewModel.factory(LocalContext.current),
     ),
@@ -52,27 +51,29 @@ fun NotificationBell(
     // Recompté à l'affichage de l'écran hôte (arrivée + retour depuis le centre).
     LaunchedEffect(Unit) { viewModel.refresh() }
 
-    IconButton(onClick = onOpen) {
-        Box(modifier = Modifier.size(32.dp)) {
+    BadgedBox(
+        badge = {
+            if (unread > 0) {
+                Badge {
+                    Text(if (unread > 99) "99+" else "$unread")
+                }
+            }
+        },
+    ) {
+        IconButton(
+            onClick = onOpen,
+            modifier = modifier,
+        ) {
             Icon(
                 painter = painterResource(R.drawable.ic_notification_bell_botanical),
                 contentDescription = if (unread > 0) {
-                    "Notifications, non lues"
+                    "Notifications, $unread non lue${if (unread > 1) "s" else ""}"
                 } else {
                     "Notifications"
                 },
                 modifier = Modifier.size(32.dp),
                 tint = Color.Unspecified,
             )
-            // Le point remplace visuellement le cœur jaune de la fleur.
-            if (unread > 0) {
-                Badge(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .offset(x = 19.5.dp, y = 5.dp)
-                        .size(7.dp),
-                )
-            }
         }
     }
 }

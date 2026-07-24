@@ -14,13 +14,13 @@ import androidx.compose.ui.unit.dp
  */
 enum class GalleryDensity(val label: String, val minCellSize: Dp) {
     /** Dense : petites vignettes, davantage de colonnes. */
-    COMPACT("Compacte", 90.dp),
+    COMPACT("Compacte", 100.dp),
 
-    /** Palier par défaut, historique de la galerie. */
-    COMFORTABLE("Confort", 120.dp),
+    /** Palier par défaut photo-first : deux grandes colonnes sur téléphone. */
+    COMFORTABLE("Confort", 150.dp),
 
     /** Grandes vignettes, moins de colonnes. */
-    LARGE("Grande", 160.dp),
+    LARGE("Grande", 220.dp),
 }
 
 /**

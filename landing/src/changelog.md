@@ -18,6 +18,26 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.18.0 — 24 juillet 2026
+
+### Amélioré
+- **L'accueil donne plus de place à vos photos.** La galerie se prolonge jusqu'en
+  bas de l'écran derrière une barre plus fine, arrondie autour d'un bouton photo
+  central qui ne dépasse que légèrement.
+- **Les actions essentielles restent accessibles en un geste.** Les demandes
+  d'identification, les amis et les notifications sont réunis en haut de
+  l'accueil ; la recherche, les filtres et la carte restent côte à côte.
+- **Le nombre de notifications non lues est visible directement sur la cloche.**
+- **Les discussions sont plus compactes.** Les commentaires occupent moins de
+  hauteur afin d'en voir davantage à l'écran.
+- **L'ajout de fleurs à un album est plus cohérent.** Son icône reprend maintenant
+  le même album botanique avec marque-page que dans la navigation.
+
+### Réparé
+- **Le champ de commentaire reste toujours lisible.** Il conserve sa hauteur
+  normale même lorsqu'une discussion contient de nombreux messages et que le
+  clavier est ouvert.
+
 ## Version 1.17.0 — 23 juillet 2026
 
 ### Nouveau

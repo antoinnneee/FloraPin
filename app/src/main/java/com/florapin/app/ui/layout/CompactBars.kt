@@ -20,7 +20,7 @@ fun isLandscape(): Boolean =
 
 /** Hauteur de la bottom bar, hors encoche système. */
 val bottomBarHeight: Dp
-    @Composable get() = if (isLandscape()) 56.dp else 80.dp
+    @Composable get() = if (isLandscape()) 52.dp else 64.dp
 
 /** Hauteur d'une [androidx.compose.material3.TopAppBar]. */
 val topBarHeight: Dp

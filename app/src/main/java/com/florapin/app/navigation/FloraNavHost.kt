@@ -151,7 +151,7 @@ fun FloraNavHost(
     // Gestion du retour hardware, en trois temps (hors flux d'auth) :
     //   1. Sur un écran poussé (détail fleur, espèce, albums…), on dépile pour
     //      revenir à la page courante d'où l'on venait.
-    //   2. Sur un onglet secondaire (Carte, Partagées, Profil), on revient à
+    //   2. Sur un onglet secondaire (Albums, Partagées, Profil), on revient à
     //      l'Accueil.
     //   3. Sur l'Accueil, le handler est désactivé : le système quitte l'app.
     // Placé au niveau du NavHost, ce handler reste un repli : tout BackHandler
@@ -192,6 +192,7 @@ fun FloraNavHost(
                 FloraBottomBar(
                     currentRoute = currentRoute?.destination?.route,
                     onSelect = { destination -> navController.navigateToTab(destination.route) },
+                    onCapture = { navController.navigate(Routes.CAPTURE) },
                     feedBadge = feedBadge,
                 )
             }
@@ -206,7 +207,15 @@ fun FloraNavHost(
             NavHost(
                 navController = navController,
                 startDestination = startDestination,
-                modifier = Modifier.padding(innerPadding),
+                // La navigation principale est flottante : sur les quatre onglets
+                // racine, le contenu continue jusqu'au bas de l'écran et la barre
+                // le recouvre. Les écrans poussés conservent le padding éventuel
+                // fourni par le Scaffold.
+                modifier = if (showBottomBar) {
+                    Modifier
+                } else {
+                    Modifier.padding(innerPadding)
+                },
             ) {
         composable(Routes.ONBOARDING) {
             OnboardingScreen(
@@ -355,6 +364,7 @@ fun FloraNavHost(
                 onOpenFriends = { navController.navigate(Routes.FRIENDS) },
                 onOpenIdentify = { navController.navigate(Routes.IDENTIFY) },
                 onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+                onOpenMap = { navController.navigate(Routes.MAP) },
                 deletedFlowerId = deletedFlowerId,
                 onDeletedFlowerHandled = {
                     backStackEntry.savedStateHandle[Routes.KEY_DELETED_FLOWER] = null

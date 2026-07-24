@@ -17,6 +17,35 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.18.0] — 2026-07-24
+
+### Modifié
+- **Navigation principale recentrée sur la photo.** Les quatre destinations
+  persistantes encadrent désormais une action de capture centrale. La barre,
+  plus fine, épouse le bouton photo avec un dégagement régulier et ne masque
+  plus prématurément la fin de la galerie.
+- **Accueil photo-first réorganisé.** La galerie adopte de plus grandes vignettes
+  par défaut. Les demandes d'identification, les amis et les notifications sont
+  regroupés dans l'en-tête, tandis que les filtres rejoignent la recherche et
+  que la carte reste accessible depuis la même rangée.
+- **Compteur de notifications explicite.** La cloche affiche maintenant le
+  nombre de notifications non lues, avec une description adaptée aux lecteurs
+  d'écran.
+- **Commentaires plus compacts.** Les cartes utilisent des espacements réduits et
+  placent l'action « Répondre » à côté du texte afin d'afficher davantage de
+  messages à l'écran tout en conservant des cibles tactiles accessibles.
+- **Ajout à un album harmonisé.** L'action disponible pendant la sélection de
+  fleurs reprend désormais le pictogramme d'album fermé avec marque-page utilisé
+  dans la navigation, complété par une pastille d'ajout botanique.
+
+### Corrigé
+- **Champ de commentaire écrasé.** Dans la feuille de discussion, seule la liste
+  des commentaires occupe l'espace restant et devient défilable. Le champ de
+  saisie conserve ainsi sa hauteur minimale, même avec de nombreux messages et
+  le clavier ouvert.
+
+_versionName 1.18.0, versionCode 33._
+
 ## [1.17.0] — 2026-07-23
 
 ### Ajouté

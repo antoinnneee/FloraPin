@@ -1,38 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ajouter à un album FloraPin : pile d'albums photo et pastille d'ajout. -->
+<!-- Album FloraPin actuel, complété par une pastille d'ajout botanique. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="28dp"
     android:height="28dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- Pochette arrière : le décalage rend la notion de collection immédiate. -->
+    <!-- Silhouette, marque-page et détails repris à l'identique de l'onglet Albums. -->
     <path
-        android:fillColor="#00000000"
-        android:pathData="M3.2,7.1H16.9V20.3H3.2Z"
-        android:strokeColor="#386A53"
-        android:strokeLineJoin="round"
-        android:strokeWidth="1.5" />
-    <!-- Album au premier plan, repris du pictogramme de navigation. -->
+        android:fillColor="#A8D5BA"
+        android:pathData="M3.2,6.5H16.9V20.2H3.2Z" />
     <path
         android:fillColor="#386A53"
-        android:pathData="M5.8,3.8H19.6C20.3,3.8 20.8,4.3 20.8,5V16.8C20.8,17.5 20.3,18 19.6,18H5.8Z" />
-    <path
-        android:fillColor="#FBFDFB"
-        android:pathData="M8.2,6.2H18.4V14.3H8.2Z" />
+        android:pathData="M5.6,3.7H20.2C20.9,3.7 21.3,4.2 21.3,4.9V17.4C21.3,18.1 20.9,18.5 20.2,18.5H5.6Z" />
     <path
         android:fillColor="#00000000"
-        android:pathData="M5.8,3.8H19.6C20.3,3.8 20.8,4.3 20.8,5V16.8C20.8,17.5 20.3,18 19.6,18H5.8Z"
-        android:strokeColor="#A8D5BA"
+        android:pathData="M5.6,3.7H20.2C20.9,3.7 21.3,4.2 21.3,4.9V17.4C21.3,18.1 20.9,18.5 20.2,18.5H5.6Z"
+        android:strokeColor="#202A23"
         android:strokeLineJoin="round"
-        android:strokeWidth="0.8" />
-    <!-- Le + devient une action franche, sans concurrencer la silhouette d'album. -->
+        android:strokeWidth="1.1" />
     <path
         android:fillColor="#7D83D8"
-        android:pathData="M18.8,15.4A4.2,4.2 0,1 0,18.8 23.8A4.2,4.2 0,1 0,18.8 15.4Z" />
+        android:pathData="M14.5,3.8V11.3L16.9,9.7L19.3,11.3V3.8Z" />
+    <path
+        android:fillColor="#F2D56B"
+        android:pathData="M8.5,8.1H12.2V9.5H8.5ZM8.5,11H15.8V12.4H8.5ZM8.5,13.9H13.6V15.3H8.5Z" />
+
+    <!-- Pastille d'action dans la même palette et avec le même contour encré. -->
+    <path
+        android:fillColor="#A8D5BA"
+        android:pathData="M18.7,15.1A4,4 0,1 0,18.7 23.1A4,4 0,1 0,18.7 15.1Z"
+        android:strokeColor="#202A23"
+        android:strokeWidth="1.1" />
     <path
         android:fillColor="#00000000"
-        android:pathData="M18.8,17.3V21.9M16.5,19.6H21.1"
-        android:strokeColor="#F2D56B"
+        android:pathData="M18.7,17V21.2M16.6,19.1H20.8"
+        android:strokeColor="#386A53"
         android:strokeLineCap="round"
-        android:strokeWidth="1.5" />
+        android:strokeWidth="1.7" />
 </vector>

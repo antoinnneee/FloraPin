@@ -32,20 +32,21 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -67,6 +68,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -84,7 +86,6 @@ import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.SyncState
 import com.florapin.app.data.thumbnailModel
 import com.florapin.app.notifications.NotificationBell
-import com.florapin.app.ui.components.EmojiIcon
 import com.florapin.app.ui.components.EmptyState
 import com.florapin.app.ui.layout.isLandscape
 import com.florapin.app.ui.layout.topBarHeight
@@ -97,7 +98,7 @@ import kotlin.math.roundToInt
 
 /**
  * Galerie des fleurs capturées (NODE-9) : grille de vignettes, ou message si
- * vide. Le bouton flottant lance une nouvelle capture ; un appui sur une
+ * vide. L'action photo centrale lance une nouvelle capture ; un appui sur une
  * vignette ouvre le détail.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -108,6 +109,7 @@ fun GalleryScreen(
     onOpenFriends: () -> Unit,
     onOpenIdentify: () -> Unit,
     onOpenNotifications: () -> Unit,
+    onOpenMap: () -> Unit,
     modifier: Modifier = Modifier,
     // Suppression annulable (TÂCHE 6.13) : id de la fleur soft-supprimée depuis le
     // détail, transmis au retour. Déclenche le snackbar « Annuler ».
@@ -181,17 +183,17 @@ fun GalleryScreen(
                     expandedHeight = topBarHeight,
                     title = {
                         Row(
-                            modifier = Modifier.offset(x = if (landscape) (-12).dp else (-20).dp),
+                            modifier = Modifier.offset(x = (-12).dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Image(
                                 painter = painterResource(R.drawable.logo_florapin),
                                 contentDescription = null,
-                                modifier = Modifier.size(if (landscape) 44.dp else 72.dp),
+                                modifier = Modifier.size(if (landscape) 44.dp else 56.dp),
                             )
                             Text(
                                 text = "FloraPin",
-                                modifier = Modifier,
+                                color = MaterialTheme.colorScheme.primary,
                             )
                         }
                     },
@@ -212,26 +214,12 @@ fun GalleryScreen(
                             badge = friendsBadge,
                             onClick = onOpenFriends,
                         )
-                        NotificationBell(onOpen = onOpenNotifications)
+                        NotificationBell(
+                            onOpen = onOpenNotifications,
+                            modifier = Modifier.headerUtilitySurface(),
+                        )
                     },
                 )
-            }
-        },
-        floatingActionButton = {
-            // Le bouton de capture s'efface pendant la sélection : les actions du
-            // moment sont celles de la barre contextuelle.
-            if (!selectionActive) {
-                FloatingActionButton(
-                    onClick = onCapture,
-                    containerColor = Color(0xFFA8D5BA),
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_photo_botanical),
-                        contentDescription = "Capturer une fleur",
-                        modifier = Modifier.size(32.dp),
-                        tint = Color.Unspecified,
-                    )
-                }
             }
         },
     ) { innerPadding ->
@@ -346,15 +334,16 @@ fun GalleryScreen(
                         .fillMaxHeight()
                         .padding(top = 4.dp),
                 ) {
-                    SearchBar(
+                    GallerySearchRow(
                         query = query,
                         onQueryChange = viewModel::setQuery,
+                        selectedSort = sort,
+                        selectedDensity = density,
+                        onSelectSort = viewModel::setSort,
+                        onSelectDensity = viewModel::setDensity,
+                        onOpenMap = onOpenMap,
                         compact = true,
                     )
-                    if (flowers.isNotEmpty()) {
-                        SortChip(selected = sort, onSelect = viewModel::setSort)
-                        DensityChip(selected = density, onSelect = viewModel::setDensity)
-                    }
                 }
                 VerticalDivider()
                 galleryPane(
@@ -370,16 +359,15 @@ fun GalleryScreen(
                     .padding(innerPadding)
                     .fillMaxSize(),
             ) {
-                SearchBar(
+                GallerySearchRow(
                     query = query,
                     onQueryChange = viewModel::setQuery,
+                    selectedSort = sort,
+                    selectedDensity = density,
+                    onSelectSort = viewModel::setSort,
+                    onSelectDensity = viewModel::setDensity,
+                    onOpenMap = onOpenMap,
                 )
-                if (flowers.isNotEmpty()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        SortChip(selected = sort, onSelect = viewModel::setSort)
-                        DensityChip(selected = density, onSelect = viewModel::setDensity)
-                    }
-                }
                 galleryPane(
                     Modifier
                         .weight(1f)
@@ -485,10 +473,7 @@ private fun SelectionActionIcon(
     )
 }
 
-/**
- * Action emoji de la barre du haut, surmontée d'un badge de nouveautés quand
- * [badge] > 0 (au-delà de 99, affiche « 99+ »).
- */
+/** Action permanente de l'en-tête, avec badge de nouveautés. */
 @Composable
 private fun BadgedIconAction(
     @DrawableRes icon: Int,
@@ -499,16 +484,90 @@ private fun BadgedIconAction(
     BadgedBox(
         badge = {
             if (badge > 0) {
-                Badge { Text(if (badge > 99) "99+" else "$badge") }
+                Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                    Text(if (badge > 99) "99+" else "$badge")
+                }
             }
         },
     ) {
-        IconButton(onClick = onClick) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.headerUtilitySurface(),
+        ) {
             Icon(
                 painter = painterResource(icon),
                 contentDescription = contentDescription,
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(28.dp),
                 tint = Color.Unspecified,
+            )
+        }
+    }
+}
+
+/**
+ * Conteneur discret des trois utilitaires de l'en-tête. Le bouton conserve une
+ * cible tactile de 48 dp, tandis que la surface visible reste légère.
+ */
+@Composable
+private fun Modifier.headerUtilitySurface(): Modifier {
+    val shape = RoundedCornerShape(14.dp)
+    return this
+        .size(48.dp)
+        .padding(2.dp)
+        .clip(shape)
+        .background(MaterialTheme.colorScheme.surface)
+        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+}
+
+/**
+ * Recherche photo-first : le filtre vit dans le champ et la carte garde un
+ * accès direct juste à droite, comme dans la maquette retenue.
+ */
+@Composable
+private fun GallerySearchRow(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    selectedSort: GallerySort,
+    selectedDensity: GalleryDensity,
+    onSelectSort: (GallerySort) -> Unit,
+    onSelectDensity: (GalleryDensity) -> Unit,
+    onOpenMap: () -> Unit,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(
+                horizontal = 12.dp,
+                vertical = if (compact) 2.dp else 8.dp,
+            ),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SearchBar(
+            query = query,
+            onQueryChange = onQueryChange,
+            selectedSort = selectedSort,
+            selectedDensity = selectedDensity,
+            onSelectSort = onSelectSort,
+            onSelectDensity = onSelectDensity,
+            modifier = Modifier.weight(1f),
+        )
+
+        val mapShape = RoundedCornerShape(16.dp)
+        IconButton(
+            onClick = onOpenMap,
+            modifier = Modifier
+                .size(if (compact) 52.dp else 56.dp)
+                .clip(mapShape)
+                .background(MaterialTheme.colorScheme.surface)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, mapShape),
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_nav_map),
+                contentDescription = "Ouvrir la carte",
+                modifier = Modifier.size(30.dp),
             )
         }
     }
@@ -519,8 +578,11 @@ private fun BadgedIconAction(
 private fun SearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
+    selectedSort: GallerySort,
+    selectedDensity: GalleryDensity,
+    onSelectSort: (GallerySort) -> Unit,
+    onSelectDensity: (GalleryDensity) -> Unit,
     modifier: Modifier = Modifier,
-    compact: Boolean = false,
 ) {
     OutlinedTextField(
         value = query,
@@ -535,86 +597,104 @@ private fun SearchBar(
             )
         },
         trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    EmojiIcon("✕", contentDescription = "Effacer la recherche")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (query.isNotEmpty()) {
+                    IconButton(
+                        onClick = { onQueryChange("") },
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_close_botanical),
+                            contentDescription = "Effacer la recherche",
+                            modifier = Modifier.size(22.dp),
+                            tint = Color.Unspecified,
+                        )
+                    }
                 }
+                GalleryFilterAction(
+                    selectedSort = selectedSort,
+                    selectedDensity = selectedDensity,
+                    onSelectSort = onSelectSort,
+                    onSelectDensity = onSelectDensity,
+                )
             }
         },
-        placeholder = { Text("Rechercher (espèce, notes, étiquette)") },
+        placeholder = { Text("Rechercher une plante") },
         modifier = modifier
-            .fillMaxWidth()
-            .padding(
-                horizontal = 12.dp,
-                vertical = if (compact) 2.dp else 8.dp,
-            ),
+            .height(56.dp),
+        shape = RoundedCornerShape(18.dp),
     )
 }
 
 /**
- * Pastille de tri façon « badge », posée dans la vue (et non dans la topbar).
- * Elle affiche le critère de tri courant en toutes lettres et ouvre le menu de
- * sélection au clic.
+ * Menu unifié : le tri et la densité restent disponibles sans prendre une
+ * rangée permanente au-dessus des photos.
  */
 @Composable
-private fun SortChip(
-    selected: GallerySort,
-    onSelect: (GallerySort) -> Unit,
+private fun GalleryFilterAction(
+    selectedSort: GallerySort,
+    selectedDensity: GalleryDensity,
+    onSelectSort: (GallerySort) -> Unit,
+    onSelectDensity: (GalleryDensity) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Box(
-        modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 4.dp),
-    ) {
-        AssistChip(
+
+    Box {
+        IconButton(
             onClick = { expanded = true },
-            leadingIcon = { Text("↕️") },
-            label = { Text("Tri : ${selected.label}") },
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            modifier = Modifier.size(40.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Tune,
+                contentDescription = "Trier et régler la densité",
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            Text(
+                text = "Trier par",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
             GallerySort.entries.forEach { order ->
                 DropdownMenuItem(
-                    text = {
-                        val mark = if (order == selected) "✓ " else ""
-                        Text("$mark${order.label}")
+                    text = { Text(order.label) },
+                    leadingIcon = {
+                        RadioButton(
+                            selected = order == selectedSort,
+                            onClick = null,
+                        )
                     },
                     onClick = {
-                        onSelect(order)
+                        onSelectSort(order)
                         expanded = false
                     },
                 )
             }
-        }
-    }
-}
 
-/**
- * Pastille de densité de la grille (TÂCHE 6.8), posée dans la vue à côté du tri.
- * Elle affiche le palier courant et ouvre le menu de sélection au clic ; le choix
- * est persisté (store dédié) via le ViewModel.
- */
-@Composable
-private fun DensityChip(
-    selected: GalleryDensity,
-    onSelect: (GalleryDensity) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    Box(
-        modifier = Modifier.padding(end = 12.dp, bottom = 4.dp),
-    ) {
-        AssistChip(
-            onClick = { expanded = true },
-            leadingIcon = { Text("▦") },
-            label = { Text("Densité : ${selected.label}") },
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            Text(
+                text = "Densité",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
             GalleryDensity.entries.forEach { option ->
                 DropdownMenuItem(
-                    text = {
-                        val mark = if (option == selected) "✓ " else ""
-                        Text("$mark${option.label}")
+                    text = { Text(option.label) },
+                    leadingIcon = {
+                        RadioButton(
+                            selected = option == selectedDensity,
+                            onClick = null,
+                        )
                     },
                     onClick = {
-                        onSelect(option)
+                        onSelectDensity(option)
                         expanded = false
                     },
                 )
@@ -798,6 +878,7 @@ private fun FlowerThumbnail(
     // Nom de l'espèce si disponible (commun → scientifique → saisie libre),
     // sinon on retombe sur la date de capture.
     val name = flower.displayName()
+    val cardShape = RoundedCornerShape(18.dp)
     val cardModifier = Modifier
         .fillMaxWidth()
         .combinedClickable(onClick = onClick, onLongClick = onLongClick)
@@ -807,22 +888,24 @@ private fun FlowerThumbnail(
                 Modifier.border(
                     width = 3.dp,
                     color = MaterialTheme.colorScheme.primary,
-                    shape = CardDefaults.shape,
+                    shape = cardShape,
                 )
             } else {
                 Modifier
             },
         )
-    Card(modifier = cardModifier) {
-        Column {
-            Box {
+    Card(
+        modifier = cardModifier,
+        shape = cardShape,
+    ) {
+        Box {
                 AsyncImage(
                     model = flower.thumbnailModel(),
                     contentDescription = name ?: "Fleur du ${formatCaptureDate(flower.createdAt)}",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1f)
+                        .aspectRatio(0.82f)
                         // Élément partagé vers l'image du détail (TÂCHE 6.17) ;
                         // no-op sans portée de transition.
                         .sharedFlowerImage(sharedScope, flower.id),
@@ -854,13 +937,24 @@ private fun FlowerThumbnail(
                         )
                     }
                 }
-            }
             Text(
                 text = name ?: formatCaptureDate(flower.createdAt),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(8.dp),
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.72f),
+                            ),
+                        ),
+                    )
+                    .padding(start = 12.dp, top = 28.dp, end = 12.dp, bottom = 10.dp),
             )
         }
     }

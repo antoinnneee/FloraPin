@@ -1,11 +1,14 @@
 package com.florapin.app.detail
 
 import android.content.Context
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Card
@@ -327,12 +330,13 @@ class CommentsViewModel(
 fun CommentsSection(
     viewModel: CommentsViewModel,
     modifier: Modifier = Modifier,
+    scrollComments: Boolean = false,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(
             text = if (state.comments.isEmpty()) {
@@ -343,29 +347,18 @@ fun CommentsSection(
             style = MaterialTheme.typography.titleMedium,
         )
 
-        if (state.comments.isEmpty() && !state.loading) {
-            Text(
-                text = "Aucun commentaire. Lancez la discussion !",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        val commentsModifier = if (scrollComments) {
+            Modifier
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState())
+        } else {
+            Modifier
         }
-
-        state.comments.forEach { comment ->
-            CommentCard(
-                comment = comment,
-                deleting = state.deletingId == comment.id,
-                editing = state.editingId == comment.id,
-                editDraft = state.editDraft,
-                editSubmitting = state.editSubmitting,
-                onDelete = { viewModel.delete(comment) },
-                onStartEdit = { viewModel.startEdit(comment) },
-                onEditDraftChange = viewModel::updateEditDraft,
-                onSubmitEdit = { viewModel.submitEdit() },
-                onCancelEdit = { viewModel.cancelEdit() },
-                onReply = { viewModel.startReply(comment) },
-            )
-        }
+        CommentList(
+            state = state,
+            viewModel = viewModel,
+            modifier = commentsModifier,
+        )
 
         state.replyingTo?.let { target ->
             ReplyBanner(target = target, onCancel = { viewModel.cancelReply() })
@@ -404,7 +397,9 @@ fun CommentsSection(
                 field = newValue
                 viewModel.updateDraft(newValue.text)
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp),
             placeholder = {
                 Text(
                     if (state.replyingTo != null) "Écrire une réponse…"
@@ -460,8 +455,49 @@ fun CommentsBottomSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         CommentsSection(
             viewModel = commentsVm,
+            scrollComments = true,
             modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp),
         )
+    }
+}
+
+/**
+ * Liste des commentaires. Dans la bottom sheet, elle prend uniquement l'espace
+ * disponible et défile ; le champ de saisie conserve ainsi sa hauteur minimale.
+ */
+@Composable
+private fun CommentList(
+    state: CommentsUiState,
+    viewModel: CommentsViewModel,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        if (state.comments.isEmpty() && !state.loading) {
+            Text(
+                text = "Aucun commentaire. Lancez la discussion !",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        state.comments.forEach { comment ->
+            CommentCard(
+                comment = comment,
+                deleting = state.deletingId == comment.id,
+                editing = state.editingId == comment.id,
+                editDraft = state.editDraft,
+                editSubmitting = state.editSubmitting,
+                onDelete = { viewModel.delete(comment) },
+                onStartEdit = { viewModel.startEdit(comment) },
+                onEditDraftChange = viewModel::updateEditDraft,
+                onSubmitEdit = { viewModel.submitEdit() },
+                onCancelEdit = { viewModel.cancelEdit() },
+                onReply = { viewModel.startReply(comment) },
+            )
+        }
     }
 }
 
@@ -507,8 +543,8 @@ private fun CommentCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             // Citation : rappel de l'auteur et du texte du commentaire répondu.
             if (comment.replyToId != null) {
@@ -568,16 +604,17 @@ private fun CommentCard(
                     }
                 }
             } else {
-                Text(
-                    // Rend les mentions `@[id]` en `@Nom` colorées (noms résolus
-                    // par l'API à la lecture — un renommage reste cohérent).
-                    text = commentBodyAnnotated(comment),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    Text(
+                        // Rend les mentions `@[id]` en `@Nom` colorées (noms résolus
+                        // par l'API à la lecture — un renommage reste cohérent).
+                        text = commentBodyAnnotated(comment),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
                     TextButton(onClick = onReply) {
                         Text("Répondre")
                     }

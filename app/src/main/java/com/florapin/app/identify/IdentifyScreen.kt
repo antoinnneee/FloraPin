@@ -63,6 +63,7 @@ import com.florapin.app.ui.components.PhotoCarousel
 fun IdentifyScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenProfile: (String) -> Unit = {},
     viewModel: IdentifyViewModel = viewModel(
         factory = IdentifyViewModel.factory(LocalContext.current),
     ),
@@ -77,6 +78,7 @@ fun IdentifyScreen(
         CommentsBottomSheet(
             flowerServerId = flowerId,
             onDismiss = { commentsFor = null },
+            onOpenProfile = onOpenProfile,
         )
     }
 

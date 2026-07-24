@@ -120,6 +120,7 @@ fun DetailScreen(
     modifier: Modifier = Modifier,
     onOpenSpecies: (String) -> Unit = {},
     onOpenFlower: (Long) -> Unit = {},
+    onOpenProfile: (String) -> Unit = {},
     // Suppression annulable (TÂCHE 6.13) : reçoit l'id soft-supprimé pour que
     // l'écran précédent (galerie) propose l'annulation. Par défaut, revient en
     // arrière (compat lorsqu'aucun hôte de snackbar ne traite l'annulation).
@@ -143,6 +144,7 @@ fun DetailScreen(
             onOpenSpecies = onOpenSpecies,
             allFlowers = allFlowers,
             onOpenFlower = onOpenFlower,
+            onOpenProfile = onOpenProfile,
             sharedScope = sharedScope,
             modifier = modifier,
         )
@@ -165,6 +167,7 @@ fun DetailScreen(
             onDeleted = onDeleted,
             onOpenSpecies = onOpenSpecies,
             allFlowers = allFlowers,
+            onOpenProfile = onOpenProfile,
             onOpenFlower = { nearbyFlowerId ->
                 val targetPage = orderedIds.indexOf(nearbyFlowerId)
                 if (targetPage >= 0) {
@@ -196,6 +199,7 @@ fun FlowerDetailPage(
     onOpenSpecies: (String) -> Unit = {},
     allFlowers: List<FlowerEntity> = emptyList(),
     onOpenFlower: (Long) -> Unit = {},
+    onOpenProfile: (String) -> Unit = {},
     onDeleted: (Long) -> Unit = { onBack() },
     sharedScope: FloraSharedScope? = null,
     viewModel: DetailViewModel = viewModel(key = "detail-$flowerId"),
@@ -353,6 +357,7 @@ fun FlowerDetailPage(
                 onOpenLikers = { showLikers = true },
                 commentsVm = commentsVm,
                 onOpenSpecies = onOpenSpecies,
+                onOpenProfile = onOpenProfile,
                 allFlowers = allFlowers,
                 onOpenFlower = onOpenFlower,
                 onAddPhoto = { showCamera = true },
@@ -424,6 +429,7 @@ private fun DetailContent(
     onOpenLikers: () -> Unit,
     commentsVm: CommentsViewModel,
     onOpenSpecies: (String) -> Unit,
+    onOpenProfile: (String) -> Unit,
     allFlowers: List<FlowerEntity>,
     onOpenFlower: (Long) -> Unit,
     onAddPhoto: () -> Unit,
@@ -602,7 +608,10 @@ private fun DetailContent(
             // ce n'est pas le cas, on affiche une invitation à synchroniser
             // plutôt que de masquer la section.
             if (flower.serverId != null) {
-                CommentsSection(viewModel = commentsVm)
+                CommentsSection(
+                    viewModel = commentsVm,
+                    onOpenProfile = onOpenProfile,
+                )
             } else {
                 CommentsLockedNotice()
             }

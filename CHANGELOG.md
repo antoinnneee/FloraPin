@@ -54,6 +54,13 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   sélection sont déplacées en haut, dans deux pastilles translucides de même
   taille ; l'étoile vectorielle ne change plus de dimensions lorsqu'elle est
   sélectionnée.
+- **Mentions d'amis fiabilisées dans les commentaires.** La saisie `@` propose
+  les amis acceptés même si leur chargement réseau se termine après le début de
+  la frappe. Une notification `comment_mention` n'est maintenant créée que si
+  la personne mentionnée est amie avec l'auteur et possède réellement un droit
+  d'accès à la fleur (partage, diffusion au réseau ou demande d'identification).
+  Dans un commentaire affiché, toucher le `@Nom` d'un ami ouvre désormais sa
+  fiche profil ; une mention qui ne correspond plus à un ami reste non cliquable.
 
 ### Corrigé
 - **Actions de l'accueil qui se chevauchaient.** Les trois boutons de l'en-tête

@@ -150,9 +150,11 @@ export class CommentsService {
    * Notifie les amis mentionnés (`@[userId]`) d'un commentaire. On ne notifie que
    * les mentions NOUVELLES ([previousIds] évite de re-pinguer à chaque édition),
    * en excluant l'auteur et le propriétaire de la fleur (déjà averti par
-   * `flower_commented`). On restreint au réseau d'amis acceptés de l'auteur :
-   * une mention est « @ami », ce qui écarte aussi un id arbitraire injecté.
-   * Best-effort (createSafe) : le commentaire est déjà persisté.
+   * `flower_commented`). On restreint au réseau d'amis acceptés de l'auteur ET
+   * aux personnes qui peuvent réellement ouvrir la fleur : un ami mentionné
+   * sans partage ni autre droit d'accès ne reçoit donc aucune notification.
+   * Cette double vérification écarte aussi un id arbitraire injecté. Best-effort
+   * (createSafe) : le commentaire est déjà persisté.
    */
   private async notifyMentions(
     authorId: string,
@@ -171,6 +173,7 @@ export class CommentsService {
     const friendIds = await this.friendships.acceptedFriendIds(authorId);
     for (const id of fresh) {
       if (!friendIds.includes(id)) continue;
+      if (!(await this.canParticipateInFlower(id, flower))) continue;
       await this.notifications.createSafe(id, 'comment_mention', {
         flowerId: flower.id,
         commentId,
@@ -396,12 +399,25 @@ export class CommentsService {
     if (!flower) {
       throw new NotFoundException('Fleur introuvable.');
     }
-    const canParticipate =
-      (await this.shares.isVisibleTo(viewerId, flower)) ||
-      (await this.shares.needsIdentificationVisibleTo(viewerId, flower));
+    const canParticipate = await this.canParticipateInFlower(viewerId, flower);
     if (!canParticipate) {
       throw new ForbiddenException('Fleur non accessible.');
     }
     return flower;
+  }
+
+  /**
+   * Droit commun à la lecture, au commentaire et aux notifications de mention.
+   * Garder ce contrôle en un seul point empêche d'avertir quelqu'un qui ne
+   * pourrait ensuite pas ouvrir la fleur depuis la notification.
+   */
+  private async canParticipateInFlower(
+    viewerId: string,
+    flower: Flower,
+  ): Promise<boolean> {
+    return (
+      (await this.shares.isVisibleTo(viewerId, flower)) ||
+      (await this.shares.needsIdentificationVisibleTo(viewerId, flower))
+    );
   }
 }

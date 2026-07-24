@@ -1,5 +1,8 @@
 package com.florapin.app.detail
 
+import androidx.compose.ui.graphics.Color
+import com.florapin.app.network.dto.CommentMentionDto
+import com.florapin.app.network.dto.FlowerCommentDto
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -75,5 +78,29 @@ class MentionTextTest {
             ),
             segments,
         )
+    }
+
+    @Test
+    fun `seule la mention d'un ami ouvre son profil`() {
+        val comment = FlowerCommentDto(
+            id = "comment-1",
+            flowerId = "flower-1",
+            authoredBy = "author",
+            body = "Salut @[$alice] et @[$bob]",
+            createdAt = "2026-07-24T18:00:00Z",
+            mentions = listOf(
+                CommentMentionDto(alice, "Alice"),
+                CommentMentionDto(bob, "Bob"),
+            ),
+        )
+
+        val body = commentBodyAnnotated(
+            comment = comment,
+            friendIds = setOf(alice),
+            mentionColor = Color.Green,
+        )
+
+        assertEquals(alice, mentionedFriendAt(body, body.text.indexOf("@Alice") + 1))
+        assertNull(mentionedFriendAt(body, body.text.indexOf("@Bob") + 1))
     }
 }

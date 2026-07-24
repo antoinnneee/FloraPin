@@ -94,6 +94,7 @@ fun SharedFeedScreen(
     commentsFor?.let { flowerId ->
         CommentsBottomSheet(
             flowerServerId = flowerId,
+            onOpenProfile = onOpenProfile,
             onDismiss = {
                 commentsFor = null
                 viewModel.refresh()

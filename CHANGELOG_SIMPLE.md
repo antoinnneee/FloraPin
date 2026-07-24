@@ -42,6 +42,10 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 - **Les cartes partagées ressemblent davantage aux vignettes de l'accueil.** Le
   nom de la plante est lisible directement sur la photo, et les boutons cœur et
   étoile sont plus discrets, de même taille et stables lorsque vous appuyez.
+- **Vous pouvez mentionner un ami dans un commentaire avec `@`.** La liste de
+  vos amis est proposée pendant la saisie ; la personne choisie est avertie
+  uniquement si elle peut elle aussi consulter cette fleur. Touchez ensuite son
+  `@Nom` dans la discussion pour ouvrir directement sa fiche profil.
 
 ### Réparé
 - **Les boutons en haut de l'accueil ne se chevauchent plus.** Leurs badges et

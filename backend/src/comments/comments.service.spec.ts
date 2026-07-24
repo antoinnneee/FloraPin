@@ -65,6 +65,8 @@ describe('CommentsService', () => {
   let notifiedData: Array<{ userId: string; type: string; data: unknown }>;
   // Réseau d'amis acceptés par utilisateur (pour restreindre les mentions).
   let friendsByUser: Map<string, string[]>;
+  // Destinataires qui voient la fleur via un partage.
+  let viewersWithAccess: Set<string>;
 
   beforeEach(async () => {
     flowerRepo = new FakeFlowerRepo();
@@ -73,6 +75,7 @@ describe('CommentsService', () => {
     notified = [];
     notifiedData = [];
     friendsByUser = new Map();
+    viewersWithAccess = new Set([FRIEND]);
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -85,7 +88,7 @@ describe('CommentsService', () => {
             // La fleur est partagée avec FRIEND (ciblé) mais pas STRANGER.
             isVisibleTo: async (viewerId: string, flower: Flower) =>
               flower.ownerId === viewerId ||
-              (viewerId === FRIEND &&
+              (viewersWithAccess.has(viewerId) &&
                 sharedWithFriend.some((f) => f.id === flower.id)),
             // FRIEND fait partie du réseau d'amis sollicité par une demande
             // d'identification ; STRANGER non.
@@ -300,6 +303,7 @@ describe('CommentsService', () => {
   it('notifie un ami mentionné et résout son nom pour l’affichage', async () => {
     const MENTIONED = randomUUID();
     friendsByUser.set(OWNER, [MENTIONED]);
+    viewersWithAccess.add(MENTIONED);
     flowerRepo.seed({ id: FLOWER, ownerId: OWNER });
 
     const comment = await service.post(
@@ -324,6 +328,22 @@ describe('CommentsService', () => {
     ]);
   });
 
+  it('ne notifie pas un ami mentionné qui n’a pas accès à la fleur', async () => {
+    const MENTIONED = randomUUID();
+    friendsByUser.set(OWNER, [MENTIONED]);
+    flowerRepo.seed({ id: FLOWER, ownerId: OWNER });
+
+    await service.post(OWNER, FLOWER, `Coucou @[${MENTIONED}]`);
+
+    expect(
+      notified.some(
+        (notification) =>
+          notification.userId === MENTIONED &&
+          notification.type === 'comment_mention',
+      ),
+    ).toBe(false);
+  });
+
   it('ne notifie pas un mentionné hors du réseau d’amis', async () => {
     const OUTSIDER = randomUUID();
     friendsByUser.set(OWNER, []); // aucun ami accepté
@@ -340,6 +360,8 @@ describe('CommentsService', () => {
     const A = randomUUID();
     const B = randomUUID();
     friendsByUser.set(FRIEND, [A, B]);
+    viewersWithAccess.add(A);
+    viewersWithAccess.add(B);
     flowerRepo.seed({ id: FLOWER, ownerId: OWNER });
 
     const comment = await service.post(FRIEND, FLOWER, `Salut @[${A}]`);

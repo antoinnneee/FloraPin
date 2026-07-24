@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Card
@@ -37,6 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -146,6 +148,10 @@ class CommentsViewModel(
                 it.copy(
                     friends = accepted,
                     friendNamesById = accepted.associate { u -> u.id to u.displayName },
+                    // L'utilisateur peut avoir commencé à saisir `@…` pendant
+                    // le chargement réseau : affiche alors les suggestions sans
+                    // exiger une nouvelle frappe.
+                    mentionSuggestions = suggestionsFor(it.draft, accepted),
                 )
             }
         }
@@ -195,9 +201,12 @@ class CommentsViewModel(
     }
 
     /** Amis dont le nom contient la requête `@…` courante (max 6), sinon vide. */
-    private fun suggestionsFor(text: String): List<FriendUserDto> {
+    private fun suggestionsFor(
+        text: String,
+        friends: List<FriendUserDto> = _state.value.friends,
+    ): List<FriendUserDto> {
         val query = MentionText.activeQuery(text) ?: return emptyList()
-        return _state.value.friends
+        return friends
             .filter { it.displayName.contains(query, ignoreCase = true) }
             .take(6)
     }
@@ -333,6 +342,7 @@ fun CommentsSection(
     viewModel: CommentsViewModel,
     modifier: Modifier = Modifier,
     scrollComments: Boolean = false,
+    onOpenProfile: (String) -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -359,6 +369,7 @@ fun CommentsSection(
         CommentList(
             state = state,
             viewModel = viewModel,
+            onOpenProfile = onOpenProfile,
             modifier = commentsModifier,
         )
 
@@ -445,6 +456,7 @@ fun CommentsSection(
 fun CommentsBottomSheet(
     flowerServerId: String,
     onDismiss: () -> Unit,
+    onOpenProfile: (String) -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val commentsVm: CommentsViewModel = viewModel(
@@ -458,6 +470,10 @@ fun CommentsBottomSheet(
         CommentsSection(
             viewModel = commentsVm,
             scrollComments = true,
+            onOpenProfile = { userId ->
+                onDismiss()
+                onOpenProfile(userId)
+            },
             modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp),
         )
     }
@@ -471,8 +487,10 @@ fun CommentsBottomSheet(
 private fun CommentList(
     state: CommentsUiState,
     viewModel: CommentsViewModel,
+    onOpenProfile: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val friendIds = remember(state.friends) { state.friends.mapTo(mutableSetOf()) { it.id } }
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -498,6 +516,8 @@ private fun CommentList(
                 onSubmitEdit = { viewModel.submitEdit() },
                 onCancelEdit = { viewModel.cancelEdit() },
                 onReply = { viewModel.startReply(comment) },
+                friendIds = friendIds,
+                onOpenProfile = onOpenProfile,
             )
         }
     }
@@ -540,6 +560,8 @@ private fun CommentCard(
     onSubmitEdit: () -> Unit,
     onCancelEdit: () -> Unit,
     onReply: () -> Unit,
+    friendIds: Set<String>,
+    onOpenProfile: (String) -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -610,10 +632,10 @@ private fun CommentCard(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.Top,
                 ) {
-                    Text(
-                        // Rend les mentions `@[id]` en `@Nom` colorées (noms résolus
-                        // par l'API à la lecture — un renommage reste cohérent).
-                        text = commentBodyAnnotated(comment),
+                    CommentBody(
+                        comment = comment,
+                        friendIds = friendIds,
+                        onOpenProfile = onOpenProfile,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f),
                     )
@@ -742,31 +764,80 @@ private fun MentionSuggestionRow(name: String, onClick: () -> Unit) {
 }
 
 /**
- * Construit le corps d'un commentaire en `AnnotatedString`, chaque mention
- * `@[userId]` rendue en `@Nom` coloré. Les noms proviennent de `comment.mentions`
- * (résolus par l'API À LA LECTURE) : un renommage reste donc cohérent, et un id
- * inconnu (ami retiré) retombe sur « @quelqu'un ».
+ * Corps de commentaire interactif : les mentions encore présentes dans la
+ * liste d'amis ouvrent leur profil. Une ancienne mention reste rendue en clair,
+ * mais ne porte aucune annotation cliquable.
  */
 @Composable
-private fun commentBodyAnnotated(comment: FlowerCommentDto): AnnotatedString {
+private fun CommentBody(
+    comment: FlowerCommentDto,
+    friendIds: Set<String>,
+    onOpenProfile: (String) -> Unit,
+    style: TextStyle,
+    modifier: Modifier = Modifier,
+) {
     val mentionColor = MaterialTheme.colorScheme.primary
-    return remember(comment.body, comment.mentions, mentionColor) {
-        val nameById = comment.mentions.associate { it.userId to it.displayName }
-        buildAnnotatedString {
-            for (segment in MentionText.segments(comment.body, nameById)) {
-                when (segment) {
-                    is MentionText.Segment.Literal -> append(segment.text)
-                    is MentionText.Segment.Mention ->
-                        withStyle(
-                            SpanStyle(color = mentionColor, fontWeight = FontWeight.Medium),
-                        ) {
-                            append(segment.display)
-                        }
+    val body = remember(comment.body, comment.mentions, friendIds, mentionColor) {
+        commentBodyAnnotated(
+            comment = comment,
+            friendIds = friendIds,
+            mentionColor = mentionColor,
+        )
+    }
+    ClickableText(
+        text = body,
+        style = style.copy(color = MaterialTheme.colorScheme.onSurface),
+        modifier = modifier,
+        onClick = { offset ->
+            mentionedFriendAt(body, offset)?.let(onOpenProfile)
+        },
+    )
+}
+
+private const val MENTION_PROFILE_TAG = "friend-profile"
+
+/**
+ * Construit le texte affiché et annote uniquement les mentions d'amis acceptés.
+ * Fonction sans état Compose afin de tester précisément la zone cliquable.
+ */
+internal fun commentBodyAnnotated(
+    comment: FlowerCommentDto,
+    friendIds: Set<String>,
+    mentionColor: Color,
+): AnnotatedString {
+    val nameById = comment.mentions.associate { it.userId to it.displayName }
+    return buildAnnotatedString {
+        for (segment in MentionText.segments(comment.body, nameById)) {
+            when (segment) {
+                is MentionText.Segment.Literal -> append(segment.text)
+                is MentionText.Segment.Mention -> {
+                    val start = length
+                    withStyle(
+                        SpanStyle(color = mentionColor, fontWeight = FontWeight.Medium),
+                    ) {
+                        append(segment.display)
+                    }
+                    if (segment.userId in friendIds) {
+                        addStringAnnotation(
+                            tag = MENTION_PROFILE_TAG,
+                            annotation = segment.userId,
+                            start = start,
+                            end = length,
+                        )
+                    }
                 }
             }
         }
     }
 }
+
+/** Identifiant du profil ami annoté à la position touchée, sinon `null`. */
+internal fun mentionedFriendAt(body: AnnotatedString, offset: Int): String? =
+    body.getStringAnnotations(
+        tag = MENTION_PROFILE_TAG,
+        start = offset,
+        end = offset,
+    ).firstOrNull()?.item
 
 /**
  * Transformation visuelle du champ de saisie : affiche chaque mention encodée

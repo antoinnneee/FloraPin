@@ -378,7 +378,10 @@ fun FloraNavHost(
             )
         }
         composable(Routes.IDENTIFY) {
-            IdentifyScreen(onBack = { navController.popBackStack() })
+            IdentifyScreen(
+                onBack = { navController.popBackStack() },
+                onOpenProfile = { uid -> navController.navigate(Routes.friendProfile(uid)) },
+            )
         }
         composable(Routes.NOTIFICATIONS) {
             // Le tap réutilise le routage des push (TÂCHE 2.2) : résolution
@@ -512,6 +515,9 @@ fun FloraNavHost(
                 },
                 onOpenFlower = { nearbyFlowerId ->
                     navController.navigate(Routes.detail(nearbyFlowerId))
+                },
+                onOpenProfile = { uid ->
+                    navController.navigate(Routes.friendProfile(uid))
                 },
                 onDeleted = { deletedId ->
                     // Dépose l'id soft-supprimé pour l'écran d'où l'on vient (la

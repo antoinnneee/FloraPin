@@ -204,6 +204,30 @@ class CommentsViewModelTest {
     }
 
     @Test
+    fun `les suggestions apparaissent si les amis finissent de charger apres la saisie`() =
+        runTest(dispatcher) {
+            val friendsApi = FakeFriendshipsApi(
+                listOf(
+                    acceptedFriend("u-marie", "Marie"),
+                    acceptedFriend("u-bob", "Bob"),
+                ),
+            )
+            val vm = CommentsViewModel(FakeCommentsApi(), FakeDraftStore(), friendsApi)
+
+            vm.bind("flower-1")
+            // Le chargement des amis est encore en attente sur le dispatcher.
+            vm.updateDraft("Regarde @mar")
+            assertEquals(emptyList<FriendUserDto>(), vm.state.value.mentionSuggestions)
+
+            advanceUntilIdle()
+
+            assertEquals(
+                listOf("Marie"),
+                vm.state.value.mentionSuggestions.map { it.displayName },
+            )
+        }
+
+    @Test
     fun `selectMention encode l'id dans le brouillon et ferme les suggestions`() =
         runTest(dispatcher) {
             val marie = acceptedFriend("u-marie", "Marie")

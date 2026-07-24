@@ -26,6 +26,14 @@ data class NotificationDto(
     /** Espèce transmise (proposition/confirmation d'espèce), si présente. */
     val species: String?
         get() = data["species"]?.takeIf { it.isNotBlank() }
+
+    /** Groupe collaboratif concerné par une invitation d'album. */
+    val groupId: String?
+        get() = data["groupId"]?.takeIf { it.isNotBlank() }
+
+    /** Nom de l'album/groupe fourni avec l'invitation. */
+    val groupName: String?
+        get() = data["groupName"]?.takeIf { it.isNotBlank() }
 }
 
 /** Réponse de `GET notifications/unread-count`. */

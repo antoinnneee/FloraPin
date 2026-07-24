@@ -130,6 +130,18 @@ private class FakeProfileCollection(
     override suspend fun recentFlowers(limit: Int): List<RecentFlower> = recent.take(limit)
 }
 
+private class FakeProfileDiagnostics(
+    private val failure: Throwable? = null,
+) : ProfileDiagnostics {
+    var sends = 0
+        private set
+
+    override suspend fun send() {
+        sends++
+        failure?.let { throw it }
+    }
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProfileViewModelTest {
 
@@ -287,5 +299,48 @@ class ProfileViewModelTest {
         assertEquals(clearedBefore, store.cleared)
         assertEquals("Mot de passe incorrect.", vm.state.value.deleteError)
         assertFalse(vm.state.value.deleting)
+    }
+
+    @Test
+    fun sendDiagnostics_successShowsConfirmation() = runTest {
+        val store = MemTokenStore(displayName = "Alice")
+        val diagnostics = FakeProfileDiagnostics()
+        val vm = ProfileViewModel(
+            store,
+            SessionManager(FakeAuthApi(), store),
+            FakeIdentificationApi(),
+            diagnostics = diagnostics,
+        )
+        advanceUntilIdle()
+
+        vm.sendDiagnostics()
+        advanceUntilIdle()
+
+        assertEquals(1, diagnostics.sends)
+        assertFalse(vm.state.value.diagnosticsSending)
+        assertFalse(vm.state.value.diagnosticsFailed)
+        assertEquals("Journaux envoyés. Merci !", vm.state.value.diagnosticsMessage)
+    }
+
+    @Test
+    fun sendDiagnostics_failureShowsRetryMessage() = runTest {
+        val store = MemTokenStore(displayName = "Alice")
+        val vm = ProfileViewModel(
+            store,
+            SessionManager(FakeAuthApi(), store),
+            FakeIdentificationApi(),
+            diagnostics = FakeProfileDiagnostics(RuntimeException("offline")),
+        )
+        advanceUntilIdle()
+
+        vm.sendDiagnostics()
+        advanceUntilIdle()
+
+        assertFalse(vm.state.value.diagnosticsSending)
+        assertTrue(vm.state.value.diagnosticsFailed)
+        assertEquals(
+            "Envoi impossible. Vérifiez votre connexion.",
+            vm.state.value.diagnosticsMessage,
+        )
     }
 }

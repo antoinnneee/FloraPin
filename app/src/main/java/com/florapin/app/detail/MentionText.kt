@@ -13,6 +13,19 @@ package com.florapin.app.detail
  */
 object MentionText {
 
+    /** Fragment `@requête` actif à la position du curseur. */
+    data class ActiveQuery(
+        val query: String,
+        val start: Int,
+        val endExclusive: Int,
+    )
+
+    /** Résultat d'une insertion, avec la nouvelle position du curseur brut. */
+    data class Insertion(
+        val text: String,
+        val cursor: Int,
+    )
+
     /** Motif d'une mention encodée `@[userId]` (UUID). Groupe 1 = l'identifiant. */
     val MENTION_REGEX =
         Regex("@\\[([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})]")
@@ -21,22 +34,37 @@ object MentionText {
     fun encode(userId: String): String = "@[$userId]"
 
     /**
-     * Requête d'autocomplete « en cours de frappe » : le fragment `@xxx` situé en
-     * fin de texte (le plus courant), s'il n'est pas déjà une mention encodée.
+     * Requête d'autocomplete « en cours de frappe » : le fragment `@xxx` situé
+     * en fin de texte, s'il n'est pas déjà une mention encodée.
      * Retourne le texte tapé après le `@` (éventuellement vide juste après `@`),
      * ou `null` s'il n'y a pas de mention en cours (espace, ponctuation, ou token
-     * déjà fermé). On se limite volontairement à la fin du texte : suffisant pour
-     * une saisie linéaire, sans dépendre de la position du curseur.
+     * déjà fermé). Cette surcharge conserve le comportement historique en
+     * considérant que le curseur est placé à la fin.
      */
-    fun activeQuery(text: String): String? {
-        val at = text.lastIndexOf('@')
+    fun activeQuery(text: String): String? =
+        activeQueryAt(text, text.length)?.query
+
+    /**
+     * Variante tenant compte du curseur : permet l'autocomplétion au milieu d'un
+     * message et évite de confondre le `@` d'une adresse email avec une mention.
+     */
+    fun activeQueryAt(text: String, cursor: Int): ActiveQuery? {
+        val end = cursor.coerceIn(0, text.length)
+        if (end == 0) return null
+        val at = text.lastIndexOf('@', startIndex = end - 1)
         if (at < 0) return null
-        val after = text.substring(at + 1)
+        if (at > 0) {
+            val before = text[at - 1]
+            if (before.isLetterOrDigit() || before == '_' || before == '.' || before == '-') {
+                return null
+            }
+        }
+        val after = text.substring(at + 1, end)
         // `@[` = début d'un token encodé (ou déjà fermé) : pas une saisie libre.
         if (after.startsWith("[")) return null
-        // La requête ne court que jusqu'à un séparateur : lettres/chiffres/_ only.
-        if (after.any { !it.isLetterOrDigit() && it != '_' }) return null
-        return after
+        // La requête ne court que jusqu'à un séparateur.
+        if (after.any { !it.isLetterOrDigit() && it !in "_-'’" }) return null
+        return ActiveQuery(query = after, start = at, endExclusive = end)
     }
 
     /**
@@ -45,9 +73,32 @@ object MentionText {
      * requête n'est active, ajoute simplement la mention en fin de texte.
      */
     fun insertMention(text: String, userId: String): String {
-        val at = text.lastIndexOf('@')
-        val prefix = if (at >= 0 && activeQuery(text) != null) text.substring(0, at) else text
-        return prefix + encode(userId) + " "
+        return insertMentionAt(text, userId, text.length).text
+    }
+
+    /** Remplace le fragment actif sans écraser le texte situé après le curseur. */
+    fun insertMentionAt(text: String, userId: String, cursor: Int): Insertion {
+        val safeCursor = cursor.coerceIn(0, text.length)
+        val active = activeQueryAt(text, safeCursor)
+        val start = active?.start ?: safeCursor
+        val end = active?.endExclusive ?: safeCursor
+        val token = encode(userId)
+        val suffix = text.substring(end)
+        val separator = if (
+            suffix.isEmpty() ||
+            suffix.first().isLetterOrDigit() ||
+            suffix.first() == '@'
+        ) {
+            " "
+        } else {
+            ""
+        }
+        val replacement = token + separator
+        return Insertion(
+            text = text.replaceRange(start, end, replacement),
+            cursor = start + replacement.length +
+                if (separator.isEmpty() && suffix.firstOrNull()?.isWhitespace() == true) 1 else 0,
+        )
     }
 
     /**

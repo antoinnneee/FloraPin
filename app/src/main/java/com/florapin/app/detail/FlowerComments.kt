@@ -1,6 +1,7 @@
 package com.florapin.app.detail
 
 import android.content.Context
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -18,8 +19,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -94,6 +97,10 @@ data class CommentsUiState(
     val friendNamesById: Map<String, String> = emptyMap(),
     /** Suggestions courantes de l'autocomplete `@` (vide si pas de saisie `@…`). */
     val mentionSuggestions: List<FriendUserDto> = emptyList(),
+    /** Requête en cours ; non-null dès la saisie de `@`, même sans résultat. */
+    val mentionQuery: String? = null,
+    /** Curseur brut utilisé pour remplacer précisément le fragment actif. */
+    val mentionCursor: Int = 0,
     val error: String? = null,
 )
 
@@ -122,7 +129,20 @@ class CommentsViewModel(
             serverId = flowerServerId
             // Nouvelle fleur : restaure le brouillon éventuellement persisté
             // (survit à la fermeture de la sheet / redémarrage de l'appli).
-            _state.update { it.copy(draft = drafts.load(flowerServerId)) }
+            val restoredDraft = drafts.load(flowerServerId)
+            val active = MentionText.activeQueryAt(restoredDraft, restoredDraft.length)
+            _state.update {
+                it.copy(
+                    draft = restoredDraft,
+                    mentionQuery = active?.query,
+                    mentionCursor = restoredDraft.length,
+                    mentionSuggestions = suggestionsFor(
+                        restoredDraft,
+                        restoredDraft.length,
+                        it.friends,
+                    ),
+                )
+            }
             load()
             return
         }
@@ -151,7 +171,11 @@ class CommentsViewModel(
                     // L'utilisateur peut avoir commencé à saisir `@…` pendant
                     // le chargement réseau : affiche alors les suggestions sans
                     // exiger une nouvelle frappe.
-                    mentionSuggestions = suggestionsFor(it.draft, accepted),
+                    mentionSuggestions = suggestionsFor(
+                        it.draft,
+                        it.mentionCursor,
+                        accepted,
+                    ),
                 )
             }
         }
@@ -175,8 +199,17 @@ class CommentsViewModel(
      * Met à jour le brouillon du champ de saisie (et le persiste par fleur), puis
      * recalcule les suggestions de mention selon la requête `@…` en cours.
      */
-    fun updateDraft(text: String) {
-        _state.update { it.copy(draft = text, mentionSuggestions = suggestionsFor(text)) }
+    fun updateDraft(text: String, cursor: Int = text.length) {
+        val safeCursor = cursor.coerceIn(0, text.length)
+        val active = MentionText.activeQueryAt(text, safeCursor)
+        _state.update {
+            it.copy(
+                draft = text,
+                mentionQuery = active?.query,
+                mentionCursor = safeCursor,
+                mentionSuggestions = suggestionsFor(text, safeCursor),
+            )
+        }
         serverId?.let { drafts.save(it, text) }
     }
 
@@ -186,28 +219,42 @@ class CommentsViewModel(
      * curseur côté UI). Le brouillon encode l'id (`@[userId]`), pas le nom.
      */
     fun selectMention(friend: FriendUserDto): String {
-        val newText = MentionText.insertMention(_state.value.draft, friend.id)
+        return selectMentionAt(friend, _state.value.mentionCursor).text
+    }
+
+    /** Insère une suggestion au curseur et renvoie aussi sa nouvelle position. */
+    fun selectMentionAt(friend: FriendUserDto, cursor: Int): MentionText.Insertion {
+        val insertion = MentionText.insertMentionAt(_state.value.draft, friend.id, cursor)
         _state.update {
             it.copy(
-                draft = newText,
+                draft = insertion.text,
                 // L'ami vient d'être choisi : garantit que son nom est résolvable
                 // même si la liste d'amis a évolué entre-temps.
                 friendNamesById = it.friendNamesById + (friend.id to friend.displayName),
                 mentionSuggestions = emptyList(),
+                mentionQuery = null,
+                mentionCursor = insertion.cursor,
             )
         }
-        serverId?.let { drafts.save(it, newText) }
-        return newText
+        serverId?.let { drafts.save(it, insertion.text) }
+        return insertion
+    }
+
+    /** Ferme le menu sans modifier le texte du message. */
+    fun dismissMentionSuggestions() {
+        _state.update { it.copy(mentionSuggestions = emptyList(), mentionQuery = null) }
     }
 
     /** Amis dont le nom contient la requête `@…` courante (max 6), sinon vide. */
     private fun suggestionsFor(
         text: String,
+        cursor: Int = text.length,
         friends: List<FriendUserDto> = _state.value.friends,
     ): List<FriendUserDto> {
-        val query = MentionText.activeQuery(text) ?: return emptyList()
+        val query = MentionText.activeQueryAt(text, cursor)?.query ?: return emptyList()
         return friends
             .filter { it.displayName.contains(query, ignoreCase = true) }
+            .sortedBy { it.displayName.lowercase() }
             .take(6)
     }
 
@@ -239,6 +286,7 @@ class CommentsViewModel(
                         draft = "",
                         replyingTo = null,
                         mentionSuggestions = emptyList(),
+                        mentionQuery = null,
                         comments = it.comments + created,
                     )
                 }
@@ -337,6 +385,7 @@ class CommentsViewModel(
  * + texte + ancienneté) suivie d'un champ de saisie. Affichée aussi bien sur le
  * détail (propriétaire) que sur une fleur partagée (ami).
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommentsSection(
     viewModel: CommentsViewModel,
@@ -393,48 +442,86 @@ fun CommentsSection(
             }
         }
 
-        // Suggestions d'amis à mentionner, présentées au-dessus du champ.
-        state.mentionSuggestions.forEach { friend ->
-            MentionSuggestionRow(
-                name = friend.displayName.ifBlank { "Sans nom" },
-                onClick = {
-                    val newText = viewModel.selectMention(friend)
-                    field = TextFieldValue(newText, TextRange(newText.length))
+        val mentionMenuExpanded = state.mentionQuery != null
+        ExposedDropdownMenuBox(
+            expanded = mentionMenuExpanded,
+            onExpandedChange = { expanded ->
+                if (!expanded) viewModel.dismissMentionSuggestions()
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            OutlinedTextField(
+                value = field,
+                onValueChange = { newValue ->
+                    field = newValue
+                    viewModel.updateDraft(newValue.text, newValue.selection.end)
+                },
+                modifier = Modifier
+                    .menuAnchor(MenuAnchorType.PrimaryEditable, enabled = true)
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp),
+                placeholder = {
+                    Text(
+                        if (state.replyingTo != null) "Écrire une réponse…"
+                        else "Ajouter un commentaire… (@ pour mentionner)",
+                    )
+                },
+                enabled = !state.submitting,
+                maxLines = 4,
+                visualTransformation = remember(state.friendNamesById, mentionColor) {
+                    MentionVisualTransformation(state.friendNamesById, mentionColor)
+                },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = { viewModel.submit() }),
+                trailingIcon = {
+                    TextButton(
+                        onClick = { viewModel.submit() },
+                        enabled = state.draft.isNotBlank() && !state.submitting,
+                    ) {
+                        Text("Envoyer")
+                    }
                 },
             )
-        }
 
-        OutlinedTextField(
-            value = field,
-            onValueChange = { newValue ->
-                field = newValue
-                viewModel.updateDraft(newValue.text)
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 56.dp),
-            placeholder = {
-                Text(
-                    if (state.replyingTo != null) "Écrire une réponse…"
-                    else "Ajouter un commentaire… (@ pour mentionner)",
-                )
-            },
-            enabled = !state.submitting,
-            maxLines = 4,
-            visualTransformation = remember(state.friendNamesById, mentionColor) {
-                MentionVisualTransformation(state.friendNamesById, mentionColor)
-            },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-            keyboardActions = KeyboardActions(onSend = { viewModel.submit() }),
-            trailingIcon = {
-                TextButton(
-                    onClick = { viewModel.submit() },
-                    enabled = state.draft.isNotBlank() && !state.submitting,
-                ) {
-                    Text("Envoyer")
+            ExposedDropdownMenu(
+                expanded = mentionMenuExpanded,
+                onDismissRequest = viewModel::dismissMentionSuggestions,
+            ) {
+                if (state.mentionSuggestions.isEmpty()) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (state.friends.isEmpty()) {
+                                    "Aucun ami disponible"
+                                } else {
+                                    "Aucun ami correspondant"
+                                },
+                            )
+                        },
+                        enabled = false,
+                        onClick = {},
+                    )
+                } else {
+                    state.mentionSuggestions.forEach { friend ->
+                        DropdownMenuItem(
+                            text = {
+                                Text("@${friend.displayName.ifBlank { "Sans nom" }}")
+                            },
+                            onClick = {
+                                val insertion = viewModel.selectMentionAt(
+                                    friend,
+                                    field.selection.end,
+                                )
+                                field = TextFieldValue(
+                                    insertion.text,
+                                    TextRange(insertion.cursor),
+                                )
+                            },
+                        )
+                    }
                 }
-            },
-        )
+            }
+        }
 
         state.error?.let {
             Text(
@@ -491,6 +578,7 @@ private fun CommentList(
     modifier: Modifier = Modifier,
 ) {
     val friendIds = remember(state.friends) { state.friends.mapTo(mutableSetOf()) { it.id } }
+    val commentsById = remember(state.comments) { state.comments.associateBy { it.id } }
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -517,6 +605,9 @@ private fun CommentList(
                 onCancelEdit = { viewModel.cancelEdit() },
                 onReply = { viewModel.startReply(comment) },
                 friendIds = friendIds,
+                replyToAuthorId = comment.replyToId
+                    ?.let(commentsById::get)
+                    ?.authoredBy,
                 onOpenProfile = onOpenProfile,
             )
         }
@@ -561,6 +652,7 @@ private fun CommentCard(
     onCancelEdit: () -> Unit,
     onReply: () -> Unit,
     friendIds: Set<String>,
+    replyToAuthorId: String?,
     onOpenProfile: (String) -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -574,7 +666,10 @@ private fun CommentCard(
             if (comment.replyToId != null) {
                 CommentQuote(
                     authorName = comment.replyToAuthorName,
+                    authorId = replyToAuthorId,
                     body = comment.replyToBody,
+                    friendIds = friendIds,
+                    onOpenProfile = onOpenProfile,
                 )
             }
             Row(
@@ -582,9 +677,20 @@ private fun CommentCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                val authorProfileId = profileIdIfFriend(comment.authoredBy, friendIds)
                 Text(
                     text = comment.authorName.ifBlank { "Quelqu'un" },
                     style = MaterialTheme.typography.labelLarge,
+                    color = if (authorProfileId != null) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                    modifier = if (authorProfileId != null) {
+                        Modifier.clickable { onOpenProfile(authorProfileId) }
+                    } else {
+                        Modifier
+                    },
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -656,7 +762,14 @@ private fun CommentCard(
  * l'auteur cité et rappel tronqué de son texte, dans un liseré discret.
  */
 @Composable
-private fun CommentQuote(authorName: String?, body: String?) {
+private fun CommentQuote(
+    authorName: String?,
+    authorId: String?,
+    body: String?,
+    friendIds: Set<String>,
+    onOpenProfile: (String) -> Unit,
+) {
+    val authorProfileId = profileIdIfFriend(authorId, friendIds)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -667,6 +780,11 @@ private fun CommentQuote(authorName: String?, body: String?) {
             text = "↩ ${authorName?.ifBlank { "Quelqu'un" } ?: "Quelqu'un"}",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary,
+            modifier = if (authorProfileId != null) {
+                Modifier.clickable { onOpenProfile(authorProfileId) }
+            } else {
+                Modifier
+            },
         )
         if (!body.isNullOrBlank()) {
             Text(
@@ -748,21 +866,6 @@ private fun CommentActionsMenu(
     }
 }
 
-/** Ligne cliquable de suggestion d'un ami à mentionner (autocomplete `@`). */
-@Composable
-private fun MentionSuggestionRow(name: String, onClick: () -> Unit) {
-    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "@$name",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.primary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
 /**
  * Corps de commentaire interactif : les mentions encore présentes dans la
  * liste d'amis ouvrent leur profil. Une ancienne mention reste rendue en clair,
@@ -793,6 +896,10 @@ private fun CommentBody(
         },
     )
 }
+
+/** Un pseudo ne route vers la fiche publique que s'il correspond encore à un ami. */
+internal fun profileIdIfFriend(userId: String?, friendIds: Set<String>): String? =
+    userId?.takeIf(friendIds::contains)
 
 private const val MENTION_PROFILE_TAG = "friend-profile"
 

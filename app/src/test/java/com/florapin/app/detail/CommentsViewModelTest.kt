@@ -198,9 +198,10 @@ class CommentsViewModelTest {
         vm.updateDraft("Regarde @mar")
 
         assertEquals(
-            listOf("Marie", "Marc"),
+            listOf("Marc", "Marie"),
             vm.state.value.mentionSuggestions.map { it.displayName },
         )
+        assertEquals("mar", vm.state.value.mentionQuery)
     }
 
     @Test
@@ -245,5 +246,25 @@ class CommentsViewModelTest {
             assertEquals("Regarde @[u-marie] ", vm.state.value.draft)
             assertEquals("Regarde @[u-marie] ", store.drafts["flower-1"])
             assertEquals(emptyList<FriendUserDto>(), vm.state.value.mentionSuggestions)
+        }
+
+    @Test
+    fun `selection au milieu du message preserve la suite et place le curseur`() =
+        runTest(dispatcher) {
+            val marie = acceptedFriend("u-marie", "Marie")
+            val vm = CommentsViewModel(
+                FakeCommentsApi(),
+                FakeDraftStore(),
+                FakeFriendshipsApi(listOf(marie)),
+            )
+            vm.bind("flower-1")
+            advanceUntilIdle()
+            vm.updateDraft("Regarde @mar demain", cursor = 12)
+
+            val insertion = vm.selectMentionAt(marie.user, cursor = 12)
+
+            assertEquals("Regarde @[u-marie] demain", insertion.text)
+            assertEquals("Regarde @[u-marie] ".length, insertion.cursor)
+            assertEquals(null, vm.state.value.mentionQuery)
         }
 }

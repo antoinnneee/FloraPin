@@ -18,6 +18,20 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.21.0 — 25 juillet 2026
+
+### Nouveau
+- **Vous pouvez envoyer les journaux techniques depuis Profil › Configuration**
+  lorsque vous avez besoin d'aide, afin de faciliter le diagnostic du problème.
+- **FloraPin demande maintenant confirmation avant de vous déconnecter**, afin
+  d'éviter de fermer votre session par erreur.
+
+### Amélioré
+- **Mentionner un ami dans un commentaire est maintenant plus simple.** Saisissez
+  `@` pour ouvrir la liste de vos amis, puis touchez le nom à insérer.
+- **Les pseudos de vos amis sont maintenant cliquables dans les discussions**
+  pour ouvrir directement leur profil.
+
 ## Version 1.20.0 — 24 juillet 2026
 
 ### Nouveau

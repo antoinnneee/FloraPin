@@ -454,6 +454,25 @@ CREATE TABLE IF NOT EXISTS device_tokens (
 CREATE INDEX IF NOT EXISTS idx_device_tokens_user ON device_tokens(user_id);
 
 -- =====================================================================
+-- Rapports techniques Android envoyés manuellement depuis Configuration
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS client_logs (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    app_version     TEXT NOT NULL,
+    version_code    INTEGER NOT NULL,
+    device_model    TEXT NOT NULL,
+    android_version TEXT NOT NULL,
+    locale          TEXT NOT NULL,
+    sync_status     TEXT NOT NULL,
+    sync_error      TEXT,
+    logs            TEXT NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_client_logs_user ON client_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_client_logs_created ON client_logs(created_at DESC);
+
+-- =====================================================================
 -- Notes
 -- =====================================================================
 -- * Visibilité d'une fleur pour l'utilisateur U :

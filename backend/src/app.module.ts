@@ -7,6 +7,7 @@ import { AlbumsModule } from './albums/albums.module';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { BadgesModule } from './badges/badges.module';
+import { ClientLogsModule } from './client-logs/client-logs.module';
 import { CommentsModule } from './comments/comments.module';
 import { FeedModule } from './feed/feed.module';
 import { FlowersModule } from './flowers/flowers.module';
@@ -73,6 +74,7 @@ import { UsersModule } from './users/users.module';
     LikesModule,
     ProposalsModule,
     CommentsModule,
+    ClientLogsModule,
     BadgesModule,
     PushModule,
     SyncModule,

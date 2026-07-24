@@ -34,6 +34,20 @@ class MentionTextTest {
     }
 
     @Test
+    fun `activeQueryAt detecte la mention au curseur au milieu du message`() {
+        val text = "Bonjour @mar demain"
+        assertEquals(
+            MentionText.ActiveQuery(query = "mar", start = 8, endExclusive = 12),
+            MentionText.activeQueryAt(text, cursor = 12),
+        )
+    }
+
+    @Test
+    fun `activeQueryAt ignore le arobase d'une adresse email`() {
+        assertNull(MentionText.activeQueryAt("alice@example.com", cursor = 13))
+    }
+
+    @Test
     fun `insertMention remplace la requete par le token encode et une espace`() {
         assertEquals(
             "Bonjour @[$alice] ",
@@ -81,6 +95,18 @@ class MentionTextTest {
     }
 
     @Test
+    fun `insertMentionAt preserve le texte apres le curseur`() {
+        val insertion = MentionText.insertMentionAt(
+            text = "Bonjour @mar demain",
+            userId = alice,
+            cursor = 12,
+        )
+
+        assertEquals("Bonjour @[$alice] demain", insertion.text)
+        assertEquals("Bonjour @[$alice] ".length, insertion.cursor)
+    }
+
+    @Test
     fun `seule la mention d'un ami ouvre son profil`() {
         val comment = FlowerCommentDto(
             id = "comment-1",
@@ -102,5 +128,12 @@ class MentionTextTest {
 
         assertEquals(alice, mentionedFriendAt(body, body.text.indexOf("@Alice") + 1))
         assertNull(mentionedFriendAt(body, body.text.indexOf("@Bob") + 1))
+    }
+
+    @Test
+    fun `seul le pseudo auteur d'un ami ouvre son profil`() {
+        assertEquals(alice, profileIdIfFriend(alice, setOf(alice)))
+        assertNull(profileIdIfFriend(bob, setOf(alice)))
+        assertNull(profileIdIfFriend(null, setOf(alice)))
     }
 }

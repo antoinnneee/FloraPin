@@ -148,6 +148,29 @@ describe('FloraPin API (e2e)', () => {
     expect(refreshed.body.accessToken).toBeDefined();
   });
 
+  it('diagnostics : un utilisateur connecté peut envoyer ses journaux', async () => {
+    const created = await register('diagnostics@example.com');
+    const report = {
+      appVersion: '1.20.0',
+      versionCode: 35,
+      deviceModel: 'Google Pixel',
+      androidVersion: '15 (API 35)',
+      locale: 'fr-FR',
+      syncStatus: 'ERROR',
+      syncError: 'timeout',
+      logs: '07-24 W/FloraPin: timeout',
+    };
+
+    await api().post('/api/v1/diagnostics/logs').send(report).expect(401);
+    const response = await api()
+      .post('/api/v1/diagnostics/logs')
+      .set('Authorization', `Bearer ${created.access}`)
+      .send(report)
+      .expect(201);
+    expect(response.body.id).toBeDefined();
+    expect(response.body.createdAt).toBeDefined();
+  });
+
   it('auth : change-password vérifie l’ancien mdp, garde la session et coupe les autres', async () => {
     const email = 'pat@example.com';
     const created = await register(email);

@@ -22,6 +22,7 @@ const MONITORED_TABLES = [
   'species',
   'species_proposals',
   'device_tokens',
+  'client_logs',
 ] as const;
 
 interface ImageRow {
@@ -137,6 +138,36 @@ export class AdminService {
         previewUrl: await this.safeUrl(row.thumbnailKey ?? row.imageKey),
         originalUrl: await this.safeUrl(row.imageKey),
       })),
+    );
+    const total = Number(countRow.count);
+    return {
+      page,
+      pageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      items,
+    };
+  }
+
+  async clientLogs(requestedPage: number, requestedPageSize: number) {
+    const page = Math.max(1, requestedPage || 1);
+    const pageSize = Math.min(50, Math.max(1, requestedPageSize || 12));
+    const offset = (page - 1) * pageSize;
+    const [countRow] = await this.dataSource.query(
+      'SELECT COUNT(*)::int AS count FROM client_logs',
+    );
+    const items = await this.dataSource.query(
+      `SELECT l.id, l.app_version AS "appVersion",
+        l.version_code AS "versionCode", l.device_model AS "deviceModel",
+        l.android_version AS "androidVersion", l.locale,
+        l.sync_status AS "syncStatus", l.sync_error AS "syncError",
+        l.logs, l.created_at AS "createdAt",
+        u.id AS "userId", u.display_name AS "displayName", u.email
+       FROM client_logs l
+       JOIN users u ON u.id = l.user_id
+       ORDER BY l.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [pageSize, offset],
     );
     const total = Number(countRow.count);
     return {

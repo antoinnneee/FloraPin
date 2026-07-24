@@ -17,6 +17,31 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.21.0] — 2026-07-25
+
+### Ajouté
+- **Envoi volontaire des journaux de diagnostic.** Profil › Configuration propose
+  désormais un bouton qui transmet au backend un rapport borné (version de
+  l'app, appareil, état de synchronisation et avertissements/erreurs du seul
+  processus FloraPin). Les jetons et adresses email sont masqués avant l'envoi.
+  L'API authentifiée stocke ces rapports dans `client_logs` et la console
+  `/api/v1/admin/dashboard` permet de les parcourir et d'ouvrir leur contenu.
+- **Confirmation de déconnexion.** Le bouton de déconnexion dans Profil ›
+  Configuration ouvre désormais un dialogue demandant confirmation avant de
+  fermer la session.
+
+### Corrigé
+- **Autocomplétion fiable des mentions.** La saisie de `@` dans un commentaire
+  ou une réponse ouvre maintenant un menu déroulant ancré au champ avec les amis
+  acceptés. La liste se filtre pendant la frappe et l'insertion remplace le
+  fragment au curseur sans écraser la suite du message ; les `@` d'adresses email
+  sont ignorés.
+- **Pseudos cliquables dans les discussions.** Toucher le pseudo d'un ami dans
+  l'en-tête d'un message, une citation ou une `@mention` ouvre désormais sa page
+  de profil. Les anciens contacts non accessibles restent du texte simple.
+
+_versionName 1.21.0, versionCode 36._
+
 ## [1.20.0] — 2026-07-24
 
 ### Ajouté

@@ -62,6 +62,10 @@ data class ProfileUiState(
     val badgeCount: Int? = null,
     /** Aperçu des dernières fleurs capturées, plus récentes d'abord (TÂCHE 5.1). */
     val recentFlowers: List<RecentFlower> = emptyList(),
+    /** Envoi manuel d'un rapport technique au support. */
+    val diagnosticsSending: Boolean = false,
+    val diagnosticsMessage: String? = null,
+    val diagnosticsFailed: Boolean = false,
 )
 
 /**
@@ -76,6 +80,7 @@ class ProfileViewModel(
     private val backup: ProfileBackup = ProfileBackup.NOOP,
     private val avatar: ProfileAvatar = ProfileAvatar.NOOP,
     private val collection: ProfileCollection = ProfileCollection.NOOP,
+    private val diagnostics: ProfileDiagnostics = ProfileDiagnostics.NOOP,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -367,6 +372,37 @@ class ProfileViewModel(
         }
     }
 
+    /** Collecte les journaux récents du seul processus FloraPin et les envoie au serveur. */
+    fun sendDiagnostics() {
+        if (_state.value.diagnosticsSending) return
+        _state.update {
+            it.copy(
+                diagnosticsSending = true,
+                diagnosticsMessage = null,
+                diagnosticsFailed = false,
+            )
+        }
+        viewModelScope.launch {
+            try {
+                diagnostics.send()
+                _state.update {
+                    it.copy(
+                        diagnosticsSending = false,
+                        diagnosticsMessage = "Journaux envoyés. Merci !",
+                    )
+                }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        diagnosticsSending = false,
+                        diagnosticsMessage = "Envoi impossible. Vérifiez votre connexion.",
+                        diagnosticsFailed = true,
+                    )
+                }
+            }
+        }
+    }
+
     /** Téléverse l'un des compagnons botaniques préinstallés comme avatar. */
     fun uploadDefaultAvatar(@DrawableRes resourceId: Int) {
         _state.update { it.copy(avatarUploading = true, avatarError = null) }
@@ -407,6 +443,7 @@ class ProfileViewModel(
                         ProfileBackup.from(context),
                         ProfileAvatar.from(context, session),
                         ProfileCollection.from(context),
+                        ProfileDiagnostics.from(context, apis.diagnostics),
                     ) as T
                 }
             }

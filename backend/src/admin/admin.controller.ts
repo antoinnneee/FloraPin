@@ -40,4 +40,14 @@ export class AdminController {
   ) {
     return this.admin.images(page, pageSize);
   }
+
+  @Get('client-logs')
+  @UseGuards(AdminGuard)
+  @Header('Cache-Control', 'no-store')
+  clientLogs(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('pageSize', new DefaultValuePipe(12), ParseIntPipe) pageSize: number,
+  ) {
+    return this.admin.clientLogs(page, pageSize);
+  }
 }

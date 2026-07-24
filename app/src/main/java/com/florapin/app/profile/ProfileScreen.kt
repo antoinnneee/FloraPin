@@ -103,6 +103,17 @@ fun ProfileScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showPasswordDialog by remember { mutableStateOf(false) }
     var showNameDialog by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
+
+    if (showLogoutDialog) {
+        LogoutConfirmationDialog(
+            onConfirm = {
+                showLogoutDialog = false
+                onLogout()
+            },
+            onDismiss = { showLogoutDialog = false },
+        )
+    }
 
     if (showNameDialog) {
         EditDisplayNameDialog(
@@ -226,8 +237,9 @@ fun ProfileScreen(
                     state = state,
                     onExport = viewModel::exportBackup,
                     onImport = viewModel::importBackup,
+                    onSendDiagnostics = viewModel::sendDiagnostics,
                     onChangePassword = { showPasswordDialog = true },
-                    onLogout = onLogout,
+                    onLogout = { showLogoutDialog = true },
                     onDeleteAccount = { showDeleteDialog = true },
                 )
             }
@@ -566,6 +578,7 @@ private fun ConfigurationTab(
     state: ProfileUiState,
     onExport: (Uri) -> Unit,
     onImport: (Uri) -> Unit,
+    onSendDiagnostics: () -> Unit,
     onChangePassword: () -> Unit,
     onLogout: () -> Unit,
     onDeleteAccount: () -> Unit,
@@ -588,6 +601,13 @@ private fun ConfigurationTab(
             onImport = onImport,
         )
 
+        DiagnosticsSection(
+            sending = state.diagnosticsSending,
+            message = state.diagnosticsMessage,
+            failed = state.diagnosticsFailed,
+            onSend = onSendDiagnostics,
+        )
+
         SecuritySection(
             successMessage = state.passwordMessage,
             onChangePassword = onChangePassword,
@@ -607,6 +627,81 @@ private fun ConfigurationTab(
         PrivacyPolicyLink()
 
         DangerZone(onDeleteAccount = onDeleteAccount)
+    }
+}
+
+/** Demande confirmation avant de fermer la session courante. */
+@Composable
+private fun LogoutConfirmationDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Se déconnecter ?") },
+        text = {
+            Text(
+                "Vous devrez vous reconnecter pour accéder à vos données synchronisées.",
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError,
+                ),
+            ) {
+                Text("Se déconnecter")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Annuler")
+            }
+        },
+    )
+}
+
+/** Envoi volontaire d'un rapport borné pour faciliter le diagnostic à distance. */
+@Composable
+private fun DiagnosticsSection(
+    sending: Boolean,
+    message: String?,
+    failed: Boolean,
+    onSend: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("Assistance", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "Envoyez la version de l'app, l'état de synchronisation et les " +
+                    "avertissements récents de FloraPin pour nous aider à diagnostiquer un problème.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Button(
+                onClick = onSend,
+                enabled = !sending,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(if (sending) "Envoi en cours…" else "Envoyer les journaux")
+            }
+            message?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (failed) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                )
+            }
+        }
     }
 }
 

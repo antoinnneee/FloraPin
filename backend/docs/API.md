@@ -304,6 +304,18 @@ contextuel et un `readAt` (null tant que non lue).
 
 `platform` ∈ `android` / `ios` / `web`.
 
+## Journaux de diagnostic (`/diagnostics/logs`)
+
+| Méthode | Chemin              | Description |
+|---------|---------------------|-------------|
+| POST    | `/diagnostics/logs` | Enregistre un rapport technique envoyé volontairement par l'utilisateur connecté |
+
+Le corps contient `appVersion`, `versionCode`, `deviceModel`, `androidVersion`,
+`locale`, `syncStatus`, `syncError?` et `logs`. Le journal est limité à 25 000
+caractères et la route à 5 envois par minute. La réponse est
+`201 { id, createdAt }`. Les rapports sont consultables uniquement depuis la
+console d'administration protégée.
+
 ## Limites & quotas
 
 **Rate limiting** (`@nestjs/throttler`, par IP) :
@@ -315,6 +327,7 @@ contextuel et un `readAt` (null tant que non lue).
 | `POST /auth/register`     | 3 / min |
 | `POST /auth/forgot-password` | 3 / 15 min |
 | `POST /auth/email/verification` | 3 / 15 min |
+| `POST /diagnostics/logs` | 5 / min |
 
 Dépassement → `429 Too Many Requests`.
 

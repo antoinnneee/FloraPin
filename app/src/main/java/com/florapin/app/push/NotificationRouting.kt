@@ -11,6 +11,8 @@ import android.content.Intent
 data class NotificationTarget(
     val type: String?,
     val flowerServerId: String?,
+    /** Groupe collaboratif concerné (invitation d'album), s'il y en a un. */
+    val groupId: String? = null,
 )
 
 /**
@@ -21,6 +23,7 @@ data class NotificationTarget(
 object NotificationRouting {
     const val EXTRA_TYPE = "florapin.notif.type"
     const val EXTRA_FLOWER_ID = "florapin.notif.flowerId"
+    const val EXTRA_GROUP_ID = "florapin.notif.groupId"
 
     /**
      * Reconstruit la cible depuis les extras de l'intent, ou `null` s'ils sont
@@ -32,8 +35,9 @@ object NotificationRouting {
         // Le serveur sérialise un flowerId absent en chaîne vide (FCM n'accepte
         // que des String) : on la traite comme « pas de fleur ».
         val flowerId = intent.getStringExtra(EXTRA_FLOWER_ID)?.takeIf { it.isNotBlank() }
-        if (type == null && flowerId == null) return null
-        return NotificationTarget(type, flowerId)
+        val groupId = intent.getStringExtra(EXTRA_GROUP_ID)?.takeIf { it.isNotBlank() }
+        if (type == null && flowerId == null && groupId == null) return null
+        return NotificationTarget(type, flowerId, groupId)
     }
 }
 

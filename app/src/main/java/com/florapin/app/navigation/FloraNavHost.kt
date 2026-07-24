@@ -27,6 +27,7 @@ import androidx.navigation.navDeepLink
 import com.florapin.app.auth.AuthUiState
 import com.florapin.app.auth.AuthViewModel
 import com.florapin.app.albums.AlbumDetailScreen
+import com.florapin.app.albums.AlbumInvitationScreen
 import com.florapin.app.albums.AlbumsScreen
 import com.florapin.app.auth.EmailVerifyViewModel
 import com.florapin.app.auth.ForgotPasswordScreen
@@ -72,7 +73,7 @@ private object Routes {
     const val RESET_PASSWORD = "reset-password?token={token}"
     const val VERIFY_EMAIL = "verify-email?token={token}"
     const val GALLERY = "gallery"
-    const val CAPTURE = "capture"
+    const val CAPTURE = "capture?albumId={albumId}"
     const val MAP = "map"
     const val FRIENDS = "friends"
     const val FRIEND_PROFILE = "friend/{userId}"
@@ -81,6 +82,7 @@ private object Routes {
     const val HERBIER = "herbier"
     const val ALBUMS = "albums"
     const val ALBUM_DETAIL = "album/{id}"
+    const val ALBUM_INVITATION = "album-invitation/{groupId}"
     const val DETAIL = "detail/{id}"
     const val SPECIES_DETAIL = "species/{id}"
     const val IDENTIFY = "identify"
@@ -91,6 +93,9 @@ private object Routes {
     /** Clé savedStateHandle : id d'une fleur soft-supprimée à annuler (TÂCHE 6.13). */
     const val KEY_DELETED_FLOWER = "deleted_flower_id"
     fun album(id: Long) = "album/$id"
+    fun albumInvitation(groupId: String) = "album-invitation/$groupId"
+    fun capture(albumId: Long? = null) =
+        albumId?.let { "capture?albumId=$it" } ?: "capture"
     fun speciesDetail(id: String) = "species/$id"
     fun friendProfile(userId: String) = "friend/$userId"
 }
@@ -192,7 +197,7 @@ fun FloraNavHost(
                 FloraBottomBar(
                     currentRoute = currentRoute?.destination?.route,
                     onSelect = { destination -> navController.navigateToTab(destination.route) },
-                    onCapture = { navController.navigate(Routes.CAPTURE) },
+                    onCapture = { navController.navigate(Routes.capture()) },
                     feedBadge = feedBadge,
                 )
             }
@@ -359,7 +364,7 @@ fun FloraNavHost(
                 .getStateFlow<Long?>(Routes.KEY_DELETED_FLOWER, null)
                 .collectAsStateWithLifecycle()
             GalleryScreen(
-                onCapture = { navController.navigate(Routes.CAPTURE) },
+                onCapture = { navController.navigate(Routes.capture()) },
                 onFlowerClick = { id -> navController.navigate(Routes.detail(id)) },
                 onOpenFriends = { navController.navigate(Routes.FRIENDS) },
                 onOpenIdentify = { navController.navigate(Routes.IDENTIFY) },
@@ -404,6 +409,18 @@ fun FloraNavHost(
                 albumId = id,
                 onBack = { navController.popBackStack() },
                 onFlowerClick = { fid -> navController.navigate(Routes.detail(fid)) },
+                onCaptureInAlbum = { navController.navigate(Routes.capture(id)) },
+            )
+        }
+        composable(
+            route = Routes.ALBUM_INVITATION,
+            arguments = listOf(navArgument("groupId") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
+            AlbumInvitationScreen(
+                groupId = groupId,
+                onBack = { navController.popBackStack() },
+                onAccepted = { navController.navigateToTab(Routes.ALBUMS) },
             )
         }
         composable(Routes.FEED) {
@@ -459,8 +476,22 @@ fun FloraNavHost(
                 },
             )
         }
-        composable(Routes.CAPTURE) {
-            CaptureFlow(onFinished = { navController.popBackStack() })
+        composable(
+            route = Routes.CAPTURE,
+            arguments = listOf(
+                navArgument("albumId") {
+                    type = NavType.LongType
+                    defaultValue = -1L
+                },
+            ),
+        ) { backStackEntry ->
+            val albumId = backStackEntry.arguments
+                ?.getLong("albumId")
+                ?.takeIf { it > 0L }
+            CaptureFlow(
+                albumId = albumId,
+                onFinished = { navController.popBackStack() },
+            )
         }
         composable(Routes.MAP) {
             MapScreen(
@@ -553,6 +584,11 @@ private suspend fun routeFromNotification(
         return
     }
     when (target.type) {
+        "group_invited" -> target.groupId?.let { groupId ->
+            navController.navigate(Routes.albumInvitation(groupId)) {
+                launchSingleTop = true
+            }
+        } ?: navController.navigateToTab(Routes.ALBUMS)
         "friend_request", "friend_accepted" ->
             navController.navigate(Routes.FRIENDS) { launchSingleTop = true }
         // Contenu d'ami sans fleur ciblée (partage 'all'/'album'…) → feed.

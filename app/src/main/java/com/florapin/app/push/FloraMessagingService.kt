@@ -37,6 +37,7 @@ class FloraMessagingService : FirebaseMessagingService() {
         // (partage ciblé, cœur, commentaire, identification…). Absent des partages
         // 'all'/'album' → le tap retombera sur le feed / l'écran par type.
         val flowerId = data["flowerId"]?.takeIf { it.isNotBlank() }
+        val groupId = data["groupId"]?.takeIf { it.isNotBlank() }
         // URL de la miniature de la fleur (TÂCHE 2.1) : URL présignée de lecture à
         // longue durée (7 jours), donc utilisable telle quelle. Absente des anciens
         // payloads et des push sans fleur → notification sans photo.
@@ -46,7 +47,7 @@ class FloraMessagingService : FirebaseMessagingService() {
         if (type == "friend_request" || type == "friend_accepted") {
             FriendshipEvents.notifyChanged()
         }
-        showNotification(title, body, type, flowerId, imageUrl)
+        showNotification(title, body, type, flowerId, groupId, imageUrl)
     }
 
     private fun showNotification(
@@ -54,6 +55,7 @@ class FloraMessagingService : FirebaseMessagingService() {
         body: String,
         type: String?,
         flowerId: String?,
+        groupId: String?,
         imageUrl: String?,
     ) {
         val manager = getSystemService(NotificationManager::class.java) ?: return
@@ -82,7 +84,7 @@ class FloraMessagingService : FirebaseMessagingService() {
             .setContentText(body)
             .setAutoCancel(true)
             .setGroup(groupKey)
-            .setContentIntent(contentIntent(notificationId, type, flowerId))
+            .setContentIntent(contentIntent(notificationId, type, flowerId, groupId))
         // Actions rapides (TÂCHE 2.6) : ❤️ et/ou « Répondre » directement depuis la
         // notification, selon le type (cf. NotificationQuickActions).
         addQuickActions(builder, notificationId, type, flowerId)
@@ -101,7 +103,7 @@ class FloraMessagingService : FirebaseMessagingService() {
         manager.notify(notificationId, builder.build())
         // Le résumé doit être (re)posté à CHAQUE ajout pour que le groupe reflète
         // l'état courant et se collapse dès la 2ᵉ notification.
-        postGroupSummary(manager, channelId, groupKey, type, flowerId)
+        postGroupSummary(manager, channelId, groupKey, type, flowerId, groupId)
     }
 
     /**
@@ -116,6 +118,7 @@ class FloraMessagingService : FirebaseMessagingService() {
         groupKey: String,
         type: String?,
         flowerId: String?,
+        groupId: String?,
     ) {
         val summaryId = NotificationGrouping.summaryId(type, flowerId)
         val summary = NotificationCompat.Builder(this, channelId)
@@ -128,7 +131,7 @@ class FloraMessagingService : FirebaseMessagingService() {
             // Le tap sur le résumé route comme une notification du groupe (même
             // fleur / même type) ; requestCode dédié pour ne pas recycler l'intent
             // d'un enfant.
-            .setContentIntent(contentIntent(summaryId, type, flowerId))
+            .setContentIntent(contentIntent(summaryId, type, flowerId, groupId))
             .build()
         manager.notify(summaryId, summary)
     }
@@ -183,6 +186,7 @@ class FloraMessagingService : FirebaseMessagingService() {
         requestCode: Int,
         type: String?,
         flowerId: String?,
+        groupId: String?,
     ): PendingIntent {
         val intent = Intent(this, MainActivity::class.java).apply {
             // CLEAR_TOP + singleTop (manifest) : réutilise l'activité existante et
@@ -190,6 +194,7 @@ class FloraMessagingService : FirebaseMessagingService() {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             type?.let { putExtra(NotificationRouting.EXTRA_TYPE, it) }
             flowerId?.let { putExtra(NotificationRouting.EXTRA_FLOWER_ID, it) }
+            groupId?.let { putExtra(NotificationRouting.EXTRA_GROUP_ID, it) }
         }
         return PendingIntent.getActivity(
             this,

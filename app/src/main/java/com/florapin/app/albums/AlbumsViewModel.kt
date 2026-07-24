@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.florapin.app.data.AlbumEntity
 import com.florapin.app.data.AlbumRepository
+import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.toEntity
 import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.auth.EncryptedTokenStore
@@ -14,10 +15,20 @@ import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /** Liste des albums + création/renommage/suppression (NODE-103). */
+data class AlbumSummary(
+    val album: AlbumEntity,
+    val flowers: List<FlowerEntity>,
+)
+
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class AlbumsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = AlbumRepository.from(application)
@@ -34,6 +45,30 @@ class AlbumsViewModel(application: Application) : AndroidViewModel(application) 
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = emptyList(),
     )
+
+    /**
+     * Couvertures vivantes : chaque album transporte ses trois captures les plus
+     * récentes et son nombre total, sans dupliquer l'état dans l'UI.
+     */
+    val summaries: StateFlow<List<AlbumSummary>> = repository.albums
+        .flatMapLatest { albums ->
+            if (albums.isEmpty()) {
+                flowOf(emptyList())
+            } else {
+                combine(
+                    albums.map { album ->
+                        repository.flowersIn(album.id).map { flowers ->
+                            AlbumSummary(album, flowers)
+                        }
+                    },
+                ) { it.toList() }
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
 
     /** Message transitoire (erreur réseau à la création collaborative). */
     val message: MutableStateFlow<String?> = MutableStateFlow(null)

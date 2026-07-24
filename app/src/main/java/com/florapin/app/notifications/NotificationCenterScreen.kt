@@ -14,11 +14,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -27,6 +30,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -63,9 +68,18 @@ fun NotificationCenterScreen(
     ),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(state.actionError) {
+        state.actionError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearActionError()
+        }
+    }
 
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -131,13 +145,17 @@ fun NotificationCenterScreen(
                     items(state.items, key = { it.id }) { notification ->
                         DismissibleNotificationRow(
                             notification = notification,
+                            accepting = notification.id in state.acceptingInvitationIds,
+                            accepted = notification.id in state.acceptedInvitationIds,
                             onDelete = { viewModel.delete(notification) },
+                            onAccept = { viewModel.acceptAlbumInvitation(notification) },
                             onClick = {
                                 viewModel.markRead(notification)
                                 onOpen(
                                     NotificationTarget(
                                         type = notification.type,
                                         flowerServerId = notification.flowerServerId,
+                                        groupId = notification.groupId,
                                     ),
                                 )
                             },
@@ -153,7 +171,10 @@ fun NotificationCenterScreen(
 @Composable
 private fun DismissibleNotificationRow(
     notification: NotificationDto,
+    accepting: Boolean,
+    accepted: Boolean,
     onDelete: () -> Unit,
+    onAccept: () -> Unit,
     onClick: () -> Unit,
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
@@ -185,7 +206,13 @@ private fun DismissibleNotificationRow(
         },
     ) {
         Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
-            NotificationRow(notification = notification, onClick = onClick)
+            NotificationRow(
+                notification = notification,
+                accepting = accepting,
+                accepted = accepted,
+                onAccept = onAccept,
+                onClick = onClick,
+            )
             HorizontalDivider()
         }
     }
@@ -194,6 +221,9 @@ private fun DismissibleNotificationRow(
 @Composable
 private fun NotificationRow(
     notification: NotificationDto,
+    accepting: Boolean,
+    accepted: Boolean,
+    onAccept: () -> Unit,
     onClick: () -> Unit,
 ) {
     val unread = notification.readAt == null
@@ -223,6 +253,22 @@ private fun NotificationRow(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (notification.type == "group_invited") {
+                Button(
+                    onClick = onAccept,
+                    enabled = !accepting && !accepted,
+                    modifier = Modifier.padding(top = 6.dp),
+                ) {
+                    if (accepting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Text(if (accepted) "Invitation acceptée" else "Accepter l'album")
+                    }
+                }
+            }
         }
         // Point « non lu » discret, aligné à droite.
         if (unread) {
@@ -246,6 +292,8 @@ private fun NotificationDto.emoji(): String = when (type) {
     "flower_liked" -> "❤️"
     "flower_commented" -> "💬"
     "comment_mention" -> "📣"
+    "group_invited" -> "🌿"
+    "group_member_joined" -> "👥"
     else -> "🔔"
 }
 
@@ -269,6 +317,10 @@ private fun NotificationDto.title(): String = when (type) {
     "flower_liked" -> "Quelqu'un a aimé votre fleur"
     "flower_commented" -> "Nouveau commentaire sur votre fleur"
     "comment_mention" -> "Vous avez été mentionné dans un commentaire"
+    "group_invited" -> groupName
+        ?.let { "Invitation à l'album « $it »" }
+        ?: "Invitation à un album collaboratif"
+    "group_member_joined" -> "Un nouveau membre a rejoint votre album"
     else -> "Nouvelle notification"
 }
 

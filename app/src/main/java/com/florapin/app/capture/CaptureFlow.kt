@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.annotation.VisibleForTesting
 import coil.compose.AsyncImage
+import com.florapin.app.data.AlbumRepository
 import com.florapin.app.data.FlowerRepository
 import com.florapin.app.data.PhotoRepository
 import com.florapin.app.location.GeoPoint
@@ -94,6 +95,8 @@ internal sealed interface Captured {
 @Composable
 fun CaptureFlow(
     modifier: Modifier = Modifier,
+    /** Album local cible ; la première photo y est rattachée dès sa persistance. */
+    albumId: Long? = null,
     onFinished: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -106,6 +109,12 @@ fun CaptureFlow(
     val locationProvider = remember(context) { LocationProvider(context) }
     val flowerRepo = remember(context) { FlowerRepository.from(context) }
     val photoRepo = remember(context) { PhotoRepository.from(context) }
+    val albumRepo = remember(context) { AlbumRepository.from(context) }
+    var albumName by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(albumId) {
+        albumName = albumId?.let { albumRepo.getById(it)?.name }
+    }
 
     // Identifiant de la fleur du groupe en cours (null tant qu'aucune photo prise).
     var flowerId: Long? by remember { mutableStateOf(null) }
@@ -156,6 +165,9 @@ fun CaptureFlow(
                 flowerRepo.saveCapture(imagePath = path, location = point)
             }.getOrNull()
             if (id != null) {
+                albumId?.let { targetAlbumId ->
+                    runCatching { albumRepo.addFlower(targetAlbumId, id) }
+                }
                 flowerId = id
                 photoCount = 1
                 captured = Captured.Cover(uri)
@@ -194,6 +206,7 @@ fun CaptureFlow(
                 captured = captured!!,
                 photoCount = photoCount,
                 locationState = locationState,
+                albumName = albumName,
                 onCancelPhoto = {
                     val c = captured
                     if (c != null) scope.launch {
@@ -201,6 +214,7 @@ fun CaptureFlow(
                             is Captured.Cover -> {
                                 // Annule entièrement la capture (fleur mono-photo).
                                 flowerId?.let { id ->
+                                    albumId?.let { albumRepo.removeFlower(it, id) }
                                     flowerRepo.getById(id)?.let { flowerRepo.delete(it) }
                                 }
                                 flowerId = null
@@ -244,6 +258,7 @@ internal fun CapturedPhotoScreen(
     captured: Captured,
     photoCount: Int,
     locationState: LocationState,
+    albumName: String? = null,
     onCancelPhoto: () -> Unit,
     onAddAnother: () -> Unit,
     onFinish: () -> Unit,
@@ -279,6 +294,13 @@ internal fun CapturedPhotoScreen(
                 text = "📸 $photoCount photo${if (photoCount > 1) "s" else ""} dans ce groupe",
                 style = MaterialTheme.typography.titleMedium,
             )
+            albumName?.let {
+                Text(
+                    text = "Ajoutée à « $it »",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
             LocationLine(locationState)
             Button(
                 onClick = onFinish,

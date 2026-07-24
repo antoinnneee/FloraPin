@@ -132,6 +132,7 @@ class MainActivity : ComponentActivity() {
         val target = NotificationRouting.parse(intent)
         intent?.removeExtra(NotificationRouting.EXTRA_TYPE)
         intent?.removeExtra(NotificationRouting.EXTRA_FLOWER_ID)
+        intent?.removeExtra(NotificationRouting.EXTRA_GROUP_ID)
         return target
     }
 }

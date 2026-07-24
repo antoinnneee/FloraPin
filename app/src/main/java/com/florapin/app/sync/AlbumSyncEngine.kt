@@ -7,6 +7,7 @@ import com.florapin.app.data.toEntity
 import com.florapin.app.network.api.AlbumsApi
 import com.florapin.app.network.dto.AddFlowerToAlbumRequest
 import com.florapin.app.network.dto.CreateAlbumRequest
+import com.florapin.app.network.dto.SetAlbumCoverRequest
 import com.florapin.app.network.dto.UpdateAlbumRequest
 import retrofit2.HttpException
 
@@ -68,12 +69,13 @@ class AlbumSyncEngine(
                                 permissionMode = album.groupId?.let { album.permissionMode },
                             ),
                         )
-                        albums.markSynced(album.id, dto.id, now())
                         reconcileMembers(
                             dto.id,
                             albums.memberFlowerServerIds(album.id),
                             myServerIds,
                         )
+                        if (!syncCover(dto.id, album.coverFlowerId)) continue
+                        albums.markSynced(album.id, dto.id, now())
                     }
                     serverId != null && album.deletedAt != null -> {
                         // Propriétaire : suppression réelle. Membre : on cesse
@@ -93,6 +95,7 @@ class AlbumSyncEngine(
                             albums.memberFlowerServerIds(album.id),
                             myServerIds,
                         )
+                        if (!syncCover(serverId, album.coverFlowerId)) continue
                         albums.markSynced(album.id, serverId, now())
                     }
                 }
@@ -114,6 +117,20 @@ class AlbumSyncEngine(
                 // l'album reste PENDING.
             }
         }
+    }
+
+    /**
+     * Pousse la couverture après les appartenances. Si la fleur choisie n'a pas
+     * encore d'id serveur, l'album reste PENDING pour retenter au prochain cycle.
+     */
+    private suspend fun syncCover(
+        serverAlbumId: String,
+        coverFlowerLocalId: Long?,
+    ): Boolean {
+        val coverServerId = coverFlowerLocalId?.let { flowers.getById(it)?.serverId }
+        if (coverFlowerLocalId != null && coverServerId == null) return false
+        albumsApi.setCover(serverAlbumId, SetAlbumCoverRequest(coverServerId))
+        return true
     }
 
     /**
@@ -175,6 +192,10 @@ class AlbumSyncEngine(
                 flowers.findByServerId(it)?.id
             }
             albums.setMembers(localId, memberLocalIds)
+            val coverLocalId = dto.coverFlowerId?.let {
+                flowers.findByServerId(it)?.id
+            }
+            albums.setCoverFromSync(localId, coverLocalId)
         }
 
         // Albums synchronisés absents côté serveur : supprimés ailleurs → purge.

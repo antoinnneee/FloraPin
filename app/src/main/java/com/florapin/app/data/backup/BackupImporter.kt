@@ -136,7 +136,8 @@ class BackupImporter(
                 albumIdMap[ba.id] = existingId
                 albumsSkipped++
             } else {
-                val newId = albums.insert(ba.toEntity())
+                val coverFlowerId = ba.coverFlowerId?.let { flowerIdMap[it] }
+                val newId = albums.insert(ba.toEntity(coverFlowerId))
                 albumIdMap[ba.id] = newId
                 albumsAdded++
             }

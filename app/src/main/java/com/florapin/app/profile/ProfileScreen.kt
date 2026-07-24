@@ -93,7 +93,6 @@ import com.florapin.app.util.formatCaptureDate
 fun ProfileScreen(
     onLogout: () -> Unit,
     onAccountDeleted: () -> Unit,
-    onOpenHerbier: () -> Unit = {},
     onOpenFlower: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = viewModel(
@@ -217,7 +216,6 @@ fun ProfileScreen(
                     onEditName = { showNameDialog = true },
                     onVerify = viewModel::requestEmailVerification,
                     onChangeEmail = viewModel::changeEmail,
-                    onOpenHerbier = onOpenHerbier,
                     onOpenBadges = { selectedTab = 1 },
                     onOpenFlower = onOpenFlower,
                 )
@@ -239,7 +237,7 @@ fun ProfileScreen(
 
 /**
  * Onglet ① Profil : avatar, identité, statistiques d'entraide et emplacements
- * des futurs contenus (herbier, dernières fleurs — TÂCHES 5.5/5.6).
+ * et aperçu des dernières fleurs.
  */
 @Composable
 private fun ProfileTab(
@@ -249,7 +247,6 @@ private fun ProfileTab(
     onEditName: () -> Unit,
     onVerify: () -> Unit,
     onChangeEmail: (String) -> Unit,
-    onOpenHerbier: () -> Unit,
     onOpenBadges: () -> Unit,
     onOpenFlower: (Long) -> Unit,
 ) {
@@ -376,31 +373,6 @@ private fun ProfileTab(
                         )
                     }
                 }
-            }
-        }
-
-        // Accès à l'herbier (TÂCHE 5.6) : espèces distinctes regroupées par famille.
-        Card(
-            modifier = Modifier.fillMaxWidth().clickable { onOpenHerbier() },
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(text = "🌿", style = MaterialTheme.typography.headlineSmall)
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Mon herbier",
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        text = "Vos espèces distinctes, regroupées par famille",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Text(text = "›", style = MaterialTheme.typography.headlineSmall)
             }
         }
 

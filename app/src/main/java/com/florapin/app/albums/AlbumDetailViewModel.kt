@@ -48,4 +48,9 @@ class AlbumDetailViewModel(application: Application) : AndroidViewModel(applicat
         val id = albumId.value ?: return
         viewModelScope.launch { repository.removeFlower(id, flowerLocalId) }
     }
+
+    fun setCover(flowerLocalId: Long) {
+        val current = album.value ?: return
+        viewModelScope.launch { repository.setCover(current, flowerLocalId) }
+    }
 }

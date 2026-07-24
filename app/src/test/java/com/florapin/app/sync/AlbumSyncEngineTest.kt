@@ -14,6 +14,7 @@ import com.florapin.app.network.dto.AddFlowerToAlbumRequest
 import com.florapin.app.network.dto.AlbumDto
 import com.florapin.app.network.dto.CreateAlbumRequest
 import com.florapin.app.network.dto.SetAlbumGroupRequest
+import com.florapin.app.network.dto.SetAlbumCoverRequest
 import com.florapin.app.network.dto.SetAlbumPermissionsRequest
 import com.florapin.app.network.dto.UpdateAlbumRequest
 import kotlinx.coroutines.flow.Flow
@@ -168,6 +169,11 @@ private class FakeAlbumsApi : AlbumsApi {
         server[id] = updated
         return updated
     }
+    override suspend fun setCover(id: String, body: SetAlbumCoverRequest): AlbumDto {
+        val dto = server.getValue(id).copy(coverFlowerId = body.flowerId)
+        server[id] = dto
+        return dto
+    }
     override suspend fun setGroup(id: String, body: SetAlbumGroupRequest): AlbumDto {
         val dto = server.getValue(id).copy(
             groupId = body.groupId,
@@ -199,6 +205,7 @@ class AlbumSyncEngineTest {
         val flower = flowerDao.seed(serverId = "srv-flower-1")
         val albumId = albumRepo.create("Printemps")
         albumRepo.addFlower(albumId, flower.id)
+        albumRepo.setCover(albumDao.getById(albumId)!!, flower.id)
 
         engine.push()
 
@@ -207,6 +214,7 @@ class AlbumSyncEngineTest {
         assertNotNull(local.serverId)
         // L'appartenance a été propagée au serveur.
         assertEquals(listOf("srv-flower-1"), api.server.getValue(local.serverId!!).flowerIds)
+        assertEquals("srv-flower-1", api.server.getValue(local.serverId!!).coverFlowerId)
     }
 
     @Test
@@ -227,6 +235,7 @@ class AlbumSyncEngineTest {
             name = "Été",
             clientId = "client-a",
             flowerIds = listOf("srv-flower-9"),
+            coverFlowerId = "srv-flower-9",
             createdAt = "2026-06-21T09:00:00Z",
         )
 
@@ -237,6 +246,7 @@ class AlbumSyncEngineTest {
         assertEquals("Été", local!!.name)
         assertEquals(SyncState.SYNCED.name, local.syncState)
         assertEquals(listOf(flower.id), albumDao.memberFlowerIds(local.id))
+        assertEquals(flower.id, local.coverFlowerId)
     }
 
     @Test

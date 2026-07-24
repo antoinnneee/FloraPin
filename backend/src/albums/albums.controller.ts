@@ -19,6 +19,7 @@ import { AlbumsService } from './albums.service';
 import {
   AddFlowerToAlbumDto,
   CreateAlbumDto,
+  SetAlbumCoverDto,
   SetAlbumGroupDto,
   SetAlbumPermissionsDto,
   UpdateAlbumDto,
@@ -108,5 +109,14 @@ export class AlbumsController {
     @Param('flowerId', ParseUUIDPipe) flowerId: string,
   ) {
     return this.albums.removeFlower(user.userId, id, flowerId);
+  }
+
+  @Patch(':id/cover')
+  setCover(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetAlbumCoverDto,
+  ) {
+    return this.albums.setCover(user.userId, id, dto.flowerId ?? null);
   }
 }

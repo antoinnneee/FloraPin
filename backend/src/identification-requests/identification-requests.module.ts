@@ -6,13 +6,14 @@ import { FriendshipsModule } from '../friendships/friendships.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ProposalsModule } from '../proposals/proposals.module';
 import { SharesModule } from '../shares/shares.module';
+import { User } from '../users/user.entity';
 import { IdentificationRequestsController } from './identification-requests.controller';
 import { IdentificationRequestsService } from './identification-requests.service';
 
 /** Demandes d'identification collaborative (NODE-133). */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Flower]),
+    TypeOrmModule.forFeature([Flower, User]),
     FriendshipsModule,
     NotificationsModule,
     SharesModule,

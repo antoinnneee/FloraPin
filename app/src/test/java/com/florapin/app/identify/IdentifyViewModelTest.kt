@@ -21,7 +21,10 @@ import org.junit.Before
 import org.junit.Test
 import retrofit2.Response
 
-private fun flower(id: String) = FlowerDto(
+private fun flower(
+    id: String,
+    requestedAt: String? = null,
+) = FlowerDto(
     id = id,
     ownerId = "o",
     imageUrl = "https://x/$id.jpg",
@@ -29,6 +32,7 @@ private fun flower(id: String) = FlowerDto(
     notes = "",
     visibility = "shared",
     needsIdentification = true,
+    identificationRequestedAt = requestedAt,
     createdAt = "t",
     updatedAt = "t",
 )
@@ -120,6 +124,20 @@ class IdentifyViewModelTest {
         assertFalse(state.loading)
         assertEquals(listOf("f1", "f2"), state.flowers.map { it.id })
         assertNull(state.error)
+    }
+
+    @Test
+    fun load_sortsNewestIdentificationRequestsFirst() = runTest {
+        val api = FakeIdentificationApi(
+            flowers = listOf(
+                flower("older", requestedAt = "2026-07-23T12:00:00Z"),
+                flower("newer", requestedAt = "2026-07-24T12:00:00Z"),
+            ),
+        )
+        val vm = IdentifyViewModel(api)
+        advanceUntilIdle()
+
+        assertEquals(listOf("newer", "older"), vm.state.value.flowers.map { it.id })
     }
 
     @Test

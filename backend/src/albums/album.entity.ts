@@ -60,6 +60,10 @@ export class Album {
   @Column({ name: 'client_id', type: 'uuid', nullable: true })
   clientId: string | null;
 
+  /** Fleur membre choisie comme couverture, null = première fleur de l'album. */
+  @Column({ name: 'cover_flower_id', type: 'uuid', nullable: true })
+  coverFlowerId: string | null;
+
   @ManyToMany(() => Flower)
   @JoinTable({
     name: 'flower_albums',

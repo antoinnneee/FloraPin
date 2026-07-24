@@ -9,6 +9,7 @@ const FLOWER = 'flower-1';
 describe('IdentificationRequestsService', () => {
   let flower: Flower | null;
   let flowers: { findOne: jest.Mock; save: jest.Mock; find: jest.Mock };
+  let users: { find: jest.Mock };
   let friendships: { acceptedFriendIds: jest.Mock };
   let notifications: { create: jest.Mock; createSafe: jest.Mock };
   let shares: { needsIdentificationFromFriends: jest.Mock };
@@ -27,6 +28,7 @@ describe('IdentificationRequestsService', () => {
       save: jest.fn(async (f: Flower) => f),
       find: jest.fn(async () => []),
     };
+    users = { find: jest.fn(async () => []) };
     friendships = { acceptedFriendIds: jest.fn(async () => ['a', 'b']) };
     notifications = {
       create: jest.fn(async () => undefined),
@@ -37,6 +39,7 @@ describe('IdentificationRequestsService', () => {
     proposals = { listForFlowerIds: jest.fn(async () => new Map()) };
     service = new IdentificationRequestsService(
       flowers as never,
+      users as never,
       friendships as never,
       notifications as never,
       shares as never,
@@ -81,21 +84,35 @@ describe('IdentificationRequestsService', () => {
   describe('listForViewer', () => {
     it('délègue aux fleurs « à identifier » des amis (sans exiger un partage ciblé)', async () => {
       shares.needsIdentificationFromFriends.mockResolvedValue([
-        { id: 'f1', needsIdentification: true } as FlowerResponse,
+        {
+          id: 'f1',
+          ownerId: OWNER,
+          needsIdentification: true,
+          identificationRequestedAt: new Date('2026-07-24T12:00:00Z'),
+        } as never,
       ]);
+      users.find.mockResolvedValue([{ id: OWNER, displayName: 'Alice' }]);
 
       const result = await service.listForViewer('viewer');
 
       expect(shares.needsIdentificationFromFriends).toHaveBeenCalledWith('viewer');
       expect(result.map((f) => f.id)).toEqual(['f1']);
+      expect(result[0].ownerName).toBe('Alice');
     });
   });
 
   describe('listMine', () => {
     it('compose mes fleurs en attente avec leurs propositions (sans N+1)', async () => {
-      flowers.find.mockResolvedValue([{ id: FLOWER } as Flower]);
+      const requestedAt = new Date('2026-07-24T12:00:00Z');
+      flowers.find.mockResolvedValue([
+        { id: FLOWER, lastRemindedAt: requestedAt } as Flower,
+      ]);
       flowersService.toResponseMany.mockResolvedValue([
-        { id: FLOWER, needsIdentification: true } as FlowerResponse,
+        {
+          id: FLOWER,
+          needsIdentification: true,
+          updatedAt: new Date('2026-07-23T12:00:00Z'),
+        } as FlowerResponse,
       ]);
       proposals.listForFlowerIds.mockResolvedValue(
         new Map([[FLOWER, [{ id: 'p1', species: 'Coquelicot' }]]]),
@@ -105,14 +122,19 @@ describe('IdentificationRequestsService', () => {
 
       expect(flowers.find).toHaveBeenCalledWith({
         where: { ownerId: OWNER, needsIdentification: true },
-        order: { createdAt: 'DESC' },
+        order: { lastRemindedAt: 'DESC', id: 'DESC' },
       });
       // Un seul batch des propositions pour tout le lot (pas d'appel par fleur).
       expect(proposals.listForFlowerIds).toHaveBeenCalledTimes(1);
       expect(proposals.listForFlowerIds).toHaveBeenCalledWith([FLOWER]);
       expect(result).toEqual([
         {
-          flower: { id: FLOWER, needsIdentification: true },
+          flower: {
+            id: FLOWER,
+            needsIdentification: true,
+            updatedAt: new Date('2026-07-23T12:00:00Z'),
+            identificationRequestedAt: requestedAt,
+          },
           proposals: [{ id: 'p1', species: 'Coquelicot' }],
         },
       ]);

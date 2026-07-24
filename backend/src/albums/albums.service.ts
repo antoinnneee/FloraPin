@@ -30,6 +30,8 @@ export interface AlbumResponse {
   /** Régime de droits pour un album de groupe. */
   permissionMode: AlbumPermissionMode;
   flowerIds: string[];
+  /** Fleur membre choisie comme couverture, ou null pour le choix automatique. */
+  coverFlowerId: string | null;
   /** Le demandeur peut-il éditer cet album (ajouter/retirer/renommer) ? */
   canEdit: boolean;
   /** Droits « au cas par cas » (présent seulement pour un album de groupe). */
@@ -88,6 +90,7 @@ export class AlbumsService {
       groupId,
       permissionMode: groupId ? permissionMode : 'open',
       flowers: [],
+      coverFlowerId: null,
     });
     const saved = await this.albums.save(album);
     return this.toResponse(saved, userId);
@@ -251,8 +254,26 @@ export class AlbumsService {
   ): Promise<AlbumResponse> {
     const album = await this.requireEditableAlbum(userId, albumId);
     album.flowers = album.flowers.filter((f) => f.id !== flowerId);
+    if (album.coverFlowerId === flowerId) {
+      album.coverFlowerId = null;
+    }
     await this.albums.save(album);
     return this.toResponse(album, userId);
+  }
+
+  /** Choisit une fleur déjà membre comme couverture de l'album. */
+  async setCover(
+    userId: string,
+    albumId: string,
+    flowerId: string | null,
+  ): Promise<AlbumResponse> {
+    const album = await this.requireEditableAlbum(userId, albumId);
+    if (flowerId && !album.flowers.some((flower) => flower.id === flowerId)) {
+      throw new NotFoundException('Cette fleur ne figure pas dans l’album.');
+    }
+    album.coverFlowerId = flowerId;
+    const saved = await this.albums.save(album);
+    return this.toResponse(saved, userId);
   }
 
   // --- Résolution d'accès ---
@@ -317,6 +338,7 @@ export class AlbumsService {
       groupId: album.groupId ?? null,
       permissionMode: album.permissionMode ?? 'open',
       flowerIds: (album.flowers ?? []).map((f) => f.id),
+      coverFlowerId: album.coverFlowerId ?? null,
       canEdit: await this.canEdit(viewerId, album),
       createdAt: album.createdAt,
     };

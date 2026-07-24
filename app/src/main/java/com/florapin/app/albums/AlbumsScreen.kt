@@ -23,7 +23,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -92,19 +91,19 @@ fun AlbumsScreen(
                         }
                     }
                 },
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { showCreate = true },
-                icon = {
-                    BotanicalIcon(
-                        R.drawable.ic_add_botanical,
-                        contentDescription = null,
-                        size = 22.dp,
-                    )
+                actions = {
+                    TextButton(onClick = { showCreate = true }) {
+                        BotanicalIcon(
+                            R.drawable.ic_add_botanical,
+                            contentDescription = null,
+                            size = 20.dp,
+                        )
+                        Text(
+                            text = "Créer",
+                            modifier = Modifier.padding(start = 6.dp),
+                        )
+                    }
                 },
-                text = { Text("Nouvel album") },
             )
         },
     ) { innerPadding ->
@@ -120,11 +119,11 @@ fun AlbumsScreen(
             )
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 164.dp),
+                columns = GridCells.Adaptive(minSize = 150.dp),
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 112.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -186,10 +185,6 @@ private fun AlbumLibraryHeader(summaries: List<AlbumSummary>) {
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
-            text = "Votre herbier, en histoires",
-            style = MaterialTheme.typography.headlineMedium,
-        )
-        Text(
             text = "${summaries.size} album${if (summaries.size > 1) "s" else ""} · " +
                 "$photoCount observation${if (photoCount > 1) "s" else ""}",
             style = MaterialTheme.typography.bodyMedium,
@@ -210,13 +205,16 @@ private fun AlbumCoverCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(0.78f)
+            .aspectRatio(0.86f)
             .clickable(onClick = onClick),
         shape = MaterialTheme.shapes.large,
         tonalElevation = 2.dp,
     ) {
         Box {
-            AlbumContactSheet(summary.flowers)
+            AlbumContactSheet(
+                flowers = summary.flowers,
+                coverFlowerId = album.coverFlowerId,
+            )
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -314,7 +312,10 @@ private fun AlbumCoverCard(
 }
 
 @Composable
-private fun AlbumContactSheet(flowers: List<FlowerEntity>) {
+private fun AlbumContactSheet(
+    flowers: List<FlowerEntity>,
+    coverFlowerId: Long?,
+) {
     if (flowers.isEmpty()) {
         Box(
             modifier = Modifier
@@ -331,27 +332,29 @@ private fun AlbumContactSheet(flowers: List<FlowerEntity>) {
         return
     }
 
+    val coverFlower = flowers.firstOrNull { it.id == coverFlowerId } ?: flowers.first()
+    val secondaryFlowers = flowers.filterNot { it.id == coverFlower.id }
     Box(modifier = Modifier.fillMaxSize()) {
         AsyncImage(
-            model = flowers.first().thumbnailModel(),
+            model = coverFlower.thumbnailModel(),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
-        if (flowers.size > 1) {
+        if (secondaryFlowers.isNotEmpty()) {
             Column(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 54.dp, end = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(7.dp),
+                    .padding(top = 52.dp, end = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                flowers.drop(1).take(2).forEach { flower ->
+                secondaryFlowers.take(2).forEach { flower ->
                     AsyncImage(
                         model = flower.thumbnailModel(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .size(width = 56.dp, height = 70.dp)
+                            .size(width = 46.dp, height = 58.dp)
                             .clip(RoundedCornerShape(14.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant),
                     )

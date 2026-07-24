@@ -109,7 +109,7 @@ class AlbumCollaborationViewModel(application: Application) :
                     serverId,
                     SetAlbumGroupRequest(groupId = group.id, permissionMode = "open"),
                 )
-                persist(dto.applyTo(current))
+                persistCollaboration(dto, current)
                 load(album!!)
             } catch (e: Exception) {
                 _state.update { it.copy(error = networkErrorMessage(e)) }
@@ -138,7 +138,7 @@ class AlbumCollaborationViewModel(application: Application) :
                     serverId,
                     SetAlbumPermissionsRequest(mode = mode, entries = entries),
                 )
-                persist(dto.applyTo(current))
+                persistCollaboration(dto, current)
                 load(album!!)
             } catch (e: Exception) {
                 _state.update { it.copy(error = networkErrorMessage(e)) }
@@ -161,7 +161,7 @@ class AlbumCollaborationViewModel(application: Application) :
                     serverId,
                     SetAlbumPermissionsRequest(mode = "restricted", entries = entries),
                 )
-                persist(dto.applyTo(current))
+                persistCollaboration(dto, current)
                 load(album!!)
             } catch (e: Exception) {
                 _state.update { it.copy(error = networkErrorMessage(e)) }
@@ -186,5 +186,24 @@ class AlbumCollaborationViewModel(application: Application) :
     private suspend fun persist(updated: AlbumEntity) {
         album = updated
         repository.update(updated)
+    }
+
+    /**
+     * Une réponse de réglage ne doit pas effacer un titre ou une couverture
+     * encore en attente de synchronisation locale.
+     */
+    private suspend fun persistCollaboration(
+        dto: com.florapin.app.network.dto.AlbumDto,
+        current: AlbumEntity,
+    ) {
+        persist(
+            dto.applyTo(current).copy(
+                name = current.name,
+                coverFlowerId = current.coverFlowerId,
+                updatedAt = current.updatedAt,
+                syncState = current.syncState,
+                deletedAt = current.deletedAt,
+            ),
+        )
     }
 }

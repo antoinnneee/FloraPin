@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -77,7 +79,13 @@ fun IdentifyScreen(
     commentsFor?.let { flowerId ->
         CommentsBottomSheet(
             flowerServerId = flowerId,
-            onDismiss = { commentsFor = null },
+            onDismiss = {
+                commentsFor = null
+                // Le compteur de la carte reflète immédiatement un commentaire
+                // ajouté ou supprimé dans la feuille de discussion.
+                viewModel.refresh()
+                myRequestsViewModel.refresh()
+            },
             onOpenProfile = onOpenProfile,
         )
     }
@@ -161,8 +169,8 @@ private fun ToIdentifyTab(
 
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(state.flowers, key = { it.id }) { flower ->
                     IdentifyCard(
@@ -219,8 +227,8 @@ private fun MyRequestsTab(
 
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(state.requests, key = { it.flower.id }) { request ->
                     MyRequestCard(
@@ -300,12 +308,28 @@ private fun IdentifyCard(
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             // Statut de la demande (TÂCHE 4.2) : l'ami voit si elle est toujours
             // ouverte ou déjà tranchée par le propriétaire.
-            IdentificationStatusBadge(status = flower.identificationStatus())
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Demandée par ${flower.ownerName.ifBlank { "un ami" }}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp),
+                )
+                IdentificationStatusBadge(status = flower.identificationStatus())
+            }
             // Toutes les photos de la fleur (carrousel + plein écran/zoom au clic),
             // pour mieux juger l'espèce à proposer. Repli sur la couverture seule.
             PhotoCarousel(
@@ -314,7 +338,7 @@ private fun IdentifyCard(
                 contentDescription = "Fleur à identifier",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp),
+                    .height(184.dp),
             )
             if (flower.notes.isNotBlank()) {
                 Text(
@@ -362,8 +386,9 @@ private fun IdentifyCard(
             TextButton(
                 onClick = onComment,
                 modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
             ) {
-                Text("💬 Discuter (environnement, photos…)")
+                Text(commentActionLabel(flower.commentCount))
             }
         }
     }
@@ -387,8 +412,8 @@ private fun MyRequestCard(
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             // Statut de ma demande (TÂCHE 4.2), dérivé de l'état de la fleur et des
             // propositions reçues : « En attente » ou « Résolue ».
@@ -399,7 +424,7 @@ private fun MyRequestCard(
                 contentDescription = "Ma fleur en attente d'identification",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp),
+                    .height(184.dp),
             )
             if (flower.notes.isNotBlank()) {
                 Text(
@@ -464,9 +489,17 @@ private fun MyRequestCard(
             TextButton(
                 onClick = onComment,
                 modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
             ) {
-                Text("💬 Discuter (environnement, photos…)")
+                Text(commentActionLabel(flower.commentCount))
             }
         }
     }
+}
+
+/** Libellé compact de l'action de discussion, avec compteur dès le premier message. */
+internal fun commentActionLabel(commentCount: Int): String = when (commentCount) {
+    0 -> "💬 Discuter"
+    1 -> "💬 Discuter · 1 commentaire"
+    else -> "💬 Discuter · $commentCount commentaires"
 }

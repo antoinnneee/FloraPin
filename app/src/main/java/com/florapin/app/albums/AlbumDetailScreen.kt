@@ -23,13 +23,15 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -53,8 +55,6 @@ import com.florapin.app.data.AlbumEntity
 import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.thumbnailModel
 import com.florapin.app.ui.components.BotanicalIcon
-import com.florapin.app.ui.components.rememberSingleLineKeyboardActions
-import com.florapin.app.ui.components.singleLineKeyboardOptions
 import com.florapin.app.util.formatCaptureDate
 
 /**
@@ -76,11 +76,11 @@ fun AlbumDetailScreen(
     viewModel.setAlbumId(albumId)
     val album by viewModel.album.collectAsStateWithLifecycle()
     val flowers by viewModel.flowers.collectAsStateWithLifecycle()
-    var renaming by remember { mutableStateOf(false) }
     var showCollaboration by remember { mutableStateOf(false) }
+    var flowerActions by remember { mutableStateOf<FlowerEntity?>(null) }
     var flowerPendingRemoval by remember { mutableStateOf<FlowerEntity?>(null) }
 
-    LaunchedEffect(album?.id, album?.groupId) {
+    LaunchedEffect(album?.id, album?.groupId, album?.name) {
         album?.let { collaborationViewModel.load(it) }
     }
 
@@ -102,17 +102,13 @@ fun AlbumDetailScreen(
                 },
                 actions = {
                     album?.let { current ->
-                        if (current.serverId != null) {
+                        if (current.canEdit || current.serverId != null) {
                             IconButton(onClick = { showCollaboration = true }) {
-                                BotanicalIcon(
-                                    R.drawable.ic_share_botanical,
-                                    "Partager et gérer les membres",
+                                Icon(
+                                    imageVector = Icons.Outlined.Settings,
+                                    contentDescription = "Ouvrir les réglages de l'album",
+                                    tint = MaterialTheme.colorScheme.primary,
                                 )
-                            }
-                        }
-                        if (current.canEdit) {
-                            IconButton(onClick = { renaming = true }) {
-                                BotanicalIcon(R.drawable.ic_edit_botanical, "Renommer l'album")
                             }
                         }
                     }
@@ -141,7 +137,7 @@ fun AlbumDetailScreen(
             onCapture = onCaptureInAlbum,
             onFlowerClick = onFlowerClick,
             onFlowerLongClick = { flower ->
-                if (album?.canEdit != false) flowerPendingRemoval = flower
+                if (album?.canEdit != false) flowerActions = flower
             },
             modifier = Modifier
                 .fillMaxSize()
@@ -156,37 +152,74 @@ fun AlbumDetailScreen(
                 album = current,
                 isOwner = if (collabState.group == null) true else collabState.isOwner,
                 viewModel = collaborationViewModel,
+                onRename = viewModel::rename,
                 onDismiss = { showCollaboration = false },
             )
         }
     }
 
-    if (renaming) {
-        var name by remember(album?.name) { mutableStateOf(album?.name.orEmpty()) }
+    flowerActions?.let { flower ->
+        val isCurrentCover = album?.coverFlowerId == flower.id
         AlertDialog(
-            onDismissRequest = { renaming = false },
-            title = { Text("Renommer l'album") },
+            onDismissRequest = { flowerActions = null },
+            title = { Text("Options de la photo") },
             text = {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Nom de l'album") },
-                    singleLine = true,
-                    keyboardOptions = singleLineKeyboardOptions(),
-                    keyboardActions = rememberSingleLineKeyboardActions(),
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (isCurrentCover) {
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                BotanicalIcon(
+                                    R.drawable.ic_cover_botanical,
+                                    contentDescription = null,
+                                    size = 22.dp,
+                                )
+                                Text("Couverture actuelle")
+                            }
+                        }
+                    } else {
+                        TextButton(
+                            onClick = {
+                                viewModel.setCover(flower.id)
+                                flowerActions = null
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            BotanicalIcon(
+                                R.drawable.ic_cover_botanical,
+                                contentDescription = null,
+                                size = 22.dp,
+                            )
+                            Text(
+                                "Utiliser comme couverture",
+                                modifier = Modifier.padding(start = 8.dp),
+                            )
+                        }
+                    }
+                    TextButton(
+                        onClick = {
+                            flowerActions = null
+                            flowerPendingRemoval = flower
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            "Retirer de l'album",
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.rename(name)
-                        renaming = false
-                    },
-                    enabled = name.isNotBlank(),
-                ) { Text("Enregistrer") }
-            },
-            dismissButton = {
-                TextButton(onClick = { renaming = false }) { Text("Annuler") }
+                TextButton(onClick = { flowerActions = null }) { Text("Fermer") }
             },
         )
     }
@@ -243,7 +276,7 @@ private fun AlbumGrid(
                         if (flowers.isEmpty()) {
                             "Cet album attend sa première découverte."
                         } else {
-                            "Appui long sur une photo pour la retirer de l'album."
+                            "Appui long pour choisir la couverture ou retirer une photo."
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -263,6 +296,7 @@ private fun AlbumGrid(
                 AlbumFlowerThumbnail(
                     flower = flower,
                     tall = index % 3 == 0,
+                    isCover = album?.coverFlowerId == flower.id,
                     onClick = { onFlowerClick(flower.id) },
                     onLongClick = { onFlowerLongClick(flower) },
                 )
@@ -273,6 +307,8 @@ private fun AlbumGrid(
 
 @Composable
 private fun AlbumHero(album: AlbumEntity?, flowers: List<FlowerEntity>) {
+    val coverFlower = flowers.firstOrNull { it.id == album?.coverFlowerId }
+        ?: flowers.firstOrNull()
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -282,7 +318,7 @@ private fun AlbumHero(album: AlbumEntity?, flowers: List<FlowerEntity>) {
         color = MaterialTheme.colorScheme.primary,
     ) {
         Box {
-            flowers.firstOrNull()?.let { flower ->
+            coverFlower?.let { flower ->
                 AsyncImage(
                     model = flower.thumbnailModel(),
                     contentDescription = null,
@@ -406,6 +442,7 @@ private fun EmptyAlbumInvitation(
 private fun AlbumFlowerThumbnail(
     flower: FlowerEntity,
     tall: Boolean,
+    isCover: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -444,6 +481,22 @@ private fun AlbumFlowerThumbnail(
                     .align(Alignment.BottomStart)
                     .padding(10.dp),
             )
+            if (isCover) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp),
+                    shape = RoundedCornerShape(999.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.94f),
+                ) {
+                    BotanicalIcon(
+                        R.drawable.ic_cover_botanical,
+                        contentDescription = "Photo de couverture",
+                        modifier = Modifier.padding(6.dp),
+                        size = 20.dp,
+                    )
+                }
+            }
         }
     }
 }

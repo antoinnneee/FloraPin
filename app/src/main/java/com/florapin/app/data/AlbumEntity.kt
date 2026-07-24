@@ -53,6 +53,9 @@ data class AlbumEntity(
      */
     val canEdit: Boolean = true,
 
+    /** Fleur locale choisie comme couverture, ou null pour la première de l'album. */
+    val coverFlowerId: Long? = null,
+
     val createdAt: Long,
     val updatedAt: Long,
     val syncState: String = SyncState.PENDING.name,

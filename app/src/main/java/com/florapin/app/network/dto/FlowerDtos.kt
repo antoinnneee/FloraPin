@@ -79,6 +79,10 @@ data class FlowerDto(
     val myReaction: String? = null,
     /** Nombre de commentaires reçus (TÂCHE 3.3). */
     val commentCount: Int = 0,
+    /** Nom du propriétaire, fourni dans la liste des demandes d'identification. */
+    val ownerName: String = "",
+    /** Date de la demande ou de sa dernière relance, pour trier les nouveautés. */
+    val identificationRequestedAt: String? = null,
     /**
      * Partage ciblé par lequel la fleur arrive dans le feed (TÂCHE 3.6), ou null
      * pour une diffusion réseau. Clé de regroupement en lot fiable côté client.

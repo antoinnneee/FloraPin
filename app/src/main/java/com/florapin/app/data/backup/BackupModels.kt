@@ -80,6 +80,8 @@ data class BackupAlbum(
     val createdAt: Long,
     val updatedAt: Long,
     val syncState: String,
+    /** Identifiant LOCAL d'origine de la fleur de couverture. */
+    val coverFlowerId: Long? = null,
 )
 
 @JsonClass(generateAdapter = true)
@@ -141,6 +143,7 @@ fun AlbumEntity.toBackup(): BackupAlbum = BackupAlbum(
     createdAt = createdAt,
     updatedAt = updatedAt,
     syncState = syncState,
+    coverFlowerId = coverFlowerId,
 )
 
 fun FlowerAlbumCrossRef.toBackup(): BackupCrossRef =
@@ -192,7 +195,7 @@ fun BackupFlower.toEntity(imagePath: String): FlowerEntity = FlowerEntity(
     remoteThumbnailUrl = remoteThumbnailUrl,
 )
 
-fun BackupAlbum.toEntity(): AlbumEntity = AlbumEntity(
+fun BackupAlbum.toEntity(coverFlowerId: Long? = null): AlbumEntity = AlbumEntity(
     id = 0,
     serverId = serverId,
     clientId = clientId,
@@ -201,6 +204,7 @@ fun BackupAlbum.toEntity(): AlbumEntity = AlbumEntity(
     createdAt = createdAt,
     updatedAt = updatedAt,
     syncState = syncState,
+    coverFlowerId = coverFlowerId,
     deletedAt = null,
 )
 

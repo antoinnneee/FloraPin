@@ -44,7 +44,6 @@ import com.florapin.app.feed.SharedFeedScreen
 import com.florapin.app.friends.FriendProfileScreen
 import com.florapin.app.friends.FriendsScreen
 import com.florapin.app.gallery.GalleryScreen
-import com.florapin.app.herbier.HerbierScreen
 import com.florapin.app.identify.IdentifyScreen
 import com.florapin.app.map.MapScreen
 import com.florapin.app.network.auth.EncryptedTokenStore
@@ -79,7 +78,6 @@ private object Routes {
     const val FRIEND_PROFILE = "friend/{userId}"
     const val FEED = "feed"
     const val PROFILE = "profile"
-    const val HERBIER = "herbier"
     const val ALBUMS = "albums"
     const val ALBUM_DETAIL = "album/{id}"
     const val ALBUM_INVITATION = "album-invitation/{groupId}"
@@ -452,7 +450,6 @@ fun FloraNavHost(
             val authViewModel: AuthViewModel =
                 viewModel(factory = AuthViewModel.factory(context))
             ProfileScreen(
-                onOpenHerbier = { navController.navigate(Routes.HERBIER) },
                 onOpenFlower = { fid -> navController.navigate(Routes.detail(fid)) },
                 onLogout = {
                     // Désenregistre le push tant que les jetons sont valides,
@@ -468,14 +465,6 @@ fun FloraNavHost(
                     // on annule la sync locale et on retourne à Login.
                     SyncScheduler.cancelAll(context)
                     navController.goToLogin()
-                },
-            )
-        }
-        composable(Routes.HERBIER) {
-            HerbierScreen(
-                onBack = { navController.popBackStack() },
-                onOpenSpecies = { sid ->
-                    navController.navigate(Routes.speciesDetail(sid))
                 },
             )
         }

@@ -241,6 +241,27 @@ describe('AlbumsService', () => {
     expect(without.flowerIds).toEqual([]);
   });
 
+  it('choisit une fleur membre comme couverture et la réinitialise au retrait', async () => {
+    const created = await service.create(OWNER, { name: 'Roses' });
+    const flower = flowers.seed(OWNER);
+    await service.addFlower(OWNER, created.id, flower.id);
+
+    const covered = await service.setCover(OWNER, created.id, flower.id);
+    expect(covered.coverFlowerId).toBe(flower.id);
+
+    const without = await service.removeFlower(OWNER, created.id, flower.id);
+    expect(without.coverFlowerId).toBeNull();
+  });
+
+  it("refuse une couverture qui ne figure pas dans l'album", async () => {
+    const created = await service.create(OWNER, { name: 'Roses' });
+    const flower = flowers.seed(OWNER);
+
+    await expect(
+      service.setCover(OWNER, created.id, flower.id),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it("refuse de rattacher la fleur d'un autre propriétaire", async () => {
     const created = await service.create(OWNER, { name: 'Roses' });
     const other = flowers.seed('autre');

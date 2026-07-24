@@ -65,7 +65,10 @@ private class FakeMyRequestsApi(
         com.florapin.app.network.dto.ProposalStatsDto(0)
 }
 
-private fun ownedFlower(id: String) = FlowerDto(
+private fun ownedFlower(
+    id: String,
+    requestedAt: String? = null,
+) = FlowerDto(
     id = id,
     ownerId = "me",
     imageUrl = "https://x/$id.jpg",
@@ -73,12 +76,17 @@ private fun ownedFlower(id: String) = FlowerDto(
     notes = "",
     visibility = "private",
     needsIdentification = true,
+    identificationRequestedAt = requestedAt,
     createdAt = "t",
     updatedAt = "t",
 )
 
-private fun request(id: String, vararg species: String) = MyIdentificationRequestDto(
-    flower = ownedFlower(id),
+private fun request(
+    id: String,
+    vararg species: String,
+    requestedAt: String? = null,
+) = MyIdentificationRequestDto(
+    flower = ownedFlower(id, requestedAt),
     proposals = species.mapIndexed { i, s ->
         SpeciesProposalDto(
             id = "p$id-$i",
@@ -117,6 +125,23 @@ class MyRequestsViewModelTest {
         assertEquals(listOf("f1", "f2"), state.requests.map { it.flower.id })
         assertEquals("Coquelicot", state.requests[0].proposals.single().species)
         assertTrue(state.requests[1].proposals.isEmpty())
+    }
+
+    @Test
+    fun load_sortsNewestRequestsFirst() = runTest {
+        val api = FakeMyRequestsApi(
+            myRequests = listOf(
+                request("older", requestedAt = "2026-07-23T12:00:00Z"),
+                request("newer", requestedAt = "2026-07-24T12:00:00Z"),
+            ),
+        )
+        val vm = MyRequestsViewModel(api)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("newer", "older"),
+            vm.state.value.requests.map { it.flower.id },
+        )
     }
 
     @Test

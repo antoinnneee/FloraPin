@@ -75,8 +75,24 @@ class AlbumRepository(
 
     suspend fun removeFlower(albumId: Long, flowerLocalId: Long) {
         dao.removeMember(albumId, flowerLocalId)
-        touch(albumId)
+        val album = dao.getById(albumId) ?: return
+        dao.update(
+            album.copy(
+                coverFlowerId = album.coverFlowerId.takeUnless { it == flowerLocalId },
+                syncState = SyncState.PENDING.name,
+                updatedAt = now(),
+            ),
+        )
     }
+
+    /** Choisit une fleur membre comme couverture de l'album. */
+    suspend fun setCover(album: AlbumEntity, flowerLocalId: Long) = dao.update(
+        album.copy(
+            coverFlowerId = flowerLocalId,
+            syncState = SyncState.PENDING.name,
+            updatedAt = now(),
+        ),
+    )
 
     /** Repasse l'album en attente de sync après un changement d'appartenance. */
     private suspend fun touch(albumId: Long) {
@@ -110,6 +126,12 @@ class AlbumRepository(
     suspend fun insert(album: AlbumEntity): Long = dao.insert(album)
 
     suspend fun update(album: AlbumEntity) = dao.update(album)
+
+    /** Applique une couverture reçue du serveur sans déclencher un nouveau push. */
+    suspend fun setCoverFromSync(albumId: Long, flowerLocalId: Long?) {
+        val album = dao.getById(albumId) ?: return
+        dao.update(album.copy(coverFlowerId = flowerLocalId))
+    }
 
     suspend fun markSynced(localId: Long, serverId: String, updatedAt: Long = now()) =
         dao.markSynced(localId, serverId, updatedAt)

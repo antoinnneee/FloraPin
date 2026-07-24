@@ -4,6 +4,7 @@ import com.florapin.app.network.dto.AddFlowerToAlbumRequest
 import com.florapin.app.network.dto.AlbumDto
 import com.florapin.app.network.dto.CreateAlbumRequest
 import com.florapin.app.network.dto.SetAlbumGroupRequest
+import com.florapin.app.network.dto.SetAlbumCoverRequest
 import com.florapin.app.network.dto.SetAlbumPermissionsRequest
 import com.florapin.app.network.dto.UpdateAlbumRequest
 import retrofit2.Response
@@ -40,6 +41,12 @@ interface AlbumsApi {
     suspend fun removeFlower(
         @Path("id") id: String,
         @Path("flowerId") flowerId: String,
+    ): AlbumDto
+
+    @PATCH("albums/{id}/cover")
+    suspend fun setCover(
+        @Path("id") id: String,
+        @Body body: SetAlbumCoverRequest,
     ): AlbumDto
 
     /** Rattache/détache l'album à un groupe collaboratif (TÂCHE 7.1). */

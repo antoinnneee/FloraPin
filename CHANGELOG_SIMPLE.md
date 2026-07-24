@@ -18,9 +18,15 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.19.0 — 24 juillet 2026
+
 ### Nouveau
 - **Les nouveaux commentaires se repèrent depuis l'accueil.** Une pastille 💬
   apparaît sur chaque fleur concernée et disparaît dès que vous ouvrez sa fiche.
+- **La galerie propose maintenant un affichage en liste.** Chaque ligne présente
+  le nom de la plante, sa date et une miniature de la photo.
+- **Vous pouvez choisir la couverture d'un album.** Faites un appui long sur la
+  photo souhaitée pour la placer en couverture.
 
 ### Amélioré
 - **La touche Entrée confirme maintenant les champs sur une seule ligne.** Le
@@ -46,6 +52,15 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
   vos amis est proposée pendant la saisie ; la personne choisie est avertie
   uniquement si elle peut elle aussi consulter cette fleur. Touchez ensuite son
   `@Nom` dans la discussion pour ouvrir directement sa fiche profil.
+- **Les albums prennent moins de place et leur création reste visible en haut de
+  l'écran.**
+- **Tous les réglages d'un album sont réunis.** Le titre, les droits de
+  modification, les membres et les invitations se gèrent depuis la même feuille.
+- **Les identifications les plus récentes apparaissent en premier.** Le nom de la
+  personne qui demande de l'aide et le nombre de commentaires sont visibles sur
+  chaque carte.
+- **Le profil est plus direct.** L'ancien raccourci Herbier a été retiré au
+  profit de la galerie et des albums.
 
 ### Réparé
 - **Les boutons en haut de l'accueil ne se chevauchent plus.** Leurs badges et

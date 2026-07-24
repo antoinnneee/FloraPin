@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -33,6 +34,8 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ViewList
+import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
@@ -64,6 +67,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -139,6 +143,7 @@ fun GalleryScreen(
 
     var showAddToAlbum by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var isListView by rememberSaveable { mutableStateOf(false) }
 
     // Recalcule les badges à l'affichage de la galerie (lancement + retour depuis
     // les écrans « à identifier » / amis, qui auront marqué leurs demandes vues).
@@ -245,6 +250,14 @@ fun GalleryScreen(
             }
         }
         val gridState = rememberLazyGridState()
+        val onGalleryFlowerClick: (FlowerEntity) -> Unit = { flower ->
+            if (selectionActive) {
+                viewModel.toggleSelection(flower.id)
+            } else {
+                viewModel.markCommentNotificationsRead(flower.serverId)
+                onFlowerClick(flower.id)
+            }
+        }
 
         val galleryPane: @Composable (Modifier) -> Unit = { paneModifier ->
             // Tirer vers le bas relance une passe de sync (si activée) et rafraîchit
@@ -256,75 +269,108 @@ fun GalleryScreen(
             ) {
                 when {
                     flowers.isNotEmpty() -> {
-                        LazyVerticalGrid(
-                            state = gridState,
-                            columns = if (phonePortrait) {
-                                GridCells.Fixed(density.phonePortraitColumns)
-                            } else {
-                                GridCells.Adaptive(minSize = density.minCellSize)
-                            },
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(if (landscape) 8.dp else 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(
-                                if (landscape) 8.dp else 12.dp,
-                            ),
-                            verticalArrangement = Arrangement.spacedBy(
-                                if (landscape) 8.dp else 12.dp,
-                            ),
-                        ) {
-                            rows.forEach { row ->
-                                when (row) {
-                                    is GalleryRow.MonthHeader -> item(
-                                        key = "month-${row.monthKey}",
-                                        // L'en-tête occupe toute la largeur de la grille.
-                                        span = { GridItemSpan(maxLineSpan) },
-                                    ) {
-                                        MonthHeader(row.label)
-                                    }
-
-                                    is GalleryRow.Flower -> item(key = row.flower.id) {
-                                        val flower = row.flower
-                                        FlowerThumbnail(
-                                            flower = flower,
-                                            selected = flower.id in selectedIds,
-                                            hasUnreadComment = flower.serverId
-                                                ?.let { it in unreadCommentFlowerIds } == true,
-                                            // Badge « en attente » seulement si la
-                                            // sync auto est active (device-first).
-                                            syncEnabled = syncEnabled,
-                                            sharedScope = sharedScope,
-                                            // Tap : ouvre le détail hors sélection, bascule
-                                            // la case en mode sélection. Appui long :
-                                            // (dé)sélectionne — c'est aussi l'entrée dans le
-                                            // mode sélection.
-                                            onClick = {
-                                                if (selectionActive) {
+                        if (isListView) {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(
+                                    start = 12.dp,
+                                    top = 4.dp,
+                                    end = 12.dp,
+                                    bottom = 96.dp,
+                                ),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                items(
+                                    items = rows,
+                                    key = { row ->
+                                        when (row) {
+                                            is GalleryRow.MonthHeader -> "month-${row.monthKey}"
+                                            is GalleryRow.Flower -> "flower-${row.flower.id}"
+                                        }
+                                    },
+                                ) { row ->
+                                    when (row) {
+                                        is GalleryRow.MonthHeader -> MonthHeader(row.label)
+                                        is GalleryRow.Flower -> {
+                                            val flower = row.flower
+                                            FlowerListItem(
+                                                flower = flower,
+                                                selected = flower.id in selectedIds,
+                                                hasUnreadComment = flower.serverId
+                                                    ?.let { it in unreadCommentFlowerIds } == true,
+                                                syncEnabled = syncEnabled,
+                                                sharedScope = sharedScope,
+                                                onClick = { onGalleryFlowerClick(flower) },
+                                                onLongClick = {
                                                     viewModel.toggleSelection(flower.id)
-                                                } else {
-                                                    viewModel.markCommentNotificationsRead(
-                                                        flower.serverId,
-                                                    )
-                                                    onFlowerClick(flower.id)
-                                                }
-                                            },
-                                            onLongClick = { viewModel.toggleSelection(flower.id) },
-                                        )
+                                                },
+                                            )
+                                        }
                                     }
                                 }
                             }
-                        }
-                        // Fast scroller : poignée latérale de défilement rapide avec
-                        // bulle du mois pointé. N'apparaît (et n'est utile) que quand la
-                        // grille groupée déborde de l'écran.
-                        val canScroll by remember {
-                            derivedStateOf { gridState.canScrollForward || gridState.canScrollBackward }
-                        }
-                        if (grouped && canScroll) {
-                            MonthFastScroller(
-                                gridState = gridState,
-                                rows = rows,
-                                modifier = Modifier.align(Alignment.CenterEnd),
-                            )
+                        } else {
+                            LazyVerticalGrid(
+                                state = gridState,
+                                columns = if (phonePortrait) {
+                                    GridCells.Fixed(density.phonePortraitColumns)
+                                } else {
+                                    GridCells.Adaptive(minSize = density.minCellSize)
+                                },
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(if (landscape) 8.dp else 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(
+                                    if (landscape) 8.dp else 12.dp,
+                                ),
+                                verticalArrangement = Arrangement.spacedBy(
+                                    if (landscape) 8.dp else 12.dp,
+                                ),
+                            ) {
+                                rows.forEach { row ->
+                                    when (row) {
+                                        is GalleryRow.MonthHeader -> item(
+                                            key = "month-${row.monthKey}",
+                                            // L'en-tête occupe toute la largeur de la grille.
+                                            span = { GridItemSpan(maxLineSpan) },
+                                        ) {
+                                            MonthHeader(row.label)
+                                        }
+
+                                        is GalleryRow.Flower -> item(key = row.flower.id) {
+                                            val flower = row.flower
+                                            FlowerThumbnail(
+                                                flower = flower,
+                                                selected = flower.id in selectedIds,
+                                                hasUnreadComment = flower.serverId
+                                                    ?.let { it in unreadCommentFlowerIds } == true,
+                                                // Badge « en attente » seulement si la
+                                                // sync auto est active (device-first).
+                                                syncEnabled = syncEnabled,
+                                                sharedScope = sharedScope,
+                                                onClick = { onGalleryFlowerClick(flower) },
+                                                onLongClick = {
+                                                    viewModel.toggleSelection(flower.id)
+                                                },
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            // Fast scroller : poignée latérale de défilement rapide avec
+                            // bulle du mois pointé. N'apparaît (et n'est utile) que quand la
+                            // grille groupée déborde de l'écran.
+                            val canScroll by remember {
+                                derivedStateOf {
+                                    gridState.canScrollForward || gridState.canScrollBackward
+                                }
+                            }
+                            if (grouped && canScroll) {
+                                MonthFastScroller(
+                                    gridState = gridState,
+                                    rows = rows,
+                                    modifier = Modifier.align(Alignment.CenterEnd),
+                                )
+                            }
                         }
                     }
 
@@ -362,6 +408,8 @@ fun GalleryScreen(
                         onSelectSort = viewModel::setSort,
                         onSelectDensity = viewModel::setDensity,
                         onOpenMap = onOpenMap,
+                        isListView = isListView,
+                        onToggleView = { isListView = !isListView },
                         compact = true,
                     )
                 }
@@ -387,6 +435,8 @@ fun GalleryScreen(
                     onSelectSort = viewModel::setSort,
                     onSelectDensity = viewModel::setDensity,
                     onOpenMap = onOpenMap,
+                    isListView = isListView,
+                    onToggleView = { isListView = !isListView },
                 )
                 galleryPane(
                     Modifier
@@ -552,6 +602,8 @@ private fun GallerySearchRow(
     onSelectSort: (GallerySort) -> Unit,
     onSelectDensity: (GalleryDensity) -> Unit,
     onOpenMap: () -> Unit,
+    isListView: Boolean,
+    onToggleView: () -> Unit,
     modifier: Modifier = Modifier,
     compact: Boolean = false,
 ) {
@@ -574,6 +626,30 @@ private fun GallerySearchRow(
             onSelectDensity = onSelectDensity,
             modifier = Modifier.weight(1f),
         )
+
+        val viewModeShape = RoundedCornerShape(16.dp)
+        IconButton(
+            onClick = onToggleView,
+            modifier = Modifier
+                .size(if (compact) 52.dp else 56.dp)
+                .clip(viewModeShape)
+                .background(MaterialTheme.colorScheme.surface)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, viewModeShape),
+        ) {
+            Icon(
+                imageVector = if (isListView) {
+                    Icons.Outlined.GridView
+                } else {
+                    Icons.AutoMirrored.Outlined.ViewList
+                },
+                contentDescription = if (isListView) {
+                    "Afficher en grille"
+                } else {
+                    "Afficher en liste"
+                },
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
 
         val mapShape = RoundedCornerShape(16.dp)
         IconButton(
@@ -997,6 +1073,124 @@ private fun FlowerThumbnail(
                     )
                     .padding(start = 12.dp, top = 28.dp, end = 12.dp, bottom = 10.dp),
             )
+        }
+    }
+}
+
+/**
+ * Variante compacte de la galerie : une miniature identifiable, le nom de la
+ * plante et la date restent visibles sans ouvrir la fiche.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun FlowerListItem(
+    flower: FlowerEntity,
+    selected: Boolean,
+    hasUnreadComment: Boolean,
+    syncEnabled: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    sharedScope: FloraSharedScope? = null,
+) {
+    val name = flower.displayName() ?: "Fleur sans nom"
+    val scientificName = flower.speciesScientificName
+        ?.takeIf { it.isNotBlank() && it != name }
+    val cardShape = RoundedCornerShape(18.dp)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .then(
+                if (selected) {
+                    Modifier.border(3.dp, MaterialTheme.colorScheme.primary, cardShape)
+                } else {
+                    Modifier
+                },
+            ),
+        shape = cardShape,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(76.dp)
+                    .clip(RoundedCornerShape(14.dp)),
+            ) {
+                AsyncImage(
+                    model = flower.thumbnailModel(),
+                    contentDescription = name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .sharedFlowerImage(sharedScope, flower.id),
+                )
+                if (selected) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(5.dp)
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "✓",
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                scientificName?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Text(
+                    text = formatCaptureDate(flower.createdAt),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (hasUnreadComment || flower.syncBadge(syncEnabled) != null) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (hasUnreadComment) {
+                            Text(
+                                text = "Nouveau commentaire",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        flower.syncBadge(syncEnabled)?.let { badge ->
+                            Text(text = badge, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+            }
         }
     }
 }

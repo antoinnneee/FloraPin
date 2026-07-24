@@ -160,6 +160,7 @@ class BackupRoundTripTest {
                     createdAt = 500L,
                     updatedAt = 500L,
                     serverId = "srv-album-1",
+                    coverFlowerId = fId,
                     syncState = SyncState.SYNCED.name,
                 ),
             )
@@ -226,6 +227,7 @@ class BackupRoundTripTest {
         assertEquals(1, da.refs.size)
         assertEquals(album.id, da.refs.single().albumId)
         assertEquals(flower.id, da.refs.single().flowerId)
+        assertEquals(flower.id, album.coverFlowerId)
 
         // Ré-import idempotent : aucun doublon.
         val r2 = importer.import(ByteArrayInputStream(bytes.toByteArray()))

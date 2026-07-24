@@ -17,12 +17,20 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.19.0] — 2026-07-24
+
 ### Ajouté
 - **Commentaires non lus signalés par fleur.** La galerie récupère les
   notifications `flower_commented` et `comment_mention` encore non lues, puis
   affiche une pastille 💬 sur la vignette concernée. Ouvrir cette fleur retire
   immédiatement le marqueur et marque toutes ses notifications de commentaire
   comme lues côté serveur.
+- **Affichage en liste de la galerie.** L'accueil propose désormais, en plus des
+  densités de grille, une liste compacte associant la miniature, le nom et la
+  date de chaque observation. Le choix reste mémorisé sur l'appareil.
+- **Photo de couverture des albums.** Un appui long sur une photo d'album permet
+  de la choisir comme couverture. Le choix est conservé dans la base locale, les
+  sauvegardes et la synchronisation serveur.
 
 ### Modifié
 - **Validation explicite des champs mono-ligne.** Les 22 champs concernés
@@ -61,6 +69,18 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   d'accès à la fleur (partage, diffusion au réseau ou demande d'identification).
   Dans un commentaire affiché, toucher le `@Nom` d'un ami ouvre désormais sa
   fiche profil ; une mention qui ne correspond plus à un ami reste non cliquable.
+- **Albums plus compacts et actions mieux placées.** Les cartes d'album occupent
+  moins de place et la création rejoint la barre supérieure pour rester toujours
+  accessible.
+- **Réglages d'album unifiés.** L'édition du titre, le choix du régime de droits,
+  les autorisations individuelles, les membres et les invitations sont réunis
+  dans une feuille de réglages. Les réponses de collaboration préservent les
+  changements locaux de titre et de couverture encore à synchroniser.
+- **Demandes d'identification réordonnées.** Les demandes et relances les plus
+  récentes apparaissent en tête, le demandeur est affiché et les cartes montrent
+  le nombre de commentaires avec des espacements réduits.
+- **Profil simplifié.** Le raccourci « Mon herbier » et son écran dédié sont
+  retirés au profit de la galerie et des albums.
 
 ### Corrigé
 - **Actions de l'accueil qui se chevauchaient.** Les trois boutons de l'en-tête
@@ -70,6 +90,8 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   masquée dès la mise en pause de sa destination et restaurée à la reprise. La
   carte principale et la mini-carte du détail disparaissent ainsi en même temps
   que le reste de leur écran.
+
+_versionName 1.19.0, versionCode 34._
 
 ## [1.18.0] — 2026-07-24
 

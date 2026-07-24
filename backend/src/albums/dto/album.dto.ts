@@ -61,6 +61,13 @@ export class AddFlowerToAlbumDto {
   flowerId: string;
 }
 
+/** Choix de la fleur de couverture d'un album. */
+export class SetAlbumCoverDto {
+  @IsOptional()
+  @IsUUID()
+  flowerId?: string | null;
+}
+
 /** Rattachement/détachement d'un album à un groupe (TÂCHE 7.1). */
 export class SetAlbumGroupDto {
   /** Groupe cible, ou null pour détacher (album redevient solo). */

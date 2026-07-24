@@ -60,6 +60,9 @@ class MyRequestsViewModel(
         viewModelScope.launch {
             _state.value = try {
                 val requests = api.listMyRequests()
+                    .sortedByDescending {
+                        it.flower.identificationRequestedAt ?: it.flower.createdAt
+                    }
                 _state.value.copy(
                     loading = false,
                     refreshing = false,

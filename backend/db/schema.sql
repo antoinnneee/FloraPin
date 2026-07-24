@@ -220,6 +220,8 @@ CREATE TABLE IF NOT EXISTS albums (
 );
 -- Idempotent pour les bases déjà créées (ALTER ADD COLUMN IF NOT EXISTS).
 ALTER TABLE albums ADD COLUMN IF NOT EXISTS client_id UUID;
+ALTER TABLE albums ADD COLUMN IF NOT EXISTS cover_flower_id UUID
+    REFERENCES flowers(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS idx_albums_owner ON albums(owner_id);
 -- Unicité (owner, client_id) : garantit qu'un même clientId ne crée qu'un album
 -- par utilisateur. Index partiel : les anciens albums (client_id NULL) sont ignorés.

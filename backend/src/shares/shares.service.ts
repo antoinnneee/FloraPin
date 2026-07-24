@@ -29,6 +29,11 @@ export interface FeedCursor {
   id: string;
 }
 
+/** Fleur sollicitant une identification, accompagnée de la date de sollicitation. */
+export interface IdentificationFlowerResponse extends FlowerResponse {
+  identificationRequestedAt: Date;
+}
+
 @Injectable()
 export class SharesService {
   constructor(
@@ -358,14 +363,28 @@ export class SharesService {
    */
   async needsIdentificationFromFriends(
     viewerId: string,
-  ): Promise<FlowerResponse[]> {
+  ): Promise<IdentificationFlowerResponse[]> {
     const friendIds = await this.friendships.acceptedFriendIds(viewerId);
     if (friendIds.length === 0) return [];
 
-    const flowers = await this.flowers.find({
-      where: { ownerId: In(friendIds), needsIdentification: true },
-    });
-    return this.presentFeed(flowers, viewerId);
+    const flowers = (
+      await this.flowers.find({
+        where: { ownerId: In(friendIds), needsIdentification: true },
+        order: { lastRemindedAt: 'DESC', id: 'DESC' },
+      })
+    ).sort(compareIdentificationRequestsNewestFirst);
+    const responses = await this.presentFeed(flowers, viewerId);
+    const requestedAtByFlower = new Map(
+      flowers.map((flower) => [
+        flower.id,
+        flower.lastRemindedAt ?? flower.updatedAt,
+      ]),
+    );
+    return responses.map((flower) => ({
+      ...flower,
+      identificationRequestedAt:
+        requestedAtByFlower.get(flower.id) ?? flower.updatedAt,
+    }));
   }
 
   /**
@@ -452,6 +471,13 @@ export class SharesService {
     });
     return album?.flowers ?? [];
   }
+}
+
+/** Ordre stable des sollicitations, y compris pour les anciennes lignes sans date. */
+function compareIdentificationRequestsNewestFirst(a: Flower, b: Flower): number {
+  const aTime = (a.lastRemindedAt ?? a.updatedAt).getTime();
+  const bTime = (b.lastRemindedAt ?? b.updatedAt).getTime();
+  return bTime - aTime || b.id.localeCompare(a.id);
 }
 
 function stripGps(flower: FlowerResponse): FlowerResponse {

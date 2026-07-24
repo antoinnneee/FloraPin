@@ -57,6 +57,9 @@ class IdentifyViewModel(
         viewModelScope.launch {
             try {
                 val flowers = api.listToIdentify()
+                    .sortedByDescending {
+                        it.identificationRequestedAt ?: it.createdAt
+                    }
                 _state.update {
                     it.copy(loading = false, refreshing = false, flowers = flowers, error = null)
                 }

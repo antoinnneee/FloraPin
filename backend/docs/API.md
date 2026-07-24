@@ -140,8 +140,9 @@ et limitées aux albums du propriétaire.
 | DELETE  | `/albums/:id`                | `204` (supprime l'album, pas les fleurs) |
 | POST    | `/albums/:id/flowers`        | `{ flowerId }` → rattache une fleur (idempotent) |
 | DELETE  | `/albums/:id/flowers/:flowerId` | Retire une fleur de l'album |
+| PATCH   | `/albums/:id/cover`          | `{ flowerId }` → choisit une fleur membre comme couverture (`null` réinitialise) |
 
-`Album` = `{ id, ownerId, name, clientId, flowerIds, createdAt }`.
+`Album` inclut notamment `{ id, ownerId, name, clientId, flowerIds, coverFlowerId, createdAt }`.
 
 ## Amis (`/friendships`)
 

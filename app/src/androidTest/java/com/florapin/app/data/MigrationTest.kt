@@ -88,6 +88,10 @@ class MigrationTest {
                 FloraDatabase.MIGRATION_10_11,
                 FloraDatabase.MIGRATION_11_12,
                 FloraDatabase.MIGRATION_12_13,
+                FloraDatabase.MIGRATION_13_14,
+                FloraDatabase.MIGRATION_14_15,
+                FloraDatabase.MIGRATION_15_16,
+                FloraDatabase.MIGRATION_16_17,
             )
             .build()
 
@@ -206,7 +210,13 @@ class MigrationTest {
         }
 
         val db = Room.databaseBuilder(context, FloraDatabase::class.java, dbName)
-            .addMigrations(FloraDatabase.MIGRATION_12_13)
+            .addMigrations(
+                FloraDatabase.MIGRATION_12_13,
+                FloraDatabase.MIGRATION_13_14,
+                FloraDatabase.MIGRATION_14_15,
+                FloraDatabase.MIGRATION_15_16,
+                FloraDatabase.MIGRATION_16_17,
+            )
             .build()
 
         try {

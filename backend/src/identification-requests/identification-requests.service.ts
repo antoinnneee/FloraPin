@@ -4,20 +4,30 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Flower } from '../flowers/flower.entity';
-import { FlowerResponse, FlowersService } from '../flowers/flowers.service';
+import { FlowersService } from '../flowers/flowers.service';
 import { FriendshipsService } from '../friendships/friendships.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ProposalResponse, ProposalsService } from '../proposals/proposals.service';
-import { SharesService } from '../shares/shares.service';
+import {
+  IdentificationFlowerResponse,
+  SharesService,
+} from '../shares/shares.service';
+import { User } from '../users/user.entity';
+
+/** Demande visible par un ami, enrichie avec le nom de son auteur. */
+export interface IdentificationRequestForViewer
+  extends IdentificationFlowerResponse {
+  ownerName: string;
+}
 
 /**
  * Une de mes demandes d'identification (TÂCHE 4.1) : ma fleur en attente et les
  * propositions d'espèce reçues de mes amis (« qui a proposé quoi »).
  */
 export interface MyIdentificationRequest {
-  flower: FlowerResponse;
+  flower: IdentificationFlowerResponse;
   proposals: ProposalResponse[];
 }
 
@@ -39,6 +49,8 @@ export class IdentificationRequestsService {
   constructor(
     @InjectRepository(Flower)
     private readonly flowers: Repository<Flower>,
+    @InjectRepository(User)
+    private readonly users: Repository<User>,
     private readonly friendships: FriendshipsService,
     private readonly notifications: NotificationsService,
     private readonly shares: SharesService,
@@ -131,8 +143,23 @@ export class IdentificationRequestsService {
    * liste les fleurs `needsIdentification` de mes amis, sans exiger un partage
    * ciblé ni une publication au flux (cf. needsIdentificationFromFriends).
    */
-  async listForViewer(viewerId: string): Promise<FlowerResponse[]> {
-    return this.shares.needsIdentificationFromFriends(viewerId);
+  async listForViewer(
+    viewerId: string,
+  ): Promise<IdentificationRequestForViewer[]> {
+    const flowers =
+      await this.shares.needsIdentificationFromFriends(viewerId);
+    if (flowers.length === 0) return [];
+
+    const owners = await this.users.find({
+      where: { id: In([...new Set(flowers.map((flower) => flower.ownerId))]) },
+    });
+    const ownerNames = new Map(
+      owners.map((owner) => [owner.id, owner.displayName]),
+    );
+    return flowers.map((flower) => ({
+      ...flower,
+      ownerName: ownerNames.get(flower.ownerId) ?? '',
+    }));
   }
 
   /**
@@ -144,10 +171,12 @@ export class IdentificationRequestsService {
    * auteurs (listForFlowerIds) — pas de composition N+1 côté client.
    */
   async listMine(ownerId: string): Promise<MyIdentificationRequest[]> {
-    const flowers = await this.flowers.find({
-      where: { ownerId, needsIdentification: true },
-      order: { createdAt: 'DESC' },
-    });
+    const flowers = (
+      await this.flowers.find({
+        where: { ownerId, needsIdentification: true },
+        order: { lastRemindedAt: 'DESC', id: 'DESC' },
+      })
+    ).sort(compareIdentificationRequestsNewestFirst);
     if (flowers.length === 0) {
       return [];
     }
@@ -155,8 +184,18 @@ export class IdentificationRequestsService {
     const proposalsByFlower = await this.proposals.listForFlowerIds(
       flowers.map((f) => f.id),
     );
+    const requestedAtByFlower = new Map(
+      flowers.map((flower) => [
+        flower.id,
+        flower.lastRemindedAt ?? flower.updatedAt,
+      ]),
+    );
     return responses.map((flower) => ({
-      flower,
+      flower: {
+        ...flower,
+        identificationRequestedAt:
+          requestedAtByFlower.get(flower.id) ?? flower.updatedAt,
+      },
       proposals: proposalsByFlower.get(flower.id) ?? [],
     }));
   }
@@ -174,4 +213,11 @@ export class IdentificationRequestsService {
       await this.flowers.save(flower);
     }
   }
+}
+
+/** Ordre stable des sollicitations, avec repli pour les demandes historiques. */
+function compareIdentificationRequestsNewestFirst(a: Flower, b: Flower): number {
+  const aTime = (a.lastRemindedAt ?? a.updatedAt).getTime();
+  const bTime = (b.lastRemindedAt ?? b.updatedAt).getTime();
+  return bTime - aTime || b.id.localeCompare(a.id);
 }

@@ -17,6 +17,8 @@ data class AlbumDto(
     /** Le compte courant peut-il éditer cet album (calculé serveur) ? */
     val canEdit: Boolean = true,
     val flowerIds: List<String> = emptyList(),
+    /** Fleur serveur utilisée comme couverture, ou null pour le choix automatique. */
+    val coverFlowerId: String? = null,
     /** Droits « au cas par cas » (présent seulement pour un album de groupe). */
     val permissions: List<AlbumPermissionDto> = emptyList(),
     val createdAt: String,
@@ -50,6 +52,11 @@ data class UpdateAlbumRequest(
 @JsonClass(generateAdapter = true)
 data class AddFlowerToAlbumRequest(
     val flowerId: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class SetAlbumCoverRequest(
+    val flowerId: String? = null,
 )
 
 /** Rattache/détache un album à un groupe (TÂCHE 7.1). */

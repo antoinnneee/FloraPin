@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.florapin.app.ui.components.rememberSingleLineKeyboardActions
+import com.florapin.app.ui.components.singleLineKeyboardOptions
 
 /**
  * Écran de réinitialisation (NODE-116) : le token (reçu par email via deep link
@@ -66,6 +67,8 @@ fun ResetPasswordScreen(
             onValueChange = { token = it },
             label = { Text("Code reçu par email") },
             singleLine = true,
+            keyboardOptions = singleLineKeyboardOptions(),
+            keyboardActions = rememberSingleLineKeyboardActions(),
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
@@ -74,7 +77,8 @@ fun ResetPasswordScreen(
             label = { Text("Nouveau mot de passe (8 caractères min.)") },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            keyboardOptions = singleLineKeyboardOptions(KeyboardType.Password),
+            keyboardActions = rememberSingleLineKeyboardActions(),
             modifier = Modifier.fillMaxWidth(),
         )
 

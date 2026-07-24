@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -543,8 +545,8 @@ private fun CommentCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
             // Citation : rappel de l'auteur et du texte du commentaire répondu.
             if (comment.replyToId != null) {
@@ -606,7 +608,7 @@ private fun CommentCard(
             } else {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.Top,
                 ) {
                     Text(
                         // Rend les mentions `@[id]` en `@Nom` colorées (noms résolus
@@ -615,7 +617,10 @@ private fun CommentCard(
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f),
                     )
-                    TextButton(onClick = onReply) {
+                    TextButton(
+                        onClick = onReply,
+                        modifier = Modifier.height(40.dp),
+                    ) {
                         Text("Répondre")
                     }
                 }
@@ -688,11 +693,15 @@ private fun CommentActionsMenu(
     onDelete: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    IconButton(onClick = { expanded = true }, enabled = !deleting) {
+    IconButton(
+        onClick = { expanded = true },
+        enabled = !deleting,
+        modifier = Modifier.size(40.dp),
+    ) {
         BotanicalIcon(
             iconRes = R.drawable.ic_more_botanical,
             contentDescription = "Actions du commentaire",
-            size = 24.dp,
+            size = 22.dp,
         )
     }
     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {

@@ -7,20 +7,23 @@ import androidx.compose.ui.unit.dp
 /**
  * Densité de la grille de la galerie (TÂCHE 6.8), réglable par l'utilisateur.
  *
- * Chaque palier fixe la taille minimale d'une vignette : plus la taille est
- * petite, plus il tient de colonnes à l'écran (grille dense), et inversement. La
- * grille reste adaptative ([androidx.compose.foundation.lazy.grid.GridCells.Adaptive]),
- * donc le nombre exact de colonnes dépend de la largeur de l'écran.
+ * En portrait téléphone, chaque palier impose un nombre distinct de colonnes
+ * pour que le changement reste visible même sur les écrans étroits. Sur les
+ * écrans larges et en paysage, [minCellSize] conserve une grille adaptative.
  */
-enum class GalleryDensity(val label: String, val minCellSize: Dp) {
+enum class GalleryDensity(
+    val label: String,
+    val minCellSize: Dp,
+    val phonePortraitColumns: Int,
+) {
     /** Dense : petites vignettes, davantage de colonnes. */
-    COMPACT("Compacte", 100.dp),
+    COMPACT("Compacte", 100.dp, phonePortraitColumns = 3),
 
     /** Palier par défaut photo-first : deux grandes colonnes sur téléphone. */
-    COMFORTABLE("Confort", 150.dp),
+    COMFORTABLE("Confort", 150.dp, phonePortraitColumns = 2),
 
     /** Grandes vignettes, moins de colonnes. */
-    LARGE("Grande", 220.dp),
+    LARGE("Grande", 220.dp, phonePortraitColumns = 1),
 }
 
 /**

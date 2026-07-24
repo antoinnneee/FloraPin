@@ -88,6 +88,8 @@ import com.florapin.app.network.dto.SpeciesDto
 import com.florapin.app.share.ShareFlowerSheet
 import com.florapin.app.ui.components.BotanicalIcon
 import com.florapin.app.ui.components.FullscreenPhotoViewer
+import com.florapin.app.ui.components.rememberSingleLineKeyboardActions
+import com.florapin.app.ui.components.singleLineKeyboardOptions
 import com.florapin.app.ui.layout.topBarHeight
 import com.florapin.app.ui.transition.FloraSharedScope
 import com.florapin.app.ui.transition.sharedFlowerImage
@@ -265,7 +267,7 @@ fun FlowerDetailPage(
                         val context = LocalContext.current
                         IconButton(onClick = { showAddToAlbum = true }) {
                             BotanicalIcon(
-                                R.drawable.ic_nav_albums,
+                                R.drawable.ic_album_add_botanical,
                                 "Ajouter à un album",
                             )
                         }
@@ -734,6 +736,8 @@ private fun ClassificationEditor(
             },
             label = { Text("Espèce") },
             singleLine = true,
+            keyboardOptions = singleLineKeyboardOptions(),
+            keyboardActions = rememberSingleLineKeyboardActions(),
             supportingText = {
                 selected?.let { Text("Rattachée à « ${it.commonName} »") }
             },

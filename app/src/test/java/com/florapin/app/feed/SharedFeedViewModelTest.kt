@@ -462,6 +462,13 @@ class SharedFeedViewModelTest {
         assertEquals("Rose", snapshot.species)
         assertEquals("Alice", snapshot.ownerName)
 
+        // Un rafraîchissement du feed ne doit pas effacer la sélection locale
+        // ni l'état étoilé de la carte.
+        vm.refresh()
+        advanceUntilIdle()
+        assertTrue("fl1" in vm.state.value.savedIds)
+        assertEquals(1, vm.state.value.saved.size)
+
         // Bascule à nouveau : retiré de la sélection.
         vm.toggleSaved(item)
         advanceUntilIdle()

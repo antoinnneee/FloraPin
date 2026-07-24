@@ -18,6 +18,37 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+### Nouveau
+- **Les nouveaux commentaires se repèrent depuis l'accueil.** Une pastille 💬
+  apparaît sur chaque fleur concernée et disparaît dès que vous ouvrez sa fiche.
+
+### Amélioré
+- **La touche Entrée confirme maintenant les champs sur une seule ligne.** Le
+  clavier se ferme et une légère vibration confirme que la valeur a bien été
+  prise en compte.
+- **Les modes d'affichage de la galerie sont clairement différents.** Sur
+  téléphone, Compacte affiche trois colonnes, Confort deux et Grande une.
+- **Les commentaires sont encore plus compacts.** Le nom de l'auteur est
+  davantage rapproché de son message.
+- **Le nombre d'identifications est plus clair dans le profil.** Il s'affiche
+  maintenant sous la forme « 1 identification » ou « 3 identifications ».
+- **L'ajout à un album utilise la même icône botanique sur la fiche d'une fleur
+  et dans la galerie.**
+- **La page des fleurs reçues porte maintenant le titre court « Partagées ».**
+- **Le nombre de commentaires est visible sur chaque fleur partagée.** L'action
+  « Commenter » prend aussi un peu moins de place sous la carte.
+- **Le nom de l'ami est plus discret sur les fleurs partagées.** Il apparaît
+  seul, aligné à droite de la carte, et reste accessible pour ouvrir son profil.
+- **Les cartes partagées ressemblent davantage aux vignettes de l'accueil.** Le
+  nom de la plante est lisible directement sur la photo, et les boutons cœur et
+  étoile sont plus discrets, de même taille et stables lorsque vous appuyez.
+
+### Réparé
+- **Les boutons en haut de l'accueil ne se chevauchent plus.** Leurs badges et
+  leurs contours restent bien séparés sur les écrans étroits.
+- **La carte ne reste plus affichée après avoir quitté son écran.** Cela
+  s'applique aussi à la petite carte présente dans le détail d'une fleur.
+
 ## Version 1.18.0 — 24 juillet 2026
 
 ### Amélioré

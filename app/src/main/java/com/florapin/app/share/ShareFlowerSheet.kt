@@ -40,6 +40,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.network.dto.FriendUserDto
 import com.florapin.app.network.dto.ShareDto
+import com.florapin.app.ui.components.rememberSingleLineKeyboardActions
+import com.florapin.app.ui.components.singleLineKeyboardOptions
 
 /** Nom affiché d'un ami, avec repli sur son email. */
 private fun FriendUserDto.label(): String = displayName.ifBlank { email }
@@ -318,6 +320,8 @@ private fun FriendSearchDialog(
                     value = query,
                     onValueChange = { query = it },
                     singleLine = true,
+                    keyboardOptions = singleLineKeyboardOptions(),
+                    keyboardActions = rememberSingleLineKeyboardActions(),
                     label = { Text("Nom ou email") },
                     modifier = Modifier.fillMaxWidth(),
                 )

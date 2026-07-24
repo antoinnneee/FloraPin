@@ -46,6 +46,8 @@ import com.florapin.app.network.dto.fullPhotoUrls
 import com.florapin.app.network.dto.identificationStatus
 import com.florapin.app.network.dto.previewPhotoUrls
 import com.florapin.app.ui.components.EmojiIcon
+import com.florapin.app.ui.components.rememberSingleLineKeyboardActions
+import com.florapin.app.ui.components.singleLineKeyboardOptions
 import com.florapin.app.ui.components.EmptyState
 import com.florapin.app.ui.components.PhotoCarousel
 
@@ -331,6 +333,8 @@ private fun IdentifyCard(
                     onValueChange = { species = it },
                     label = { Text("Quelle espèce ?") },
                     singleLine = true,
+                    keyboardOptions = singleLineKeyboardOptions(),
+                    keyboardActions = rememberSingleLineKeyboardActions(),
                     enabled = !submitting,
                     modifier = Modifier.fillMaxWidth(),
                 )

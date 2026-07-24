@@ -17,6 +17,53 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+- **Commentaires non lus signalés par fleur.** La galerie récupère les
+  notifications `flower_commented` et `comment_mention` encore non lues, puis
+  affiche une pastille 💬 sur la vignette concernée. Ouvrir cette fleur retire
+  immédiatement le marqueur et marque toutes ses notifications de commentaire
+  comme lues côté serveur.
+
+### Modifié
+- **Validation explicite des champs mono-ligne.** Les 22 champs concernés
+  présentent maintenant l'action IME « Terminé » : Entrée retire le focus,
+  ferme explicitement le clavier Android et confirme la prise en compte avec un
+  retour haptique léger. Les champs multilignes conservent leur comportement.
+- **Densités de galerie distinctes sur téléphone.** En portrait, les modes
+  Compacte, Confort et Grande imposent respectivement trois, deux et une
+  colonnes. La grille reste adaptative en paysage et sur les écrans larges.
+- **Commentaires encore resserrés.** L'espace entre le nom de l'auteur et le
+  texte est réduit, ainsi que la hauteur visuelle des actions de réponse et de
+  menu.
+- **Statistique d'identification plus explicite.** Le profil affiche désormais
+  directement « 1 identification » ou « N identifications », suivi du détail
+  des propositions acceptées.
+- **Icône d'ajout à un album harmonisée dans le détail.** L'action de la fiche
+  fleur utilise maintenant le pictogramme botanique d'album avec sa pastille
+  d'ajout, déjà employé dans la sélection multiple.
+- **Titre des partages raccourci.** L'écran « Partagées avec moi » adopte le
+  titre plus direct « Partagées », cohérent avec son onglet de navigation.
+- **Action de commentaire enrichie dans les partages.** Chaque carte affiche le
+  nombre courant de commentaires à côté de « Commenter », réduit l'espace sous
+  cette action et rafraîchit le compteur à la fermeture de la discussion.
+- **Auteur des fleurs partagées simplifié.** Les cartes retirent le préfixe
+  « Partagée par » et placent directement le nom de l'ami à droite, tout en
+  conservant son accès au profil.
+- **Cartes partagées harmonisées avec l'accueil.** Le nom de la plante apparaît
+  désormais en bas de la photo sur un dégradé. Les actions de réaction et de
+  sélection sont déplacées en haut, dans deux pastilles translucides de même
+  taille ; l'étoile vectorielle ne change plus de dimensions lorsqu'elle est
+  sélectionnée.
+
+### Corrigé
+- **Actions de l'accueil qui se chevauchaient.** Les trois boutons de l'en-tête
+  disposent maintenant d'un espacement dédié et d'une marge à droite, afin que
+  leurs surfaces et leurs badges restent séparés sur les téléphones étroits.
+- **Carte retardée pendant les transitions de sortie.** La surface MapLibre est
+  masquée dès la mise en pause de sa destination et restaurée à la reprise. La
+  carte principale et la mini-carte du détail disparaissent ainsi en même temps
+  que le reste de leur écran.
+
 ## [1.18.0] — 2026-07-24
 
 ### Modifié

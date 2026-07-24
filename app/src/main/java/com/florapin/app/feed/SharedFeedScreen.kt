@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,6 +28,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -44,10 +47,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarOutline
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -86,7 +94,10 @@ fun SharedFeedScreen(
     commentsFor?.let { flowerId ->
         CommentsBottomSheet(
             flowerServerId = flowerId,
-            onDismiss = { commentsFor = null },
+            onDismiss = {
+                commentsFor = null
+                viewModel.refresh()
+            },
         )
     }
 
@@ -95,7 +106,7 @@ fun SharedFeedScreen(
         topBar = {
             TopAppBar(
                 expandedHeight = topBarHeight,
-                title = { Text("Partag\u00E9es avec moi") },
+                title = { Text("Partag\u00E9es") },
                 actions = {
                     NotificationBell(onOpen = onOpenNotifications)
                 },
@@ -350,20 +361,46 @@ private fun FeedFilterBar(
 
 /**
  * Bouton d'enregistrement dans « Ma sélection » (TÂCHE 3.11), calqué sur
- * [LikeButton] : une puce ⭐/☆ cliquable. Favori PRIVÉ et LOCAL.
+ * [LikeButton] : une étoile cliquable de taille stable. Favori PRIVÉ et LOCAL.
  */
 @Composable
-private fun SaveButton(saved: Boolean, onClick: () -> Unit) {
+private fun SaveButton(
+    saved: Boolean,
+    onClick: () -> Unit,
+    photoOverlay: Boolean = false,
+) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        tonalElevation = 1.dp,
-        modifier = Modifier.clickable(onClick = onClick),
+        onClick = onClick,
+        shape = CircleShape,
+        color = if (photoOverlay) {
+            MaterialTheme.colorScheme.scrim.copy(alpha = 0.34f)
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        tonalElevation = if (photoOverlay) 0.dp else 1.dp,
+        modifier = Modifier.size(40.dp),
     ) {
-        Text(
-            text = if (saved) "\u2B50" else "\u2606",
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-        )
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = if (saved) Icons.Filled.Star else Icons.Outlined.StarOutline,
+                contentDescription = if (saved) {
+                    "Retirer de Ma sélection"
+                } else {
+                    "Ajouter à Ma sélection"
+                },
+                tint = if (saved) {
+                    Color(0xFFFFD54F)
+                } else if (photoOverlay) {
+                    Color.White
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier.size(22.dp),
+            )
+        }
     }
 }
 
@@ -518,14 +555,42 @@ private fun SharedFlowerCard(
                         .fillMaxWidth()
                         .aspectRatio(1f),
                 )
-                // Réaction et mise en sélection, posées sur la photo : la carte
-                // laisse toute sa largeur au nom de l'ami et à l'espèce.
+                flower.species?.takeIf { it.isNotBlank() }?.let { species ->
+                    // Même traitement que sur l'accueil : le nom est posé en bas
+                    // de la photo sur un dégradé qui garantit sa lisibilité.
+                    Text(
+                        text = species,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        Color.Black.copy(alpha = 0.72f),
+                                    ),
+                                ),
+                            )
+                            .padding(
+                                start = 12.dp,
+                                top = 28.dp,
+                                end = 12.dp,
+                                bottom = 10.dp,
+                            ),
+                    )
+                }
+                // Les deux actions utilisent la même cible tactile et une surface
+                // translucide discrète, à l'écart du nom de la plante.
                 Row(
                     modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(12.dp),
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     LikeButton(
                         myReaction = flower.myReaction,
@@ -534,26 +599,34 @@ private fun SharedFlowerCard(
                         onReact = onReact,
                         showCount = false,
                     )
-                    // Enregistrer dans « Ma sélection » (TÂCHE 3.11) : favori privé
-                    // et local. ⭐ = enregistrée, ☆ = à enregistrer.
-                    SaveButton(saved = saved, onClick = onToggleSave)
+                    SaveButton(
+                        saved = saved,
+                        onClick = onToggleSave,
+                        photoOverlay = true,
+                    )
                 }
             }
             Column(
-                modifier = Modifier.padding(12.dp),
+                modifier = Modifier.padding(
+                    start = 12.dp,
+                    top = 12.dp,
+                    end = 12.dp,
+                    bottom = 4.dp,
+                ),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 item.ownerName?.let {
-                    // Tap sur « Partagée par X » → profil de l'ami (TÂCHE 5.7).
+                    // Le nom seul, aligné à droite, reste un accès au profil.
                     Text(
-                        text = "Partag\u00E9e par $it",
+                        text = it,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clickable(onClick = onOpenProfile),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .align(Alignment.End)
+                            .clickable(onClick = onOpenProfile),
                     )
-                }
-                flower.species?.takeIf { it.isNotBlank() }?.let {
-                    Text("\uD83C\uDF3F $it", style = MaterialTheme.typography.bodyMedium)
                 }
                 val lat = flower.latitude
                 val lng = flower.longitude
@@ -565,13 +638,20 @@ private fun SharedFlowerCard(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                TextButton(onClick = onComment) {
-                    Text("\uD83D\uDCAC Commenter")
+                TextButton(
+                    onClick = onComment,
+                    modifier = Modifier.height(40.dp),
+                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                ) {
+                    Text(commentButtonLabel(flower.commentCount))
                 }
             }
         }
     }
 }
+
+internal fun commentButtonLabel(commentCount: Int): String =
+    "\uD83D\uDCAC Commenter (${commentCount.coerceAtLeast(0)})"
 
 @Composable
 private fun SharedLocationText(latitude: Double, longitude: Double) {

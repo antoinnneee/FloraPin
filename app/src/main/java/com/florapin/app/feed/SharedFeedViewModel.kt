@@ -227,10 +227,16 @@ class SharedFeedViewModel(
                 friendNames = friendshipsApi.list()
                     .associate { it.user.id to it.user.displayName }
                 val items = flowers.map { SharedFlowerItem(it, friendNames[it.ownerId]) }
+                val localState = _state.value
                 _state.value = SharedFeedUiState(
                     loading = false,
                     items = items,
                     sort = sort,
+                    // Le rafraîchissement réseau ne doit pas effacer les favoris
+                    // locaux ni le filtre courant.
+                    savedIds = localState.savedIds,
+                    saved = localState.saved,
+                    showSelectionOnly = localState.showSelectionOnly,
                     // Le curseur `before` ne vaut que pour le tri par date ; en tri
                     // par cœurs on ne pagine pas (fin atteinte d'emblée).
                     endReached = sort != FeedSort.DATE || flowers.size < PAGE_SIZE,

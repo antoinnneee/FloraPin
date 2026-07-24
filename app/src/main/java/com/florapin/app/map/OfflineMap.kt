@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.florapin.app.ui.components.BloomDownloadIndicator
+import com.florapin.app.ui.components.rememberSingleLineKeyboardActions
+import com.florapin.app.ui.components.singleLineKeyboardOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -379,6 +381,8 @@ fun OfflineMapDialog(
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Nom de la zone") },
                         singleLine = true,
+                        keyboardOptions = singleLineKeyboardOptions(),
+                        keyboardActions = rememberSingleLineKeyboardActions(),
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OfflineMapDetail.entries.forEach { option ->

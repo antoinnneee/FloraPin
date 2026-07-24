@@ -9,6 +9,7 @@ import com.florapin.app.friends.FriendsBadgeStore
 import com.florapin.app.identify.IdentifyBadgeStore
 import com.florapin.app.network.NetworkModule
 import com.florapin.app.network.auth.EncryptedTokenStore
+import com.florapin.app.network.dto.NotificationDto
 import com.florapin.app.sync.SyncPreferences
 import com.florapin.app.sync.SyncScheduler
 import com.florapin.app.util.formatMonthLabel
@@ -177,6 +178,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     /** Nombre de demandes d'amis entrantes non encore vues (0 = pas de badge). */
     val friendsBadge: StateFlow<Int> = _friendsBadge.asStateFlow()
 
+    private var unreadCommentNotificationIdsByFlower: Map<String, List<String>> = emptyMap()
+    private val _unreadCommentFlowerIds = MutableStateFlow<Set<String>>(emptySet())
+    /** Identifiants serveur des fleurs ayant au moins un commentaire non lu. */
+    val unreadCommentFlowerIds: StateFlow<Set<String>> = _unreadCommentFlowerIds.asStateFlow()
+
     private val _isRefreshing = MutableStateFlow(false)
     /** Tirage manuel (pull-to-refresh) en cours (TÂCHE 1.3). */
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
@@ -226,7 +232,25 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    /** Recharge en parallèle les deux compteurs de badges, en attendant leur fin. */
+    /**
+     * Retire immédiatement le marqueur d'une fleur ouverte, puis marque côté
+     * serveur toutes ses notifications de commentaire comme lues.
+     */
+    fun markCommentNotificationsRead(flowerServerId: String?) {
+        val serverId = flowerServerId ?: return
+        val notificationIds = unreadCommentNotificationIdsByFlower[serverId].orEmpty()
+        unreadCommentNotificationIdsByFlower -= serverId
+        _unreadCommentFlowerIds.value = unreadCommentNotificationIdsByFlower.keys
+        if (notificationIds.isEmpty()) return
+
+        viewModelScope.launch {
+            notificationIds.forEach { id ->
+                runCatching { apis.notifications.markRead(id) }
+            }
+        }
+    }
+
+    /** Recharge en parallèle les compteurs et marqueurs, en attendant leur fin. */
     private suspend fun loadBadges() = coroutineScope {
         launch {
             try {
@@ -246,6 +270,16 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 // hors-ligne / non connecté : on garde la valeur actuelle
             }
         }
+        launch {
+            try {
+                val unreadByFlower = apis.notifications.list()
+                    .unreadCommentNotificationIdsByFlower()
+                unreadCommentNotificationIdsByFlower = unreadByFlower
+                _unreadCommentFlowerIds.value = unreadByFlower.keys
+            } catch (_: Exception) {
+                // Hors-ligne / non connecté : on garde les marqueurs actuels.
+            }
+        }
     }
 
     companion object {
@@ -259,6 +293,17 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         private const val UNDO_WINDOW_MS = 60_000L
     }
 }
+
+private val COMMENT_NOTIFICATION_TYPES = setOf("flower_commented", "comment_mention")
+
+/** Regroupe les notifications de commentaire non lues par identifiant serveur de fleur. */
+internal fun List<NotificationDto>.unreadCommentNotificationIdsByFlower(): Map<String, List<String>> =
+    asSequence()
+        .filter { it.readAt == null && it.type in COMMENT_NOTIFICATION_TYPES }
+        .mapNotNull { notification ->
+            notification.flowerServerId?.let { it to notification.id }
+        }
+        .groupBy(keySelector = { it.first }, valueTransform = { it.second })
 
 /**
  * Filtre les fleurs dont l'espèce, les notes ou une étiquette contiennent

@@ -35,6 +35,8 @@ import com.florapin.app.R
 import com.florapin.app.data.AlbumEntity
 import com.florapin.app.ui.components.BotanicalIcon
 import com.florapin.app.ui.components.EmptyState
+import com.florapin.app.ui.components.rememberSingleLineKeyboardActions
+import com.florapin.app.ui.components.singleLineKeyboardOptions
 import com.florapin.app.ui.layout.topBarHeight
 
 /**
@@ -194,6 +196,8 @@ private fun AlbumNameDialog(
                     onValueChange = { name = it },
                     label = { Text("Nom de l'album") },
                     singleLine = true,
+                    keyboardOptions = singleLineKeyboardOptions(),
+                    keyboardActions = rememberSingleLineKeyboardActions(),
                 )
                 if (collaborativeOption) {
                     Row(

@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -35,6 +34,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.network.dto.FriendshipDto
 import com.florapin.app.ui.components.EmojiIcon
 import com.florapin.app.ui.components.FloraAvatar
+import com.florapin.app.ui.components.rememberSingleLineKeyboardActions
+import com.florapin.app.ui.components.singleLineKeyboardOptions
 
 /**
  * Écran de gestion des amis (NODE-70) : demandes reçues/envoyées, liste d'amis,
@@ -204,7 +205,8 @@ private fun InviteField(
             onValueChange = onValueChange,
             label = { Text("Email de l'utilisateur à inviter") },
             singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            keyboardOptions = singleLineKeyboardOptions(KeyboardType.Email),
+            keyboardActions = rememberSingleLineKeyboardActions(),
             modifier = Modifier.fillMaxWidth(),
         )
         Button(

@@ -72,6 +72,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -87,6 +88,8 @@ import com.florapin.app.data.SyncState
 import com.florapin.app.data.thumbnailModel
 import com.florapin.app.notifications.NotificationBell
 import com.florapin.app.ui.components.EmptyState
+import com.florapin.app.ui.components.rememberSingleLineKeyboardActions
+import com.florapin.app.ui.components.singleLineKeyboardOptions
 import com.florapin.app.ui.layout.isLandscape
 import com.florapin.app.ui.layout.topBarHeight
 import com.florapin.app.ui.transition.FloraSharedScope
@@ -126,11 +129,13 @@ fun GalleryScreen(
     val density by viewModel.density.collectAsStateWithLifecycle()
     val identifyBadge by viewModel.identifyBadge.collectAsStateWithLifecycle()
     val friendsBadge by viewModel.friendsBadge.collectAsStateWithLifecycle()
+    val unreadCommentFlowerIds by viewModel.unreadCommentFlowerIds.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val syncEnabled by viewModel.syncEnabled.collectAsStateWithLifecycle()
     val selectedIds by viewModel.selectedIds.collectAsStateWithLifecycle()
     val selectionActive = selectedIds.isNotEmpty()
     val landscape = isLandscape()
+    val phonePortrait = !landscape && LocalConfiguration.current.screenWidthDp < 600
 
     var showAddToAlbum by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -202,22 +207,28 @@ fun GalleryScreen(
                         // ici (identification demandée, invitations d'amis) plus la
                         // cloche du centre de notifications (TÂCHE 2.7). Le tri est
                         // descendu dans la vue, les albums dans la barre du bas.
-                        BadgedIconAction(
-                            icon = R.drawable.ic_identify_botanical,
-                            contentDescription = "Identifications demandées",
-                            badge = identifyBadge,
-                            onClick = onOpenIdentify,
-                        )
-                        BadgedIconAction(
-                            icon = R.drawable.ic_friends_botanical,
-                            contentDescription = "Amis",
-                            badge = friendsBadge,
-                            onClick = onOpenFriends,
-                        )
-                        NotificationBell(
-                            onOpen = onOpenNotifications,
-                            modifier = Modifier.headerUtilitySurface(),
-                        )
+                        Row(
+                            modifier = Modifier.padding(end = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            BadgedIconAction(
+                                icon = R.drawable.ic_identify_botanical,
+                                contentDescription = "Identifications demandées",
+                                badge = identifyBadge,
+                                onClick = onOpenIdentify,
+                            )
+                            BadgedIconAction(
+                                icon = R.drawable.ic_friends_botanical,
+                                contentDescription = "Amis",
+                                badge = friendsBadge,
+                                onClick = onOpenFriends,
+                            )
+                            NotificationBell(
+                                onOpen = onOpenNotifications,
+                                modifier = Modifier.headerUtilitySurface(),
+                            )
+                        }
                     },
                 )
             }
@@ -247,7 +258,11 @@ fun GalleryScreen(
                     flowers.isNotEmpty() -> {
                         LazyVerticalGrid(
                             state = gridState,
-                            columns = GridCells.Adaptive(minSize = density.minCellSize),
+                            columns = if (phonePortrait) {
+                                GridCells.Fixed(density.phonePortraitColumns)
+                            } else {
+                                GridCells.Adaptive(minSize = density.minCellSize)
+                            },
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(if (landscape) 8.dp else 12.dp),
                             horizontalArrangement = Arrangement.spacedBy(
@@ -272,6 +287,8 @@ fun GalleryScreen(
                                         FlowerThumbnail(
                                             flower = flower,
                                             selected = flower.id in selectedIds,
+                                            hasUnreadComment = flower.serverId
+                                                ?.let { it in unreadCommentFlowerIds } == true,
                                             // Badge « en attente » seulement si la
                                             // sync auto est active (device-first).
                                             syncEnabled = syncEnabled,
@@ -284,6 +301,9 @@ fun GalleryScreen(
                                                 if (selectionActive) {
                                                     viewModel.toggleSelection(flower.id)
                                                 } else {
+                                                    viewModel.markCommentNotificationsRead(
+                                                        flower.serverId,
+                                                    )
                                                     onFlowerClick(flower.id)
                                                 }
                                             },
@@ -588,6 +608,8 @@ private fun SearchBar(
         value = query,
         onValueChange = onQueryChange,
         singleLine = true,
+        keyboardOptions = singleLineKeyboardOptions(),
+        keyboardActions = rememberSingleLineKeyboardActions(),
         leadingIcon = {
             Icon(
                 painter = painterResource(R.drawable.ic_identify_botanical),
@@ -870,6 +892,7 @@ private fun GalleryRow.monthLabel(): String = when (this) {
 private fun FlowerThumbnail(
     flower: FlowerEntity,
     selected: Boolean,
+    hasUnreadComment: Boolean,
     syncEnabled: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -901,7 +924,10 @@ private fun FlowerThumbnail(
         Box {
                 AsyncImage(
                     model = flower.thumbnailModel(),
-                    contentDescription = name ?: "Fleur du ${formatCaptureDate(flower.createdAt)}",
+                    contentDescription = buildString {
+                        append(name ?: "Fleur du ${formatCaptureDate(flower.createdAt)}")
+                        if (hasUnreadComment) append(", nouveau commentaire")
+                    },
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -919,6 +945,21 @@ private fun FlowerThumbnail(
                             .align(Alignment.TopEnd)
                             .padding(6.dp),
                     )
+                } else if (hasUnreadComment) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .size(30.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "💬",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                 }
                 // Badge discret d'état de sync (TÂCHE 6.14), en haut à gauche : les
                 // fleurs non synchronisées (en attente d'envoi ou en échec) quand la

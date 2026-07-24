@@ -5,6 +5,9 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.MaterialTheme
@@ -59,23 +62,51 @@ fun LikeButton(
         Haptics.tap(haptic)
         onReact(code)
     }
+    val isPhotoOverlay = !showCount
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        tonalElevation = 1.dp,
-        modifier = modifier,
+        shape = if (isPhotoOverlay) CircleShape else RoundedCornerShape(16.dp),
+        color = if (isPhotoOverlay) {
+            MaterialTheme.colorScheme.scrim.copy(alpha = 0.34f)
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        tonalElevation = if (isPhotoOverlay) 0.dp else 1.dp,
+        modifier = if (isPhotoOverlay) modifier.size(40.dp) else modifier,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalArrangement = if (isPhotoOverlay) {
+                Arrangement.Center
+            } else {
+                Arrangement.spacedBy(6.dp)
+            },
+            modifier = if (isPhotoOverlay) {
+                Modifier
+                    .fillMaxSize()
+                    .combinedClickable(
+                        onClick = toggle,
+                        onLongClick = { showPicker = true },
+                    )
+            } else {
+                Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+            },
         ) {
             Box {
                 Text(
                     text = if (myReaction != null) Reactions.emoji(myReaction) else "🤍",
-                    modifier = Modifier.combinedClickable(
-                        onClick = toggle,
-                        onLongClick = { showPicker = true },
-                    ),
+                    style = if (isPhotoOverlay) {
+                        MaterialTheme.typography.titleMedium
+                    } else {
+                        MaterialTheme.typography.bodyMedium
+                    },
+                    modifier = if (isPhotoOverlay) {
+                        Modifier
+                    } else {
+                        Modifier.combinedClickable(
+                            onClick = toggle,
+                            onLongClick = { showPicker = true },
+                        )
+                    },
                 )
                 ReactionPicker(
                     expanded = showPicker,

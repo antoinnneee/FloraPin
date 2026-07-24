@@ -33,15 +33,29 @@ fun rememberMapViewWithLifecycle(): MapView {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_START -> mapView.onStart()
-                Lifecycle.Event.ON_RESUME -> mapView.onResume()
-                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
-                Lifecycle.Event.ON_STOP -> mapView.onStop()
+                Lifecycle.Event.ON_RESUME -> {
+                    mapView.onResume()
+                    mapView.visibility = View.VISIBLE
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    // Une MapView contient une surface native qui peut rester
+                    // dessinée jusqu'à la fin de la transition Compose. La masquer
+                    // dès la perte du focus évite qu'elle disparaisse après le
+                    // reste de l'écran lors d'un retour/navigation.
+                    mapView.visibility = View.INVISIBLE
+                    mapView.onPause()
+                }
+                Lifecycle.Event.ON_STOP -> {
+                    mapView.visibility = View.INVISIBLE
+                    mapView.onStop()
+                }
                 else -> Unit
             }
         }
         lifecycle.addObserver(observer)
         onDispose {
             lifecycle.removeObserver(observer)
+            mapView.visibility = View.INVISIBLE
             mapView.onDestroy()
         }
     }

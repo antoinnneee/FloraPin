@@ -26,7 +26,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -79,6 +78,8 @@ import com.florapin.app.sync.SyncStatus
 import com.florapin.app.sync.SyncStatusStore
 import com.florapin.app.ui.components.DefaultAvatars
 import com.florapin.app.ui.components.FloraAvatar
+import com.florapin.app.ui.components.rememberSingleLineKeyboardActions
+import com.florapin.app.ui.components.singleLineKeyboardOptions
 import com.florapin.app.ui.layout.topBarHeight
 import com.florapin.app.util.formatCaptureDate
 
@@ -357,14 +358,18 @@ private fun ProfileTab(
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = count.toString(),
+                            text = if (count == 1) {
+                                "1 identification"
+                            } else {
+                                "$count identifications"
+                            },
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Text(
                             text = if (count == 1) {
-                                "identification acceptée par un ami"
+                                "acceptée par un ami"
                             } else {
-                                "identifications acceptées par des amis"
+                                "acceptées par des amis"
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -668,6 +673,8 @@ private fun EmailVerificationSection(
                 onValueChange = { email = it },
                 label = { Text("Email") },
                 singleLine = true,
+                keyboardOptions = singleLineKeyboardOptions(KeyboardType.Email),
+                keyboardActions = rememberSingleLineKeyboardActions(),
                 enabled = !emailSaving,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -1061,7 +1068,8 @@ private fun ChangePasswordDialog(
                     singleLine = true,
                     enabled = !saving,
                     visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    keyboardOptions = singleLineKeyboardOptions(KeyboardType.Password),
+                    keyboardActions = rememberSingleLineKeyboardActions(),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
@@ -1077,7 +1085,8 @@ private fun ChangePasswordDialog(
                         null
                     },
                     visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    keyboardOptions = singleLineKeyboardOptions(KeyboardType.Password),
+                    keyboardActions = rememberSingleLineKeyboardActions(),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
@@ -1093,7 +1102,8 @@ private fun ChangePasswordDialog(
                         null
                     },
                     visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    keyboardOptions = singleLineKeyboardOptions(KeyboardType.Password),
+                    keyboardActions = rememberSingleLineKeyboardActions(),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 error?.let {
@@ -1149,6 +1159,8 @@ private fun EditDisplayNameDialog(
                     onValueChange = { name = it },
                     label = { Text("Nom affiché") },
                     singleLine = true,
+                    keyboardOptions = singleLineKeyboardOptions(),
+                    keyboardActions = rememberSingleLineKeyboardActions(),
                     enabled = !saving,
                     isError = tooLong,
                     supportingText = if (tooLong) {
@@ -1235,7 +1247,8 @@ private fun DeleteAccountDialog(
                     singleLine = true,
                     enabled = !deleting,
                     visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    keyboardOptions = singleLineKeyboardOptions(KeyboardType.Password),
+                    keyboardActions = rememberSingleLineKeyboardActions(),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 error?.let {

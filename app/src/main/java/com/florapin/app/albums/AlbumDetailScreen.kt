@@ -39,6 +39,8 @@ import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.thumbnailModel
 import com.florapin.app.ui.components.BotanicalIcon
 import com.florapin.app.ui.components.EmptyState
+import com.florapin.app.ui.components.rememberSingleLineKeyboardActions
+import com.florapin.app.ui.components.singleLineKeyboardOptions
 import com.florapin.app.util.formatCaptureDate
 
 /**
@@ -160,6 +162,8 @@ fun AlbumDetailScreen(
                     onValueChange = { name = it },
                     label = { Text("Nom de l'album") },
                     singleLine = true,
+                    keyboardOptions = singleLineKeyboardOptions(),
+                    keyboardActions = rememberSingleLineKeyboardActions(),
                 )
             },
             confirmButton = {

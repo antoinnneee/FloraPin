@@ -49,17 +49,21 @@ private class FakeFriendshipsApi(private val data: List<FriendshipDto>) : Friend
 
 private class FakeSharesApi(initial: List<ShareDto> = emptyList()) : SharesApi {
     var created: CreateShareRequest? = null
+    var createCalls = 0
     var createdForAll: ShareToAllFriendsRequest? = null
+    var createForAllCalls = 0
     var revoked: String? = null
     var revokeFails = false
     val shares = initial.toMutableList()
 
     override suspend fun create(body: CreateShareRequest): ShareDto {
+        createCalls += 1
         created = body
         return ShareDto("s1", "owner", body.friendId, "friend", body.scope,
             body.flowerId, body.albumId, body.includeGps ?: true, "2026-06-21T09:00:00Z")
     }
     override suspend fun createForAllFriends(body: ShareToAllFriendsRequest): ShareDto {
+        createForAllCalls += 1
         createdForAll = body
         return ShareDto("s1", "owner", null, "all_friends", body.scope,
             body.flowerId, body.albumId, body.includeGps ?: true, "2026-06-21T09:00:00Z")
@@ -155,6 +159,47 @@ class ShareViewModelTest {
     }
 
     @Test
+    fun createShare_doesNotCreateTheSameShareTwice() = runTest {
+        val sharesApi = FakeSharesApi(listOf(share("s1")))
+        val vm = ShareViewModel(FakeFriendshipsApi(emptyList()), sharesApi, FakeRecents())
+        advanceUntilIdle()
+
+        vm.createShare("u-1", includeGps = true, flowerId = "srv-1")
+        advanceUntilIdle()
+
+        assertEquals(0, sharesApi.createCalls)
+        assertEquals(listOf("s1"), vm.state.value.shares.map { it.id })
+    }
+
+    @Test
+    fun createShare_replacesTheShareReturnedByTheServer() = runTest {
+        val sharesApi = FakeSharesApi(listOf(share("s1")))
+        val vm = ShareViewModel(FakeFriendshipsApi(emptyList()), sharesApi, FakeRecents())
+        advanceUntilIdle()
+
+        vm.createShare("u-1", includeGps = false, flowerId = "srv-1")
+        advanceUntilIdle()
+
+        assertEquals(1, sharesApi.createCalls)
+        assertEquals(1, vm.state.value.shares.size)
+        assertEquals(false, vm.state.value.shares.single().includeGps)
+    }
+
+    @Test
+    fun createShare_ignoresASecondTapWhileCreationIsRunning() = runTest {
+        val sharesApi = FakeSharesApi()
+        val vm = ShareViewModel(FakeFriendshipsApi(emptyList()), sharesApi, FakeRecents())
+        advanceUntilIdle()
+
+        vm.createShare("u-1", includeGps = true, flowerId = "srv-1")
+        vm.createShare("u-1", includeGps = true, flowerId = "srv-1")
+        advanceUntilIdle()
+
+        assertEquals(1, sharesApi.createCalls)
+        assertEquals(1, vm.state.value.shares.size)
+    }
+
+    @Test
     fun createShareForAll_sendsFlowerScope() = runTest {
         val sharesApi = FakeSharesApi()
         val vm = ShareViewModel(FakeFriendshipsApi(emptyList()), sharesApi, FakeRecents())
@@ -166,6 +211,23 @@ class ShareViewModelTest {
         assertEquals("flower", sharesApi.createdForAll?.scope)
         assertEquals("srv-1", sharesApi.createdForAll?.flowerId)
         assertEquals(false, sharesApi.createdForAll?.includeGps)
+    }
+
+    @Test
+    fun createShareForAll_doesNotCreateTheSameShareTwice() = runTest {
+        val existing = ShareDto(
+            "s1", "owner", null, "all_friends", "flower", "srv-1", null, true,
+            "2026-06-21T09:00:00Z",
+        )
+        val sharesApi = FakeSharesApi(listOf(existing))
+        val vm = ShareViewModel(FakeFriendshipsApi(emptyList()), sharesApi, FakeRecents())
+        advanceUntilIdle()
+
+        vm.createShareForAll(includeGps = true, flowerId = "srv-1")
+        advanceUntilIdle()
+
+        assertEquals(0, sharesApi.createForAllCalls)
+        assertEquals(listOf("s1"), vm.state.value.shares.map { it.id })
     }
 
     @Test

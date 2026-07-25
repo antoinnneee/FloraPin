@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.florapin.app.R
+import com.florapin.app.ui.layout.bottomBarBumpHeight
 import com.florapin.app.ui.layout.bottomBarHeight
 import com.florapin.app.ui.layout.isLandscape
 
@@ -82,9 +83,9 @@ fun FloraBottomBar(
     val outerRadius = cameraSize / 2 + cradleGap
     val circleCenterY = cameraOffset + cameraSize / 2
     // Un tiers du bouton dépasse de la base ; le berceau ajoute seulement son
-    // espacement concentrique. Le reste du bouton vit dans la barre.
-    val cameraProtrusion = cameraSize / 3
-    val bumpHeight = cameraProtrusion + cradleGap
+    // espacement concentrique. La mesure partagée sert aussi à dégager la fin
+    // des contenus défilables.
+    val bumpHeight = bottomBarBumpHeight
     val joinSoftness = if (landscape) 4.dp else 6.dp
     val topCornerRadius = if (landscape) 14.dp else 22.dp
     val reservedHeight = bottomBarHeight + systemInset

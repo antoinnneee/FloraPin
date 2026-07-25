@@ -22,7 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SavedFlowerEntity::class,
         BadgeEntity::class,
     ],
-    version = 17,
+    version = 18,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -313,6 +313,19 @@ abstract class FloraDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v17 → v18 : distingue les fleurs personnelles des snapshots en lecture
+         * seule importés pour les albums collaboratifs.
+         */
+        val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE flowers ADD COLUMN sharedAlbumCopy INTEGER " +
+                        "NOT NULL DEFAULT 0",
+                )
+            }
+        }
+
         @Volatile
         private var instance: FloraDatabase? = null
 
@@ -344,6 +357,7 @@ abstract class FloraDatabase : RoomDatabase() {
                 MIGRATION_14_15,
                 MIGRATION_15_16,
                 MIGRATION_16_17,
+                MIGRATION_17_18,
             ).build()
     }
 }

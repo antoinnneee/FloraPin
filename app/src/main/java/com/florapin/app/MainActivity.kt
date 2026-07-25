@@ -95,6 +95,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkForAvailableUpdate() {
+        // Play Core ne peut proposer une mise à jour que pour une installation
+        // appartenant au compte Play Store. En debug, l'appel est sans effet
+        // mais démarre le Play Store en arrière-plan et lui fait émettre de
+        // nombreuses erreurs Logcat sans rapport avec FloraPin.
+        if (!BuildConfig.CHECK_FOR_PLAY_UPDATES) return
+
         val preferences = UpdatePromptPreferences(this)
 
         AppUpdateManagerFactory.create(this).appUpdateInfo

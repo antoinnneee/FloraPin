@@ -68,6 +68,7 @@ import com.florapin.app.notifications.NotificationBell
 import com.florapin.app.network.dto.fullPhotoUrls
 import com.florapin.app.network.dto.previewPhotoUrls
 import com.florapin.app.ui.components.EmptyState
+import com.florapin.app.ui.layout.bottomBarScrollClearance
 import com.florapin.app.ui.components.NetworkErrorState
 import com.florapin.app.ui.components.PhotoCarousel
 import com.florapin.app.ui.layout.topBarHeight
@@ -185,7 +186,12 @@ fun SharedFeedScreen(
                 columns = StaggeredGridCells.Fixed(2),
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(12.dp),
+                contentPadding = PaddingValues(
+                    start = 12.dp,
+                    top = 12.dp,
+                    end = 12.dp,
+                    bottom = bottomBarScrollClearance + 12.dp,
+                ),
                 verticalItemSpacing = 12.dp,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {

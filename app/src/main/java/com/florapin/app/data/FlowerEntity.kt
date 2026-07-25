@@ -102,6 +102,13 @@ data class FlowerEntity(
      * Null pour une capture locale ou une fleur antérieure au réencodage serveur.
      */
     val remoteThumbnailUrl: String? = null,
+
+    /**
+     * Copie en lecture seule d'une fleur appartenant à un autre membre, conservée
+     * localement uniquement pour afficher le contenu d'un album collaboratif.
+     * Elle ne fait pas partie de la collection personnelle ni de ses agrégats.
+     */
+    val sharedAlbumCopy: Boolean = false,
 )
 
 /** État de synchronisation d'une fleur locale. */

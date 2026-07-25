@@ -6,6 +6,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Flower } from '../flowers/flower.entity';
+import {
+  FlowerResponse,
+  FlowersService,
+} from '../flowers/flowers.service';
 import { GroupsService } from '../groups/groups.service';
 import { AlbumPermission } from './album-permission.entity';
 import { Album, AlbumPermissionMode } from './album.entity';
@@ -30,6 +34,8 @@ export interface AlbumResponse {
   /** Régime de droits pour un album de groupe. */
   permissionMode: AlbumPermissionMode;
   flowerIds: string[];
+  /** Fleurs enrichies (photos + URLs) visibles via cet album. */
+  flowers: FlowerResponse[];
   /** Fleur membre choisie comme couverture, ou null pour le choix automatique. */
   coverFlowerId: string | null;
   /** Le demandeur peut-il éditer cet album (ajouter/retirer/renommer) ? */
@@ -49,6 +55,7 @@ export class AlbumsService {
     @InjectRepository(AlbumPermission)
     private readonly albumPermissions: Repository<AlbumPermission>,
     private readonly groups: GroupsService,
+    private readonly flowersService: FlowersService,
   ) {}
 
   /**
@@ -338,6 +345,10 @@ export class AlbumsService {
       groupId: album.groupId ?? null,
       permissionMode: album.permissionMode ?? 'open',
       flowerIds: (album.flowers ?? []).map((f) => f.id),
+      flowers: await this.flowersService.toResponseMany(
+        album.flowers ?? [],
+        viewerId,
+      ),
       coverFlowerId: album.coverFlowerId ?? null,
       canEdit: await this.canEdit(viewerId, album),
       createdAt: album.createdAt,

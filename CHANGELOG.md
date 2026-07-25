@@ -17,6 +17,49 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.22.0] — 2026-07-25
+
+### Ajouté
+- **Confirmation avant le retrait d'un ami.** L'action « Retirer » de la liste
+  des amis acceptés ouvre désormais un dialogue nominatif ; la relation n'est
+  supprimée qu'après validation explicite.
+
+### Modifié
+- **Démarrage Android allégé et journaux debug assainis.** WorkManager est
+  initialisé à la demande, le stockage chiffré des jetons est partagé à
+  l'échelle du processus, et les contrôles de mise à jour Play ainsi que
+  Crashlytics sont réservés aux builds release. AndroidX Security passe en
+  1.1.0 et WorkManager en 2.11.2 ; FCM et le reporting de production restent
+  actifs.
+- **Liens Compose des mentions modernisés.** Le rendu interactif des pseudos
+  utilise désormais `LinkAnnotation` à la place de l'API `ClickableText`
+  dépréciée, en conservant le routage vers le profil et les annotations testées.
+
+### Corrigé
+- **Partages identiques dédupliqués.** La feuille de partage bloque les doubles
+  appuis et les créations déjà existantes avec le même destinataire, la même
+  photo et le même réglage GPS. Une réponse serveur portant le même identifiant
+  remplace maintenant l'entrée précédente au lieu d'ajouter une ligne.
+- **Pseudos longs contenus dans la feuille de partage.** Les noms des
+  destinataires restent sur une ligne avec ellipse dans les raccourcis, la
+  recherche et les badges. Les partages existants réservent leur largeur au
+  bouton de révocation afin qu'il reste visible et cliquable.
+- **Fin des contenus défilables dégagée.** Les grilles et listes des quatre
+  onglets racine réservent désormais la hauteur réelle de la navigation
+  flottante à la fin du défilement. La dernière rangée peut remonter entièrement
+  au-dessus de la base et du berceau photo, en portrait comme en paysage.
+- **État persistant des invitations d'album acceptées.** Le centre de
+  notifications réconcilie les invitations avec le statut serveur du groupe à
+  chaque chargement. Le bouton reste désactivé sur « Invitation acceptée » après
+  une navigation, un redémarrage ou une acceptation depuis la page de l'album.
+- **Contenu initial des albums collaboratifs synchronisé.** Les réponses d'album
+  incluent maintenant les fleurs visibles avec leurs images. Android les importe
+  et met leurs images en cache comme copies en lecture seule propres aux albums
+  partagés, sans les ajouter à la collection, à la carte, aux badges ni aux
+  sauvegardes personnelles.
+
+_versionName 1.22.0, versionCode 37._
+
 ## [1.21.0] — 2026-07-25
 
 ### Ajouté

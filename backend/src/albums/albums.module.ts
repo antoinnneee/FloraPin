@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Flower } from '../flowers/flower.entity';
+import { FlowersModule } from '../flowers/flowers.module';
 import { GroupsModule } from '../groups/groups.module';
 import { AlbumPermission } from './album-permission.entity';
 import { Album } from './album.entity';
@@ -10,6 +11,7 @@ import { AlbumsService } from './albums.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Album, AlbumPermission, Flower]),
+    FlowersModule,
     GroupsModule,
   ],
   controllers: [AlbumsController],

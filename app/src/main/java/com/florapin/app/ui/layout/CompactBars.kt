@@ -22,6 +22,21 @@ fun isLandscape(): Boolean =
 val bottomBarHeight: Dp
     @Composable get() = if (isLandscape()) 52.dp else 64.dp
 
+/** Hauteur du berceau photo qui dépasse au-dessus de la base de navigation. */
+val bottomBarBumpHeight: Dp
+    @Composable get() = if (isLandscape()) 22.dp else 32.dp
+
+/**
+ * Zone réellement masquée par la navigation flottante.
+ *
+ * Les écrans racine restent dessinés bord à bord derrière la barre. Leurs
+ * conteneurs défilables utilisent cette valeur comme espace de fin afin que le
+ * dernier élément puisse remonter entièrement au-dessus du berceau. L'inset de
+ * navigation système est déjà réservé par le Scaffold propre à chaque écran.
+ */
+val bottomBarScrollClearance: Dp
+    @Composable get() = bottomBarHeight + bottomBarBumpHeight
+
 /** Hauteur d'une [androidx.compose.material3.TopAppBar]. */
 val topBarHeight: Dp
     @OptIn(ExperimentalMaterial3Api::class)

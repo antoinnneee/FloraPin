@@ -53,6 +53,7 @@ import coil.compose.AsyncImage
 import com.florapin.app.R
 import com.florapin.app.data.AlbumEntity
 import com.florapin.app.data.FlowerEntity
+import com.florapin.app.ui.layout.bottomBarScrollClearance
 import com.florapin.app.data.thumbnailModel
 import com.florapin.app.ui.components.BotanicalIcon
 import com.florapin.app.ui.components.EmptyState
@@ -123,7 +124,11 @@ fun AlbumsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    bottom = bottomBarScrollClearance + 16.dp,
+                ),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {

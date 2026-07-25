@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -19,6 +20,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -56,6 +58,7 @@ fun FriendsScreen(
     var invitee by remember { mutableStateOf("") }
     var showQrSheet by remember { mutableStateOf(false) }
     var scanning by remember { mutableStateOf(false) }
+    var friendToRemove by remember { mutableStateOf<FriendshipDto?>(null) }
 
     // Scan plein écran : remplace la liste tant qu'il est actif.
     if (scanning) {
@@ -82,6 +85,17 @@ fun FriendsScreen(
             // Identité locale inconnue (rare) : rien à afficher, on referme.
             showQrSheet = false
         }
+    }
+
+    friendToRemove?.let { friendship ->
+        RemoveFriendDialog(
+            friendship = friendship,
+            onConfirm = {
+                friendToRemove = null
+                viewModel.remove(friendship.id)
+            },
+            onDismiss = { friendToRemove = null },
+        )
     }
 
     Scaffold(
@@ -154,7 +168,7 @@ fun FriendsScreen(
                 FriendRow(
                     friendship = friendship,
                     secondaryLabel = "Retirer",
-                    onSecondary = { viewModel.remove(friendship.id) },
+                    onSecondary = { friendToRemove = friendship },
                     // Tap sur la carte d'un ami accepté → son profil (TÂCHE 5.7).
                     onClick = { onOpenProfile(friendship.user.id) },
                 )
@@ -174,6 +188,36 @@ fun FriendsScreen(
             }
         }
     }
+}
+
+/** Demande une validation explicite avant de mettre fin à une amitié acceptée. */
+@Composable
+private fun RemoveFriendDialog(
+    friendship: FriendshipDto,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val friendName = friendship.user.displayName.ifBlank { "cet ami" }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Supprimer $friendName ?") },
+        text = {
+            Text(
+                "Cette personne sera retirée de votre liste d’amis. " +
+                    "Voulez-vous vraiment continuer ?",
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Supprimer", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Annuler")
+            }
+        },
+    )
 }
 
 /** Ajoute un titre de section + ses lignes, seulement si la liste est non vide. */

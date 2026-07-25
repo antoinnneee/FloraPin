@@ -1,6 +1,7 @@
 package com.florapin.app
 
 import android.app.Application
+import androidx.work.Configuration
 import com.florapin.app.data.FloraDatabase
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.onboarding.OnboardingPrefs
@@ -16,9 +17,15 @@ import com.florapin.app.sync.SyncScheduler
  * Choisie plutôt que MainActivity pour survivre aux recréations d'activité et
  * aux changements de configuration.
  */
-class FlorapinApp : Application() {
+class FlorapinApp : Application(), Configuration.Provider {
 
     private lateinit var connectivityObserver: ConnectivityObserver
+
+    // Initialisation à la demande : SyncScheduler utilise toujours
+    // WorkManager.getInstance(context), qui consultera cette configuration au
+    // premier travail planifié.
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().build()
 
     override fun onCreate() {
         super.onCreate()

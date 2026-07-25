@@ -297,8 +297,12 @@ private fun AlbumGrid(
                     flower = flower,
                     tall = index % 3 == 0,
                     isCover = album?.coverFlowerId == flower.id,
-                    onClick = { onFlowerClick(flower.id) },
-                    onLongClick = { onFlowerLongClick(flower) },
+                    onClick = {
+                        if (!flower.sharedAlbumCopy) onFlowerClick(flower.id)
+                    },
+                    onLongClick = {
+                        if (!flower.sharedAlbumCopy) onFlowerLongClick(flower)
+                    },
                 )
             }
         }

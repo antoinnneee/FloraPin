@@ -92,6 +92,7 @@ class MigrationTest {
                 FloraDatabase.MIGRATION_14_15,
                 FloraDatabase.MIGRATION_15_16,
                 FloraDatabase.MIGRATION_16_17,
+                FloraDatabase.MIGRATION_17_18,
             )
             .build()
 
@@ -104,8 +105,9 @@ class MigrationTest {
             assertEquals(emptyList<String>(), flower.tags)
             assertEquals(null, flower.species)
             assertEquals(null, flower.ownerId)
-            assertEquals(null, flower.remoteImageUrl)
-            assertEquals(false, flower.imagePendingUpload)
+                assertEquals(null, flower.remoteImageUrl)
+                assertEquals(false, flower.imagePendingUpload)
+                assertEquals(false, flower.sharedAlbumCopy)
         } finally {
             db.close()
         }
@@ -216,6 +218,7 @@ class MigrationTest {
                 FloraDatabase.MIGRATION_14_15,
                 FloraDatabase.MIGRATION_15_16,
                 FloraDatabase.MIGRATION_16_17,
+                FloraDatabase.MIGRATION_17_18,
             )
             .build()
 
@@ -226,6 +229,7 @@ class MigrationTest {
                 assertEquals("v12", flower!!.notes)
                 // Nouvelle colonne : aucune image en souffrance par défaut.
                 assertEquals(false, flower.imagePendingUpload)
+                assertEquals(false, flower.sharedAlbumCopy)
                 assertEquals(0, db.flowerDao().pendingImageUploads().size)
 
                 val photo = db.photoDao().getById(1)

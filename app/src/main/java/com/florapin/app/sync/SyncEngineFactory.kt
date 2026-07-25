@@ -52,6 +52,9 @@ object SyncEngineFactory {
                 albums = AlbumRepository.from(context),
                 flowers = flowerRepo,
                 albumsApi = apis.albums,
+                cacheRemoteImage = { serverId, url ->
+                    imageCacher.cache(serverId, url)
+                },
                 // Distingue mes albums des albums de groupe possédés par d'autres
                 // membres (évite les conflits d'édition concurrente — TÂCHE 7.1).
                 currentUserId = tokenStore.userId(),

@@ -12,7 +12,10 @@ import kotlinx.coroutines.flow.Flow
 interface FlowerDao {
 
     /** Flux des fleurs non supprimées, des plus récentes aux plus anciennes. */
-    @Query("SELECT * FROM flowers WHERE deletedAt IS NULL ORDER BY createdAt DESC")
+    @Query(
+        "SELECT * FROM flowers WHERE deletedAt IS NULL AND sharedAlbumCopy = 0 " +
+            "ORDER BY createdAt DESC",
+    )
     fun observeAll(): Flow<List<FlowerEntity>>
 
     @Query("SELECT * FROM flowers WHERE id = :id")
@@ -24,7 +27,7 @@ interface FlowerDao {
      * au nom scientifique ([scientificName]).
      */
     @Query(
-        "SELECT * FROM flowers WHERE deletedAt IS NULL AND " +
+        "SELECT * FROM flowers WHERE deletedAt IS NULL AND sharedAlbumCopy = 0 AND " +
             "(speciesId = :speciesId OR species = :scientificName) " +
             "ORDER BY createdAt DESC",
     )
@@ -37,7 +40,10 @@ interface FlowerDao {
     suspend fun findByServerId(serverId: String): FlowerEntity?
 
     /** Toutes les fleurs non supprimées (dump de sauvegarde locale). */
-    @Query("SELECT * FROM flowers WHERE deletedAt IS NULL ORDER BY createdAt ASC")
+    @Query(
+        "SELECT * FROM flowers WHERE deletedAt IS NULL AND sharedAlbumCopy = 0 " +
+            "ORDER BY createdAt ASC",
+    )
     suspend fun allActive(): List<FlowerEntity>
 
     /**
@@ -45,7 +51,8 @@ interface FlowerDao {
      * de l'onglet Profil — TÂCHE 5.1). Device-first : lecture locale seule.
      */
     @Query(
-        "SELECT * FROM flowers WHERE deletedAt IS NULL ORDER BY createdAt DESC LIMIT :limit",
+        "SELECT * FROM flowers WHERE deletedAt IS NULL AND sharedAlbumCopy = 0 " +
+            "ORDER BY createdAt DESC LIMIT :limit",
     )
     suspend fun recentActive(limit: Int): List<FlowerEntity>
 
@@ -56,7 +63,7 @@ interface FlowerDao {
      */
     @Query(
         "SELECT * FROM flowers WHERE createdAt = :createdAt AND imagePath != '' " +
-            "AND deletedAt IS NULL LIMIT 1",
+            "AND deletedAt IS NULL AND sharedAlbumCopy = 0 LIMIT 1",
     )
     suspend fun findLocalTwin(createdAt: Long): FlowerEntity?
 
@@ -81,7 +88,10 @@ interface FlowerDao {
     // --- Synchronisation (NODE-43) ---
 
     /** Fleurs en attente d'envoi (créées/maj hors-ligne). */
-    @Query("SELECT * FROM flowers WHERE syncState != 'SYNCED' ORDER BY createdAt ASC")
+    @Query(
+        "SELECT * FROM flowers WHERE syncState != 'SYNCED' AND sharedAlbumCopy = 0 " +
+            "ORDER BY createdAt ASC",
+    )
     suspend fun pendingSync(): List<FlowerEntity>
 
     /**
@@ -115,7 +125,7 @@ interface FlowerDao {
     /** Fleurs synchronisées dont l'upload d'image doit être retenté. */
     @Query(
         "SELECT * FROM flowers WHERE imagePendingUpload = 1 " +
-            "AND serverId IS NOT NULL AND deletedAt IS NULL",
+            "AND serverId IS NOT NULL AND deletedAt IS NULL AND sharedAlbumCopy = 0",
     )
     suspend fun pendingImageUploads(): List<FlowerEntity>
 
@@ -142,7 +152,7 @@ interface FlowerDao {
     // Toujours restreints aux fleurs non supprimées (deletedAt IS NULL).
 
     /** Nombre de fleurs actives (badge « Herbier » : 10/50/100/250). */
-    @Query("SELECT COUNT(*) FROM flowers WHERE deletedAt IS NULL")
+    @Query("SELECT COUNT(*) FROM flowers WHERE deletedAt IS NULL AND sharedAlbumCopy = 0")
     suspend fun countActive(): Int
 
     /**
@@ -155,7 +165,7 @@ interface FlowerDao {
      */
     @Query(
         "SELECT COUNT(DISTINCT COALESCE(NULLIF(speciesId, ''), NULLIF(species, ''))) " +
-            "FROM flowers WHERE deletedAt IS NULL",
+            "FROM flowers WHERE deletedAt IS NULL AND sharedAlbumCopy = 0",
     )
     suspend fun countDistinctSpecies(): Int
 
@@ -165,7 +175,8 @@ interface FlowerDao {
      * calcul lui-même vit dans [com.florapin.app.badges.BadgeCalculator].
      */
     @Query(
-        "SELECT latitude, longitude, createdAt FROM flowers WHERE deletedAt IS NULL",
+        "SELECT latitude, longitude, createdAt FROM flowers " +
+            "WHERE deletedAt IS NULL AND sharedAlbumCopy = 0",
     )
     suspend fun geoTimes(): List<FlowerGeoTime>
 
@@ -187,7 +198,7 @@ interface FlowerDao {
         "SELECT COUNT(*) AS flowerCount, " +
             "COALESCE(NULLIF(species, ''), NULLIF(speciesScientificName, ''), " +
             "NULLIF(speciesCommonName, '')) AS name " +
-            "FROM flowers WHERE deletedAt IS NULL " +
+            "FROM flowers WHERE deletedAt IS NULL AND sharedAlbumCopy = 0 " +
             "AND COALESCE(NULLIF(speciesId, ''), NULLIF(species, '')) IS NOT NULL " +
             "GROUP BY COALESCE(NULLIF(speciesId, ''), NULLIF(species, '')) " +
             "ORDER BY flowerCount DESC, name ASC",

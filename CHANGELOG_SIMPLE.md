@@ -18,6 +18,25 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.22.0 — 25 juillet 2026
+
+### Amélioré
+- **Retirer un ami demande maintenant confirmation**, afin d'éviter de mettre
+  fin à une amitié par erreur.
+- **FloraPin démarre plus rapidement**, car ses services internes attendent
+  désormais d'être réellement nécessaires avant de se lancer.
+
+### Réparé
+- **Un même partage ne peut plus être ajouté plusieurs fois de suite.**
+- **Les pseudos longs ne déforment plus la fenêtre de partage.** Le nom reste
+  compact et l'action permettant de révoquer le partage reste accessible.
+- **La dernière rangée reste entièrement visible lorsque vous arrivez au bas
+  d'une page**, sans être cachée par la barre de navigation.
+- **Une invitation d'album déjà acceptée reste clairement indiquée comme
+  acceptée dans les notifications.**
+- **Les photos déjà présentes dans un album collaboratif apparaissent maintenant
+  lorsque vous rejoignez cet album.**
+
 ## Version 1.21.0 — 25 juillet 2026
 
 ### Nouveau

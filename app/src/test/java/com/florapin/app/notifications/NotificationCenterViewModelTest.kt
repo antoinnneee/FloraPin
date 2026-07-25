@@ -38,7 +38,9 @@ private class FakeNotificationsApi(
     override suspend fun delete(id: String): Response<Unit> = Response.success(Unit)
 }
 
-private class FakeGroupsApi : GroupsApi {
+private class FakeGroupsApi(
+    private val listedStatuses: Map<String, String> = emptyMap(),
+) : GroupsApi {
     val acceptedIds = mutableListOf<String>()
 
     private fun group(id: String, status: String = "pending") = GroupDto(
@@ -50,7 +52,7 @@ private class FakeGroupsApi : GroupsApi {
         createdAt = "2026-07-24T10:00:00Z",
     )
 
-    override suspend fun list() = emptyList<GroupDto>()
+    override suspend fun list() = listedStatuses.map { (id, status) -> group(id, status) }
     override suspend fun get(id: String) = group(id)
     override suspend fun create(body: CreateGroupRequest) = group("created", "accepted")
     override suspend fun rename(id: String, body: UpdateGroupRequest) = group(id)
@@ -101,5 +103,28 @@ class NotificationCenterViewModelTest {
         assertTrue("notification-1" in viewModel.state.value.acceptedInvitationIds)
         assertFalse("notification-1" in viewModel.state.value.acceptingInvitationIds)
         assertTrue(viewModel.state.value.items.single().readAt != null)
+    }
+
+    @Test
+    fun load_keepsAcceptedAlbumInvitationAccepted() = runTest(dispatcher) {
+        val invitation = NotificationDto(
+            id = "notification-1",
+            type = "group_invited",
+            data = mapOf("groupId" to "group-42", "groupName" to "Sous-bois"),
+            createdAt = "2026-07-24T10:00:00Z",
+        )
+        val groups = FakeGroupsApi(listedStatuses = mapOf("group-42" to "accepted"))
+        val viewModel = NotificationCenterViewModel(
+            api = FakeNotificationsApi(invitation),
+            groupsApi = groups,
+        )
+        advanceUntilIdle()
+
+        assertTrue("notification-1" in viewModel.state.value.acceptedInvitationIds)
+
+        viewModel.acceptAlbumInvitation(invitation)
+        advanceUntilIdle()
+
+        assertTrue(groups.acceptedIds.isEmpty())
     }
 }

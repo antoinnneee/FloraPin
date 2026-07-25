@@ -68,8 +68,8 @@ android {
         applicationId = "com.florapin.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 36
-        versionName = "1.21.0"
+        versionCode = 37
+        versionName = "1.22.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -99,6 +99,11 @@ android {
                 "API_BASE_URL",
                 "\"${apiBaseUrlOverride ?: "http://10.0.2.2:3000/api/v1/"}\"",
             )
+            // Un APK sideloadé depuis Android Studio n'est pas possédé par le
+            // compte Play Store. Interroger Play Core au démarrage est donc
+            // inutile et réveille Finsky, qui pollue Logcat avec des erreurs
+            // provenant de ses APK split (notamment « classes.dex » absent).
+            buildConfigField("boolean", "CHECK_FOR_PLAY_UPDATES", "false")
             // Crashlytics désactivé en debug : pas de collecte runtime, et on
             // n'upload pas le mapping (build plus rapide). Voir la meta-data
             // `firebase_crashlytics_collection_enabled` du manifeste.
@@ -132,6 +137,7 @@ android {
                 "API_BASE_URL",
                 "\"${apiBaseUrlOverride ?: "https://florapin.pattounecorp.ovh/api/v1/"}\"",
             )
+            buildConfigField("boolean", "CHECK_FOR_PLAY_UPDATES", "true")
         }
     }
 
@@ -204,8 +210,10 @@ dependencies {
     // Push (Firebase Cloud Messaging) — versions alignées par le BOM.
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
-    // Crashlytics (reporting de crashs) — version alignée par le BOM.
-    implementation(libs.firebase.crashlytics)
+    // Crashlytics est réservé à la release. L'embarquer en debug initialise
+    // quand même le SDK et Firebase Sessions malgré la collecte désactivée,
+    // ce qui ralentit le démarrage et produit du bruit natif dans Logcat.
+    releaseImplementation(libs.firebase.crashlytics)
 
     // Room (persistance locale)
     implementation(libs.androidx.room.runtime)

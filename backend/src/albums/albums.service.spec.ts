@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { Flower } from '../flowers/flower.entity';
+import { FlowersService } from '../flowers/flowers.service';
 import { GroupsService } from '../groups/groups.service';
 import { AlbumPermission } from './album-permission.entity';
 import { Album } from './album.entity';
@@ -173,12 +174,22 @@ describe('AlbumsService', () => {
   let flowers: FakeFlowerRepo;
   let permissions: FakePermissionRepo;
   let groups: FakeGroupsService;
+  let flowersService: { toResponseMany: jest.Mock };
 
   beforeEach(async () => {
     albums = new FakeAlbumRepo();
     flowers = new FakeFlowerRepo();
     permissions = new FakePermissionRepo();
     groups = new FakeGroupsService();
+    flowersService = {
+      toResponseMany: jest.fn(async (rows: Flower[]) =>
+        rows.map((flower) => ({
+          id: flower.id,
+          ownerId: flower.ownerId,
+          imageUrl: `https://images.test/${flower.id}`,
+        })),
+      ),
+    };
     const moduleRef = await Test.createTestingModule({
       providers: [
         AlbumsService,
@@ -186,6 +197,7 @@ describe('AlbumsService', () => {
         { provide: getRepositoryToken(Flower), useValue: flowers },
         { provide: getRepositoryToken(AlbumPermission), useValue: permissions },
         { provide: GroupsService, useValue: groups },
+        { provide: FlowersService, useValue: flowersService },
       ],
     }).compile();
     service = moduleRef.get(AlbumsService);
@@ -200,6 +212,28 @@ describe('AlbumsService', () => {
     const list = await service.list(OWNER);
     expect(list).toHaveLength(1);
     expect(list[0].id).toBe(created.id);
+  });
+
+  it('inclut les photos déjà présentes pour un membre du groupe', async () => {
+    const member = 'member-1';
+    const created = await service.create(OWNER, {
+      name: 'Sous-bois',
+      collaborative: true,
+    });
+    groups.addMember(created.groupId!, member);
+    const flower = flowers.seed(OWNER);
+    await service.addFlower(OWNER, created.id, flower.id);
+
+    const visible = await service.getById(member, created.id);
+
+    expect(visible.flowerIds).toEqual([flower.id]);
+    expect(visible.flowers).toEqual([
+      expect.objectContaining({
+        id: flower.id,
+        imageUrl: `https://images.test/${flower.id}`,
+      }),
+    ]);
+    expect(flowersService.toResponseMany).toHaveBeenCalledWith([flower], member);
   });
 
   it('création idempotente : un même clientId ne crée pas de doublon', async () => {

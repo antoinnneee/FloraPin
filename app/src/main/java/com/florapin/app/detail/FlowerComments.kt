@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Card
@@ -39,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -50,6 +50,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -880,20 +881,18 @@ private fun CommentBody(
     modifier: Modifier = Modifier,
 ) {
     val mentionColor = MaterialTheme.colorScheme.primary
-    val body = remember(comment.body, comment.mentions, friendIds, mentionColor) {
+    val body = remember(comment.body, comment.mentions, friendIds, mentionColor, onOpenProfile) {
         commentBodyAnnotated(
             comment = comment,
             friendIds = friendIds,
             mentionColor = mentionColor,
+            onOpenProfile = onOpenProfile,
         )
     }
-    ClickableText(
+    Text(
         text = body,
         style = style.copy(color = MaterialTheme.colorScheme.onSurface),
         modifier = modifier,
-        onClick = { offset ->
-            mentionedFriendAt(body, offset)?.let(onOpenProfile)
-        },
     )
 }
 
@@ -911,6 +910,7 @@ internal fun commentBodyAnnotated(
     comment: FlowerCommentDto,
     friendIds: Set<String>,
     mentionColor: Color,
+    onOpenProfile: ((String) -> Unit)? = null,
 ): AnnotatedString {
     val nameById = comment.mentions.associate { it.userId to it.displayName }
     return buildAnnotatedString {
@@ -919,10 +919,26 @@ internal fun commentBodyAnnotated(
                 is MentionText.Segment.Literal -> append(segment.text)
                 is MentionText.Segment.Mention -> {
                     val start = length
-                    withStyle(
-                        SpanStyle(color = mentionColor, fontWeight = FontWeight.Medium),
-                    ) {
-                        append(segment.display)
+                    val mentionStyle =
+                        SpanStyle(color = mentionColor, fontWeight = FontWeight.Medium)
+                    if (segment.userId in friendIds && onOpenProfile != null) {
+                        withLink(
+                            LinkAnnotation.Clickable(
+                                tag = MENTION_PROFILE_TAG,
+                                styles = null,
+                                linkInteractionListener = {
+                                    onOpenProfile(segment.userId)
+                                },
+                            ),
+                        ) {
+                            withStyle(mentionStyle) {
+                                append(segment.display)
+                            }
+                        }
+                    } else {
+                        withStyle(mentionStyle) {
+                            append(segment.display)
+                        }
                     }
                     if (segment.userId in friendIds) {
                         addStringAnnotation(

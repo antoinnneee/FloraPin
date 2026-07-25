@@ -78,6 +78,7 @@ import com.florapin.app.sync.SyncStatus
 import com.florapin.app.sync.SyncStatusStore
 import com.florapin.app.ui.components.DefaultAvatars
 import com.florapin.app.ui.components.FloraAvatar
+import com.florapin.app.ui.layout.bottomBarScrollClearance
 import com.florapin.app.ui.components.rememberSingleLineKeyboardActions
 import com.florapin.app.ui.components.singleLineKeyboardOptions
 import com.florapin.app.ui.layout.topBarHeight
@@ -266,7 +267,12 @@ private fun ProfileTab(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(
+                start = 16.dp,
+                top = 16.dp,
+                end = 16.dp,
+                bottom = bottomBarScrollClearance + 16.dp,
+            ),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -587,7 +593,12 @@ private fun ConfigurationTab(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(
+                start = 16.dp,
+                top = 16.dp,
+                end = 16.dp,
+                bottom = bottomBarScrollClearance + 16.dp,
+            ),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         SyncSettingsSection()

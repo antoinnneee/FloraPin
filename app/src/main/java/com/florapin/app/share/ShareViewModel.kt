@@ -28,6 +28,7 @@ private const val SCOPE_FLOWER = "flower"
  */
 data class ShareUiState(
     val loading: Boolean = false,
+    val creating: Boolean = false,
     val friends: List<FriendUserDto> = emptyList(),
     val shares: List<ShareDto> = emptyList(),
     val error: String? = null,
@@ -65,7 +66,7 @@ class ShareViewModel(
                 _state.value = ShareUiState(
                     loading = false,
                     friends = sortByRecency(friends),
-                    shares = shares,
+                    shares = shares.distinctBy { it.id },
                 )
             } catch (e: Exception) {
                 _state.update { it.copy(loading = false, error = messageOf(e)) }
@@ -86,6 +87,18 @@ class ShareViewModel(
 
     /** Partage la fleur [flowerId] avec un ami précis. */
     fun createShare(friendId: String, includeGps: Boolean, flowerId: String) {
+        val current = _state.value
+        if (current.creating || current.shares.any {
+                it.audience == "friend" &&
+                    it.sharedWith == friendId &&
+                    it.scope == SCOPE_FLOWER &&
+                    it.flowerId == flowerId &&
+                    it.includeGps == includeGps
+            }
+        ) {
+            return
+        }
+        _state.update { it.copy(creating = true, error = null) }
         viewModelScope.launch {
             try {
                 val share = sharesApi.create(
@@ -98,9 +111,16 @@ class ShareViewModel(
                     ),
                 )
                 recents.rememberRecentFriend(friendId)
-                _state.update { it.copy(shares = it.shares + share, error = null) }
+                _state.update {
+                    it.copy(
+                        shares = it.shares.filterNot { existing -> existing.id == share.id } + share,
+                        error = null,
+                    )
+                }
             } catch (e: Exception) {
                 _state.update { it.copy(error = messageOf(e)) }
+            } finally {
+                _state.update { it.copy(creating = false) }
             }
         }
     }
@@ -111,6 +131,17 @@ class ShareViewModel(
      * aussi pour les amis ajoutés plus tard.
      */
     fun createShareForAll(includeGps: Boolean, flowerId: String) {
+        val current = _state.value
+        if (current.creating || current.shares.any {
+                it.audience == "all_friends" &&
+                    it.scope == SCOPE_FLOWER &&
+                    it.flowerId == flowerId &&
+                    it.includeGps == includeGps
+            }
+        ) {
+            return
+        }
+        _state.update { it.copy(creating = true, error = null) }
         viewModelScope.launch {
             try {
                 val share = sharesApi.createForAllFriends(
@@ -121,9 +152,16 @@ class ShareViewModel(
                         includeGps = includeGps,
                     ),
                 )
-                _state.update { it.copy(shares = it.shares + share, error = null) }
+                _state.update {
+                    it.copy(
+                        shares = it.shares.filterNot { existing -> existing.id == share.id } + share,
+                        error = null,
+                    )
+                }
             } catch (e: Exception) {
                 _state.update { it.copy(error = messageOf(e)) }
+            } finally {
+                _state.update { it.copy(creating = false) }
             }
         }
     }

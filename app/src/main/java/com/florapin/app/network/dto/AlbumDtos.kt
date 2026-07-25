@@ -17,6 +17,8 @@ data class AlbumDto(
     /** Le compte courant peut-il éditer cet album (calculé serveur) ? */
     val canEdit: Boolean = true,
     val flowerIds: List<String> = emptyList(),
+    /** Fleurs enrichies visibles via l'album, y compris celles des autres membres. */
+    val flowers: List<FlowerDto> = emptyList(),
     /** Fleur serveur utilisée comme couverture, ou null pour le choix automatique. */
     val coverFlowerId: String? = null,
     /** Droits « au cas par cas » (présent seulement pour un album de groupe). */

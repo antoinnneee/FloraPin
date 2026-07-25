@@ -1,6 +1,7 @@
 package com.florapin.app.share
 
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -8,6 +9,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.florapin.app.network.api.FriendshipsApi
@@ -176,6 +178,75 @@ class ShareFlowerSheetTest {
 
         compose.waitUntil(timeoutMillis = 5_000) { sharesApi.revoked != null }
         assertEquals("s-seed", sharesApi.revoked)
+    }
+
+    @Test
+    fun longFriendName_keepsExistingShareActionVisible() {
+        val longName = "FrancoisBud bububububububububububureau"
+        val sharesApi = FakeSharesApi().apply {
+            shares.add(
+                ShareDto(
+                    id = "s-long-name",
+                    ownerId = "owner",
+                    sharedWith = "u1",
+                    audience = "friend",
+                    scope = "flower",
+                    flowerId = "srv-1",
+                    includeGps = true,
+                    createdAt = "2026-06-21T09:00:00Z",
+                ),
+            )
+        }
+        val vm = ShareViewModel(
+            FakeFriendshipsApi(listOf(acceptedFriend("u1", longName))),
+            sharesApi,
+            FakeRecents(),
+        )
+        compose.setContent {
+            ShareFlowerSheet(flowerServerId = "srv-1", onDismiss = {}, viewModel = vm)
+        }
+
+        compose.waitUntil(timeoutMillis = 5_000) {
+            compose.onAllNodesWithText("Révoquer").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        compose.onNodeWithText("Révoquer").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Révoquer").performClick()
+        compose.waitUntil(timeoutMillis = 5_000) { sharesApi.revoked != null }
+        assertEquals("s-long-name", sharesApi.revoked)
+    }
+
+    @Test
+    fun selectingAnIdenticalExistingShare_disablesSubmit() {
+        val sharesApi = FakeSharesApi().apply {
+            shares.add(
+                ShareDto(
+                    id = "s-seed",
+                    ownerId = "owner",
+                    sharedWith = "u1",
+                    audience = "friend",
+                    scope = "flower",
+                    flowerId = "srv-1",
+                    includeGps = true,
+                    createdAt = "2026-06-21T09:00:00Z",
+                ),
+            )
+        }
+        val vm = ShareViewModel(
+            FakeFriendshipsApi(listOf(acceptedFriend("u1", "Alice"))),
+            sharesApi,
+            FakeRecents(),
+        )
+        compose.setContent {
+            ShareFlowerSheet(flowerServerId = "srv-1", onDismiss = {}, viewModel = vm)
+        }
+
+        compose.waitUntil(timeoutMillis = 5_000) {
+            compose.onAllNodesWithText("Alice").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Alice").performClick()
+
+        compose.onNodeWithText("Déjà partagé").assertIsNotEnabled()
     }
 }
 

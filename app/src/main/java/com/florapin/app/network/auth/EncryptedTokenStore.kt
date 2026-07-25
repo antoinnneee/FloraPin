@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.florapin.app.network.auth
 
 import android.content.Context
@@ -21,28 +23,10 @@ import javax.crypto.spec.PBEKeySpec
  */
 class EncryptedTokenStore(context: Context) : TokenStore {
 
-    private val prefs: SharedPreferences = run {
-        val appContext = context.applicationContext
-        try {
-            createEncryptedPrefs(appContext)
-        } catch (_: Exception) {
-            appContext.deleteSharedPreferences(PREFS_FILE)
-            createEncryptedPrefs(appContext)
-        }
-    }
-
-    private fun createEncryptedPrefs(context: Context): SharedPreferences {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-        return EncryptedSharedPreferences.create(
-            context,
-            PREFS_FILE,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-        )
-    }
+    // L'ouverture d'EncryptedSharedPreferences initialise Android Keystore et
+    // Tink. Elle est coûteuse, alors que SharedPreferences est thread-safe et
+    // peut être partagée par toutes les façades TokenStore du processus.
+    private val prefs: SharedPreferences = sharedPreferences(context.applicationContext)
 
     override fun accessToken(): String? = prefs.getString(KEY_ACCESS, null)
 
@@ -151,6 +135,37 @@ class EncryptedTokenStore(context: Context) : TokenStore {
     private fun String.normalizedEmail(): String = trim().lowercase()
 
     private companion object {
+        @Volatile
+        private var cachedPrefs: SharedPreferences? = null
+
+        private fun sharedPreferences(context: Context): SharedPreferences =
+            cachedPrefs ?: synchronized(this) {
+                cachedPrefs ?: createRecoverableEncryptedPrefs(context).also {
+                    cachedPrefs = it
+                }
+            }
+
+        private fun createRecoverableEncryptedPrefs(context: Context): SharedPreferences =
+            try {
+                createEncryptedPrefs(context)
+            } catch (_: Exception) {
+                context.deleteSharedPreferences(PREFS_FILE)
+                createEncryptedPrefs(context)
+            }
+
+        private fun createEncryptedPrefs(context: Context): SharedPreferences {
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            return EncryptedSharedPreferences.create(
+                context,
+                PREFS_FILE,
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+            )
+        }
+
         /** Nom du fichier de prefs — exclu des sauvegardes (voir res/xml). */
         const val PREFS_FILE = "florapin_auth"
         const val KEY_ACCESS = "access_token"

@@ -34,6 +34,9 @@ class AlbumSyncEngine(
     private val albums: AlbumRepository,
     private val flowers: FlowerRepository,
     private val albumsApi: AlbumsApi,
+    /** Met en cache les images importées d'un album partagé (best-effort). */
+    private val cacheRemoteImage: suspend (serverId: String, url: String) -> String? =
+        { _, _ -> null },
     /** Compte courant : distingue mes albums de ceux des autres membres. */
     private val currentUserId: String? = null,
     private val now: () -> Long = { System.currentTimeMillis() },
@@ -46,7 +49,10 @@ class AlbumSyncEngine(
     suspend fun push() {
         // Ensemble de MES fleurs (serverId) : borne les retraits d'appartenance
         // pour ne pas effacer les fleurs des autres membres d'un album de groupe.
-        val myServerIds = flowers.allForBackup().mapNotNull { it.serverId }.toSet()
+        val myServerIds = flowers.allForBackup()
+            .filterNot { it.sharedAlbumCopy }
+            .mapNotNull { it.serverId }
+            .toSet()
         for (album in albums.pendingSync()) {
             val serverId = album.serverId
             // Un album sans propriétaire connu est local (donc mien) ; sinon on
@@ -187,7 +193,35 @@ class AlbumSyncEngine(
                     localId = existing.id
                 }
             }
-            // Réconcilie l'appartenance locale (fleurs déjà présentes localement).
+            // Importe les fleurs des autres membres fournies avec l'album. Elles
+            // restent des copies locales en lecture seule, exclues de la galerie
+            // personnelle et de toute poussée vers le serveur.
+            dto.flowers.forEach { remoteFlower ->
+                val localFlower = flowers.findByServerId(remoteFlower.id)
+                when {
+                    localFlower == null -> {
+                        val localId = flowers.insert(
+                            remoteFlower.toEntity().copy(
+                                sharedAlbumCopy =
+                                    currentUserId != null &&
+                                        remoteFlower.ownerId != currentUserId,
+                            ),
+                        )
+                        cacheSharedImage(localId, remoteFlower.id, remoteFlower.imageUrl)
+                    }
+                    localFlower.syncState == com.florapin.app.data.SyncState.SYNCED.name -> {
+                        flowers.update(remoteFlower.applyTo(localFlower))
+                        if (localFlower.imagePath.isEmpty()) {
+                            cacheSharedImage(
+                                localFlower.id,
+                                remoteFlower.id,
+                                remoteFlower.imageUrl,
+                            )
+                        }
+                    }
+                }
+            }
+            // Réconcilie l'appartenance locale après l'import des fleurs distantes.
             val memberLocalIds = dto.flowerIds.mapNotNull {
                 flowers.findByServerId(it)?.id
             }
@@ -203,5 +237,16 @@ class AlbumSyncEngine(
         albums.allActive()
             .filter { it.serverId != null && it.serverId !in serverIds }
             .forEach { albums.hardDelete(it) }
+    }
+
+    private suspend fun cacheSharedImage(
+        localId: Long,
+        serverId: String,
+        remoteUrl: String,
+    ) {
+        val path = runCatching { cacheRemoteImage(serverId, remoteUrl) }
+            .getOrNull()
+            ?: return
+        flowers.cacheImagePath(localId, path)
     }
 }

@@ -23,6 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.florapin.app.ui.components.BadgeCard
 import com.florapin.app.ui.components.BadgeUiState
+import com.florapin.app.ui.layout.bottomBarScrollClearance
 import com.florapin.app.util.Haptics
 
 /**
@@ -52,7 +53,12 @@ internal fun BadgesTab(
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            top = 16.dp,
+            end = 16.dp,
+            bottom = bottomBarScrollClearance + 16.dp,
+        ),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {

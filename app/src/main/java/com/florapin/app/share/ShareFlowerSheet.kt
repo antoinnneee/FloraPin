@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -35,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -80,6 +82,16 @@ fun ShareFlowerSheet(
     val shares = state.shares.filter {
         (it.scope == "flower" && it.flowerId == flowerServerId) || it.scope == "all"
     }
+    val existingShare = shares.firstOrNull { share ->
+        share.scope == "flower" &&
+            share.flowerId == flowerServerId &&
+            if (allFriends) {
+                share.audience == "all_friends"
+            } else {
+                share.audience == "friend" && share.sharedWith == selectedFriend?.id
+            }
+    }
+    val alreadyShared = existingShare?.includeGps == includeGps
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -143,10 +155,22 @@ fun ShareFlowerSheet(
                         }
                     }
                 },
-                enabled = flowerServerId != null && (allFriends || selectedFriend != null),
+                enabled = flowerServerId != null &&
+                    (allFriends || selectedFriend != null) &&
+                    !state.loading &&
+                    !state.creating &&
+                    !alreadyShared,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(if (allFriends) "Partager avec tous mes amis" else "Partager")
+                Text(
+                    when {
+                        state.creating -> "Partage en cours…"
+                        alreadyShared -> "Déjà partagé"
+                        existingShare != null -> "Mettre à jour le partage"
+                        allFriends -> "Partager avec tous mes amis"
+                        else -> "Partager"
+                    },
+                )
             }
 
             if (shares.isNotEmpty()) {
@@ -158,13 +182,19 @@ fun ShareFlowerSheet(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        RecipientBadge(share = share, friends = state.friends)
-                        Text(
-                            text = scopeLabel(share.scope) +
-                                (if (share.includeGps) " · GPS" else " · sans GPS"),
-                            style = MaterialTheme.typography.bodyMedium,
+                        Column(
                             modifier = Modifier.weight(1f),
-                        )
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            RecipientBadge(share = share, friends = state.friends)
+                            Text(
+                                text = scopeLabel(share.scope) +
+                                    (if (share.includeGps) " · GPS" else " · sans GPS"),
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                         OutlinedButton(onClick = { viewModel.revoke(share.id) }) {
                             Text("Révoquer")
                         }
@@ -214,6 +244,8 @@ private fun RecipientBadge(share: ShareDto, friends: List<FriendUserDto>) {
             color = foreground,
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -254,7 +286,10 @@ private fun FriendSelector(
         shortcuts
     }
 
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         FilterChip(
             selected = allSelected,
             onClick = onSelectAll,
@@ -264,7 +299,14 @@ private fun FriendSelector(
             FilterChip(
                 selected = !allSelected && selectedFriend?.id == friend.id,
                 onClick = { onSelectFriend(friend) },
-                label = { Text(friend.label()) },
+                label = {
+                    Text(
+                        text = friend.label(),
+                        modifier = Modifier.widthIn(max = 180.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
             )
         }
         if (friends.size > shortcuts.size) {
@@ -338,7 +380,12 @@ private fun FriendSearchDialog(
                                 onClick = { onSelect(friend) },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
-                                Text(friend.label(), modifier = Modifier.fillMaxWidth())
+                                Text(
+                                    text = friend.label(),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
                             }
                         }
                     }

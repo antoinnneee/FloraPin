@@ -13,6 +13,7 @@ import com.florapin.app.network.api.AlbumsApi
 import com.florapin.app.network.dto.AddFlowerToAlbumRequest
 import com.florapin.app.network.dto.AlbumDto
 import com.florapin.app.network.dto.CreateAlbumRequest
+import com.florapin.app.network.dto.FlowerDto
 import com.florapin.app.network.dto.SetAlbumGroupRequest
 import com.florapin.app.network.dto.SetAlbumCoverRequest
 import com.florapin.app.network.dto.SetAlbumPermissionsRequest
@@ -66,7 +67,9 @@ private class MemFlowerDao : FlowerDao {
         expectedUpdatedAt: Long,
     ) {}
     override suspend fun markFailed(id: Long) {}
-    override suspend fun setImagePath(id: Long, path: String) {}
+    override suspend fun setImagePath(id: Long, path: String) {
+        store[id]?.let { store[id] = it.copy(imagePath = path) }
+    }
     override suspend fun softDeleteByServerId(serverId: String, deletedAt: Long) {}
     override suspend fun pendingImageUploads(): List<FlowerEntity> = emptyList()
     override suspend fun setImagePendingUpload(id: Long, pending: Boolean) {}
@@ -192,6 +195,21 @@ private class FakeAlbumsApi : AlbumsApi {
     }
 }
 
+private fun remoteFlower(
+    id: String,
+    ownerId: String,
+) = FlowerDto(
+    id = id,
+    ownerId = ownerId,
+    imageUrl = "https://images.test/$id.webp",
+    thumbnailUrl = "https://images.test/$id-thumb.webp",
+    takenAt = "2026-06-20T09:00:00Z",
+    notes = "",
+    visibility = "private",
+    createdAt = "2026-06-20T09:00:00Z",
+    updatedAt = "2026-06-20T09:00:00Z",
+)
+
 class AlbumSyncEngineTest {
 
     @Test
@@ -247,6 +265,43 @@ class AlbumSyncEngineTest {
         assertEquals(SyncState.SYNCED.name, local.syncState)
         assertEquals(listOf(flower.id), albumDao.memberFlowerIds(local.id))
         assertEquals(flower.id, local.coverFlowerId)
+    }
+
+    @Test
+    fun pull_importsExistingFlowersFromCollaborativeAlbum() = runBlocking {
+        val flowerDao = MemFlowerDao()
+        val albumDao = MemAlbumDao(flowerDao)
+        val api = FakeAlbumsApi()
+        val engine = AlbumSyncEngine(
+            albums = AlbumRepository(albumDao) { 100L },
+            flowers = FlowerRepository(flowerDao),
+            albumsApi = api,
+            cacheRemoteImage = { serverId, _ -> "/cache/$serverId.webp" },
+            currentUserId = "member",
+            now = { 100L },
+        )
+        val flower = remoteFlower(id = "srv-owner-flower", ownerId = "owner")
+        api.server["srv-shared-album"] = AlbumDto(
+            id = "srv-shared-album",
+            ownerId = "owner",
+            name = "Sous-bois",
+            clientId = "shared-client",
+            groupId = "group-1",
+            flowerIds = listOf(flower.id),
+            flowers = listOf(flower),
+            coverFlowerId = flower.id,
+            createdAt = "2026-06-21T09:00:00Z",
+        )
+
+        engine.pull()
+
+        val localAlbum = albumDao.findByServerId("srv-shared-album")!!
+        val localFlower = flowerDao.findByServerId(flower.id)!!
+        assertEquals(true, localFlower.sharedAlbumCopy)
+        assertEquals("/cache/${flower.id}.webp", localFlower.imagePath)
+        assertEquals(flower.thumbnailUrl, localFlower.remoteThumbnailUrl)
+        assertEquals(listOf(localFlower.id), albumDao.memberFlowerIds(localAlbum.id))
+        assertEquals(localFlower.id, localAlbum.coverFlowerId)
     }
 
     @Test

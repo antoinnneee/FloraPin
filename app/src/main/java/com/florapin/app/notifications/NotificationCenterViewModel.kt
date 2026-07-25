@@ -59,15 +59,35 @@ class NotificationCenterViewModel(
     fun load() {
         _state.update { it.copy(loading = true) }
         viewModelScope.launch {
-            _state.value = try {
-                NotificationCenterUiState(
-                    loading = false,
-                    items = api.list(),
-                    available = true,
-                )
+            try {
+                val items = api.list()
+                // Le statut d'acceptation vit sur l'appartenance au groupe, pas sur
+                // la notification. On le réconcilie à chaque ouverture pour que le
+                // bouton reste sur « Invitation acceptée » après une navigation,
+                // un redémarrage ou une acceptation depuis la page de l'album.
+                val acceptedGroupIds = runCatching { groupsApi.list() }
+                    .getOrDefault(emptyList())
+                    .filter { it.status == "accepted" }
+                    .mapTo(mutableSetOf()) { it.id }
+                val acceptedInvitationIds = items
+                    .asSequence()
+                    .filter { it.type == "group_invited" && it.groupId in acceptedGroupIds }
+                    .mapTo(mutableSetOf()) { it.id }
+
+                _state.update { current ->
+                    NotificationCenterUiState(
+                        loading = false,
+                        items = items,
+                        acceptedInvitationIds =
+                            current.acceptedInvitationIds + acceptedInvitationIds,
+                        available = true,
+                    )
+                }
             } catch (e: Exception) {
                 // Hors-ligne / non connecté : écran indisponible assumé.
-                NotificationCenterUiState(loading = false, available = false)
+                _state.update { current ->
+                    current.copy(loading = false, available = false)
+                }
             }
         }
     }
@@ -118,9 +138,16 @@ class NotificationCenterViewModel(
             try {
                 groupsApi.accept(groupId)
                 _state.update {
+                    val sameGroupInvitationIds = it.items
+                        .asSequence()
+                        .filter { item ->
+                            item.type == "group_invited" && item.groupId == groupId
+                        }
+                        .mapTo(mutableSetOf()) { item -> item.id }
                     it.copy(
                         acceptingInvitationIds = it.acceptingInvitationIds - notification.id,
-                        acceptedInvitationIds = it.acceptedInvitationIds + notification.id,
+                        acceptedInvitationIds =
+                            it.acceptedInvitationIds + sameGroupInvitationIds,
                     )
                 }
                 markRead(notification)

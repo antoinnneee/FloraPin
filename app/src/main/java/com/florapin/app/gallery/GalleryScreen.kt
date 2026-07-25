@@ -88,6 +88,7 @@ import coil.compose.AsyncImage
 import com.florapin.app.R
 import com.florapin.app.albums.AddToAlbumSheet
 import com.florapin.app.data.FlowerEntity
+import com.florapin.app.ui.layout.bottomBarScrollClearance
 import com.florapin.app.data.SyncState
 import com.florapin.app.data.thumbnailModel
 import com.florapin.app.notifications.NotificationBell
@@ -250,6 +251,8 @@ fun GalleryScreen(
             }
         }
         val gridState = rememberLazyGridState()
+        val gallerySpacing = if (landscape) 8.dp else 12.dp
+        val scrollBottomPadding = bottomBarScrollClearance + gallerySpacing
         val onGalleryFlowerClick: (FlowerEntity) -> Unit = { flower ->
             if (selectionActive) {
                 viewModel.toggleSelection(flower.id)
@@ -276,7 +279,7 @@ fun GalleryScreen(
                                     start = 12.dp,
                                     top = 4.dp,
                                     end = 12.dp,
-                                    bottom = 96.dp,
+                                    bottom = scrollBottomPadding,
                                 ),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
@@ -318,12 +321,17 @@ fun GalleryScreen(
                                     GridCells.Adaptive(minSize = density.minCellSize)
                                 },
                                 modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(if (landscape) 8.dp else 12.dp),
+                                contentPadding = PaddingValues(
+                                    start = gallerySpacing,
+                                    top = gallerySpacing,
+                                    end = gallerySpacing,
+                                    bottom = scrollBottomPadding,
+                                ),
                                 horizontalArrangement = Arrangement.spacedBy(
-                                    if (landscape) 8.dp else 12.dp,
+                                    gallerySpacing,
                                 ),
                                 verticalArrangement = Arrangement.spacedBy(
-                                    if (landscape) 8.dp else 12.dp,
+                                    gallerySpacing,
                                 ),
                             ) {
                                 rows.forEach { row ->

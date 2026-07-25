@@ -17,6 +17,26 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.23.0] — 2026-07-25
+
+### Modifié
+- **Fiche d'observation repensée.** L'écran détail adopte une galerie
+  asymétrique avec aperçu des photos, une identité d'espèce plus lisible et des
+  onglets dédiés à l'aperçu, aux notes et à la discussion. Les champs de saisie
+  sont regroupés dans un mode « Modifier » séparé, sans retirer les actions
+  d'ajout, de suppression ou de choix de la photo de couverture.
+
+### Corrigé
+- **Cartes de commentaires compactes avec les longs pseudos.** Le nom de
+  l'auteur occupe désormais seulement l'espace disponible sur une ligne, avec
+  une ellipse si nécessaire, sans repousser l'heure ni agrandir la carte.
+- **Crash rare pendant la transition galerie vers détail.** Le BOM Jetpack
+  Compose passe de 2024.12.01 à 2025.06.01 (Compose Animation 1.8.3), qui corrige
+  la gestion du lookahead des éléments partagés dans un `Pager` et évite leur
+  placement avant la passe de pré-calcul.
+
+_versionName 1.23.0, versionCode 38._
+
 ## [1.22.0] — 2026-07-25
 
 ### Ajouté

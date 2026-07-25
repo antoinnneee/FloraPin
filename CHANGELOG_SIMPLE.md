@@ -18,6 +18,19 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.23.0 — 25 juillet 2026
+
+### Amélioré
+- **La fiche d'une fleur met maintenant ses photos et son identité en avant.**
+  Passez facilement de l'aperçu aux notes et à la discussion, puis utilisez
+  « Modifier » uniquement lorsque vous souhaitez changer les informations.
+
+### Réparé
+- **Les longs noms ne déforment plus les commentaires.** Ils sont raccourcis
+  proprement afin que chaque carte reste compacte.
+- **L'ouverture de la fiche d'une fleur depuis la galerie ne provoque plus de
+  fermeture inattendue** dans certaines situations rares.
+
 ## Version 1.22.0 — 25 juillet 2026
 
 ### Amélioré

@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
  * Transitions partagées galerie ↔ détail (TÂCHE 6.17).
  *
  * L'API [SharedTransitionScope] est encore expérimentale dans le BOM Compose
- * 2024.12.01 : tout est isolé ici derrière un unique point d'entrée pour pouvoir
+ * 2025.06.01 : tout est isolé ici derrière un unique point d'entrée pour pouvoir
  * la désactiver d'un seul geste ([SHARED_TRANSITIONS_ENABLED]) sans toucher aux
  * écrans. Côté appelant, on ne manipule qu'un [FloraSharedScope] nullable et le
  * modificateur [sharedFlowerImage] ; quand la fonctionnalité est coupée (ou que

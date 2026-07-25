@@ -687,11 +687,18 @@ private fun CommentCard(
                     } else {
                         MaterialTheme.colorScheme.onSurface
                     },
-                    modifier = if (authorProfileId != null) {
-                        Modifier.clickable { onOpenProfile(authorProfileId) }
-                    } else {
-                        Modifier
-                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp)
+                        .then(
+                            if (authorProfileId != null) {
+                                Modifier.clickable { onOpenProfile(authorProfileId) }
+                            } else {
+                                Modifier
+                            },
+                        ),
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -700,6 +707,7 @@ private fun CommentCard(
                             if (comment.editedAt != null) " · modifié" else "",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
                     )
                     if ((comment.canEdit || comment.canDelete) && !editing) {
                         CommentActionsMenu(

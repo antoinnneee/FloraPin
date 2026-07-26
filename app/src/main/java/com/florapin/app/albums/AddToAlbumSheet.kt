@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -27,7 +28,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 fun AddToAlbumSheet(
     flowerLocalId: Long,
     onDismiss: () -> Unit,
-    viewModel: AlbumsViewModel = viewModel(),
+    viewModel: AlbumsViewModel = viewModel(
+        factory = AlbumsViewModel.factory(LocalContext.current),
+    ),
 ) = AddToAlbumSheet(
     flowerLocalIds = listOf(flowerLocalId),
     onDismiss = onDismiss,
@@ -44,7 +47,9 @@ fun AddToAlbumSheet(
 fun AddToAlbumSheet(
     flowerLocalIds: List<Long>,
     onDismiss: () -> Unit,
-    viewModel: AlbumsViewModel = viewModel(),
+    viewModel: AlbumsViewModel = viewModel(
+        factory = AlbumsViewModel.factory(LocalContext.current),
+    ),
 ) {
     val albums by viewModel.albums.collectAsStateWithLifecycle()
     val count = flowerLocalIds.size

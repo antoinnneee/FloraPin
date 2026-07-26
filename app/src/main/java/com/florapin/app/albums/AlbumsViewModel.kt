@@ -1,13 +1,15 @@
 package com.florapin.app.albums
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import android.content.Context
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.florapin.app.data.AlbumEntity
 import com.florapin.app.data.AlbumRepository
 import com.florapin.app.data.FlowerEntity
 import com.florapin.app.data.toEntity
 import com.florapin.app.network.NetworkModule
+import com.florapin.app.network.api.AlbumsApi
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.network.dto.CreateAlbumRequest
 import com.florapin.app.ui.components.networkErrorMessage
@@ -29,16 +31,15 @@ data class AlbumSummary(
 )
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-class AlbumsViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val repository = AlbumRepository.from(application)
-    // Albums collaboratifs (TÂCHE 7.1) : leur création crée un groupe côté serveur,
-    // c'est donc une opération RÉSEAU (device-first : dégrade proprement hors-ligne).
-    private val albumsApi by lazy {
-        NetworkModule.createAuthenticated(
-            EncryptedTokenStore(application.applicationContext),
-        ).albums
-    }
+class AlbumsViewModel(
+    private val repository: AlbumRepository,
+    /**
+     * Albums collaboratifs (TÂCHE 7.1) : leur création crée un groupe côté
+     * serveur, c'est donc une opération RÉSEAU (device-first : dégrade
+     * proprement hors-ligne). Injecté pour rester testable hors appareil.
+     */
+    private val albumsApi: AlbumsApi,
+) : ViewModel() {
 
     val albums: StateFlow<List<AlbumEntity>> = repository.albums.stateIn(
         scope = viewModelScope,
@@ -133,5 +134,19 @@ class AlbumsViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             flowerLocalIds.forEach { repository.addFlower(albumId, it) }
         }
+    }
+
+    companion object {
+        fun factory(context: Context): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    val app = context.applicationContext
+                    return AlbumsViewModel(
+                        AlbumRepository.from(app),
+                        NetworkModule.createAuthenticated(EncryptedTokenStore(app)).albums,
+                    ) as T
+                }
+            }
     }
 }

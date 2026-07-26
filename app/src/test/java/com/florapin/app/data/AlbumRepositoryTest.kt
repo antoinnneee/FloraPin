@@ -9,17 +9,23 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** AlbumDao en mémoire pour tester la logique de AlbumRepository (JVM pur). */
-private class MemAlbumDao : AlbumDao {
+/**
+ * AlbumDao en mémoire pour tester la logique de AlbumRepository (JVM pur).
+ * Non privé : réutilisé par les tests des ViewModels d'albums, sur le modèle de
+ * [MemSavedFlowerDao].
+ */
+class MemAlbumDao : AlbumDao {
     val albums = linkedMapOf<Long, AlbumEntity>()
     val refs = mutableSetOf<Pair<Long, Long>>()
+    /** Contenu servi par [observeFlowersInAlbum] (vide par défaut). */
+    val flowersByAlbum = mutableMapOf<Long, List<FlowerEntity>>()
     private var seq = 0L
 
     override fun observeAll(): Flow<List<AlbumEntity>> = flowOf(albums.values.toList())
     override suspend fun getById(id: Long) = albums[id]
     override fun observeById(id: Long): Flow<AlbumEntity?> = flowOf(albums[id])
     override fun observeFlowersInAlbum(albumId: Long): Flow<List<FlowerEntity>> =
-        flowOf(emptyList())
+        flowOf(flowersByAlbum[albumId].orEmpty())
     override suspend fun findByServerId(serverId: String) =
         albums.values.find { it.serverId == serverId }
     override suspend fun findByClientId(clientId: String) =

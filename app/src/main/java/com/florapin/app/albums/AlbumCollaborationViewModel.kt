@@ -1,12 +1,16 @@
 package com.florapin.app.albums
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import android.content.Context
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.florapin.app.data.AlbumEntity
 import com.florapin.app.data.AlbumRepository
 import com.florapin.app.data.applyTo
 import com.florapin.app.network.NetworkModule
+import com.florapin.app.network.api.AlbumsApi
+import com.florapin.app.network.api.FriendshipsApi
+import com.florapin.app.network.api.GroupsApi
 import com.florapin.app.network.auth.EncryptedTokenStore
 import com.florapin.app.network.dto.AlbumPermissionDto
 import com.florapin.app.network.dto.CreateGroupRequest
@@ -42,13 +46,16 @@ data class CollaborationUiState(
  * invitations, régime de droits. Purement réseau — device-first : hors-ligne,
  * l'écran affiche une erreur et reste en lecture seule.
  */
-class AlbumCollaborationViewModel(application: Application) :
-    AndroidViewModel(application) {
+class AlbumCollaborationViewModel(
+    private val repository: AlbumRepository,
+    private val albumsApi: AlbumsApi,
+    private val groupsApi: GroupsApi,
+    private val friendshipsApi: FriendshipsApi,
+    /** Identité du porteur de session, relue à chaque usage (login/logout). */
+    private val selfUserIdProvider: () -> String?,
+) : ViewModel() {
 
-    private val repository = AlbumRepository.from(application)
-    private val tokenStore = EncryptedTokenStore(application.applicationContext)
-    private val apis by lazy { NetworkModule.createAuthenticated(tokenStore) }
-    private val selfUserId: String? get() = tokenStore.userId()
+    private val selfUserId: String? get() = selfUserIdProvider()
 
     private val _state = MutableStateFlow(CollaborationUiState())
     val state: StateFlow<CollaborationUiState> = _state.asStateFlow()
@@ -68,13 +75,13 @@ class AlbumCollaborationViewModel(application: Application) :
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             try {
-                val group = apis.groups.get(groupId)
-                val friends = apis.friendships.list()
+                val group = groupsApi.get(groupId)
+                val friends = friendshipsApi.list()
                     .filter { it.status == "accepted" }
                 val memberIds = group.members.map { it.userId }.toSet()
                 // L'album serveur porte le régime de droits ET les droits par membre.
                 val serverId = album.serverId
-                val albumDto = serverId?.let { runCatching { apis.albums.get(it) }.getOrNull() }
+                val albumDto = serverId?.let { runCatching { albumsApi.get(it) }.getOrNull() }
                 _state.value = CollaborationUiState(
                     group = group,
                     invitableFriends = friends.filter { it.user.id !in memberIds },
@@ -104,8 +111,8 @@ class AlbumCollaborationViewModel(application: Application) :
         }
         viewModelScope.launch {
             try {
-                val group = apis.groups.create(CreateGroupRequest(name = current.name))
-                val dto = apis.albums.setGroup(
+                val group = groupsApi.create(CreateGroupRequest(name = current.name))
+                val dto = albumsApi.setGroup(
                     serverId,
                     SetAlbumGroupRequest(groupId = group.id, permissionMode = "open"),
                 )
@@ -118,11 +125,11 @@ class AlbumCollaborationViewModel(application: Application) :
     }
 
     fun invite(friendUserId: String) = act { groupId ->
-        apis.groups.invite(groupId, InviteMemberRequest(friendUserId))
+        groupsApi.invite(groupId, InviteMemberRequest(friendUserId))
     }
 
     fun removeMember(userId: String) = act { groupId ->
-        apis.groups.removeMember(groupId, userId)
+        groupsApi.removeMember(groupId, userId)
     }
 
     /** Bascule le régime de droits (owner uniquement). */
@@ -134,7 +141,7 @@ class AlbumCollaborationViewModel(application: Application) :
                 val entries = _state.value.permissions.map {
                     AlbumPermissionDto(userId = it.key, canEdit = it.value)
                 }
-                val dto = apis.albums.setPermissions(
+                val dto = albumsApi.setPermissions(
                     serverId,
                     SetAlbumPermissionsRequest(mode = mode, entries = entries),
                 )
@@ -157,7 +164,7 @@ class AlbumCollaborationViewModel(application: Application) :
                 val entries = merged.map {
                     AlbumPermissionDto(userId = it.key, canEdit = it.value)
                 }
-                val dto = apis.albums.setPermissions(
+                val dto = albumsApi.setPermissions(
                     serverId,
                     SetAlbumPermissionsRequest(mode = "restricted", entries = entries),
                 )
@@ -205,5 +212,26 @@ class AlbumCollaborationViewModel(application: Application) :
                 deletedAt = current.deletedAt,
             ),
         )
+    }
+
+    companion object {
+        fun factory(context: Context): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    val app = context.applicationContext
+                    val tokenStore = EncryptedTokenStore(app)
+                    val apis = NetworkModule.createAuthenticated(tokenStore)
+                    return AlbumCollaborationViewModel(
+                        AlbumRepository.from(app),
+                        apis.albums,
+                        apis.groups,
+                        apis.friendships,
+                        // Relu à chaque appel : l'instance survit à un
+                        // logout/login, l'identité non.
+                        { tokenStore.userId() },
+                    ) as T
+                }
+            }
     }
 }

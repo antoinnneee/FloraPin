@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -70,8 +71,12 @@ fun AlbumDetailScreen(
     onFlowerClick: (Long) -> Unit,
     onCaptureInAlbum: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: AlbumDetailViewModel = viewModel(),
-    collaborationViewModel: AlbumCollaborationViewModel = viewModel(),
+    viewModel: AlbumDetailViewModel = viewModel(
+        factory = AlbumDetailViewModel.factory(LocalContext.current),
+    ),
+    collaborationViewModel: AlbumCollaborationViewModel = viewModel(
+        factory = AlbumCollaborationViewModel.factory(LocalContext.current),
+    ),
 ) {
     viewModel.setAlbumId(albumId)
     val album by viewModel.album.collectAsStateWithLifecycle()

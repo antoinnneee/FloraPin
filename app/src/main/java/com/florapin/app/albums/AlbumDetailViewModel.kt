@@ -1,7 +1,8 @@
 package com.florapin.app.albums
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import android.content.Context
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.florapin.app.data.AlbumEntity
 import com.florapin.app.data.AlbumRepository
@@ -17,9 +18,10 @@ import kotlinx.coroutines.launch
 
 /** Un album et la grille de ses fleurs ; renommage et retrait (NODE-103). */
 @OptIn(ExperimentalCoroutinesApi::class)
-class AlbumDetailViewModel(application: Application) : AndroidViewModel(application) {
+class AlbumDetailViewModel(
+    private val repository: AlbumRepository,
+) : ViewModel() {
 
-    private val repository = AlbumRepository.from(application)
     private val albumId = MutableStateFlow<Long?>(null)
 
     val album: StateFlow<AlbumEntity?> = albumId
@@ -52,5 +54,16 @@ class AlbumDetailViewModel(application: Application) : AndroidViewModel(applicat
     fun setCover(flowerLocalId: Long) {
         val current = album.value ?: return
         viewModelScope.launch { repository.setCover(current, flowerLocalId) }
+    }
+
+    companion object {
+        fun factory(context: Context): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    AlbumDetailViewModel(
+                        AlbumRepository.from(context.applicationContext),
+                    ) as T
+            }
     }
 }

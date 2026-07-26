@@ -17,6 +17,8 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.24.0] — 2026-07-26
+
 ### Ajouté
 - **Le build debug s'installe à côté de celui du Play Store.** `applicationIdSuffix
   = ".debug"` (la coexistence tient à l'`applicationId`, pas au nom affiché),
@@ -52,6 +54,11 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   marqueurs par cellule d'écran et cadrage automatique au premier affichage.
 
 ### Corrigé
+- **Le contour des badges d'entraide suit maintenant les mêmes états que les
+  badges Collection et Pays.** Le liseré ne dépend plus de l'état `isNew`,
+  disponible uniquement pour les badges locaux : toute carte obtient un contour
+  de 2 dp dès sa première étoile, et conserve un contour neutre de 1 dp avant
+  celle-ci ou quand ses données sont indisponibles.
 - **Une espèce saisie au clavier entre immédiatement dans l'herbier.** Jusqu'ici,
   `species_id` n'était renseigné que par deux chemins : l'autocomplétion (le
   client envoie l'identifiant) et l'acceptation d'une proposition d'ami. Une
@@ -71,6 +78,15 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   et écartait le marqueur du rendu. Le résultat est désormais borné.
 
 ### Modifié
+- **Les badges pays progressent désormais par régions distinctes, sur le modèle
+  du badge France.** Le premier palier vaut désormais `1` partout — France
+  comprise — puis chaque pays avance jusqu'à sa couverture complète, sans
+  dépasser cinq étoiles : France `1/5/10/15/18`, Belgique `1/2/3`, Suisse
+  `1/5/10/15/26`, Angleterre `1/3/5/7/9`, Irlande `1/2/3/4`, Espagne
+  `1/5/10/15/19`, Italie `1/5/10/15/20` et Japon `1/2/4/6/8`. Les progressions
+  exposent maintenant le nombre réel de subdivisions uniques au lieu d'un
+  booléen de visite. Le skill d'ajout d'un pays documente les mêmes conventions
+  pour les prochaines intégrations.
 - **Déploiement nettement raccourci, et sans verrou sur la base.** Le script
   rejouait `npm ci` pour la vitrine à chaque déploiement, alors que
   `landing/node_modules` persiste sur le VPS : mesuré à **65 s pour 267 paquets**,
@@ -265,6 +281,8 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   et les notifications. Sur l'accueil, l'accès à la carte rejoint l'en-tête,
   tandis que l'identification et son badge prennent place à droite de la barre
   de recherche.
+
+_versionName 1.24.0, versionCode 39._
 
 ## [1.23.0] — 2026-07-25
 

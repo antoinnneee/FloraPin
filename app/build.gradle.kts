@@ -73,8 +73,8 @@ android {
         // service au premier plan : aucun des changements de comportement
         // majeurs du palier ne s'applique.
         targetSdk = 36
-        versionCode = 38
-        versionName = "1.23.0"
+        versionCode = 39
+        versionName = "1.24.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

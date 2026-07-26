@@ -18,6 +18,8 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.24.0 — 26 juillet 2026
+
 ### Nouveau
 - **Vous pouvez maintenant décrire le problème rencontré lorsque vous envoyez
   les journaux techniques depuis Profil › Configuration.**
@@ -40,6 +42,10 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
   agrandissez les vignettes à votre goût.
 
 ### Amélioré
+- **Chaque badge pays comporte maintenant plusieurs étapes.** Explorez de
+  nouvelles régions, provinces ou cantons pour gagner progressivement toutes
+  les étoiles du pays, jusqu'à l'avoir entièrement parcouru, avec cinq étoiles
+  au maximum.
 - **FloraPin est désormais à jour pour Android 16.** L'application est adaptée à
   la dernière version du système et continuera de recevoir ses mises à jour.
 - **Les onglets Accueil, Partagées et Albums présentent maintenant des
@@ -54,6 +60,8 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
   séparément, tout en conservant vos anciennes notes.
 
 ### Réparé
+- **Les badges d'entraide gagnent désormais le même contour renforcé que les
+  autres badges dès leur première étoile.**
 - **Une espèce que vous tapez vous-même rejoint aussitôt votre herbier.** Il
   fallait auparavant la choisir dans la liste proposée pour qu'elle y apparaisse.
   Et si vous corrigez le nom d'une fleur, votre herbier suit désormais la

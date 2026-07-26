@@ -215,13 +215,13 @@ private fun collectionValueOf(id: String, p: BadgeCalculator.Progress): Int = wh
     BadgeCalculator.DIVERSITE -> p.distinctSpeciesCount
     BadgeCatalog.SAISONS -> p.seasonCount
     BadgeCalculator.FRANCE -> p.franceRegionCount // -1 si résolveur absent
-    BadgeCalculator.BELGIQUE -> p.belgiumVisited // -1 si résolveur absent
-    BadgeCalculator.SUISSE -> p.switzerlandVisited // -1 si résolveur absent
-    BadgeCalculator.ANGLETERRE -> p.englandVisited // -1 si résolveur absent
-    BadgeCalculator.IRLANDE -> p.irelandVisited // -1 si résolveur absent
-    BadgeCalculator.ESPAGNE -> p.spainVisited // -1 si résolveur absent
-    BadgeCalculator.ITALIE -> p.italyVisited // -1 si résolveur absent
-    BadgeCalculator.JAPON -> p.japanVisited // -1 si résolveur absent
+    BadgeCalculator.BELGIQUE -> p.belgiumRegionCount // -1 si résolveur absent
+    BadgeCalculator.SUISSE -> p.switzerlandRegionCount // -1 si résolveur absent
+    BadgeCalculator.ANGLETERRE -> p.englandRegionCount // -1 si résolveur absent
+    BadgeCalculator.IRLANDE -> p.irelandRegionCount // -1 si résolveur absent
+    BadgeCalculator.ESPAGNE -> p.spainRegionCount // -1 si résolveur absent
+    BadgeCalculator.ITALIE -> p.italyRegionCount // -1 si résolveur absent
+    BadgeCalculator.JAPON -> p.japanRegionCount // -1 si résolveur absent
     BadgeCalculator.EXPLORATEUR -> p.exploredRegionCount // -1 si résolveur absent
     BadgeCatalog.OUTRE_MER -> p.overseasCount // -1 si résolveur absent
     BadgeCalculator.LIEUX_DISTINCTS -> p.cellCount

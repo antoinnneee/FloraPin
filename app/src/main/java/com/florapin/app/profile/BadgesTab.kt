@@ -33,7 +33,8 @@ import com.florapin.app.util.Haptics
  * hors-ligne).
  *
  * Célébration au déblocage : un palier fraîchement obtenu déclenche un retour
- * haptique (cf. QOL 6.15) et affiche un liseré sur la carte concernée.
+ * haptique (cf. QOL 6.15). Le contour dépend uniquement des étoiles gagnées,
+ * de façon identique dans les trois sections.
  */
 @Composable
 internal fun BadgesTab(

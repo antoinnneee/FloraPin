@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
@@ -24,11 +25,14 @@ import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.material3.Card
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -51,6 +55,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
@@ -59,6 +64,7 @@ import androidx.compose.material.icons.outlined.StarOutline
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.florapin.app.R
 import com.florapin.app.data.SavedFlowerEntity
 import com.florapin.app.data.imageModel
 import com.florapin.app.detail.CommentsBottomSheet
@@ -81,6 +87,8 @@ import com.florapin.app.ui.layout.topBarHeight
 @Composable
 fun SharedFeedScreen(
     onOpenNotifications: () -> Unit,
+    onOpenMap: () -> Unit,
+    onOpenFriends: () -> Unit,
     modifier: Modifier = Modifier,
     onOpenProfile: (String) -> Unit = {},
     viewModel: SharedFeedViewModel = viewModel(
@@ -108,9 +116,33 @@ fun SharedFeedScreen(
         topBar = {
             TopAppBar(
                 expandedHeight = topBarHeight,
-                title = { Text("Partag\u00E9es") },
+                title = {
+                    Text(
+                        text = "Partag\u00E9es",
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                },
                 actions = {
-                    NotificationBell(onOpen = onOpenNotifications)
+                    Row(
+                        modifier = Modifier.padding(end = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        SharedHeaderAction(
+                            icon = R.drawable.ic_nav_map,
+                            contentDescription = "Ouvrir la carte",
+                            onClick = onOpenMap,
+                        )
+                        SharedHeaderAction(
+                            icon = R.drawable.ic_friends_botanical,
+                            contentDescription = "Amis",
+                            onClick = onOpenFriends,
+                        )
+                        NotificationBell(
+                            onOpen = onOpenNotifications,
+                            modifier = Modifier.sharedHeaderUtilitySurface(),
+                        )
+                    }
                 },
             )
         },
@@ -299,6 +331,49 @@ fun SharedFeedScreen(
             }
         }
     }
+}
+
+/** Action de l'en-tête, alignée visuellement sur les utilitaires de l'accueil. */
+@Composable
+private fun SharedHeaderAction(
+    icon: Int,
+    contentDescription: String,
+    onClick: () -> Unit,
+    badge: Int = 0,
+) {
+    BadgedBox(
+        badge = {
+            if (badge > 0) {
+                Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                    Text(if (badge > 99) "99+" else "$badge")
+                }
+            }
+        },
+    ) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.sharedHeaderUtilitySurface(),
+        ) {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = contentDescription,
+                modifier = Modifier.size(28.dp),
+                tint = Color.Unspecified,
+            )
+        }
+    }
+}
+
+/** Surface de 48 dp identique aux boutons de l'en-tête de l'accueil. */
+@Composable
+private fun Modifier.sharedHeaderUtilitySurface(): Modifier {
+    val shape = RoundedCornerShape(14.dp)
+    return this
+        .size(48.dp)
+        .padding(2.dp)
+        .clip(shape)
+        .background(MaterialTheme.colorScheme.surface)
+        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
 }
 
 /** Sélecteur d'ordre du feed (récentes / meilleures photos, NODE-140). */

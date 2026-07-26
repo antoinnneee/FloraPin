@@ -37,7 +37,14 @@ cet ordre. Les positions suivent toujours `[longitude, latitude]`.
 - Le nouvel « Explorateur » utilise `explorateur_regions` et compte les clés
   uniques `<code-pays>:<code-région>`.
 - Ses seuils sont 1, 5, 10, 15 et 20 régions, tous pays confondus.
-- Un badge pays à palier unique vaut `1` après la première région visitée.
+- Chaque badge pays compte ses subdivisions distinctes et possède des paliers
+  cumulatifs. Le premier reste `1` pour préserver le déblocage dès la première
+  visite ; le dernier correspond au nombre officiel total de subdivisions.
+- Un badge pays ne dépasse jamais cinq étoiles. Le badge France suit lui aussi
+  cette convention avec `1/5/10/15/18`.
+- Pour un petit pays (jusqu'à quatre subdivisions), utiliser chaque entier. Pour
+  un pays plus grand, viser quatre ou cinq étapes lisibles et inclure toujours la
+  couverture complète (par exemple `1/5/10/15/20` pour 20 régions).
 - Une observation étrangère ne modifie jamais `franceRegionCount`.
 - Si le résolveur ne charge pas les assets, les progressions géographiques
   valent `BadgeCalculator.UNAVAILABLE`.

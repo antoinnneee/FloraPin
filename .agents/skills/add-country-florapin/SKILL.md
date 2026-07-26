@@ -20,8 +20,10 @@ ligne et préserver les identifiants de badges déjà persistés.
    - le niveau administratif équivalent à une région FloraPin ;
    - la langue des libellés affichés ;
    - le nombre officiel de subdivisions attendu ;
-   - le comportement du badge pays. Par défaut, le débloquer à la première
-     observation dans le pays.
+   - les paliers du badge pays. Conserver `1` comme premier palier pour
+     débloquer le badge dès la première subdivision visitée, puis ajouter des
+     étapes progressives jusqu'au nombre officiel total de subdivisions, avec
+     un maximum de cinq étoiles ;
 
 ## Obtenir les limites
 
@@ -129,6 +131,9 @@ avant/après dans le changelog technique ou la documentation de la source.
      « Explorateur » ; ses paliers 1/5/10/15/20 compteront automatiquement les
      nouvelles régions ;
    - suivre les régions du nouveau pays séparément pour son badge dédié ;
+   - définir des paliers cumulatifs adaptés au total du pays, en conservant le
+     premier palier `1`, en terminant par le nombre officiel de subdivisions et
+     sans dépasser cinq paliers ;
    - exposer une progression disponible/indisponible cohérente avec les autres
      badges géographiques ;
    - ne jamais renommer les identifiants historiques de badges.
@@ -147,7 +152,10 @@ Ajouter ou adapter les tests suivants :
 - capitale nationale et cas d’enclave/exclave ou de `MultiPolygon` ;
 - au moins un point juste hors du pays ;
 - code pays et libellé attendus ;
-- badge pays débloqué une seule fois ;
+- paliers du badge pays débloqués cumulativement, sans compter deux fois une
+  même subdivision ;
+- premier palier égal à `1`, dernier égal au total officiel et cinq paliers
+  maximum ;
 - progression « Explorateur » augmentée par les régions du nouveau pays ;
 - progression du badge « France » inchangée par les observations étrangères ;
 - résolveur absent : tous les badges géographiques restent indisponibles.

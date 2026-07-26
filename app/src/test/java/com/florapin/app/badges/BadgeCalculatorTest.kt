@@ -143,8 +143,9 @@ class BadgeCalculatorTest {
         )
         val badges = ids(calc.compute(input(flowerCount = 2, geoTimes = geoTimes)))
 
-        // Deux régions françaises → palier France 2.
-        assertTrue(badges.contains(BadgeCalculator.FRANCE to 2))
+        // Deux régions françaises → premier palier France 1, mais pas encore 5.
+        assertTrue(badges.contains(BadgeCalculator.FRANCE to 1))
+        assertFalse(badges.contains(BadgeCalculator.FRANCE to 5))
         // L'Explorateur global démarre dès la première région, mais pas encore à 5.
         assertTrue(badges.contains(BadgeCalculator.EXPLORATEUR to 1))
         assertFalse(badges.contains(BadgeCalculator.EXPLORATEUR to 5))
@@ -186,10 +187,13 @@ class BadgeCalculatorTest {
         val progress = calc.progress(input(flowerCount = 3, geoTimes = geoTimes))
 
         assertTrue(badges.contains(BadgeCalculator.BELGIQUE to 1))
+        assertTrue(badges.contains(BadgeCalculator.BELGIQUE to 2))
+        assertFalse(badges.contains(BadgeCalculator.BELGIQUE to 3))
         assertTrue(badges.contains(BadgeCalculator.EXPLORATEUR to 1))
-        assertFalse(badges.any { it.first == BadgeCalculator.FRANCE })
+        assertTrue(badges.contains(BadgeCalculator.FRANCE to 1))
+        assertFalse(badges.contains(BadgeCalculator.FRANCE to 5))
         assertEquals(1, progress.franceRegionCount)
-        assertEquals(1, progress.belgiumVisited)
+        assertEquals(2, progress.belgiumRegionCount)
         assertEquals(3, progress.exploredRegionCount)
     }
 
@@ -233,8 +237,8 @@ class BadgeCalculatorTest {
         assertTrue(badges.contains(BadgeCalculator.SUISSE to 1))
         assertTrue(badges.contains(BadgeCalculator.BELGIQUE to 1))
         assertEquals(1, progress.franceRegionCount)
-        assertEquals(1, progress.belgiumVisited)
-        assertEquals(1, progress.switzerlandVisited)
+        assertEquals(1, progress.belgiumRegionCount)
+        assertEquals(2, progress.switzerlandRegionCount)
         assertEquals(4, progress.exploredRegionCount)
     }
 
@@ -301,11 +305,49 @@ class BadgeCalculatorTest {
         ).forEach { badgeId -> assertTrue(badges.contains(badgeId to 1)) }
         assertTrue(badges.contains(BadgeCalculator.EXPLORATEUR to 5))
         assertEquals(5, progress.exploredRegionCount)
-        assertEquals(1, progress.englandVisited)
-        assertEquals(1, progress.irelandVisited)
-        assertEquals(1, progress.spainVisited)
-        assertEquals(1, progress.italyVisited)
-        assertEquals(1, progress.japanVisited)
+        assertEquals(1, progress.englandRegionCount)
+        assertEquals(1, progress.irelandRegionCount)
+        assertEquals(1, progress.spainRegionCount)
+        assertEquals(1, progress.italyRegionCount)
+        assertEquals(1, progress.japanRegionCount)
+    }
+
+    @Test
+    fun badges_pays_debloquent_des_paliers_cumulatifs_jusqu_a_toutes_les_regions() {
+        val specs = listOf(
+            Triple(RegionResolver.BELGIUM_COUNTRY_CODE, BadgeCalculator.BELGIQUE, BadgeCalculator.BELGIUM_TIERS),
+            Triple(RegionResolver.SWITZERLAND_COUNTRY_CODE, BadgeCalculator.SUISSE, BadgeCalculator.SWITZERLAND_TIERS),
+            Triple(RegionResolver.ENGLAND_COUNTRY_CODE, BadgeCalculator.ANGLETERRE, BadgeCalculator.ENGLAND_TIERS),
+            Triple(RegionResolver.IRELAND_COUNTRY_CODE, BadgeCalculator.IRLANDE, BadgeCalculator.IRELAND_TIERS),
+            Triple(RegionResolver.SPAIN_COUNTRY_CODE, BadgeCalculator.ESPAGNE, BadgeCalculator.SPAIN_TIERS),
+            Triple(RegionResolver.ITALY_COUNTRY_CODE, BadgeCalculator.ITALIE, BadgeCalculator.ITALY_TIERS),
+            Triple(RegionResolver.JAPAN_COUNTRY_CODE, BadgeCalculator.JAPON, BadgeCalculator.JAPAN_TIERS),
+        )
+
+        specs.forEach { (countryCode, badgeId, thresholds) ->
+            val features = (0 until thresholds.last()).joinToString(",") { index ->
+                val minLng = -170 + index * 5
+                """
+                  {"type":"Feature","properties":{"countryCode":"$countryCode","code":"R$index","nom":"R$index","outreMer":false},
+                   "geometry":{"type":"Polygon","coordinates":[
+                     [[$minLng,0],[${minLng + 1},0],[${minLng + 1},1],[$minLng,1],[$minLng,0]]
+                   ]}}
+                """.trimIndent()
+            }
+            val calc = BadgeCalculator(
+                RegionResolver.fromJson("""{"type":"FeatureCollection","features":[$features]}"""),
+                zone = ZoneId.of("UTC"),
+            )
+            val observations = (0 until thresholds.last()).map { index ->
+                FlowerGeoTime(0.5, -169.5 + index * 5, monthMillis(6))
+            }
+
+            val unlockedTiers = calc.compute(
+                input(flowerCount = observations.size, geoTimes = observations),
+            ).filter { it.badgeId == badgeId }.map { it.tier }.toSet()
+
+            assertEquals("$badgeId doit débloquer tous ses paliers", thresholds.toSet(), unlockedTiers)
+        }
     }
 
     @Test

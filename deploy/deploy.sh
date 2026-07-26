@@ -179,8 +179,28 @@ else
 fi
 
 echo "📦 Synchronisation de landing/..."
+# public/telechargements/ est EXCLU à dessein : l'archive du compagnon Windows
+# y est volumineuse et non versionnée, donc absente des machines qui ne l'ont
+# pas construite. Sans cette exclusion, le --delete de remote_sync effacerait
+# du VPS le téléchargement en ligne au premier déploiement venu.
 remote_sync --exclude 'node_modules/' --exclude 'dist/' \
+    --exclude 'public/telechargements/' \
     "$REPO_ROOT/landing/" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/landing/" || exit 1
+
+# ── Compagnon Windows (facultatif) ─────────────────────────────────────────
+# Envoyée seulement si elle a été construite ici, et SANS --delete : une
+# machine sans archive laisse en place celle déjà publiée.
+WINDOWS_ARCHIVE_DIR="$REPO_ROOT/landing/public/telechargements"
+if compgen -G "$WINDOWS_ARCHIVE_DIR/*.zip" > /dev/null; then
+    echo "🪟 Envoi de l'archive du compagnon Windows..."
+    remote_ssh "mkdir -p '$REMOTE_DIR/landing/public/telechargements'"
+    rsync -az -e "ssh -o ControlPath=$SSH_MUX_SOCKET" \
+        "$WINDOWS_ARCHIVE_DIR"/*.zip \
+        "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/landing/public/telechargements/" || exit 1
+else
+    echo "ℹ️  Aucune archive Windows locale ; le téléchargement en ligne reste tel quel."
+    echo "   (pour la construire : ./gradlew :desktop:publishWindowsRelease)"
+fi
 
 # Vérifier que le .env de prod existe côté serveur (secrets — jamais copié d'ici).
 # S'il manque (1er déploiement), on le crée depuis .env.example et on s'arrête

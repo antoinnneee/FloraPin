@@ -17,6 +17,26 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+- **Le compagnon Windows est proposé au téléchargement sur la vitrine.**
+  Nouvelle section « Sur ordinateur » (`landing/src/components/WindowsApp.astro`)
+  et chaîne de distribution : `./gradlew :desktop:publishWindowsRelease` produit
+  une archive portable dans `landing/public/telechargements/` et consigne sa
+  taille réelle et son empreinte SHA-256 dans `landing/src/windows-release.json`,
+  que la page lit pour annoncer version et poids exacts. Tant qu'aucune archive
+  n'a été publiée, la section s'affiche sans lien plutôt qu'avec un lien mort.
+  Archive portable et non MSI : `jpackage` exige WiX Toolset, absent des postes
+  de développement.
+
+### Modifié
+- **Maquettes de la vitrine alignées sur la barre de navigation réelle.** Elles
+  montraient cinq onglets dont « Carte » ; l'app en compte quatre depuis que la
+  prise de photo est devenue l'action centrale et que la carte est un écran
+  poussé (`navigation/BottomNavBar.kt`).
+- **`deploy.sh` envoie l'archive Windows à part, sans `--delete`.** Le dossier
+  `public/telechargements/` est exclu de la synchronisation de `landing/` :
+  l'archive n'étant pas versionnée, un déploiement lancé depuis une machine qui
+  ne l'a pas construite aurait effacé du VPS le téléchargement en ligne.
 ### Corrigé
 - **Les photos ne s'affichaient pas dans le compagnon Windows.** Leur téléchargement
   empruntait le client HTTP de l'API, qui appose un en-tête `Authorization:

@@ -50,3 +50,10 @@ gha-creds-*.json
 tmp/
 
 asset/*
+
+# Archive du compagnon Windows : produite par
+# `./gradlew :desktop:publishWindowsRelease`, déposée ici pour être servie
+# par la vitrine et synchronisée sur le VPS par deploy.sh. Trop volumineuse
+# pour le dépôt (une centaine de Mo) ; c'est le manifeste
+# landing/src/windows-release.json, lui, qui est versionné.
+landing/public/telechargements/*.zip

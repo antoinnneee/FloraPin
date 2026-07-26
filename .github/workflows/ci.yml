@@ -104,6 +104,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # ESLint type-aware (eslint.config.mjs) : échoue sur les erreurs, laisse
+      # passer les avertissements « unsafe » hérités des `any` de TypeORM.
+      - name: Lint
+        run: npm run lint
+
       - name: Build
         run: npm run build
 

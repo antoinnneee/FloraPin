@@ -19,7 +19,7 @@ function makeSpecies(over: Partial<Species> = {}): Species {
     createdAt: new Date(),
     updatedAt: new Date(),
     ...over,
-  } as Species;
+  };
 }
 
 describe('SpeciesService', () => {
@@ -37,7 +37,7 @@ describe('SpeciesService', () => {
       find: jest.fn(),
       findAndCount: jest.fn(),
       findOne: jest.fn(),
-      create: jest.fn((o) => o),
+      create: jest.fn((o: Partial<Species>) => o),
       save: jest.fn(),
     } as never;
     flowersRepo = { createQueryBuilder: jest.fn() };
@@ -140,7 +140,7 @@ describe('SpeciesService', () => {
       repo.findOne.mockResolvedValue(null);
       repo.save.mockResolvedValue(makeSpecies());
       await service.resolveOrCreateByName('R_sa');
-      expect(likeValue(repo.findOne.mock.calls[0][0]!.where, 'scientificName')).toBe(
+      expect(likeValue(repo.findOne.mock.calls[0][0].where, 'scientificName')).toBe(
         'R\\_sa',
       );
     });

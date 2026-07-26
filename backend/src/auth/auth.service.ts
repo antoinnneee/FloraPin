@@ -290,7 +290,7 @@ export class AuthService {
       },
     );
 
-    const decoded = this.jwt.decode(refreshToken) as { exp: number };
+    const decoded = this.jwt.decode<{ exp: number }>(refreshToken);
     await this.refreshTokens.save(
       this.refreshTokens.create({
         id: jti,

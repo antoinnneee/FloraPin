@@ -6,6 +6,20 @@ import { PresignedUpload, StorageService, StoredObject } from './storage.service
  * Sous-ensemble du client MinIO/S3 utilisé par le service. Facilite le test
  * (injection d'un faux client) sans dépendre du SDK complet.
  */
+/**
+ * Sous-ensemble du flux renvoyé par `listObjectsV2` (un `Readable` Node). Ne
+ * déclarer que les trois événements consommés évite de propager le `any` du
+ * SDK jusque dans [MinioStorageService.list].
+ */
+export interface ObjectListStream {
+  on(
+    event: 'data',
+    listener: (item: { name?: string; lastModified?: Date }) => void,
+  ): this;
+  on(event: 'error', listener: (error: unknown) => void): this;
+  on(event: 'end', listener: () => void): this;
+}
+
 export interface ObjectStorageClient {
   presignedPutObject(bucket: string, key: string, expiry: number): Promise<string>;
   presignedGetObject(bucket: string, key: string, expiry: number): Promise<string>;
@@ -19,7 +33,11 @@ export interface ObjectStorageClient {
   bucketExists(bucket: string): Promise<boolean>;
   makeBucket(bucket: string, region?: string): Promise<void>;
   removeObject(bucket: string, key: string): Promise<void>;
-  listObjectsV2?: (...args: any[]) => any;
+  listObjectsV2?: (
+    bucket: string,
+    prefix?: string,
+    recursive?: boolean,
+  ) => ObjectListStream;
 }
 
 /**
@@ -136,8 +154,10 @@ export class MinioStorageService
     if (!this.client.listObjectsV2) return [];
     return new Promise((resolve, reject) => {
       const objects: StoredObject[] = [];
+      // Appel via l'objet (et non `.call`) pour conserver le `this` du SDK ;
+      // le `!` ne lève que l'optionalité, déjà vérifiée juste au-dessus.
       const stream = this.client.listObjectsV2!(this.bucket, prefix, true);
-      stream.on('data', (item: { name?: string; lastModified?: Date }) => {
+      stream.on('data', (item) => {
         if (item.name) {
           objects.push({
             key: item.name,

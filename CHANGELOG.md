@@ -17,7 +17,42 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Supprimé
+- **Backfill des photos de couverture retiré de `db/schema.sql`.** L'`INSERT INTO
+  flower_photos … SELECT … FROM flowers` datait de l'introduction des photos
+  multiples, des dizaines de versions en arrière. Toutes les bases en service
+  l'ont reçu depuis, et `FlowersService.create()` insère désormais lui-même la
+  ligne de couverture : il rescannait `flowers` à chaque déploiement pour
+  n'insérer aucune ligne. Le rapprochement `species_id` (juste au-dessus dans le
+  fichier) est conservé — contrairement à celui-ci, il n'est pas mort : il est le
+  seul mécanisme qui rattrape une espèce **saisie librement au clavier**, cas que
+  ni l'autocomplétion (qui envoie `speciesId`) ni l'acceptation d'une proposition
+  (`ProposalsService` → `resolveOrCreateByName`) ne couvrent. Sans lui, ces fleurs
+  restent absentes de l'herbier, qui joint sur `species_id`.
+
 ### Ajouté
+- **Détection suisse et badge « Suisse ».** Les 26 cantons sont désormais
+  résolus hors ligne à partir de swissBOUNDARIES3D 2026 de swisstopo. Une
+  simplification topologique pondérée conservant 30 % des sommets ramène
+  l'asset WGS84 de 4,06 Mo à 1,12 Mo sans supprimer de canton. Une première
+  observation suisse débloque le badge pays dédié et chaque canton distinct
+  alimente l'Explorateur mondial sans modifier les progressions France ou
+  Belgique. Les tests valident les 47 subdivisions embarquées, les 26 capitales
+  cantonales et l'isolation des compteurs par pays.
+- **Référence des subdivisions géographiques par pays.** Le document
+  `docs/COUNTRY_SUBDIVISIONS.md` consigne les niveaux retenus pour les badges et
+  la localisation détaillée en France, en Suisse, en Belgique, en Angleterre, en
+  Irlande, en Espagne, en Italie et au Japon, avec leur nombre et les
+  principales particularités administratives.
+- **Skill projet pour intégrer de nouveaux pays.** Le workflow
+  `$add-country-florapin` documente la sélection d'une source administrative
+  officielle, la normalisation GeoJSON, l'intégration au résolveur hors ligne et
+  aux badges, les tests et les changelogs. Son script valide les géométries,
+  fusionne les réponses API découpées, impose au besoin un mapping de libellés et
+  limite la taille de l'asset. Le guide décrit aussi la simplification
+  topologique Mapshaper des fichiers trop lourds, le choix du taux et les
+  contrôles anti-régression associés. La Suisse constitue sa première
+  intégration complète.
 - **Message facultatif joint aux journaux d'assistance.** Le formulaire de
   Profil › Configuration accepte désormais une description libre du problème
   (2 000 caractères maximum), transmise avec le rapport technique, stockée dans

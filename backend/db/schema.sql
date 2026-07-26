@@ -199,10 +199,12 @@ CREATE INDEX IF NOT EXISTS idx_flower_photos_flower ON flower_photos(flower_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_flower_photos_cover
     ON flower_photos(flower_id) WHERE is_cover;
 
--- Backfill : chaque fleur existante devient sa propre photo de couverture.
-INSERT INTO flower_photos (flower_id, image_key, position, is_cover)
-SELECT id, image_key, 0, true FROM flowers
-ON CONFLICT DO NOTHING;
+-- Le backfill « chaque fleur existante devient sa propre photo de couverture »
+-- a été retiré : il datait de l'introduction des photos multiples, des dizaines
+-- de versions en arrière, et toutes les bases en service l'ont reçu depuis.
+-- Depuis, FlowersService.create() insère lui-même la ligne de couverture, donc
+-- le backfill ne rattrapait plus rien — il rescannait `flowers` à chaque
+-- déploiement pour n'insérer aucune ligne.
 
 -- =====================================================================
 -- Albums de fleurs (NODE-98)

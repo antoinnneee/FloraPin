@@ -212,8 +212,35 @@ fi
 # node:22-alpine avec landing/ monté : npm ci + npm run build -> landing/dist
 # (que Caddy sert via le montage défini dans docker-compose.yml). Aucun Node
 # requis sur l'hôte ; le build tourne sous Linux (binaires natifs corrects).
+#
+# `npm ci` était rejoué à chaque déploiement alors que `landing/node_modules`
+# persiste sur le VPS (rsync l'exclut). Or `npm ci` efface et réinstalle TOUT
+# par conception : mesuré à 65 s pour 267 paquets, contre 32 s pour le build
+# Astro lui-même. Le coût est l'écriture des fichiers, pas le téléchargement —
+# un cache de tarballs n'y change presque rien (mesuré : 3 s de mieux).
+#
+# On saute donc l'installation quand les dépendances n'ont pas bougé, en
+# comparant l'empreinte du package-lock.json à celle enregistrée lors de la
+# dernière install réussie. Tout écart (lock modifié, node_modules supprimé,
+# empreinte absente) retombe sur un `npm ci` complet : jamais d'état bancal.
+# Le volume de cache npm reste monté pour accélérer ce cas-là.
 echo "🏗️  Build de la vitrine (Astro) dans un conteneur Docker sur le VPS..."
-if ! remote_sudo "cd '$REMOTE_DIR' && sudo -S -p '' docker run --rm -v '$REMOTE_DIR/landing':/app -w /app node:22-alpine sh -c 'npm ci && npm run build'"; then
+# Le script traverse trois shells (local -> ssh -> conteneur) : le transmettre
+# en base64 évite que `$LOCK_HASH` ou `$(...)` soient substitués en route.
+LANDING_BUILD=$(base64 -w0 <<'LANDING_SCRIPT'
+set -e
+LOCK_HASH=$(sha256sum package-lock.json | cut -d' ' -f1)
+if [ -f node_modules/.lock-hash ] && [ "$(cat node_modules/.lock-hash)" = "$LOCK_HASH" ]; then
+    echo "   dependances inchangees : installation ignoree."
+else
+    echo "   dependances modifiees (ou absentes) : npm ci..."
+    npm ci --prefer-offline --no-audit --no-fund
+    printf '%s' "$LOCK_HASH" > node_modules/.lock-hash
+fi
+npm run build
+LANDING_SCRIPT
+)
+if ! remote_sudo "cd '$REMOTE_DIR' && sudo -S -p '' docker run --rm -v '$REMOTE_DIR/landing':/app -v florapin-npm-cache:/root/.npm -w /app node:22-alpine sh -c 'echo $LANDING_BUILD | base64 -d | sh'"; then
     echo "❌ Échec du build de la vitrine (conteneur Docker)."
     exit 1
 fi

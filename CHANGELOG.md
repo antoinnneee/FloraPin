@@ -17,6 +17,30 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Modifié
+- **Déploiement nettement raccourci, et sans verrou sur la base.** Le script
+  rejouait `npm ci` pour la vitrine à chaque déploiement, alors que
+  `landing/node_modules` persiste sur le VPS : mesuré à **65 s pour 267 paquets**,
+  contre 32 s pour le build Astro lui-même. L'installation est désormais ignorée
+  quand `package-lock.json` n'a pas changé (empreinte SHA-256 enregistrée dans
+  `node_modules/.lock-hash`) ; tout écart — lock modifié, `node_modules` absent,
+  empreinte manquante — retombe sur un `npm ci` complet. Mesuré de bout en bout :
+  **2 min 07 → 32 s**. À noter, un cache de tarballs npm n'y suffisait pas
+  (3 s de mieux) : le coût est l'écriture des fichiers, pas le téléchargement.
+  Le volume de cache est tout de même monté, pour les fois où l'install a lieu.
+- **Les contraintes CHECK ne sont plus recréées à chaque déploiement.**
+  `schema.sql` utilisait `DROP CONSTRAINT IF EXISTS` + `ADD CONSTRAINT`, motif qui
+  **revalide toute la table sous verrou ACCESS EXCLUSIVE** — écritures bloquées,
+  pour un résultat identique. Cinq contraintes étaient concernées (`albums`,
+  `shares` ×3, `flower_likes`). Une fonction `ensure_check_constraint()` ne les
+  pose désormais que si elles sont absentes. Vérifié sur PostGIS 16 : sur une base
+  créée avec l'ancien schéma puis migrée, les cinq contraintes conservent le même
+  OID (donc aucune recréation), tout en rejetant toujours les valeurs invalides.
+  Le gain en durée est faible à ce volume (~20 ms sur 20 000 fleurs) — l'enjeu est
+  le verrou, qui grandit avec les données et bloque les écritures des bêta-testeurs.
+- **Cache npm BuildKit dans le `Dockerfile` du backend**, qui accélère la
+  reconstruction de l'image quand `package.json` change (le cas de cette version).
+
 ### Supprimé
 - **Backfill des photos de couverture retiré de `db/schema.sql`.** L'`INSERT INTO
   flower_photos … SELECT … FROM flowers` datait de l'introduction des photos
@@ -31,14 +55,27 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   restent absentes de l'herbier, qui joint sur `species_id`.
 
 ### Ajouté
+- **Cinq nouveaux territoires géographiques hors ligne et leurs badges pays.**
+  FloraPin reconnaît désormais les 9 régions anglaises (ONS 2024), les
+  4 provinces irlandaises (Tailte Éireann 2015), les 19 communautés et villes
+  autonomes espagnoles (IGN), les 20 régions italiennes (Istat 2026) et les
+  8 macro-régions japonaises (GSI 2015), soit 60 nouvelles subdivisions et
+  107 au total. Les sources projetées ont été converties en WGS84. Les couches
+  anglaise et espagnole ont été simplifiées topologiquement avec Mapshaper
+  0.7.48 en conservant respectivement 25 % et 6 % des sommets ; tous les assets
+  restent sous 1,5 Mo sans perte de subdivision. Une première observation
+  débloque le badge Angleterre, Irlande, Espagne, Italie ou Japon, tandis que
+  chaque subdivision distincte alimente les paliers mondiaux d'Explorateur.
+  Les tests couvrent une ville intérieure par subdivision, Okinawa, les
+  compteurs pays, les doublons régionaux et les positions hors périmètre.
 - **Détection suisse et badge « Suisse ».** Les 26 cantons sont désormais
   résolus hors ligne à partir de swissBOUNDARIES3D 2026 de swisstopo. Une
   simplification topologique pondérée conservant 30 % des sommets ramène
   l'asset WGS84 de 4,06 Mo à 1,12 Mo sans supprimer de canton. Une première
   observation suisse débloque le badge pays dédié et chaque canton distinct
   alimente l'Explorateur mondial sans modifier les progressions France ou
-  Belgique. Les tests valident les 47 subdivisions embarquées, les 26 capitales
-  cantonales et l'isolation des compteurs par pays.
+  Belgique. Les tests valident les 26 cantons et l'isolation des compteurs par
+  pays.
 - **Référence des subdivisions géographiques par pays.** Le document
   `docs/COUNTRY_SUBDIVISIONS.md` consigne les niveaux retenus pour les badges et
   la localisation détaillée en France, en Suisse, en Belgique, en Angleterre, en

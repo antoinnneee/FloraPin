@@ -98,6 +98,19 @@ android {
 
     buildTypes {
         debug {
+            // Identité distincte pour que debug et release COEXISTENT sur le même
+            // appareil : Android identifie une app par son applicationId, deux
+            // installations n'y tiennent qu'à cette condition. Le nom affiché
+            // suit via app/src/debug/res/values/strings.xml, et le suffixe de
+            // version distingue les deux dans les réglages système.
+            //
+            // Conséquence à connaître : les authorities dérivées de
+            // ${applicationId} (FileProvider, androidx-startup) suivent
+            // automatiquement — aucun conflit d'installation. En revanche les
+            // deep links (florapin.pattounecorp.ovh/reset et /verify) sont
+            // déclarés par les deux : Android demandera laquelle ouvrir.
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
             // 10.0.2.2 = hôte depuis l'émulateur Android.
             buildConfigField(
                 "String",

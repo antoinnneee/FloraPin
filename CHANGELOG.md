@@ -17,6 +17,23 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+- **Le build debug s'installe à côté de celui du Play Store.** `applicationIdSuffix
+  = ".debug"` (la coexistence tient à l'`applicationId`, pas au nom affiché),
+  `versionNameSuffix = "-debug"` et nom distinct « FloraPin (debug) » via
+  `app/src/debug/res/values/strings.xml`. Les authorities dérivées de
+  `${applicationId}` suivent automatiquement : vérifié sur l'APK produit —
+  `com.florapin.app.debug{.fileprovider,.androidx-startup,.firebaseinitprovider}`,
+  aucun conflit d'installation. La release conserve `com.florapin.app` et
+  « FloraPin ».
+
+  Deux conséquences à connaître. Le plugin `google-services` exige un client
+  déclaré pour **chaque** applicationId construit : `processDebugGoogleServices`
+  échoue tant que `com.florapin.app.debug` n'est pas enregistré dans le projet
+  Firebase (le placeholder de la CI déclare désormais les deux). Et les deep
+  links `/reset` et `/verify` étant portés par les deux installations, Android
+  demandera laquelle ouvrir.
+
 ### Corrigé
 - **Une espèce saisie au clavier entre immédiatement dans l'herbier.** Jusqu'ici,
   `species_id` n'était renseigné que par deux chemins : l'autocomplétion (le

@@ -18,6 +18,36 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+### Nouveau
+- **Vous pouvez maintenant décrire le problème rencontré lorsque vous envoyez
+  les journaux techniques depuis Profil › Configuration.**
+- **Une nouvelle section « Pays » rassemble vos explorations géographiques.**
+  L'ancien badge « Explorateur » devient « France » en conservant vos étoiles,
+  votre première observation belge débloque « Belgique », et le nouvel
+  « Explorateur » progresse à travers les régions de tous les pays.
+
+### Amélioré
+- **FloraPin est désormais à jour pour Android 16.** L'application est adaptée à
+  la dernière version du système et continuera de recevoir ses mises à jour.
+- **Les onglets Accueil, Partagées et Albums présentent maintenant des
+  en-têtes plus cohérents.** Retrouvez les raccourcis vers la carte, les amis et
+  les notifications depuis « Partagées », ainsi qu'un accès à l'identification
+  placé près de la recherche sur l'accueil.
+- **La fiche d'une fleur n'a plus de mode « Modifier » séparé.** Touchez le
+  crayon près du nom pour changer uniquement l'espèce, ou la ligne Photos pour
+  gérer les images.
+- **Vous pouvez maintenant conserver plusieurs notes pour une même fleur.**
+  L'onglet Notes permet d'ajouter, corriger ou supprimer chaque observation
+  séparément, tout en conservant vos anciennes notes.
+
+### Réparé
+- **Les noms d'espèces longs restent maintenant lisibles dans leur fiche.** Le
+  libellé « Espèce » reste horizontal et le nom peut s'afficher sur quatre
+  lignes avant d'être raccourci.
+- **Une fleur encore inconnue propose directement de demander son identification
+  à vos amis à la place de son nom.** Les mentions d'état répétées sous le titre
+  ont été retirées pour alléger la fiche.
+
 ## Version 1.23.0 — 25 juillet 2026
 
 ### Amélioré
@@ -616,4 +646,3 @@ connexion, avec une synchronisation cloud facultative et le partage entre amis.
 - **Une synchronisation cloud facultative**, désactivée par défaut : sans elle,
   tout reste sur votre téléphone.
 - **Des notifications** pour ne rien manquer.
-

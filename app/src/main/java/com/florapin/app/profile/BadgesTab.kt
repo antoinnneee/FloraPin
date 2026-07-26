@@ -28,8 +28,9 @@ import com.florapin.app.util.Haptics
 
 /**
  * Onglet ② Badges (TÂCHE 5.5) : grille des familles de badges avec rangées
- * d'étoiles qui se remplissent et progression « 34 / 50 ». Deux sections —
- * « Collection » (locale) et « Entraide » (serveur, grisée hors-ligne).
+ * d'étoiles qui se remplissent et progression « 34 / 50 ». Trois sections —
+ * « Collection » et « Pays » (locales), puis « Entraide » (serveur, grisée
+ * hors-ligne).
  *
  * Célébration au déblocage : un palier fraîchement obtenu déclenche un retour
  * haptique (cf. QOL 6.15) et affiche un liseré sur la carte concernée.
@@ -71,6 +72,7 @@ internal fun BadgesTab(
         }
 
         section("Collection", state.collection)
+        section("Pays", state.countries)
 
         fullWidthItem {
             Text(

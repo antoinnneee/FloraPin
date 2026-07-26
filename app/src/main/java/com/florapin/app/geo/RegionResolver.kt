@@ -8,30 +8,46 @@ import okio.source
 import java.io.InputStream
 
 /**
- * Région administrative française (13 métropole + 5 outre-mer).
+ * Région administrative prise en charge par FloraPin.
  *
- * @param code code INSEE de la région (ex. "11" pour l'Île-de-France).
+ * @param countryCode code ISO 3166-1 alpha-2 du pays.
+ * @param code code stable de la subdivision dans sa source officielle.
  * @param name libellé officiel.
  * @param overseas `true` pour les cinq régions d'outre-mer (Guadeloupe,
  *   Martinique, Guyane, La Réunion, Mayotte) — utile aux badges dédiés.
  */
 data class Region(
+    val countryCode: String,
     val code: String,
     val name: String,
     val overseas: Boolean,
 )
 
 /**
- * Mappe une position GPS vers sa région française, **entièrement hors-ligne**
- * (TÂCHE 5.2, débloque le calcul local des badges « Explorateur » / « Outre-mer »
- * de 5.3).
+ * Mappe une position GPS vers une subdivision prise en charge, **entièrement
+ * hors-ligne** (TÂCHE 5.2, débloque les badges géographiques locaux de 5.3).
  *
- * Les polygones des 18 régions sont embarqués dans
+ * Les polygones des 18 régions françaises sont embarqués dans
  * `assets/regions-fr.geojson` (source
  * [france-geojson](https://github.com/gregoiredavid/france-geojson), version
- * simplifiée pour la métropole + outre-mer simplifié par Douglas-Peucker). Le
- * test d'appartenance est un *ray-casting* local, précédé d'un rejet par
- * boîte englobante pour la performance.
+ * simplifiée pour la métropole + outre-mer simplifié par Douglas-Peucker).
+ * Les trois Régions belges sont dans `assets/regions-be.geojson` (source
+ * [AdminVector NGI-IGN](https://www.odwb.be/explore/dataset/regionsgeweste-belgium/),
+ * millésime 2025, géométries déjà simplifiées par le diffuseur).
+ * Les 26 cantons suisses sont dans `assets/regions-ch.geojson` (source officielle
+ * [swissBOUNDARIES3D — swisstopo](https://opendata.swiss/fr/dataset/swissboundaries3d-kantonsgrenzen),
+ * millésime 2026, WGS84), simplifiée topologiquement avec Mapshaper en conservant
+ * 30 % des sommets.
+ * Les autres couches proviennent des sources officielles décrites dans
+ * `docs/COUNTRY_SUBDIVISIONS.md` : ONS 2024 pour les neuf régions anglaises
+ * (simplification topologique à 25 %), Tailte Éireann 2015 pour les quatre
+ * provinces irlandaises (reprojection EPSG:2157 → WGS84), IGN Espagne pour les
+ * 19 communautés et villes autonomes (6 %), Istat 2026 pour les 20 régions
+ * italiennes (UTM 32N → WGS84) et GSI 2015 pour les huit macro-régions japonaises
+ * (regroupement de 2 914 polygones municipaux).
+ *
+ * Le test d'appartenance est un *ray-casting* local, précédé d'un rejet par boîte
+ * englobante pour la performance.
  *
  * Points d'attention respectés :
  *  - l'ordre GeoJSON est **`[longitude, latitude]`** (jamais l'inverse) ;
@@ -47,12 +63,12 @@ class RegionResolver private constructor(
     private val regions: List<CompiledRegion>,
 ) {
 
-    /** Nombre de régions chargées (18 attendu) — pratique pour les tests/diagnostics. */
+    /** Nombre de subdivisions chargées (107 attendu) — pratique pour les tests/diagnostics. */
     val regionCount: Int get() = regions.size
 
     /**
      * Renvoie la région contenant [point], ou `null` si la position n'appartient
-     * à aucune région française (mer, étranger…).
+     * à aucune subdivision prise en charge (mer, autre pays…).
      */
     fun resolve(point: GeoPoint): Region? = resolve(point.latitude, point.longitude)
 
@@ -104,14 +120,53 @@ class RegionResolver private constructor(
 
     companion object {
         const val ASSET_NAME = "regions-fr.geojson"
+        const val BELGIUM_ASSET_NAME = "regions-be.geojson"
+        const val SWITZERLAND_ASSET_NAME = "regions-ch.geojson"
+        const val ENGLAND_ASSET_NAME = "regions-gb.geojson"
+        const val IRELAND_ASSET_NAME = "regions-ie.geojson"
+        const val SPAIN_ASSET_NAME = "regions-es.geojson"
+        const val ITALY_ASSET_NAME = "regions-it.geojson"
+        const val JAPAN_ASSET_NAME = "regions-jp.geojson"
+        val ASSET_NAMES = listOf(
+            ASSET_NAME,
+            BELGIUM_ASSET_NAME,
+            SWITZERLAND_ASSET_NAME,
+            ENGLAND_ASSET_NAME,
+            IRELAND_ASSET_NAME,
+            SPAIN_ASSET_NAME,
+            ITALY_ASSET_NAME,
+            JAPAN_ASSET_NAME,
+        )
 
-        /** Charge le résolveur depuis les assets de l'application. */
-        fun fromAssets(context: Context, assetName: String = ASSET_NAME): RegionResolver =
-            context.assets.open(assetName).use { fromInputStream(it) }
+        const val FRANCE_COUNTRY_CODE = "FR"
+        const val BELGIUM_COUNTRY_CODE = "BE"
+        const val SWITZERLAND_COUNTRY_CODE = "CH"
+        const val ENGLAND_COUNTRY_CODE = "GB"
+        const val IRELAND_COUNTRY_CODE = "IE"
+        const val SPAIN_COUNTRY_CODE = "ES"
+        const val ITALY_COUNTRY_CODE = "IT"
+        const val JAPAN_COUNTRY_CODE = "JP"
+
+        /** Charge le résolveur depuis tous les assets géographiques de l'application. */
+        fun fromAssets(
+            context: Context,
+            assetNames: List<String> = ASSET_NAMES,
+        ): RegionResolver {
+            val compiled = assetNames.flatMap { assetName ->
+                context.assets.open(assetName).use { input ->
+                    parse(JsonReader.of(input.source().buffer()))
+                }
+            }
+            return RegionResolver(compiled)
+        }
 
         /** Charge le résolveur depuis un flux GeoJSON (utile aux tests). */
         fun fromInputStream(input: InputStream): RegionResolver =
             RegionResolver(parse(JsonReader.of(input.source().buffer())))
+
+        /** Fusionne plusieurs flux GeoJSON dans un même résolveur (utile aux tests). */
+        fun fromInputStreams(vararg inputs: InputStream): RegionResolver =
+            RegionResolver(inputs.flatMap { parse(JsonReader.of(it.source().buffer())) })
 
         /** Charge le résolveur depuis une chaîne GeoJSON (utile aux tests). */
         fun fromJson(json: String): RegionResolver =
@@ -139,6 +194,7 @@ class RegionResolver private constructor(
             var code = ""
             var name = ""
             var overseas = false
+            var countryCode = FRANCE_COUNTRY_CODE
             var polygons: List<CompiledPolygon> = emptyList()
             reader.beginObject()
             while (reader.hasNext()) {
@@ -150,6 +206,7 @@ class RegionResolver private constructor(
                                 "code" -> code = reader.nextString()
                                 "nom" -> name = reader.nextString()
                                 "outreMer" -> overseas = reader.nextBoolean()
+                                "countryCode" -> countryCode = reader.nextString()
                                 else -> reader.skipValue()
                             }
                         }
@@ -161,7 +218,11 @@ class RegionResolver private constructor(
             }
             reader.endObject()
             val bbox = unionBBox(polygons)
-            return CompiledRegion(Region(code, name, overseas), polygons, bbox)
+            return CompiledRegion(
+                Region(countryCode, code, name, overseas),
+                polygons,
+                bbox,
+            )
         }
 
         private fun parseGeometry(reader: JsonReader): List<CompiledPolygon> {

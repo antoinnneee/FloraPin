@@ -43,7 +43,7 @@ data class BadgeDef(
  */
 object BadgeCatalog {
 
-    /** Familles « collection » (calcul local, disponibles hors-ligne). */
+    /** Familles générales de collection (calcul local, disponibles hors-ligne). */
     val COLLECTION: List<BadgeDef> = listOf(
         BadgeDef(BadgeCalculator.PREMIERE_FLEUR, "🌸", "Première fleur", listOf(1), BadgeSource.COLLECTION,
             "Enregistrez votre première fleur dans FloraPin."),
@@ -53,12 +53,32 @@ object BadgeCatalog {
             "Identifiez des espèces différentes dans votre collection."),
         BadgeDef(SAISONS, "🍂", "Saisons", listOf(1, 2, 3, 4), BadgeSource.COLLECTION,
             "Photographiez au moins une fleur pendant chaque saison."),
-        BadgeDef(BadgeCalculator.EXPLORATEUR, "🧭", "Explorateur", listOf(2, 5, 10, 15, 18), BadgeSource.COLLECTION,
-            "Photographiez des fleurs dans différentes régions françaises."),
         BadgeDef(OUTRE_MER, "🏝️", "Outre-mer", listOf(1, 2, 3, 4, 5), BadgeSource.COLLECTION,
             "Photographiez des fleurs dans différentes régions d'outre-mer."),
         BadgeDef(BadgeCalculator.LIEUX_DISTINCTS, "📍", "Lieux distincts", listOf(5, 15, 30, 50, 100), BadgeSource.COLLECTION,
             "Explorez de nouveaux lieux géographiques avec vos fleurs."),
+    )
+
+    /** Familles géographiques regroupées dans la section « Pays ». */
+    val COUNTRIES: List<BadgeDef> = listOf(
+        BadgeDef(BadgeCalculator.EXPLORATEUR, "🧭", "Explorateur", listOf(1, 5, 10, 15, 20), BadgeSource.COLLECTION,
+            "Photographiez des fleurs dans différentes régions, quel que soit le pays."),
+        BadgeDef(BadgeCalculator.FRANCE, "🇫🇷", "France", listOf(2, 5, 10, 15, 18), BadgeSource.COLLECTION,
+            "Photographiez des fleurs dans différentes régions françaises."),
+        BadgeDef(BadgeCalculator.BELGIQUE, "🇧🇪", "Belgique", listOf(1), BadgeSource.COLLECTION,
+            "Photographiez une fleur dans l'une des trois Régions belges."),
+        BadgeDef(BadgeCalculator.SUISSE, "🇨🇭", "Suisse", listOf(1), BadgeSource.COLLECTION,
+            "Photographiez une fleur dans l'un des 26 cantons suisses."),
+        BadgeDef(BadgeCalculator.ANGLETERRE, "🇬🇧", "Angleterre", listOf(1), BadgeSource.COLLECTION,
+            "Photographiez une fleur dans l'une des neuf régions anglaises."),
+        BadgeDef(BadgeCalculator.IRLANDE, "🇮🇪", "Irlande", listOf(1), BadgeSource.COLLECTION,
+            "Photographiez une fleur dans l'une des quatre provinces irlandaises."),
+        BadgeDef(BadgeCalculator.ESPAGNE, "🇪🇸", "Espagne", listOf(1), BadgeSource.COLLECTION,
+            "Photographiez une fleur dans l'une des 19 communautés ou villes autonomes espagnoles."),
+        BadgeDef(BadgeCalculator.ITALIE, "🇮🇹", "Italie", listOf(1), BadgeSource.COLLECTION,
+            "Photographiez une fleur dans l'une des 20 régions italiennes."),
+        BadgeDef(BadgeCalculator.JAPON, "🇯🇵", "Japon", listOf(1), BadgeSource.COLLECTION,
+            "Photographiez une fleur dans l'une des huit grandes régions japonaises."),
     )
 
     /** Familles « entraide » (compteurs serveur, grisées hors-ligne). */
@@ -79,8 +99,8 @@ object BadgeCatalog {
             "Recevez des réactions sur les fleurs que vous partagez."),
     )
 
-    /** Toutes les familles, dans l'ordre d'affichage (collection puis entraide). */
-    val ALL: List<BadgeDef> = COLLECTION + ENTRAIDE
+    /** Toutes les familles, dans l'ordre d'affichage. */
+    val ALL: List<BadgeDef> = COLLECTION + COUNTRIES + ENTRAIDE
 
     // --- Familles « collection » agrégées (ids synthétiques, pas ceux du calcul) ---
     /** 🍂 Saisons (agrège les 4 saisons + « Quatre saisons »). */

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ajouter un pays à FloraPin"
+  short_description: "Intégrer un pays et ses régions à FloraPin"
+  default_prompt: "Utilise $add-country-florapin pour ajouter un nouveau pays et ses régions à FloraPin."

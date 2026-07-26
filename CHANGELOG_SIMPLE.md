@@ -23,8 +23,9 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
   les journaux techniques depuis Profil › Configuration.**
 - **Une nouvelle section « Pays » rassemble vos explorations géographiques.**
   L'ancien badge « Explorateur » devient « France » en conservant vos étoiles,
-  votre première observation belge débloque « Belgique », et le nouvel
-  « Explorateur » progresse à travers les régions de tous les pays.
+  et une première observation débloque désormais le badge du pays en Belgique,
+  en Suisse, en Angleterre, en Irlande, en Espagne, en Italie ou au Japon. Le
+  nouvel « Explorateur » progresse à travers les régions de tous ces pays.
 
 ### Amélioré
 - **FloraPin est désormais à jour pour Android 16.** L'application est adaptée à

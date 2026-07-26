@@ -158,6 +158,7 @@ describe('FloraPin API (e2e)', () => {
       locale: 'fr-FR',
       syncStatus: 'ERROR',
       syncError: 'timeout',
+      message: 'La synchronisation reste bloquée.',
       logs: '07-24 W/FloraPin: timeout',
     };
 

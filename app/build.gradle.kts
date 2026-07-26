@@ -62,12 +62,17 @@ val hasReleaseSigning: Boolean =
 
 android {
     namespace = "com.florapin.app"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.florapin.app"
         minSdk = 26
-        targetSdk = 35
+        // API 36 (Android 16) : palier exigé par le Play Store à partir du
+        // 31/08/2026. L'app était déjà edge-to-edge (enableEdgeToEdge + insets
+        // gérés écran par écran) et ne déclare ni contrainte d'orientation ni
+        // service au premier plan : aucun des changements de comportement
+        // majeurs du palier ne s'applique.
+        targetSdk = 36
         versionCode = 38
         versionName = "1.23.0"
 

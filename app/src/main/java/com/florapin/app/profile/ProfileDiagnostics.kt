@@ -17,7 +17,7 @@ import kotlinx.coroutines.withContext
 
 /** Collecte locale bornée et envoi explicite d'un rapport technique. */
 fun interface ProfileDiagnostics {
-    suspend fun send()
+    suspend fun send(message: String?)
 
     companion object {
         val NOOP = ProfileDiagnostics {}
@@ -32,7 +32,7 @@ private class AndroidProfileDiagnostics(
     private val api: DiagnosticsApi,
 ) : ProfileDiagnostics {
 
-    override suspend fun send(): Unit = withContext(Dispatchers.IO) {
+    override suspend fun send(message: String?): Unit = withContext(Dispatchers.IO) {
         val sync = SyncStatusStore(context).read()
         val logs = buildString {
             appendLine("Rapport généré : ${Instant.now()}")
@@ -54,6 +54,7 @@ private class AndroidProfileDiagnostics(
                 locale = Locale.getDefault().toLanguageTag().take(40),
                 syncStatus = sync.outcome.name,
                 syncError = sync.errorMessage?.let(::redact)?.take(1_000),
+                message = message?.trim()?.takeIf { it.isNotEmpty() }?.take(MAX_MESSAGE_CHARS),
                 logs = logs,
             ),
         )
@@ -96,6 +97,7 @@ private class AndroidProfileDiagnostics(
         const val LOGCAT_TIMEOUT_SECONDS = 2L
         // Reste sous la limite JSON par défaut de Nest/Express, même en UTF-8.
         const val MAX_REPORT_CHARS = 20_000
+        const val MAX_MESSAGE_CHARS = 2_000
         val BEARER_PATTERN = Regex("""(?i)Bearer\s+[A-Za-z0-9._~+/=-]+""")
         val JWT_PATTERN = Regex("""\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b""")
         val SECRET_FIELD_PATTERN = Regex(

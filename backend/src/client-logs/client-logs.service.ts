@@ -17,6 +17,7 @@ export class ClientLogsService {
         ...dto,
         userId,
         syncError: dto.syncError ?? null,
+        message: dto.message?.trim() || null,
       }),
     );
     return { id: report.id, createdAt: report.createdAt };

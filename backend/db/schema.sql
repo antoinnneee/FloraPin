@@ -466,9 +466,11 @@ CREATE TABLE IF NOT EXISTS client_logs (
     locale          TEXT NOT NULL,
     sync_status     TEXT NOT NULL,
     sync_error      TEXT,
+    message         TEXT,
     logs            TEXT NOT NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE client_logs ADD COLUMN IF NOT EXISTS message TEXT;
 CREATE INDEX IF NOT EXISTS idx_client_logs_user ON client_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_client_logs_created ON client_logs(created_at DESC);
 

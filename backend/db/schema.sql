@@ -209,8 +209,18 @@ CREATE INDEX IF NOT EXISTS idx_flowers_owner_created
 CREATE UNIQUE INDEX IF NOT EXISTS idx_flowers_owner_client
     ON flowers(owner_id, client_id) WHERE client_id IS NOT NULL;
 
--- Rapprochement best-effort du texte libre `species` vers le référentiel
--- (NODE-124). Sans perte : `species` (texte) reste la source quand aucun match.
+-- Rapprochement best-effort du texte libre `species` vers le référentiel.
+-- Sans perte : `species` (texte) reste la source quand aucun match.
+--
+-- ⚠️ N'est plus le mécanisme NOMINAL depuis que FlowersService rattache l'espèce
+-- à l'écriture (create + update) : les fleurs saisies au clavier reçoivent leur
+-- `species_id` immédiatement, sans attendre un déploiement. Ce qui suit ne sert
+-- donc plus qu'à rattraper les fleurs ANTÉRIEURES à ce correctif.
+-- À supprimer une fois ce déploiement passé : la requête suivante doit alors
+-- renvoyer 0 avant de le faire.
+--   SELECT count(*) FROM flowers f JOIN species s
+--     ON lower(btrim(f.species)) = lower(s.scientific_name)
+--    WHERE f.species_id IS NULL AND f.species IS NOT NULL;
 UPDATE flowers f
    SET species_id = s.id
   FROM species s

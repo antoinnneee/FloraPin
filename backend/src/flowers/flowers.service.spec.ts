@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { FlowerLike } from '../likes/flower-like.entity';
 import { FlowerComment } from '../comments/flower-comment.entity';
+import { SpeciesService } from '../species/species.service';
 import { StorageService } from '../storage/storage.service';
 import { StubStorageService } from '../storage/stub-storage.service';
 import { Flower } from './flower.entity';
@@ -119,12 +120,43 @@ class FakePhotoRepo {
 
 const OWNER = 'owner-1';
 
+/**
+ * Référentiel d'espèces en mémoire : reproduit `resolveOrCreateByName`
+ * (rapprochement insensible à la casse, création à défaut) pour vérifier le
+ * rattachement automatique du texte libre sans monter le vrai service.
+ */
+class FakeSpeciesService {
+  readonly store = new Map<string, { id: string; scientificName: string }>();
+  /** Noms passés à la résolution, dans l'ordre (assertions d'appel). */
+  readonly resolved: string[] = [];
+
+  seed(scientificName: string): { id: string; scientificName: string } {
+    const entry = { id: randomUUID(), scientificName };
+    this.store.set(entry.id, entry);
+    return entry;
+  }
+
+  async resolveOrCreateByName(
+    name: string,
+  ): Promise<{ id: string; scientificName: string } | null> {
+    const term = name.trim();
+    this.resolved.push(term);
+    if (!term) return null;
+    const existing = [...this.store.values()].find(
+      (s) => s.scientificName.toLowerCase() === term.toLowerCase(),
+    );
+    return existing ?? this.seed(term);
+  }
+}
+
 describe('FlowersService', () => {
   let service: FlowersService;
   let repo: FakeFlowerRepo;
+  let species: FakeSpeciesService;
 
   beforeEach(async () => {
     repo = new FakeFlowerRepo();
+    species = new FakeSpeciesService();
     const moduleRef = await Test.createTestingModule({
       providers: [
         FlowersService,
@@ -150,6 +182,7 @@ describe('FlowersService', () => {
           },
         },
         { provide: StorageService, useClass: StubStorageService },
+        { provide: SpeciesService, useValue: species },
       ],
     }).compile();
     service = moduleRef.get(FlowersService);
@@ -266,5 +299,107 @@ describe('FlowersService', () => {
     const result = await service.search(OWNER, { tag: 'jardin' });
     expect(result).toHaveLength(1);
     expect(result[0].tags).toContain('jardin');
+  });
+
+  // --- Rattachement de l'espèce au référentiel à l'écriture ---
+  //
+  // Le texte libre ne posait pas `species_id` : la fleur n'apparaissait dans
+  // l'herbier (qui joint sur cette colonne) qu'après le rattrapage SQL rejoué au
+  // déploiement suivant. Ces cas verrouillent le rattachement immédiat.
+
+  describe('rattachement de l’espèce au référentiel', () => {
+    it('rattache une espèce saisie en texte libre dès la création', async () => {
+      const coquelicot = species.seed('Papaver rhoeas');
+
+      const { flower } = await service.create(OWNER, {
+        takenAt: '2026-06-21T09:00:00Z',
+        species: 'papaver rhoeas',
+      });
+
+      // Rapprochement insensible à la casse : pas de doublon au référentiel.
+      expect(flower.speciesId).toBe(coquelicot.id);
+      expect(species.store.size).toBe(1);
+    });
+
+    it('crée l’entrée au référentiel si l’espèce y est inconnue', async () => {
+      const { flower } = await service.create(OWNER, {
+        takenAt: '2026-06-21T09:00:00Z',
+        species: 'Espèce inédite',
+      });
+
+      expect(flower.speciesId).not.toBeNull();
+      expect(species.store.size).toBe(1);
+    });
+
+    it('laisse speciesId nul quand aucune espèce n’est fournie', async () => {
+      const { flower } = await service.create(OWNER, {
+        takenAt: '2026-06-21T09:00:00Z',
+      });
+
+      expect(flower.speciesId).toBeNull();
+      // Aucun appel inutile au référentiel.
+      expect(species.resolved).toHaveLength(0);
+    });
+
+    it('rattache aussi une espèce saisie à la modification', async () => {
+      const rosa = species.seed('Rosa canina');
+      const { flower } = await service.create(OWNER, {
+        takenAt: '2026-06-21T09:00:00Z',
+      });
+
+      const updated = await service.update(OWNER, flower.id, {
+        species: 'Rosa canina',
+      });
+
+      expect(updated.speciesId).toBe(rosa.id);
+    });
+
+    it('recalcule speciesId quand le nom est corrigé', async () => {
+      const rosa = species.seed('Rosa canina');
+      const tulipa = species.seed('Tulipa gesneriana');
+      const { flower } = await service.create(OWNER, {
+        takenAt: '2026-06-21T09:00:00Z',
+        species: 'Rosa canina',
+      });
+      expect(flower.speciesId).toBe(rosa.id);
+
+      // Sans recalcul, species_id serait resté sur Rosa : l'herbier aurait
+      // affiché la mauvaise espèce.
+      const updated = await service.update(OWNER, flower.id, {
+        species: 'Tulipa gesneriana',
+      });
+
+      expect(updated.speciesId).toBe(tulipa.id);
+    });
+
+    it('détache la fleur quand l’espèce est effacée', async () => {
+      species.seed('Rosa canina');
+      const { flower } = await service.create(OWNER, {
+        takenAt: '2026-06-21T09:00:00Z',
+        species: 'Rosa canina',
+      });
+
+      const updated = await service.update(OWNER, flower.id, { species: '' });
+
+      expect(updated.speciesId).toBeNull();
+    });
+
+    it('respecte un speciesId explicite sans re-résoudre le texte', async () => {
+      const choisi = species.seed('Rosa canina');
+      const { flower } = await service.create(OWNER, {
+        takenAt: '2026-06-21T09:00:00Z',
+      });
+      species.resolved.length = 0;
+
+      // Sélection via l'autocomplétion : le client fait autorité, le texte
+      // affiché peut différer du nom scientifique (nom commun, langue).
+      const updated = await service.update(OWNER, flower.id, {
+        species: 'Églantier',
+        speciesId: choisi.id,
+      });
+
+      expect(updated.speciesId).toBe(choisi.id);
+      expect(species.resolved).toHaveLength(0);
+    });
   });
 });

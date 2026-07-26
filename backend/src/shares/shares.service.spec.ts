@@ -10,6 +10,7 @@ import { FlowerLike } from '../likes/flower-like.entity';
 import { FlowerComment } from '../comments/flower-comment.entity';
 import { FriendshipsService } from '../friendships/friendships.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SpeciesService } from '../species/species.service';
 import { StorageService } from '../storage/storage.service';
 import { StubStorageService } from '../storage/stub-storage.service';
 import { Share } from './share.entity';
@@ -222,6 +223,12 @@ describe('SharesService', () => {
           },
         },
         { provide: StorageService, useClass: StubStorageService },
+        // FlowersService résout l'espèce au référentiel à l'écriture ; ces
+        // suites ne testent pas ce rattachement, un double inerte suffit.
+        {
+          provide: SpeciesService,
+          useValue: { resolveOrCreateByName: async () => null },
+        },
         {
           provide: FriendshipsService,
           useValue: { acceptedFriendIds: async () => acceptedFriends },

@@ -17,6 +17,21 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Corrigé
+- **Une espèce saisie au clavier entre immédiatement dans l'herbier.** Jusqu'ici,
+  `species_id` n'était renseigné que par deux chemins : l'autocomplétion (le
+  client envoie l'identifiant) et l'acceptation d'une proposition d'ami. Une
+  espèce simplement tapée restait sans rattachement, donc **absente de l'herbier**
+  — qui joint sur cette colonne — jusqu'au rattrapage SQL rejoué au déploiement
+  suivant. `FlowersService` résout désormais le référentiel à l'écriture, à la
+  création (ce qui couvre le push de synchronisation) comme à la modification.
+  Corrige au passage un cas plus gênant : corriger le nom d'une fleur déjà
+  rattachée laissait `species_id` sur l'**ancienne** espèce, et l'herbier
+  affichait donc la mauvaise. Effacer l'espèce détache proprement la fleur, et
+  une sélection explicite via l'autocomplétion continue de faire autorité.
+  Le rapprochement de `db/schema.sql` n'est plus le mécanisme nominal : il ne
+  rattrape que les fleurs antérieures et pourra être retiré après ce déploiement.
+
 ### Modifié
 - **Déploiement nettement raccourci, et sans verrou sur la base.** Le script
   rejouait `npm ci` pour la vitrine à chaque déploiement, alors que

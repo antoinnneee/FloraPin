@@ -42,6 +42,10 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
   séparément, tout en conservant vos anciennes notes.
 
 ### Réparé
+- **Une espèce que vous tapez vous-même rejoint aussitôt votre herbier.** Il
+  fallait auparavant la choisir dans la liste proposée pour qu'elle y apparaisse.
+  Et si vous corrigez le nom d'une fleur, votre herbier suit désormais la
+  correction au lieu de conserver l'ancienne espèce.
 - **Les noms d'espèces longs restent maintenant lisibles dans leur fiche.** Le
   libellé « Espèce » reste horizontal et le nom peut s'afficher sur quatre
   lignes avant d'être raccourci.

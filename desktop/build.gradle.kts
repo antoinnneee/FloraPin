@@ -1,3 +1,5 @@
+import java.security.MessageDigest
+import java.time.LocalDate
 import java.util.Properties
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
@@ -107,6 +109,11 @@ dependencies {
     testImplementation(libs.okhttp.mockwebserver)
 }
 
+// Version du compagnon, indépendante de celle de l'app mobile : les deux ne
+// sont pas publiées ensemble. Reprise par l'archive et par le manifeste lu par
+// la vitrine.
+val companionVersion = "1.0.0"
+
 compose.desktop {
     application {
         mainClass = "com.florapin.desktop.MainKt"
@@ -114,7 +121,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Msi)
             packageName = "FloraPin"
-            packageVersion = "1.0.0"
+            packageVersion = companionVersion
             description = "Compagnon Windows FloraPin — photos, albums et carte"
             vendor = "FloraPin"
             copyright = "© FloraPin"
@@ -134,5 +141,72 @@ compose.desktop {
                 upgradeUuid = "6E2C9A31-4F8B-4B7D-9A0E-1C5D7F3B2A64"
             }
         }
+    }
+}
+
+// ── Distribution par la vitrine ────────────────────────────────────────────
+// L'installeur MSI exige WiX Toolset, absent des postes de développement. On
+// publie donc une archive portable : décompresser, lancer FloraPin.exe. Elle
+// embarque son propre runtime Java, d'où son poids — aucune installation de
+// Java n'est requise sur le poste de l'utilisateur.
+
+/** Dossier servi tel quel par Astro (landing/public → racine du site). */
+val landingDownloads = rootProject.layout.projectDirectory.dir("landing/public/telechargements")
+
+val windowsArchiveName = "FloraPin-$companionVersion-windows.zip"
+
+val packageWindowsArchive by tasks.registering(Zip::class) {
+    group = "distribution"
+    description = "Archive portable du compagnon, déposée dans la vitrine."
+    dependsOn("createDistributable")
+    from(layout.buildDirectory.dir("compose/binaries/main/app"))
+    archiveFileName.set(windowsArchiveName)
+    destinationDirectory.set(landingDownloads)
+}
+
+/**
+ * Écrit le manifeste lu par la vitrine. Sans lui, la page n'aurait aucun moyen
+ * d'annoncer une taille et une version exactes — or un bouton de
+ * téléchargement qui ment sur le poids du fichier est une mauvaise surprise.
+ */
+val publishWindowsRelease by tasks.registering {
+    group = "distribution"
+    description = "Met à jour landing/src/windows-release.json depuis l'archive produite."
+    dependsOn(packageWindowsArchive)
+
+    val archive = landingDownloads.file(windowsArchiveName)
+    val manifest = rootProject.layout.projectDirectory.file("landing/src/windows-release.json")
+    val version = companionVersion
+    val fileName = windowsArchiveName
+    inputs.file(archive)
+    outputs.file(manifest)
+
+    doLast {
+        val file = archive.asFile
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(1 shl 16)
+            while (true) {
+                val read = input.read(buffer)
+                if (read <= 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        val sha = digest.digest().joinToString("") { "%02x".format(it) }
+        val builtAt = LocalDate.now().toString()
+        manifest.asFile.writeText(
+            """
+            {
+              "available": true,
+              "version": "$version",
+              "fileName": "$fileName",
+              "sizeBytes": ${file.length()},
+              "sha256": "$sha",
+              "builtAt": "$builtAt"
+            }
+
+            """.trimIndent(),
+        )
+        logger.lifecycle("Archive Windows : ${file.length() / 1024 / 1024} Mo → ${manifest.asFile}")
     }
 }

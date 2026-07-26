@@ -28,6 +28,24 @@ connecter.
 ./gradlew :desktop:packageMsi
 ```
 
+## Publier sur la vitrine
+
+```bash
+./gradlew :desktop:publishWindowsRelease
+```
+
+Produit l'archive portable dans `landing/public/telechargements/` et met à jour
+`landing/src/windows-release.json` — version, taille réelle, empreinte SHA-256 —
+que la section « Sur ordinateur » de la vitrine lit pour afficher un bouton
+honnête sur le poids du fichier. Sans manifeste publié, la page présente le
+compagnon sans lien de téléchargement.
+
+L'archive n'est pas versionnée (une centaine de Mo) : elle n'existe que sur la
+machine qui l'a construite. `deploy.sh` l'envoie à part, hors de la
+synchronisation de `landing/`, et ne supprime jamais celle déjà en ligne quand
+elle est absente localement. Une archive portable plutôt qu'un MSI, faute de WiX
+Toolset sur les postes de développement.
+
 ## Configuration
 
 Les valeurs de build proviennent de `local.properties` (ou des variables

@@ -18,6 +18,16 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+### Nouveau
+- **FloraPin pour ordinateur se télécharge depuis le site.** Une nouvelle
+  section présente le compagnon Windows et propose le fichier : décompressez-le,
+  lancez FloraPin, et retrouvez toutes vos fleurs sur grand écran. Rien d'autre
+  à installer.
+
+### Amélioré
+- **Les aperçus de l'application sur le site correspondent à la version
+  actuelle**, notamment le bouton photo au centre de la barre du bas.
+
 ## Version 1.24.0 — 26 juillet 2026
 
 ### Nouveau

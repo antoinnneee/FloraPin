@@ -1,10 +1,16 @@
 ---
 // Barre de navigation basse de l'app, reproduite pour les mockups d'écran.
-// Les cinq onglets et leurs icônes botaniques suivent app/.../navigation/BottomNavBar.kt :
+// Suit app/.../navigation/BottomNavBar.kt : QUATRE onglets — la prise de photo
+// est devenue l'action centrale, en bouton surélevé, et la carte n'est plus un
+// onglet mais un écran poussé (bouton rond de la barre du haut). Icônes en
 // aplats verts (#386A53) rehaussés d'une corolle bleu-lavande à cœur jaune.
+//
+// Licence assumée : l'app masque cette barre sur les écrans poussés (carte,
+// détail). Les mockups la conservent pour que les trois téléphones gardent la
+// même silhouette — c'était déjà la convention de cette vitrine.
 interface Props {
   /** Onglet mis en avant (indicateur Material 3). */
-  active: 'home' | 'albums' | 'map' | 'feed' | 'profile';
+  active: 'home' | 'albums' | 'feed' | 'profile';
 }
 
 const { active } = Astro.props;
@@ -12,7 +18,6 @@ const { active } = Astro.props;
 const tabs = [
   { key: 'home', label: 'Accueil' },
   { key: 'albums', label: 'Albums' },
-  { key: 'map', label: 'Carte' },
   { key: 'feed', label: 'Partagées' },
   { key: 'profile', label: 'Profil' },
 ] as const;
@@ -47,7 +52,26 @@ const icons: Record<string, string> = {
 ---
 
 <nav class="nav" aria-hidden="true">
-  {tabs.map((t) => (
+  {tabs.slice(0, 2).map((t) => (
+    <span class:list={['tab', { on: t.key === active }]}>
+      <span class="pill">
+        <svg viewBox="0 0 24 24" set:html={icons[t.key]} />
+      </span>
+      <span class="lbl">{t.label}</span>
+    </span>
+  ))}
+
+  <span class="shoot">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 8.4h3.2l1.3-1.9h7l1.3 1.9H20a1.4 1.4 0 0 1 1.4 1.4v7.4A1.4 1.4 0 0 1 20 18.6H4a1.4 1.4 0 0 1-1.4-1.4V9.8A1.4 1.4 0 0 1 4 8.4z"
+            fill="#386A53" />
+      <circle cx="12" cy="13.5" r="3.6" fill="#f2f6f1" />
+      <circle cx="12" cy="13.5" r="1.7" fill="#6c7fd0" />
+      <circle cx="12" cy="13.5" r="0.7" fill="#f2d24e" />
+    </svg>
+  </span>
+
+  {tabs.slice(2).map((t) => (
     <span class:list={['tab', { on: t.key === active }]}>
       <span class="pill">
         <svg viewBox="0 0 24 24" set:html={icons[t.key]} />
@@ -60,13 +84,32 @@ const icons: Record<string, string> = {
 <style>
   .nav {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    /* Quatre onglets encadrant le bouton photo, plus large et surélevé. */
+    grid-template-columns: repeat(2, 1fr) 1.25fr repeat(2, 1fr);
     align-items: center;
     background: #f2f6f1;
     border-top: 1px solid #dce5dd;
     padding: 0.5em 0 0.7em;
   }
 
+  /* Action centrale : pastille verte claire posée en saillie sur la barre,
+     comme le FAB ancré de l'app (bottomBarBumpHeight). */
+  .shoot {
+    display: grid;
+    place-items: center;
+    width: 3.4em;
+    height: 3.4em;
+    margin: -1.5em auto 0;
+    border-radius: 50%;
+    background: #d5e8dc;
+    border: 0.28em solid #f2f6f1;
+    box-shadow: 0 0.15em 0.5em rgba(19, 42, 29, 0.18);
+  }
+
+  .shoot svg {
+    width: 1.75em;
+    height: 1.75em;
+  }
   .tab {
     display: flex;
     flex-direction: column;

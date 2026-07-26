@@ -33,6 +33,23 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   Firebase (le placeholder de la CI déclare désormais les deux). Et les deep
   links `/reset` et `/verify` étant portés par les deux installations, Android
   demandera laquelle ouvrir.
+- **Compagnon Windows (module `:desktop`).** Application Compose Multiplatform
+  qui consulte la photothèque, gère les albums, exporte les photos sur le
+  disque, assure l'identification collaborative et affiche la carte des
+  observations — la prise de photo restant propre au mobile. Contrôles pensés
+  pour le poste de travail : sélection multiple façon Explorateur (clic,
+  `Ctrl`+clic, `Maj`+clic), menu contextuel au clic droit, double-clic,
+  raccourcis clavier, vignettes redimensionnables et rail de navigation
+  latéral à la place de la barre inférieure.
+- **Export de photos vers un dossier.** Arborescence au choix (à plat, par
+  date, par espèce, par album), conservation du WebP d'origine ou conversion
+  JPEG, et récapitulatif CSV des métadonnées (espèce, date, position, notes)
+  qui ne survivraient pas à une simple copie de fichiers.
+- **Carte de bureau à tuiles raster.** Rendu Compose des tuiles MapTiler
+  (`map/TileMap.kt`) au lieu du SDK MapLibre, spécifique à Android : pas de
+  dépendance native à installer, et des interactions à la souris (glisser
+  pour déplacer, molette pour zoomer sur le point survolé). Regroupement des
+  marqueurs par cellule d'écran et cadrage automatique au premier affichage.
 
 ### Corrigé
 - **Une espèce saisie au clavier entre immédiatement dans l'herbier.** Jusqu'ici,
@@ -48,6 +65,10 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   une sélection explicite via l'autocomplétion continue de faire autorité.
   Le rapprochement de `db/schema.sql` n'est plus le mécanisme nominal : il ne
   rattrape que les fleurs antérieures et pourra être retiré après ce déploiement.
+- **Marqueur perdu à l'extrême nord de la carte.** `MapMath.latToWorldY`
+  pouvait renvoyer une ordonnée très légèrement négative aux limites de
+  Mercator (arrondi flottant), ce qui plaçait la tuile calculée hors du monde
+  et écartait le marqueur du rendu. Le résultat est désormais borné.
 
 ### Modifié
 - **Déploiement nettement raccourci, et sans verrou sur la base.** Le script
@@ -72,6 +93,12 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   le verrou, qui grandit avec les données et bloque les écritures des bêta-testeurs.
 - **Cache npm BuildKit dans le `Dockerfile` du backend**, qui accélère la
   reconstruction de l'image quand `package.json` change (le cas de cette version).
+- **Sources partagées entre `:app` et `:desktop`.** Les packages
+  `network/dto`, `network/api`, `network/auth` et `ui/theme` sont compilés
+  par les deux modules (`sharedSourceDirs`) plutôt que dupliqués : les
+  contrats d'API et la charte graphique ne peuvent plus diverger d'un client
+  à l'autre. Seuls `EncryptedTokenStore`, `Theme.kt` et `Type.kt`, liés au
+  framework Android, sont exclus et réimplémentés côté bureau.
 
 ### Supprimé
 - **Backfill des photos de couverture retiré de `db/schema.sql`.** L'`INSERT INTO

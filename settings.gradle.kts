@@ -23,3 +23,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "FloraPin"
 include(":app")
+// Compagnon Windows (Compose Multiplatform / JVM) — voir desktop/README.md.
+include(":desktop")

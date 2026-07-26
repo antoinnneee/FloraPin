@@ -26,6 +26,18 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
   et une première observation débloque désormais le badge du pays en Belgique,
   en Suisse, en Angleterre, en Irlande, en Espagne, en Italie ou au Japon. Le
   nouvel « Explorateur » progresse à travers les régions de tous ces pays.
+- **FloraPin arrive sur votre ordinateur Windows.** Retrouvez toutes vos
+  photos sur grand écran, rangez-les dans vos albums, aidez vos amis à
+  identifier leurs fleurs et revoyez vos trouvailles sur la carte. Les photos
+  se prennent toujours depuis votre téléphone.
+- **Récupérez vos photos sur votre ordinateur.** Choisissez un dossier, et
+  FloraPin y dépose vos images en les classant comme vous le souhaitez : par
+  date, par espèce ou par album. Un petit tableau récapitulatif accompagne
+  les fichiers pour ne rien perdre des espèces, des dates et des lieux.
+- **Une navigation faite pour la souris et le clavier.** Sélectionnez
+  plusieurs photos comme dans vos dossiers Windows, ouvrez-les en grand d'un
+  double-clic, faites un clic droit pour agir sur toute une sélection, et
+  agrandissez les vignettes à votre goût.
 
 ### Amélioré
 - **FloraPin est désormais à jour pour Android 16.** L'application est adaptée à

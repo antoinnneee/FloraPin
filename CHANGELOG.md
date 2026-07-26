@@ -17,6 +17,39 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+- **Compagnon Windows (module `:desktop`).** Application Compose Multiplatform
+  qui consulte la photothèque, gère les albums, exporte les photos sur le
+  disque, assure l'identification collaborative et affiche la carte des
+  observations — la prise de photo restant propre au mobile. Contrôles pensés
+  pour le poste de travail : sélection multiple façon Explorateur (clic,
+  `Ctrl`+clic, `Maj`+clic), menu contextuel au clic droit, double-clic,
+  raccourcis clavier, vignettes redimensionnables et rail de navigation
+  latéral à la place de la barre inférieure.
+- **Export de photos vers un dossier.** Arborescence au choix (à plat, par
+  date, par espèce, par album), conservation du WebP d'origine ou conversion
+  JPEG, et récapitulatif CSV des métadonnées (espèce, date, position, notes)
+  qui ne survivraient pas à une simple copie de fichiers.
+- **Carte de bureau à tuiles raster.** Rendu Compose des tuiles MapTiler
+  (`map/TileMap.kt`) au lieu du SDK MapLibre, spécifique à Android : pas de
+  dépendance native à installer, et des interactions à la souris (glisser
+  pour déplacer, molette pour zoomer sur le point survolé). Regroupement des
+  marqueurs par cellule d'écran et cadrage automatique au premier affichage.
+
+### Modifié
+- **Sources partagées entre `:app` et `:desktop`.** Les packages
+  `network/dto`, `network/api`, `network/auth` et `ui/theme` sont compilés
+  par les deux modules (`sharedSourceDirs`) plutôt que dupliqués : les
+  contrats d'API et la charte graphique ne peuvent plus diverger d'un client
+  à l'autre. Seuls `EncryptedTokenStore`, `Theme.kt` et `Type.kt`, liés au
+  framework Android, sont exclus et réimplémentés côté bureau.
+
+### Corrigé
+- **Marqueur perdu à l'extrême nord de la carte.** `MapMath.latToWorldY`
+  pouvait renvoyer une ordonnée très légèrement négative aux limites de
+  Mercator (arrondi flottant), ce qui plaçait la tuile calculée hors du monde
+  et écartait le marqueur du rendu. Le résultat est désormais borné.
+
 ## [1.23.0] — 2026-07-25
 
 ### Modifié

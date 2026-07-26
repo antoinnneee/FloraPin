@@ -204,7 +204,7 @@ describe('GroupsService', () => {
       permissionMode: 'restricted',
     } as Album);
     await service.remove(OWNER, group.id);
-    const reloaded = await albums.findOne({ where: { id: album.id } as never });
+    const reloaded = await albums.findOne({ where: { id: album.id } });
     expect(reloaded?.groupId ?? null).toBeNull();
     expect([...groups.store.values()]).toHaveLength(0);
   });

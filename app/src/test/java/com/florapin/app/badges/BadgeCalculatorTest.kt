@@ -15,7 +15,8 @@ import org.junit.Test
  *
  * On isole chaque famille de badge et on vérifie les paliers cumulatifs, les
  * saisons (hémisphère nord, fuseau contrôlé), la grille ~5 km et les badges
- * géographiques (régions/outre-mer) via un résolveur synthétique.
+ * géographiques (badges pays, Explorateur et outre-mer) via un résolveur
+ * synthétique.
  */
 class BadgeCalculatorTest {
 
@@ -119,15 +120,15 @@ class BadgeCalculatorTest {
     }
 
     @Test
-    fun explorateur_et_outremer_via_resolveur() {
+    fun france_explorateur_et_outremer_via_resolveur() {
         // Résolveur synthétique : deux régions (une métropole, une outre-mer).
         val json = """
             {"type":"FeatureCollection","features":[
-              {"type":"Feature","properties":{"code":"11","nom":"Métro","outreMer":false},
+              {"type":"Feature","properties":{"countryCode":"FR","code":"11","nom":"Métro","outreMer":false},
                "geometry":{"type":"Polygon","coordinates":[
                  [[2,48],[3,48],[3,49],[2,49],[2,48]]
                ]}},
-              {"type":"Feature","properties":{"code":"04","nom":"Réunion","outreMer":true},
+              {"type":"Feature","properties":{"countryCode":"FR","code":"04","nom":"Réunion","outreMer":true},
                "geometry":{"type":"Polygon","coordinates":[
                  [[55,-21],[56,-21],[56,-20],[55,-20],[55,-21]]
                ]}}
@@ -142,8 +143,12 @@ class BadgeCalculatorTest {
         )
         val badges = ids(calc.compute(input(flowerCount = 2, geoTimes = geoTimes)))
 
-        // Deux régions distinctes → palier Explorateur 2.
-        assertTrue(badges.contains(BadgeCalculator.EXPLORATEUR to 2))
+        // Deux régions françaises → premier palier France 1, mais pas encore 5.
+        assertTrue(badges.contains(BadgeCalculator.FRANCE to 1))
+        assertFalse(badges.contains(BadgeCalculator.FRANCE to 5))
+        // L'Explorateur global démarre dès la première région, mais pas encore à 5.
+        assertTrue(badges.contains(BadgeCalculator.EXPLORATEUR to 1))
+        assertFalse(badges.contains(BadgeCalculator.EXPLORATEUR to 5))
         // Badge outre-mer de la région visitée.
         assertTrue(badges.contains(BadgeCalculator.overseasBadgeId("04") to 1))
         // Pas de badge outre-mer pour la région métropolitaine.
@@ -151,11 +156,214 @@ class BadgeCalculatorTest {
     }
 
     @Test
+    fun belgique_alimente_explorateur_sans_fausser_france() {
+        val json = """
+            {"type":"FeatureCollection","features":[
+              {"type":"Feature","properties":{"countryCode":"FR","code":"11","nom":"France","outreMer":false},
+               "geometry":{"type":"Polygon","coordinates":[
+                 [[2,48],[3,48],[3,49],[2,49],[2,48]]
+               ]}},
+              {"type":"Feature","properties":{"countryCode":"BE","code":"02000","nom":"Flandre","outreMer":false},
+               "geometry":{"type":"Polygon","coordinates":[
+                 [[4,50],[5,50],[5,51],[4,51],[4,50]]
+               ]}},
+              {"type":"Feature","properties":{"countryCode":"BE","code":"03000","nom":"Wallonie","outreMer":false},
+               "geometry":{"type":"Polygon","coordinates":[
+                 [[5,49],[6,49],[6,50],[5,50],[5,49]]
+               ]}}
+            ]}
+        """.trimIndent()
+        val calc = BadgeCalculator(
+            RegionResolver.fromJson(json),
+            zone = ZoneId.of("UTC"),
+        )
+        val geoTimes = listOf(
+            FlowerGeoTime(48.5, 2.5, monthMillis(6)), // une seule région française
+            FlowerGeoTime(50.5, 4.5, monthMillis(6)), // Flandre
+            FlowerGeoTime(49.5, 5.5, monthMillis(6)), // Wallonie
+        )
+
+        val badges = ids(calc.compute(input(flowerCount = 3, geoTimes = geoTimes)))
+        val progress = calc.progress(input(flowerCount = 3, geoTimes = geoTimes))
+
+        assertTrue(badges.contains(BadgeCalculator.BELGIQUE to 1))
+        assertTrue(badges.contains(BadgeCalculator.BELGIQUE to 2))
+        assertFalse(badges.contains(BadgeCalculator.BELGIQUE to 3))
+        assertTrue(badges.contains(BadgeCalculator.EXPLORATEUR to 1))
+        assertTrue(badges.contains(BadgeCalculator.FRANCE to 1))
+        assertFalse(badges.contains(BadgeCalculator.FRANCE to 5))
+        assertEquals(1, progress.franceRegionCount)
+        assertEquals(2, progress.belgiumRegionCount)
+        assertEquals(3, progress.exploredRegionCount)
+    }
+
+    @Test
+    fun suisse_alimente_explorateur_sans_fausser_france_ni_belgique() {
+        val json = """
+            {"type":"FeatureCollection","features":[
+              {"type":"Feature","properties":{"countryCode":"FR","code":"11","nom":"France","outreMer":false},
+               "geometry":{"type":"Polygon","coordinates":[
+                 [[2,48],[3,48],[3,49],[2,49],[2,48]]
+               ]}},
+              {"type":"Feature","properties":{"countryCode":"BE","code":"02000","nom":"Flandre","outreMer":false},
+               "geometry":{"type":"Polygon","coordinates":[
+                 [[4,50],[5,50],[5,51],[4,51],[4,50]]
+               ]}},
+              {"type":"Feature","properties":{"countryCode":"CH","code":"VD","nom":"Vaud","outreMer":false},
+               "geometry":{"type":"Polygon","coordinates":[
+                 [[6,46],[7,46],[7,47],[6,47],[6,46]]
+               ]}},
+              {"type":"Feature","properties":{"countryCode":"CH","code":"ZH","nom":"Zurich","outreMer":false},
+               "geometry":{"type":"Polygon","coordinates":[
+                 [[8,47],[9,47],[9,48],[8,48],[8,47]]
+               ]}}
+            ]}
+        """.trimIndent()
+        val calc = BadgeCalculator(
+            RegionResolver.fromJson(json),
+            zone = ZoneId.of("UTC"),
+        )
+        val geoTimes = listOf(
+            FlowerGeoTime(48.5, 2.5, monthMillis(6)), // France
+            FlowerGeoTime(50.5, 4.5, monthMillis(6)), // Belgique
+            FlowerGeoTime(46.5, 6.5, monthMillis(6)), // Vaud
+            FlowerGeoTime(47.5, 8.5, monthMillis(6)), // Zurich
+            FlowerGeoTime(47.6, 8.6, monthMillis(6)), // Zurich, doublon régional
+        )
+
+        val badges = ids(calc.compute(input(flowerCount = 5, geoTimes = geoTimes)))
+        val progress = calc.progress(input(flowerCount = 5, geoTimes = geoTimes))
+
+        assertTrue(badges.contains(BadgeCalculator.SUISSE to 1))
+        assertTrue(badges.contains(BadgeCalculator.BELGIQUE to 1))
+        assertEquals(1, progress.franceRegionCount)
+        assertEquals(1, progress.belgiumRegionCount)
+        assertEquals(2, progress.switzerlandRegionCount)
+        assertEquals(4, progress.exploredRegionCount)
+    }
+
+    @Test
+    fun explorateur_compte_cinq_regions_de_plusieurs_pays() {
+        val features = (0 until 5).joinToString(",") { index ->
+            val country = when {
+                index < 2 -> "FR"
+                index < 4 -> "BE"
+                else -> "CH"
+            }
+            val minLng = index * 2
+            """
+              {"type":"Feature","properties":{"countryCode":"$country","code":"R$index","nom":"R$index","outreMer":false},
+               "geometry":{"type":"Polygon","coordinates":[
+                 [[$minLng,0],[${minLng + 1},0],[${minLng + 1},1],[$minLng,1],[$minLng,0]]
+               ]}}
+            """.trimIndent()
+        }
+        val resolver = RegionResolver.fromJson(
+            """{"type":"FeatureCollection","features":[$features]}""",
+        )
+        val calc = BadgeCalculator(resolver, zone = ZoneId.of("UTC"))
+        val geoTimes = (0 until 5).map { index ->
+            FlowerGeoTime(0.5, index * 2.0 + 0.5, monthMillis(6))
+        }
+
+        val badges = ids(calc.compute(input(flowerCount = 5, geoTimes = geoTimes)))
+
+        assertTrue(badges.contains(BadgeCalculator.EXPLORATEUR to 1))
+        assertTrue(badges.contains(BadgeCalculator.EXPLORATEUR to 5))
+        assertFalse(badges.contains(BadgeCalculator.EXPLORATEUR to 10))
+    }
+
+    @Test
+    fun nouveaux_pays_debloquent_leur_badge_et_alimentent_explorateur() {
+        val countries = listOf("GB", "IE", "ES", "IT", "JP")
+        val features = countries.mapIndexed { index, country ->
+            val minLng = index * 2
+            """
+              {"type":"Feature","properties":{"countryCode":"$country","code":"R$index","nom":"R$index","outreMer":false},
+               "geometry":{"type":"Polygon","coordinates":[
+                 [[$minLng,0],[${minLng + 1},0],[${minLng + 1},1],[$minLng,1],[$minLng,0]]
+               ]}}
+            """.trimIndent()
+        }.joinToString(",")
+        val calc = BadgeCalculator(
+            RegionResolver.fromJson("""{"type":"FeatureCollection","features":[$features]}"""),
+            zone = ZoneId.of("UTC"),
+        )
+        val points = countries.indices.map { index ->
+            FlowerGeoTime(0.5, index * 2.0 + 0.5, monthMillis(6))
+        } + FlowerGeoTime(0.6, 8.6, monthMillis(6)) // doublon dans la région japonaise
+
+        val badges = ids(calc.compute(input(flowerCount = points.size, geoTimes = points)))
+        val progress = calc.progress(input(flowerCount = points.size, geoTimes = points))
+
+        listOf(
+            BadgeCalculator.ANGLETERRE,
+            BadgeCalculator.IRLANDE,
+            BadgeCalculator.ESPAGNE,
+            BadgeCalculator.ITALIE,
+            BadgeCalculator.JAPON,
+        ).forEach { badgeId -> assertTrue(badges.contains(badgeId to 1)) }
+        assertTrue(badges.contains(BadgeCalculator.EXPLORATEUR to 5))
+        assertEquals(5, progress.exploredRegionCount)
+        assertEquals(1, progress.englandRegionCount)
+        assertEquals(1, progress.irelandRegionCount)
+        assertEquals(1, progress.spainRegionCount)
+        assertEquals(1, progress.italyRegionCount)
+        assertEquals(1, progress.japanRegionCount)
+    }
+
+    @Test
+    fun badges_pays_debloquent_des_paliers_cumulatifs_jusqu_a_toutes_les_regions() {
+        val specs = listOf(
+            Triple(RegionResolver.BELGIUM_COUNTRY_CODE, BadgeCalculator.BELGIQUE, BadgeCalculator.BELGIUM_TIERS),
+            Triple(RegionResolver.SWITZERLAND_COUNTRY_CODE, BadgeCalculator.SUISSE, BadgeCalculator.SWITZERLAND_TIERS),
+            Triple(RegionResolver.ENGLAND_COUNTRY_CODE, BadgeCalculator.ANGLETERRE, BadgeCalculator.ENGLAND_TIERS),
+            Triple(RegionResolver.IRELAND_COUNTRY_CODE, BadgeCalculator.IRLANDE, BadgeCalculator.IRELAND_TIERS),
+            Triple(RegionResolver.SPAIN_COUNTRY_CODE, BadgeCalculator.ESPAGNE, BadgeCalculator.SPAIN_TIERS),
+            Triple(RegionResolver.ITALY_COUNTRY_CODE, BadgeCalculator.ITALIE, BadgeCalculator.ITALY_TIERS),
+            Triple(RegionResolver.JAPAN_COUNTRY_CODE, BadgeCalculator.JAPON, BadgeCalculator.JAPAN_TIERS),
+        )
+
+        specs.forEach { (countryCode, badgeId, thresholds) ->
+            val features = (0 until thresholds.last()).joinToString(",") { index ->
+                val minLng = -170 + index * 5
+                """
+                  {"type":"Feature","properties":{"countryCode":"$countryCode","code":"R$index","nom":"R$index","outreMer":false},
+                   "geometry":{"type":"Polygon","coordinates":[
+                     [[$minLng,0],[${minLng + 1},0],[${minLng + 1},1],[$minLng,1],[$minLng,0]]
+                   ]}}
+                """.trimIndent()
+            }
+            val calc = BadgeCalculator(
+                RegionResolver.fromJson("""{"type":"FeatureCollection","features":[$features]}"""),
+                zone = ZoneId.of("UTC"),
+            )
+            val observations = (0 until thresholds.last()).map { index ->
+                FlowerGeoTime(0.5, -169.5 + index * 5, monthMillis(6))
+            }
+
+            val unlockedTiers = calc.compute(
+                input(flowerCount = observations.size, geoTimes = observations),
+            ).filter { it.badgeId == badgeId }.map { it.tier }.toSet()
+
+            assertEquals("$badgeId doit débloquer tous ses paliers", thresholds.toSet(), unlockedTiers)
+        }
+    }
+
+    @Test
     fun sans_resolveur_pas_de_badges_geographiques() {
         val geoTimes = listOf(FlowerGeoTime(48.5, 2.5, monthMillis(6)))
         val badges = plain.compute(input(flowerCount = 1, geoTimes = geoTimes))
-        // Aucun badge explorateur/outre-mer sans résolveur (dégradation device-first).
+        // Aucun badge géographique sans résolveur (dégradation device-first).
+        assertFalse(badges.any { it.badgeId == BadgeCalculator.FRANCE })
         assertFalse(badges.any { it.badgeId == BadgeCalculator.EXPLORATEUR })
+        assertFalse(badges.any { it.badgeId == BadgeCalculator.BELGIQUE })
+        assertFalse(badges.any { it.badgeId == BadgeCalculator.SUISSE })
+        assertFalse(badges.any { it.badgeId == BadgeCalculator.ANGLETERRE })
+        assertFalse(badges.any { it.badgeId == BadgeCalculator.IRLANDE })
+        assertFalse(badges.any { it.badgeId == BadgeCalculator.ESPAGNE })
+        assertFalse(badges.any { it.badgeId == BadgeCalculator.ITALIE })
+        assertFalse(badges.any { it.badgeId == BadgeCalculator.JAPON })
         assertFalse(badges.any { it.badgeId.startsWith(BadgeCalculator.OUTRE_MER_PREFIX) })
         // Mais les badges non géographiques restent calculés (grille, saison).
         assertTrue(badges.any { it.badgeId == BadgeCalculator.SAISON_ETE })

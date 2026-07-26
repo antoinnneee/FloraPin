@@ -19,15 +19,39 @@ class BadgesViewModelTest {
         flowerCount: Int = 0,
         distinctSpeciesCount: Int = 0,
         seasonCount: Int = 0,
-        regionCount: Int = 0,
+        franceRegionCount: Int = 0,
+        belgiumRegionCount: Int = 0,
+        switzerlandRegionCount: Int = 0,
+        englandRegionCount: Int = 0,
+        irelandRegionCount: Int = 0,
+        spainRegionCount: Int = 0,
+        italyRegionCount: Int = 0,
+        japanRegionCount: Int = 0,
+        exploredRegionCount: Int = 0,
         overseasCount: Int = 0,
         cellCount: Int = 0,
     ) = BadgeCalculator.Progress(
-        flowerCount, distinctSpeciesCount, seasonCount, regionCount, overseasCount, cellCount,
+        flowerCount = flowerCount,
+        distinctSpeciesCount = distinctSpeciesCount,
+        seasonCount = seasonCount,
+        franceRegionCount = franceRegionCount,
+        belgiumRegionCount = belgiumRegionCount,
+        switzerlandRegionCount = switzerlandRegionCount,
+        englandRegionCount = englandRegionCount,
+        irelandRegionCount = irelandRegionCount,
+        spainRegionCount = spainRegionCount,
+        italyRegionCount = italyRegionCount,
+        japanRegionCount = japanRegionCount,
+        exploredRegionCount = exploredRegionCount,
+        overseasCount = overseasCount,
+        cellCount = cellCount,
     )
 
     private fun collection(id: String, p: BadgeCalculator.Progress) =
         buildCollectionBadges(p).first { it.id == id }
+
+    private fun country(id: String, p: BadgeCalculator.Progress) =
+        buildCountryBadges(p).first { it.id == id }
 
     @Test
     fun herbier_compte_les_etoiles_et_affiche_la_progression() {
@@ -72,16 +96,120 @@ class BadgesViewModelTest {
     @Test
     fun badges_geo_sont_grises_quand_le_resolveur_est_absent() {
         val p = progress(
-            regionCount = BadgeCalculator.UNAVAILABLE,
+            franceRegionCount = BadgeCalculator.UNAVAILABLE,
+            belgiumRegionCount = BadgeCalculator.UNAVAILABLE,
+            switzerlandRegionCount = BadgeCalculator.UNAVAILABLE,
+            englandRegionCount = BadgeCalculator.UNAVAILABLE,
+            irelandRegionCount = BadgeCalculator.UNAVAILABLE,
+            spainRegionCount = BadgeCalculator.UNAVAILABLE,
+            italyRegionCount = BadgeCalculator.UNAVAILABLE,
+            japanRegionCount = BadgeCalculator.UNAVAILABLE,
+            exploredRegionCount = BadgeCalculator.UNAVAILABLE,
             overseasCount = BadgeCalculator.UNAVAILABLE,
         )
-        val explorateur = collection(BadgeCalculator.EXPLORATEUR, p)
+        val france = country(BadgeCalculator.FRANCE, p)
+        val belgique = country(BadgeCalculator.BELGIQUE, p)
+        val suisse = country(BadgeCalculator.SUISSE, p)
+        val angleterre = country(BadgeCalculator.ANGLETERRE, p)
+        val irlande = country(BadgeCalculator.IRLANDE, p)
+        val espagne = country(BadgeCalculator.ESPAGNE, p)
+        val italie = country(BadgeCalculator.ITALIE, p)
+        val japon = country(BadgeCalculator.JAPON, p)
+        val explorateur = country(BadgeCalculator.EXPLORATEUR, p)
         val outremer = collection(BadgeCatalog.OUTRE_MER, p)
+        assertFalse(france.available)
         assertFalse(explorateur.available)
+        assertFalse(belgique.available)
+        assertFalse(suisse.available)
+        assertFalse(angleterre.available)
+        assertFalse(irlande.available)
+        assertFalse(espagne.available)
+        assertFalse(italie.available)
+        assertFalse(japon.available)
         assertFalse(outremer.available)
         // Indisponible → aucune étoile allumée, valeur ramenée à 0 (pas de -1 affiché).
         assertEquals(0, explorateur.unlockedTiers)
         assertEquals(0, explorateur.currentValue)
+    }
+
+    @Test
+    fun belgique_progresse_sur_ses_trois_regions() {
+        val locked = country(BadgeCalculator.BELGIQUE, progress(belgiumRegionCount = 0))
+        val unlocked = country(BadgeCalculator.BELGIQUE, progress(belgiumRegionCount = 2))
+
+        assertFalse(locked.singleTier)
+        assertFalse(locked.unlocked)
+        assertTrue(unlocked.unlocked)
+        assertFalse(unlocked.maxed)
+        assertEquals(2, unlocked.unlockedTiers)
+        assertEquals(3, unlocked.nextTier)
+    }
+
+    @Test
+    fun suisse_progresse_par_paliers_de_cantons() {
+        val locked = country(BadgeCalculator.SUISSE, progress(switzerlandRegionCount = 0))
+        val unlocked = country(BadgeCalculator.SUISSE, progress(switzerlandRegionCount = 11))
+
+        assertFalse(locked.singleTier)
+        assertFalse(locked.unlocked)
+        assertTrue(unlocked.unlocked)
+        assertEquals(3, unlocked.unlockedTiers)
+        assertEquals(15, unlocked.nextTier)
+    }
+
+    @Test
+    fun nouveaux_pays_affichent_leurs_paliers_regionaux() {
+        val cases = listOf(
+            Triple(BadgeCalculator.ANGLETERRE, progress(englandRegionCount = 5), listOf(1, 3, 5, 7, 9)),
+            Triple(BadgeCalculator.IRLANDE, progress(irelandRegionCount = 3), listOf(1, 2, 3, 4)),
+            Triple(BadgeCalculator.ESPAGNE, progress(spainRegionCount = 10), listOf(1, 5, 10, 15, 19)),
+            Triple(BadgeCalculator.ITALIE, progress(italyRegionCount = 15), listOf(1, 5, 10, 15, 20)),
+            Triple(BadgeCalculator.JAPON, progress(japanRegionCount = 6), listOf(1, 2, 4, 6, 8)),
+        )
+        cases.forEach { (id, p, expectedTiers) ->
+            val badge = country(id, p)
+            assertEquals(expectedTiers, badge.tiers)
+            assertFalse(badge.singleTier)
+            assertTrue(badge.unlocked)
+            assertEquals(expectedTiers.count { it <= badge.currentValue }, badge.unlockedTiers)
+        }
+    }
+
+    @Test
+    fun pays_est_une_section_distincte_avec_france_et_explorateur_global() {
+        val p = progress(
+            franceRegionCount = 6,
+            belgiumRegionCount = 1,
+            switzerlandRegionCount = 1,
+            exploredRegionCount = 9,
+        )
+        val collectionIds = buildCollectionBadges(p).map { it.id }
+        val countries = buildCountryBadges(p)
+        val countryIds = BadgeCatalog.COUNTRIES.map { it.id }
+
+        assertFalse(collectionIds.any { it in countryIds })
+        assertTrue(countries.all { it.tiers.size <= 5 })
+        assertEquals(
+            listOf(
+                BadgeCalculator.EXPLORATEUR,
+                BadgeCalculator.FRANCE,
+                BadgeCalculator.BELGIQUE,
+                BadgeCalculator.SUISSE,
+                BadgeCalculator.ANGLETERRE,
+                BadgeCalculator.IRLANDE,
+                BadgeCalculator.ESPAGNE,
+                BadgeCalculator.ITALIE,
+                BadgeCalculator.JAPON,
+            ),
+            countries.map { it.id },
+        )
+        val explorateur = countries.first { it.id == BadgeCalculator.EXPLORATEUR }
+        val france = countries.first { it.id == BadgeCalculator.FRANCE }
+        assertEquals(listOf(1, 5, 10, 15, 20), explorateur.tiers)
+        assertEquals(9, explorateur.currentValue)
+        assertEquals("France", france.title)
+        assertEquals(listOf(1, 5, 10, 15, 18), france.tiers)
+        assertEquals(6, france.currentValue)
     }
 
     @Test

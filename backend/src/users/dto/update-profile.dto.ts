@@ -8,7 +8,9 @@ import { IsString, MaxLength, MinLength } from 'class-validator';
  * d'espaces.
  */
 export class UpdateProfileDto {
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
   @MinLength(1)
   @MaxLength(80)

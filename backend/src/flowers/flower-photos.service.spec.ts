@@ -161,7 +161,8 @@ describe('FlowerPhotosService', () => {
 
   it('diffère la suppression MinIO pour protéger les objets dédupliqués', async () => {
     const flower = flowers.seed(OWNER);
-    const first = await service.add(OWNER, flower.id);
+    // La première photo n'existe que pour créer le doublon de clé à protéger.
+    await service.add(OWNER, flower.id);
     const second = await service.add(OWNER, flower.id);
     // Simule un réencodage : la photo à supprimer a une image + une miniature.
     const stored = photos.store.get(second.photo.id)!;

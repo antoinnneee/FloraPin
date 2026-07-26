@@ -15,6 +15,13 @@ import { ErrorReporter } from './error-reporter';
  * validation, auth, not-found...) sont attendues : on préserve leur réponse
  * d'origine sans les reporter.
  */
+/**
+ * Seuil des erreurs serveur, en `number` : `getStatus()` peut rendre un code
+ * hors de l'énumération, et la comparaison est bien numérique — pas une
+ * égalité entre membres d'enum.
+ */
+const SERVER_ERROR_THRESHOLD: number = HttpStatus.INTERNAL_SERVER_ERROR;
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   constructor(private readonly reporter: ErrorReporter) {}
@@ -24,12 +31,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    const status =
+    const status: number =
       exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+    if (status >= SERVER_ERROR_THRESHOLD) {
       this.reporter.captureException(exception, {
         method: request.method,
         // request.path = pathname sans query string → pas de PII.

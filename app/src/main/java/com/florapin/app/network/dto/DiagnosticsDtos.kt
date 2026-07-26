@@ -12,6 +12,7 @@ data class CreateClientLogRequest(
     val locale: String,
     val syncStatus: String,
     val syncError: String?,
+    val message: String?,
     val logs: String,
 )
 

@@ -10,12 +10,12 @@ function runFilter(mimetype: string): { error: unknown; accepted: unknown } {
   let accepted: unknown = null;
   const filter = imageUploadOptions.fileFilter!;
   filter(
-    {} as never,
+    {},
     { mimetype } as never,
     ((err: unknown, ok: unknown) => {
       error = err;
       accepted = ok;
-    }) as never,
+    }),
   );
   return { error, accepted };
 }

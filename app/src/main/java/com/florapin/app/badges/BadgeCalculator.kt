@@ -29,7 +29,15 @@ data class UnlockedBadge(val badgeId: String, val tier: Int)
  *  - 🌿 **Diversité** — espèces distinctes : 10 / 25 / 50.
  *  - 🌷☀️🍁❄️ **Saisons** — une capture au printemps / été / automne / hiver ;
  *    🍂 **Quatre saisons** quand les quatre sont réunies.
- *  - 🧭 **Explorateur** — régions françaises distinctes : 2 / 5 / 10 / 15 / 18.
+ *  - 🇫🇷 **France** — régions françaises distinctes : 1 / 5 / 10 / 15 / 18.
+ *  - 🇧🇪 **Belgique** — régions distinctes : 1 / 2 / 3.
+ *  - 🇨🇭 **Suisse** — cantons distincts : 1 / 5 / 10 / 15 / 26.
+ *  - 🇬🇧 **Angleterre** — régions distinctes : 1 / 3 / 5 / 7 / 9.
+ *  - 🇮🇪 **Irlande** — provinces distinctes : 1 / 2 / 3 / 4.
+ *  - 🇪🇸 **Espagne** — communautés ou villes autonomes : 1 / 5 / 10 / 15 / 19.
+ *  - 🇮🇹 **Italie** — régions distinctes : 1 / 5 / 10 / 15 / 20.
+ *  - 🇯🇵 **Japon** — macro-régions distinctes : 1 / 2 / 4 / 6 / 8.
+ *  - 🧭 **Explorateur** — régions distinctes, tous pays : 1 / 5 / 10 / 15 / 20.
  *  - 🏝️ **Outre-mer** — un badge par région d'outre-mer visitée (5 au total).
  *  - 📍 **Lieux distincts** — cellules d'une grille ~5 km : 5 / 15 / 30 / 50 / 100.
  *
@@ -46,7 +54,8 @@ data class UnlockedBadge(val badgeId: String, val tier: Int)
  *  - Les fleurs **sans GPS** ne comptent ni pour la grille ni pour les régions,
  *    mais comptent pour les saisons (date de capture toujours présente).
  *  - Si [regionResolver] est `null` (assets indisponibles), les badges
- *    Explorateur / Outre-mer sont simplement omis (dégradation device-first).
+ *    les badges pays / Explorateur / Outre-mer sont simplement omis
+ *    (dégradation device-first).
  *
  * @param regionResolver résolveur GPS → région (TÂCHE 5.2), ou `null` pour
  *   ignorer les badges géographiques par région.
@@ -78,8 +87,24 @@ class BadgeCalculator(
         val distinctSpeciesCount: Int,
         /** Nombre de saisons distinctes couvertes (🍂 Saisons, 0..4). */
         val seasonCount: Int,
-        /** Nombre de régions françaises distinctes (🧭 Explorateur), ou [UNAVAILABLE]. */
-        val regionCount: Int,
+        /** Nombre de régions françaises distinctes (🇫🇷 France), ou [UNAVAILABLE]. */
+        val franceRegionCount: Int,
+        /** Nombre de Régions belges distinctes (🇧🇪 Belgique), ou [UNAVAILABLE]. */
+        val belgiumRegionCount: Int,
+        /** Nombre de cantons suisses distincts (🇨🇭 Suisse), ou [UNAVAILABLE]. */
+        val switzerlandRegionCount: Int,
+        /** Nombre de régions anglaises distinctes (🇬🇧 Angleterre), ou [UNAVAILABLE]. */
+        val englandRegionCount: Int,
+        /** Nombre de provinces irlandaises distinctes (🇮🇪 Irlande), ou [UNAVAILABLE]. */
+        val irelandRegionCount: Int,
+        /** Nombre de territoires espagnols distincts (🇪🇸 Espagne), ou [UNAVAILABLE]. */
+        val spainRegionCount: Int,
+        /** Nombre de régions italiennes distinctes (🇮🇹 Italie), ou [UNAVAILABLE]. */
+        val italyRegionCount: Int,
+        /** Nombre de macro-régions japonaises distinctes (🇯🇵 Japon), ou [UNAVAILABLE]. */
+        val japanRegionCount: Int,
+        /** Nombre de régions distinctes tous pays (🧭 Explorateur), ou [UNAVAILABLE]. */
+        val exploredRegionCount: Int,
         /** Nombre de régions d'outre-mer distinctes (🏝️ Outre-mer), ou [UNAVAILABLE]. */
         val overseasCount: Int,
         /** Nombre de lieux distincts (📍 grille ~5 km). */
@@ -106,9 +131,17 @@ class BadgeCalculator(
         for (season in seasons) result += UnlockedBadge(seasonBadgeId(season), 1)
         if (seasons.size == Season.values().size) result += UnlockedBadge(QUATRE_SAISONS, 1)
 
-        // 🧭 Explorateur · 🏝️ Outre-mer (nécessitent le résolveur de régions).
+        // 🇫🇷 France · 🇧🇪 Belgique · 🇨🇭 Suisse · 🧭 Explorateur · 🏝️ Outre-mer.
         val regions = regionsOf(input.geoTimes)
         if (regions != null) {
+            result += tiered(FRANCE, regions.french.size, FRANCE_TIERS)
+            result += tiered(BELGIQUE, regions.belgian.size, BELGIUM_TIERS)
+            result += tiered(SUISSE, regions.swiss.size, SWITZERLAND_TIERS)
+            result += tiered(ANGLETERRE, regions.english.size, ENGLAND_TIERS)
+            result += tiered(IRLANDE, regions.irish.size, IRELAND_TIERS)
+            result += tiered(ESPAGNE, regions.spanish.size, SPAIN_TIERS)
+            result += tiered(ITALIE, regions.italian.size, ITALY_TIERS)
+            result += tiered(JAPON, regions.japanese.size, JAPAN_TIERS)
             result += tiered(EXPLORATEUR, regions.all.size, EXPLORATEUR_TIERS)
             for (code in regions.overseas) result += UnlockedBadge(overseasBadgeId(code), 1)
         }
@@ -123,11 +156,14 @@ class BadgeCalculator(
      * Valeurs **brutes** courantes par famille (TÂCHE 5.5). Là où [compute] ne
      * renvoie que les seuils franchis, ce calcul donne le numérateur exact de la
      * progression affichée par l'UI (« 34 / 50 ») : nombre de fleurs, d'espèces,
-     * de saisons, de régions, de régions d'outre-mer et de lieux distincts.
+     * de saisons, de régions françaises, de visite dans chaque pays pris en
+     * charge, de régions explorées tous pays confondus, de régions d'outre-mer
+     * et de lieux distincts.
      *
      * Les compteurs géographiques valent [UNAVAILABLE] (`-1`) quand le résolveur de
      * régions est absent (assets indisponibles) : l'UI grise alors les badges
-     * Explorateur / Outre-mer plutôt que d'afficher un faux « 0 » (device-first).
+     * pays / Explorateur / Outre-mer plutôt que d'afficher un faux « 0 »
+     * (device-first).
      */
     fun progress(input: Input): Progress {
         val regions = regionsOf(input.geoTimes)
@@ -135,7 +171,15 @@ class BadgeCalculator(
             flowerCount = input.flowerCount,
             distinctSpeciesCount = input.distinctSpeciesCount,
             seasonCount = seasonsOf(input.geoTimes).size,
-            regionCount = regions?.all?.size ?: UNAVAILABLE,
+            franceRegionCount = regions?.french?.size ?: UNAVAILABLE,
+            belgiumRegionCount = regions?.belgian?.size ?: UNAVAILABLE,
+            switzerlandRegionCount = regions?.swiss?.size ?: UNAVAILABLE,
+            englandRegionCount = regions?.english?.size ?: UNAVAILABLE,
+            irelandRegionCount = regions?.irish?.size ?: UNAVAILABLE,
+            spainRegionCount = regions?.spanish?.size ?: UNAVAILABLE,
+            italyRegionCount = regions?.italian?.size ?: UNAVAILABLE,
+            japanRegionCount = regions?.japanese?.size ?: UNAVAILABLE,
+            exploredRegionCount = regions?.all?.size ?: UNAVAILABLE,
             overseasCount = regions?.overseas?.size ?: UNAVAILABLE,
             cellCount = cellsOf(input.geoTimes).size,
         )
@@ -148,16 +192,49 @@ class BadgeCalculator(
     /** Régions (toutes / outre-mer) couvertes, ou `null` si le résolveur est absent. */
     private fun regionsOf(geoTimes: List<FlowerGeoTime>): Regions? {
         val resolver = regionResolver ?: return null
+        val french = mutableSetOf<String>()
+        val belgian = mutableSetOf<String>()
+        val swiss = mutableSetOf<String>()
+        val english = mutableSetOf<String>()
+        val irish = mutableSetOf<String>()
+        val spanish = mutableSetOf<String>()
+        val italian = mutableSetOf<String>()
+        val japanese = mutableSetOf<String>()
         val all = mutableSetOf<String>()
         val overseas = mutableSetOf<String>()
         for (gt in geoTimes) {
             val lat = gt.latitude ?: continue
             val lng = gt.longitude ?: continue
             val region = resolver.resolve(lat, lng) ?: continue
-            all += region.code
-            if (region.overseas) overseas += region.code
+            // Le code pays évite toute collision entre deux codes régionaux
+            // identiques provenant de pays différents.
+            all += "${region.countryCode}:${region.code}"
+            when (region.countryCode) {
+                RegionResolver.FRANCE_COUNTRY_CODE -> {
+                    french += region.code
+                    if (region.overseas) overseas += region.code
+                }
+                RegionResolver.BELGIUM_COUNTRY_CODE -> belgian += region.code
+                RegionResolver.SWITZERLAND_COUNTRY_CODE -> swiss += region.code
+                RegionResolver.ENGLAND_COUNTRY_CODE -> english += region.code
+                RegionResolver.IRELAND_COUNTRY_CODE -> irish += region.code
+                RegionResolver.SPAIN_COUNTRY_CODE -> spanish += region.code
+                RegionResolver.ITALY_COUNTRY_CODE -> italian += region.code
+                RegionResolver.JAPAN_COUNTRY_CODE -> japanese += region.code
+            }
         }
-        return Regions(all, overseas)
+        return Regions(
+            french,
+            belgian,
+            swiss,
+            english,
+            irish,
+            spanish,
+            italian,
+            japanese,
+            all,
+            overseas,
+        )
     }
 
     /** Cellules distinctes de la grille ~5 km couvertes par les captures géolocalisées. */
@@ -171,7 +248,18 @@ class BadgeCalculator(
         return cells
     }
 
-    private data class Regions(val all: Set<String>, val overseas: Set<String>)
+    private data class Regions(
+        val french: Set<String>,
+        val belgian: Set<String>,
+        val swiss: Set<String>,
+        val english: Set<String>,
+        val irish: Set<String>,
+        val spanish: Set<String>,
+        val italian: Set<String>,
+        val japanese: Set<String>,
+        val all: Set<String>,
+        val overseas: Set<String>,
+    )
 
     /** Paliers d'un badge à seuils : un [UnlockedBadge] par seuil atteint. */
     private fun tiered(badgeId: String, value: Int, thresholds: IntArray): List<UnlockedBadge> =
@@ -229,7 +317,19 @@ class BadgeCalculator(
         const val SAISON_AUTOMNE = "saison_automne"
         const val SAISON_HIVER = "saison_hiver"
         const val QUATRE_SAISONS = "quatre_saisons"
-        const val EXPLORATEUR = "explorateur"
+        /**
+         * Identifiant historique de l'ancien badge « Explorateur », conservé pour
+         * que ses paliers déjà persistés deviennent ceux du badge « France ».
+         */
+        const val FRANCE = "explorateur"
+        const val BELGIQUE = "belgique"
+        const val SUISSE = "suisse"
+        const val ANGLETERRE = "angleterre"
+        const val IRLANDE = "irlande"
+        const val ESPAGNE = "espagne"
+        const val ITALIE = "italie"
+        const val JAPON = "japon"
+        const val EXPLORATEUR = "explorateur_regions"
         const val LIEUX_DISTINCTS = "lieux_distincts"
 
         /** Préfixe des badges outre-mer paramétrés par code région (ex. `outremer:01`). */
@@ -241,7 +341,15 @@ class BadgeCalculator(
         // --- Paliers (seuils cumulatifs) ---
         val HERBIER_TIERS = intArrayOf(10, 50, 100, 250)
         val DIVERSITE_TIERS = intArrayOf(10, 25, 50)
-        val EXPLORATEUR_TIERS = intArrayOf(2, 5, 10, 15, 18)
+        val FRANCE_TIERS = intArrayOf(1, 5, 10, 15, 18)
+        val BELGIUM_TIERS = intArrayOf(1, 2, 3)
+        val SWITZERLAND_TIERS = intArrayOf(1, 5, 10, 15, 26)
+        val ENGLAND_TIERS = intArrayOf(1, 3, 5, 7, 9)
+        val IRELAND_TIERS = intArrayOf(1, 2, 3, 4)
+        val SPAIN_TIERS = intArrayOf(1, 5, 10, 15, 19)
+        val ITALY_TIERS = intArrayOf(1, 5, 10, 15, 20)
+        val JAPAN_TIERS = intArrayOf(1, 2, 4, 6, 8)
+        val EXPLORATEUR_TIERS = intArrayOf(1, 5, 10, 15, 20)
         val LIEUX_TIERS = intArrayOf(5, 15, 30, 50, 100)
 
         // --- Grille ~5 km ---

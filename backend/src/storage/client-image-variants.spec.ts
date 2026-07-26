@@ -25,9 +25,11 @@ describe('validateClientImageVariants', () => {
       create: { width: 4000, height: 1560, channels: 3, background: '#fff' },
     }).webp().toBuffer();
     const thumbnail = await sharp(full).resize(400, 156).webp().toBuffer();
+    // `expect.stringMatching` est typé `any` : on le nomme une fois, typé.
+    const sha256 = expect.stringMatching(/^[a-f0-9]{64}$/) as unknown as string;
     await expect(validateClientImageVariants(full, thumbnail)).resolves.toEqual({
-      fullSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
-      thumbnailSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+      fullSha256: sha256,
+      thumbnailSha256: sha256,
     });
   });
 });

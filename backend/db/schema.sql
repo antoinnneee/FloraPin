@@ -10,6 +10,45 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS citext;
 
 -- =====================================================================
+-- Outillage d'idempotence
+-- =====================================================================
+-- Ce fichier est rejoué INTÉGRALEMENT à chaque déploiement (cf. deploy.sh) :
+-- il tient lieu de système de migrations. Tout doit donc être un no-op sur une
+-- base déjà à jour.
+--
+-- Le motif `DROP CONSTRAINT IF EXISTS` + `ADD CONSTRAINT` ne l'était pas : il
+-- supprime puis recrée la contrainte, et `ADD CONSTRAINT ... CHECK` REVALIDE
+-- toute la table sous verrou ACCESS EXCLUSIVE — donc écritures bloquées, pour
+-- un résultat identique. Sans utilisateurs c'était indolore ; en bêta ouverte,
+-- ça se paie sur chaque déploiement et grandit avec les données.
+--
+-- Cette fonction ne crée la contrainte que si elle est ABSENTE : sur une base à
+-- jour, elle ne lit que le catalogue et ne pose aucun verrou de table.
+--
+-- ⚠️ Contrepartie : modifier la définition d'une contrainte existante n'a plus
+-- d'effet automatique (l'ancienne est conservée). Pour la faire évoluer, poser
+-- explicitement un `ALTER TABLE ... DROP CONSTRAINT <nom>;` juste avant l'appel
+-- — le drop est instantané, seule la recréation coûte.
+CREATE OR REPLACE FUNCTION ensure_check_constraint(
+    target_table TEXT,
+    constraint_name TEXT,
+    check_expression TEXT
+) RETURNS void AS $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+         WHERE conname = constraint_name
+           AND conrelid = target_table::regclass
+    ) THEN
+        EXECUTE format(
+            'ALTER TABLE %I ADD CONSTRAINT %I CHECK (%s)',
+            target_table, constraint_name, check_expression
+        );
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- =====================================================================
 -- Utilisateurs
 -- =====================================================================
 CREATE TABLE IF NOT EXISTS users (
@@ -170,8 +209,18 @@ CREATE INDEX IF NOT EXISTS idx_flowers_owner_created
 CREATE UNIQUE INDEX IF NOT EXISTS idx_flowers_owner_client
     ON flowers(owner_id, client_id) WHERE client_id IS NOT NULL;
 
--- Rapprochement best-effort du texte libre `species` vers le référentiel
--- (NODE-124). Sans perte : `species` (texte) reste la source quand aucun match.
+-- Rapprochement best-effort du texte libre `species` vers le référentiel.
+-- Sans perte : `species` (texte) reste la source quand aucun match.
+--
+-- ⚠️ N'est plus le mécanisme NOMINAL depuis que FlowersService rattache l'espèce
+-- à l'écriture (create + update) : les fleurs saisies au clavier reçoivent leur
+-- `species_id` immédiatement, sans attendre un déploiement. Ce qui suit ne sert
+-- donc plus qu'à rattraper les fleurs ANTÉRIEURES à ce correctif.
+-- À supprimer une fois ce déploiement passé : la requête suivante doit alors
+-- renvoyer 0 avant de le faire.
+--   SELECT count(*) FROM flowers f JOIN species s
+--     ON lower(btrim(f.species)) = lower(s.scientific_name)
+--    WHERE f.species_id IS NULL AND f.species IS NOT NULL;
 UPDATE flowers f
    SET species_id = s.id
   FROM species s
@@ -199,10 +248,12 @@ CREATE INDEX IF NOT EXISTS idx_flower_photos_flower ON flower_photos(flower_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_flower_photos_cover
     ON flower_photos(flower_id) WHERE is_cover;
 
--- Backfill : chaque fleur existante devient sa propre photo de couverture.
-INSERT INTO flower_photos (flower_id, image_key, position, is_cover)
-SELECT id, image_key, 0, true FROM flowers
-ON CONFLICT DO NOTHING;
+-- Le backfill « chaque fleur existante devient sa propre photo de couverture »
+-- a été retiré : il datait de l'introduction des photos multiples, des dizaines
+-- de versions en arrière, et toutes les bases en service l'ont reçu depuis.
+-- Depuis, FlowersService.create() insère lui-même la ligne de couverture, donc
+-- le backfill ne rattrapait plus rien — il rescannait `flowers` à chaque
+-- déploiement pour n'insérer aucune ligne.
 
 -- =====================================================================
 -- Albums de fleurs (NODE-98)
@@ -280,9 +331,8 @@ CREATE INDEX IF NOT EXISTS idx_group_members_user  ON group_members(user_id);
 ALTER TABLE albums ADD COLUMN IF NOT EXISTS group_id UUID
     REFERENCES groups(id) ON DELETE SET NULL;
 ALTER TABLE albums ADD COLUMN IF NOT EXISTS permission_mode TEXT NOT NULL DEFAULT 'open';
-ALTER TABLE albums DROP CONSTRAINT IF EXISTS albums_permission_mode_check;
-ALTER TABLE albums ADD CONSTRAINT albums_permission_mode_check
-    CHECK (permission_mode IN ('open', 'restricted'));
+SELECT ensure_check_constraint('albums', 'albums_permission_mode_check',
+    $c$permission_mode IN ('open', 'restricted')$c$);
 CREATE INDEX IF NOT EXISTS idx_albums_group ON albums(group_id);
 
 -- Droits « au cas par cas » d'un membre sur un album (mode 'restricted').
@@ -343,21 +393,18 @@ CREATE TABLE IF NOT EXISTS shares (
 ALTER TABLE shares ADD COLUMN IF NOT EXISTS album_id UUID
     REFERENCES albums(id) ON DELETE CASCADE;
 -- Élargit la contrainte de périmètre pour autoriser scope='album' (idempotent).
-ALTER TABLE shares DROP CONSTRAINT IF EXISTS shares_scope_check;
-ALTER TABLE shares ADD CONSTRAINT shares_scope_check
-    CHECK (scope IN ('all', 'flower', 'album'));
+SELECT ensure_check_constraint('shares', 'shares_scope_check',
+    $c$scope IN ('all', 'flower', 'album')$c$);
 
 -- Partage à tout le réseau d'amis, présents ET futurs (audience='all_friends').
 -- `shared_with` devient optionnel (NULL pour ce mode) et une nouvelle colonne
 -- `audience` distingue le partage ciblé du partage réseau. Idempotent.
 ALTER TABLE shares ADD COLUMN IF NOT EXISTS audience TEXT NOT NULL DEFAULT 'friend';
-ALTER TABLE shares DROP CONSTRAINT IF EXISTS shares_audience_check;
-ALTER TABLE shares ADD CONSTRAINT shares_audience_check
-    CHECK (audience IN ('friend', 'all_friends'));
+SELECT ensure_check_constraint('shares', 'shares_audience_check',
+    $c$audience IN ('friend', 'all_friends')$c$);
 ALTER TABLE shares ALTER COLUMN shared_with DROP NOT NULL;
-ALTER TABLE shares DROP CONSTRAINT IF EXISTS shares_recipient_check;
-ALTER TABLE shares ADD CONSTRAINT shares_recipient_check
-    CHECK ((audience = 'friend') = (shared_with IS NOT NULL));
+SELECT ensure_check_constraint('shares', 'shares_recipient_check',
+    $c$(audience = 'friend') = (shared_with IS NOT NULL)$c$);
 
 CREATE INDEX IF NOT EXISTS idx_shares_owner ON shares(owner_id);
 CREATE INDEX IF NOT EXISTS idx_shares_user  ON shares(shared_with);
@@ -397,9 +444,8 @@ CREATE TABLE IF NOT EXISTS flower_likes (
 -- créées (le CREATE TABLE IF NOT EXISTS ne la pose pas). Les cœurs existants
 -- prennent la valeur par défaut 'heart' — rétro-compatibilité assurée. Idempotent.
 ALTER TABLE flower_likes ADD COLUMN IF NOT EXISTS reaction TEXT NOT NULL DEFAULT 'heart';
-ALTER TABLE flower_likes DROP CONSTRAINT IF EXISTS flower_likes_reaction_check;
-ALTER TABLE flower_likes ADD CONSTRAINT flower_likes_reaction_check
-    CHECK (reaction IN ('heart', 'love', 'blossom', 'rose', 'daisy', 'lavender', 'magnify', 'thumbsup'));
+SELECT ensure_check_constraint('flower_likes', 'flower_likes_reaction_check',
+    $c$reaction IN ('heart', 'love', 'blossom', 'rose', 'daisy', 'lavender', 'magnify', 'thumbsup')$c$);
 -- Comptage des réactions par fleur + « ma réaction » (NODE-139 / TÂCHE 3.5).
 CREATE INDEX IF NOT EXISTS idx_flower_likes_flower ON flower_likes(flower_id);
 
@@ -466,9 +512,11 @@ CREATE TABLE IF NOT EXISTS client_logs (
     locale          TEXT NOT NULL,
     sync_status     TEXT NOT NULL,
     sync_error      TEXT,
+    message         TEXT,
     logs            TEXT NOT NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE client_logs ADD COLUMN IF NOT EXISTS message TEXT;
 CREATE INDEX IF NOT EXISTS idx_client_logs_user ON client_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_client_logs_created ON client_logs(created_at DESC);
 

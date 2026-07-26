@@ -36,7 +36,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.florapin.app.ui.theme.BadgeCompletedBanner
-import com.florapin.app.ui.theme.BadgeNewHighlight
 import com.florapin.app.ui.theme.BadgeStarEmpty
 import com.florapin.app.ui.theme.BadgeStarFilled
 
@@ -49,7 +48,8 @@ import com.florapin.app.ui.theme.BadgeStarFilled
  * @param available `false` quand la donnée est indisponible (badge serveur
  *   hors-ligne, ou badge géo sans résolveur de régions) : la carte est alors
  *   entièrement grisée et sans progression chiffrée (device-first).
- * @param isNew palier fraîchement débloqué : liseré de célébration.
+ * @param isNew palier fraîchement débloqué, utilisé par l'écran pour la
+ *   célébration sans modifier le contour commun des badges.
  */
 data class BadgeUiState(
     val id: String,
@@ -115,9 +115,8 @@ fun BadgeCard(
             MaterialTheme.colorScheme.onSurfaceVariant
     }
     val outlineColor = when {
-        state.isNew -> BadgeNewHighlight
         state.maxed -> BadgeCompletedBanner.copy(alpha = 0.75f)
-        state.started -> MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+        state.unlocked -> MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
         else -> MaterialTheme.colorScheme.outlineVariant
     }
     TooltipBox(
@@ -132,7 +131,7 @@ fun BadgeCard(
         Card(
             modifier = modifier
                 .fillMaxWidth()
-                .border(if (state.isNew) 2.dp else 1.dp, outlineColor, shape)
+                .border(badgeOutlineWidth(state), outlineColor, shape)
                 .semantics {
                     contentDescription = "${describe(state)}. ${state.description}"
                 },
@@ -208,6 +207,12 @@ fun BadgeCard(
         }
     }
 }
+
+/**
+ * Tous les badges utilisent le même contour dès leur première étoile, qu'ils
+ * proviennent du calcul local ou des compteurs d'entraide.
+ */
+internal fun badgeOutlineWidth(state: BadgeUiState) = if (state.unlocked) 2.dp else 1.dp
 
 @Composable
 private fun CompletedBanner(singleTier: Boolean) {

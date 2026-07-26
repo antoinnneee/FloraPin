@@ -26,6 +26,8 @@ data class BadgesUiState(
     val loading: Boolean = true,
     /** Familles « collection » (calcul local). */
     val collection: List<BadgeUiState> = emptyList(),
+    /** Familles géographiques de la section « Pays » (calcul local). */
+    val countries: List<BadgeUiState> = emptyList(),
     /** Familles « entraide » (compteurs serveur, grisées hors-ligne). */
     val entraide: List<BadgeUiState> = emptyList(),
     /** `false` quand les compteurs serveur n'ont pas pu être chargés. */
@@ -40,8 +42,8 @@ data class BadgesUiState(
 
 /**
  * ViewModel de l'onglet Badges (TÂCHE 5.5) : fusionne les badges « collection »
- * (calcul local, [BadgeRepository]) et « entraide » (compteurs serveur,
- * [BadgesApi]) en une liste d'états de cartes.
+ * et « pays » (calcul local, [BadgeRepository]) avec l'« entraide » (compteurs
+ * serveur, [BadgesApi]) en listes d'états de cartes.
  *
  * Device-first : la collection s'affiche toujours (hors-ligne inclus) ; les
  * compteurs d'entraide, indisponibles hors-ligne, grisent alors leurs cartes
@@ -71,6 +73,7 @@ class BadgesViewModel(
             val progress = repository.currentProgress()
             val freshIds = repository.unseen().mapTo(mutableSetOf()) { familyIdOf(it) }
             val collection = buildCollectionBadges(progress, freshIds)
+            val countries = buildCountryBadges(progress, freshIds)
             val celebrate = freshIds.isNotEmpty()
             if (celebrate) repository.markAllSeen()
 
@@ -78,6 +81,7 @@ class BadgesViewModel(
                 it.copy(
                     loading = false,
                     collection = collection,
+                    countries = countries,
                     celebrate = it.celebrate || celebrate,
                 )
             }
@@ -102,7 +106,7 @@ class BadgesViewModel(
 
     private fun recomputeTotals() {
         _state.update { s ->
-            val all = s.collection + s.entraide
+            val all = s.collection + s.countries + s.entraide
             s.copy(
                 starsUnlocked = all.sumOf { it.unlockedTiers },
                 starsTotal = all.sumOf { it.tiers.size },
@@ -154,7 +158,19 @@ private val SEASON_BADGE_IDS = setOf(
 internal fun buildCollectionBadges(
     progress: BadgeCalculator.Progress,
     freshIds: Set<String> = emptySet(),
-): List<BadgeUiState> = BadgeCatalog.COLLECTION.map { def ->
+): List<BadgeUiState> = buildLocalBadges(BadgeCatalog.COLLECTION, progress, freshIds)
+
+/** Construit les cartes de la section « Pays » à partir de la progression locale. */
+internal fun buildCountryBadges(
+    progress: BadgeCalculator.Progress,
+    freshIds: Set<String> = emptySet(),
+): List<BadgeUiState> = buildLocalBadges(BadgeCatalog.COUNTRIES, progress, freshIds)
+
+private fun buildLocalBadges(
+    definitions: List<BadgeDef>,
+    progress: BadgeCalculator.Progress,
+    freshIds: Set<String>,
+): List<BadgeUiState> = definitions.map { def ->
     val value = collectionValueOf(def.id, progress)
     // Valeur < 0 → compteur indisponible (résolveur de régions absent) : grisé.
     def.toUiState(
@@ -198,7 +214,15 @@ private fun collectionValueOf(id: String, p: BadgeCalculator.Progress): Int = wh
     BadgeCalculator.HERBIER -> p.flowerCount
     BadgeCalculator.DIVERSITE -> p.distinctSpeciesCount
     BadgeCatalog.SAISONS -> p.seasonCount
-    BadgeCalculator.EXPLORATEUR -> p.regionCount // -1 si résolveur absent
+    BadgeCalculator.FRANCE -> p.franceRegionCount // -1 si résolveur absent
+    BadgeCalculator.BELGIQUE -> p.belgiumRegionCount // -1 si résolveur absent
+    BadgeCalculator.SUISSE -> p.switzerlandRegionCount // -1 si résolveur absent
+    BadgeCalculator.ANGLETERRE -> p.englandRegionCount // -1 si résolveur absent
+    BadgeCalculator.IRLANDE -> p.irelandRegionCount // -1 si résolveur absent
+    BadgeCalculator.ESPAGNE -> p.spainRegionCount // -1 si résolveur absent
+    BadgeCalculator.ITALIE -> p.italyRegionCount // -1 si résolveur absent
+    BadgeCalculator.JAPON -> p.japanRegionCount // -1 si résolveur absent
+    BadgeCalculator.EXPLORATEUR -> p.exploredRegionCount // -1 si résolveur absent
     BadgeCatalog.OUTRE_MER -> p.overseasCount // -1 si résolveur absent
     BadgeCalculator.LIEUX_DISTINCTS -> p.cellCount
     else -> 0

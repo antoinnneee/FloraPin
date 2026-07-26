@@ -45,6 +45,11 @@ export class CreateClientLogDto {
   @MaxLength(1_000)
   syncError?: string | null;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(2_000)
+  message?: string | null;
+
   @IsString()
   @MinLength(1)
   @MaxLength(25_000)

@@ -209,8 +209,7 @@ fun GalleryScreen(
                         }
                     },
                     actions = {
-                        // Topbar allégée : seules les entrées « à notifier » restent
-                        // ici (identification demandée, invitations d'amis) plus la
+                        // Topbar allégée : accès à la carte, invitations d'amis et
                         // cloche du centre de notifications (TÂCHE 2.7). Le tri est
                         // descendu dans la vue, les albums dans la barre du bas.
                         Row(
@@ -219,10 +218,10 @@ fun GalleryScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             BadgedIconAction(
-                                icon = R.drawable.ic_identify_botanical,
-                                contentDescription = "Identifications demandées",
-                                badge = identifyBadge,
-                                onClick = onOpenIdentify,
+                                icon = R.drawable.ic_nav_map,
+                                contentDescription = "Ouvrir la carte",
+                                badge = 0,
+                                onClick = onOpenMap,
                             )
                             BadgedIconAction(
                                 icon = R.drawable.ic_friends_botanical,
@@ -415,7 +414,8 @@ fun GalleryScreen(
                         selectedDensity = density,
                         onSelectSort = viewModel::setSort,
                         onSelectDensity = viewModel::setDensity,
-                        onOpenMap = onOpenMap,
+                        onOpenIdentify = onOpenIdentify,
+                        identifyBadge = identifyBadge,
                         isListView = isListView,
                         onToggleView = { isListView = !isListView },
                         compact = true,
@@ -442,7 +442,8 @@ fun GalleryScreen(
                     selectedDensity = density,
                     onSelectSort = viewModel::setSort,
                     onSelectDensity = viewModel::setDensity,
-                    onOpenMap = onOpenMap,
+                    onOpenIdentify = onOpenIdentify,
+                    identifyBadge = identifyBadge,
                     isListView = isListView,
                     onToggleView = { isListView = !isListView },
                 )
@@ -598,8 +599,8 @@ private fun Modifier.headerUtilitySurface(): Modifier {
 }
 
 /**
- * Recherche photo-first : le filtre vit dans le champ et la carte garde un
- * accès direct juste à droite, comme dans la maquette retenue.
+ * Recherche photo-first : le filtre vit dans le champ et l'identification garde
+ * un accès direct juste à droite.
  */
 @Composable
 private fun GallerySearchRow(
@@ -609,7 +610,8 @@ private fun GallerySearchRow(
     selectedDensity: GalleryDensity,
     onSelectSort: (GallerySort) -> Unit,
     onSelectDensity: (GalleryDensity) -> Unit,
-    onOpenMap: () -> Unit,
+    onOpenIdentify: () -> Unit,
+    identifyBadge: Int,
     isListView: Boolean,
     onToggleView: () -> Unit,
     modifier: Modifier = Modifier,
@@ -659,20 +661,31 @@ private fun GallerySearchRow(
             )
         }
 
-        val mapShape = RoundedCornerShape(16.dp)
-        IconButton(
-            onClick = onOpenMap,
-            modifier = Modifier
-                .size(if (compact) 52.dp else 56.dp)
-                .clip(mapShape)
-                .background(MaterialTheme.colorScheme.surface)
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, mapShape),
+        val identifyShape = RoundedCornerShape(16.dp)
+        BadgedBox(
+            badge = {
+                if (identifyBadge > 0) {
+                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                        Text(if (identifyBadge > 99) "99+" else "$identifyBadge")
+                    }
+                }
+            },
         ) {
-            Image(
-                painter = painterResource(R.drawable.ic_nav_map),
-                contentDescription = "Ouvrir la carte",
-                modifier = Modifier.size(30.dp),
-            )
+            IconButton(
+                onClick = onOpenIdentify,
+                modifier = Modifier
+                    .size(if (compact) 52.dp else 56.dp)
+                    .clip(identifyShape)
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, identifyShape),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_identify_botanical),
+                    contentDescription = "Identifications demandées",
+                    modifier = Modifier.size(30.dp),
+                    tint = Color.Unspecified,
+                )
+            }
         }
     }
 }

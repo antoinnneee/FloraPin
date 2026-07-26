@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Ressources DEBUG uniquement (src/debug) : elles surchargent celles de src/main
+  pour ce build type. Le nom affiché distingue l'installation de développement de
+  celle du Play Store, les deux pouvant coexister sur l'appareil grâce à
+  l'applicationIdSuffix « .debug » (cf. app/build.gradle.kts).
+-->
+<resources>
+    <string name="app_name">FloraPin (debug)</string>
+</resources>

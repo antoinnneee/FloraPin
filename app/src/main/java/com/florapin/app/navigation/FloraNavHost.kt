@@ -441,6 +441,8 @@ fun FloraNavHost(
         composable(Routes.FEED) {
             SharedFeedScreen(
                 onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+                onOpenMap = { navController.navigate(Routes.MAP) },
+                onOpenFriends = { navController.navigate(Routes.FRIENDS) },
                 onOpenProfile = { uid -> navController.navigate(Routes.friendProfile(uid)) },
             )
         }

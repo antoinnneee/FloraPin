@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -72,7 +73,9 @@ fun AlbumsScreen(
     onOpenAlbum: (Long) -> Unit,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
-    viewModel: AlbumsViewModel = viewModel(),
+    viewModel: AlbumsViewModel = viewModel(
+        factory = AlbumsViewModel.factory(LocalContext.current),
+    ),
 ) {
     val summaries by viewModel.summaries.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
@@ -84,7 +87,12 @@ fun AlbumsScreen(
         topBar = {
             TopAppBar(
                 expandedHeight = topBarHeight,
-                title = { Text("Albums") },
+                title = {
+                    Text(
+                        text = "Albums",
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                },
                 navigationIcon = {
                     if (onBack != null) {
                         IconButton(onClick = onBack) {

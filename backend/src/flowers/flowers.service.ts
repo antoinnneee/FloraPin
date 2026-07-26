@@ -11,6 +11,7 @@ import {
   Reaction,
 } from '../likes/flower-like.entity';
 import { FlowerComment } from '../comments/flower-comment.entity';
+import { SpeciesService } from '../species/species.service';
 import { StorageService, PresignedUpload } from '../storage/storage.service';
 import { validateClientImageVariants } from '../storage/client-image-variants';
 import { encodeWebp } from '../storage/image-processing';
@@ -91,7 +92,27 @@ export class FlowersService {
     @InjectRepository(FlowerComment)
     private readonly comments: Repository<FlowerComment>,
     private readonly storage: StorageService,
+    private readonly species: SpeciesService,
   ) {}
+
+  /**
+   * Rattache une espèce saisie en TEXTE LIBRE au référentiel.
+   *
+   * Sans ça, `species_id` ne se remplissait que par deux chemins :
+   * l'autocomplétion (le client envoie `speciesId`) et l'acceptation d'une
+   * proposition d'ami. Une espèce tapée au clavier restait sans rattachement, et
+   * la fleur n'apparaissait donc pas dans l'herbier — `SpeciesService.herbierFor`
+   * joignant sur `species_id`. Le rattrapage vivait dans `db/schema.sql`, rejoué
+   * au déploiement : l'herbier ne devenait juste qu'à la mise en production
+   * suivante.
+   *
+   * Renvoie `null` pour un texte vide (l'utilisateur efface l'espèce), ce qui
+   * détache proprement la fleur du référentiel.
+   */
+  private async resolveSpeciesId(species: string): Promise<string | null> {
+    const resolved = await this.species.resolveOrCreateByName(species);
+    return resolved?.id ?? null;
+  }
 
   /**
    * Crée la fleur (métadonnées + GPS) et renvoie une URL présignée pour
@@ -141,6 +162,9 @@ export class FlowersService {
       visibility: dto.visibility ?? 'private',
       feedIncludeGps: dto.feedIncludeGps ?? true,
       species: dto.species ?? null,
+      // `CreateFlowerDto` ne porte pas de `speciesId` : à la création (dont le
+      // push de sync), l'espèce n'existe qu'en texte libre. On la rattache ici.
+      speciesId: dto.species ? await this.resolveSpeciesId(dto.species) : null,
       tags: dto.tags ?? [],
     });
 
@@ -285,10 +309,18 @@ export class FlowersService {
     if (dto.speciesId !== undefined) {
       flower.speciesId = dto.speciesId;
       flower.speciesRef = null;
+    } else if (dto.species !== undefined) {
+      // Texte libre sans sélection : on résout nous-mêmes. Couvre aussi la
+      // correction d'un nom déjà rattaché — sans ce recalcul, `species_id`
+      // resterait sur l'ANCIENNE espèce et l'herbier afficherait la mauvaise.
+      flower.speciesId = await this.resolveSpeciesId(dto.species);
+      flower.speciesRef = null;
     }
     if (dto.tags !== undefined) flower.tags = dto.tags;
     const saved = await this.flowers.save(flower);
-    if (dto.speciesId !== undefined) {
+    // Les deux branches ci-dessus ont pu changer `speciesId` : dans les deux cas
+    // la relation doit être relue pour que la réponse porte l'espèce résolue.
+    if (dto.speciesId !== undefined || dto.species !== undefined) {
       const reloaded = await this.flowers.findOne({
         where: { id: saved.id, ownerId },
         relations: { speciesRef: true },

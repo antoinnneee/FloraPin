@@ -37,6 +37,9 @@ export class ClientLog {
   @Column({ name: 'sync_error', type: 'text', nullable: true })
   syncError: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  message: string | null;
+
   @Column({ type: 'text' })
   logs: string;
 

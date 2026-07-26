@@ -66,7 +66,7 @@ export class SpeciesService {
       take: safeLimit,
     });
     return {
-      items: rows.map(SpeciesService.toResponse),
+      items: rows.map((row) => SpeciesService.toResponse(row)),
       total,
       page: safePage,
       limit: safeLimit,
@@ -90,7 +90,7 @@ export class SpeciesService {
       order: { scientificName: 'ASC' },
       take: safeLimit,
     });
-    return rows.map(SpeciesService.toResponse);
+    return rows.map((row) => SpeciesService.toResponse(row));
   }
 
   /** Fiche détaillée d'une espèce. */

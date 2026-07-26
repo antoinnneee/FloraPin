@@ -29,7 +29,7 @@ describe('AllExceptionsFilter', () => {
   let filter: AllExceptionsFilter;
 
   beforeEach(() => {
-    reporter = { captureException: jest.fn() } as never;
+    reporter = { captureException: jest.fn() };
     filter = new AllExceptionsFilter(reporter);
   });
 

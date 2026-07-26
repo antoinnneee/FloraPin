@@ -18,7 +18,16 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.24.0 — 26 juillet 2026
+
 ### Nouveau
+- **Vous pouvez maintenant décrire le problème rencontré lorsque vous envoyez
+  les journaux techniques depuis Profil › Configuration.**
+- **Une nouvelle section « Pays » rassemble vos explorations géographiques.**
+  L'ancien badge « Explorateur » devient « France » en conservant vos étoiles,
+  et une première observation débloque désormais le badge du pays en Belgique,
+  en Suisse, en Angleterre, en Irlande, en Espagne, en Italie ou au Japon. Le
+  nouvel « Explorateur » progresse à travers les régions de tous ces pays.
 - **FloraPin arrive sur votre ordinateur Windows.** Retrouvez toutes vos
   photos sur grand écran, rangez-les dans vos albums, aidez vos amis à
   identifier leurs fleurs et revoyez vos trouvailles sur la carte. Les photos
@@ -31,6 +40,38 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
   plusieurs photos comme dans vos dossiers Windows, ouvrez-les en grand d'un
   double-clic, faites un clic droit pour agir sur toute une sélection, et
   agrandissez les vignettes à votre goût.
+
+### Amélioré
+- **Chaque badge pays comporte maintenant plusieurs étapes.** Explorez de
+  nouvelles régions, provinces ou cantons pour gagner progressivement toutes
+  les étoiles du pays, jusqu'à l'avoir entièrement parcouru, avec cinq étoiles
+  au maximum.
+- **FloraPin est désormais à jour pour Android 16.** L'application est adaptée à
+  la dernière version du système et continuera de recevoir ses mises à jour.
+- **Les onglets Accueil, Partagées et Albums présentent maintenant des
+  en-têtes plus cohérents.** Retrouvez les raccourcis vers la carte, les amis et
+  les notifications depuis « Partagées », ainsi qu'un accès à l'identification
+  placé près de la recherche sur l'accueil.
+- **La fiche d'une fleur n'a plus de mode « Modifier » séparé.** Touchez le
+  crayon près du nom pour changer uniquement l'espèce, ou la ligne Photos pour
+  gérer les images.
+- **Vous pouvez maintenant conserver plusieurs notes pour une même fleur.**
+  L'onglet Notes permet d'ajouter, corriger ou supprimer chaque observation
+  séparément, tout en conservant vos anciennes notes.
+
+### Réparé
+- **Les badges d'entraide gagnent désormais le même contour renforcé que les
+  autres badges dès leur première étoile.**
+- **Une espèce que vous tapez vous-même rejoint aussitôt votre herbier.** Il
+  fallait auparavant la choisir dans la liste proposée pour qu'elle y apparaisse.
+  Et si vous corrigez le nom d'une fleur, votre herbier suit désormais la
+  correction au lieu de conserver l'ancienne espèce.
+- **Les noms d'espèces longs restent maintenant lisibles dans leur fiche.** Le
+  libellé « Espèce » reste horizontal et le nom peut s'afficher sur quatre
+  lignes avant d'être raccourci.
+- **Une fleur encore inconnue propose directement de demander son identification
+  à vos amis à la place de son nom.** Les mentions d'état répétées sous le titre
+  ont été retirées pour alléger la fiche.
 
 ## Version 1.23.0 — 25 juillet 2026
 
@@ -630,4 +671,3 @@ connexion, avec une synchronisation cloud facultative et le partage entre amis.
 - **Une synchronisation cloud facultative**, désactivée par défaut : sans elle,
   tout reste sur votre téléphone.
 - **Des notifications** pour ne rien manquer.
-

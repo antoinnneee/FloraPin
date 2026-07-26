@@ -1,6 +1,8 @@
 [versions]
 # Build tooling
-agp = "8.7.3"
+# AGP 8.11.x : premier palier qui supporte officiellement compileSdk 36
+# (Android 16). Exige Gradle >= 8.13, aligné dans gradle-wrapper.properties.
+agp = "8.11.1"
 kotlin = "2.1.0"
 
 # Compose Multiplatform — compagnon Windows (module :desktop).

@@ -135,9 +135,12 @@ private class FakeProfileDiagnostics(
 ) : ProfileDiagnostics {
     var sends = 0
         private set
+    var lastMessage: String? = null
+        private set
 
-    override suspend fun send() {
+    override suspend fun send(message: String?) {
         sends++
+        lastMessage = message
         failure?.let { throw it }
     }
 }
@@ -313,10 +316,11 @@ class ProfileViewModelTest {
         )
         advanceUntilIdle()
 
-        vm.sendDiagnostics()
+        vm.sendDiagnostics("  La synchronisation reste bloquée.  ")
         advanceUntilIdle()
 
         assertEquals(1, diagnostics.sends)
+        assertEquals("La synchronisation reste bloquée.", diagnostics.lastMessage)
         assertFalse(vm.state.value.diagnosticsSending)
         assertFalse(vm.state.value.diagnosticsFailed)
         assertEquals("Journaux envoyés. Merci !", vm.state.value.diagnosticsMessage)
@@ -333,7 +337,7 @@ class ProfileViewModelTest {
         )
         advanceUntilIdle()
 
-        vm.sendDiagnostics()
+        vm.sendDiagnostics("")
         advanceUntilIdle()
 
         assertFalse(vm.state.value.diagnosticsSending)

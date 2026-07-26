@@ -4,8 +4,8 @@ import { ClientLogsService } from './client-logs.service';
 
 describe('ClientLogsService', () => {
   it('associe le rapport à l’utilisateur authentifié', async () => {
-    const create = jest.fn((value) => value);
-    const save = jest.fn(async (value) => ({
+    const create = jest.fn((value: Partial<ClientLog>) => value);
+    const save = jest.fn(async (value: Partial<ClientLog>) => ({
       ...value,
       id: 'report-1',
       createdAt: new Date('2026-07-24T20:00:00Z'),
@@ -22,6 +22,7 @@ describe('ClientLogsService', () => {
         locale: 'fr-FR',
         syncStatus: 'ERROR',
         syncError: 'timeout',
+        message: '  La synchronisation reste bloquée.  ',
         logs: '07-24 W/FloraPin: timeout',
       }),
     ).resolves.toEqual({
@@ -30,7 +31,11 @@ describe('ClientLogsService', () => {
     });
 
     expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'user-1', syncError: 'timeout' }),
+      expect.objectContaining({
+        userId: 'user-1',
+        syncError: 'timeout',
+        message: 'La synchronisation reste bloquée.',
+      }),
     );
   });
 });

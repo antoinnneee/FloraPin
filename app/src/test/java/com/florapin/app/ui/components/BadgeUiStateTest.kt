@@ -1,5 +1,7 @@
 package com.florapin.app.ui.components
 
+import androidx.compose.ui.unit.dp
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -23,6 +25,13 @@ class BadgeUiStateTest {
     @Test
     fun `an unavailable badge never appears in progress`() {
         assertFalse(badge(currentValue = 3, available = false).started)
+    }
+
+    @Test
+    fun `the outline becomes stronger only after the first star`() {
+        assertEquals(1.dp, badgeOutlineWidth(badge(currentValue = 3)))
+        assertEquals(2.dp, badgeOutlineWidth(badge(currentValue = 10)))
+        assertEquals(1.dp, badgeOutlineWidth(badge(currentValue = 10, available = false)))
     }
 
     private fun badge(

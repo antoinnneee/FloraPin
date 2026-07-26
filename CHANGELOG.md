@@ -17,7 +17,37 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Corrigé
+- **Les photos ne s'affichaient pas dans le compagnon Windows.** Leur téléchargement
+  empruntait le client HTTP de l'API, qui appose un en-tête `Authorization:
+  Bearer`. Or ces URLs sont présignées (`AWS4-HMAC-SHA256`) : le stockage
+  répondait `400 InvalidRequest — request has multiple authentication types`
+  et aucune image n'arrivait. Un second client, sans authentification, sert
+  désormais les contenus signés (photos et tuiles de carte) ; il dérive du
+  premier, donc pool de connexions et dispatcher restent partagés. Le jeton
+  de session n'est plus transmis au stockage, qui n'en a pas l'usage. Le
+  défaut échappait aux tests, un serveur de bouchon ignorant l'en-tête
+  surnuméraire : `DesktopNetworkTest` emprunte maintenant le vrai chemin de
+  téléchargement.
+
+## [1.24.0] — 2026-07-26
+
 ### Ajouté
+- **Le build debug s'installe à côté de celui du Play Store.** `applicationIdSuffix
+  = ".debug"` (la coexistence tient à l'`applicationId`, pas au nom affiché),
+  `versionNameSuffix = "-debug"` et nom distinct « FloraPin (debug) » via
+  `app/src/debug/res/values/strings.xml`. Les authorities dérivées de
+  `${applicationId}` suivent automatiquement : vérifié sur l'APK produit —
+  `com.florapin.app.debug{.fileprovider,.androidx-startup,.firebaseinitprovider}`,
+  aucun conflit d'installation. La release conserve `com.florapin.app` et
+  « FloraPin ».
+
+  Deux conséquences à connaître. Le plugin `google-services` exige un client
+  déclaré pour **chaque** applicationId construit : `processDebugGoogleServices`
+  échoue tant que `com.florapin.app.debug` n'est pas enregistré dans le projet
+  Firebase (le placeholder de la CI déclare désormais les deux). Et les deep
+  links `/reset` et `/verify` étant portés par les deux installations, Android
+  demandera laquelle ouvrir.
 - **Compagnon Windows (module `:desktop`).** Application Compose Multiplatform
   qui consulte la photothèque, gère les albums, exporte les photos sur le
   disque, assure l'identification collaborative et affiche la carte des
@@ -36,7 +66,62 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   pour déplacer, molette pour zoomer sur le point survolé). Regroupement des
   marqueurs par cellule d'écran et cadrage automatique au premier affichage.
 
+### Corrigé
+- **Le contour des badges d'entraide suit maintenant les mêmes états que les
+  badges Collection et Pays.** Le liseré ne dépend plus de l'état `isNew`,
+  disponible uniquement pour les badges locaux : toute carte obtient un contour
+  de 2 dp dès sa première étoile, et conserve un contour neutre de 1 dp avant
+  celle-ci ou quand ses données sont indisponibles.
+- **Une espèce saisie au clavier entre immédiatement dans l'herbier.** Jusqu'ici,
+  `species_id` n'était renseigné que par deux chemins : l'autocomplétion (le
+  client envoie l'identifiant) et l'acceptation d'une proposition d'ami. Une
+  espèce simplement tapée restait sans rattachement, donc **absente de l'herbier**
+  — qui joint sur cette colonne — jusqu'au rattrapage SQL rejoué au déploiement
+  suivant. `FlowersService` résout désormais le référentiel à l'écriture, à la
+  création (ce qui couvre le push de synchronisation) comme à la modification.
+  Corrige au passage un cas plus gênant : corriger le nom d'une fleur déjà
+  rattachée laissait `species_id` sur l'**ancienne** espèce, et l'herbier
+  affichait donc la mauvaise. Effacer l'espèce détache proprement la fleur, et
+  une sélection explicite via l'autocomplétion continue de faire autorité.
+  Le rapprochement de `db/schema.sql` n'est plus le mécanisme nominal : il ne
+  rattrape que les fleurs antérieures et pourra être retiré après ce déploiement.
+- **Marqueur perdu à l'extrême nord de la carte.** `MapMath.latToWorldY`
+  pouvait renvoyer une ordonnée très légèrement négative aux limites de
+  Mercator (arrondi flottant), ce qui plaçait la tuile calculée hors du monde
+  et écartait le marqueur du rendu. Le résultat est désormais borné.
+
 ### Modifié
+- **Les badges pays progressent désormais par régions distinctes, sur le modèle
+  du badge France.** Le premier palier vaut désormais `1` partout — France
+  comprise — puis chaque pays avance jusqu'à sa couverture complète, sans
+  dépasser cinq étoiles : France `1/5/10/15/18`, Belgique `1/2/3`, Suisse
+  `1/5/10/15/26`, Angleterre `1/3/5/7/9`, Irlande `1/2/3/4`, Espagne
+  `1/5/10/15/19`, Italie `1/5/10/15/20` et Japon `1/2/4/6/8`. Les progressions
+  exposent maintenant le nombre réel de subdivisions uniques au lieu d'un
+  booléen de visite. Le skill d'ajout d'un pays documente les mêmes conventions
+  pour les prochaines intégrations.
+- **Déploiement nettement raccourci, et sans verrou sur la base.** Le script
+  rejouait `npm ci` pour la vitrine à chaque déploiement, alors que
+  `landing/node_modules` persiste sur le VPS : mesuré à **65 s pour 267 paquets**,
+  contre 32 s pour le build Astro lui-même. L'installation est désormais ignorée
+  quand `package-lock.json` n'a pas changé (empreinte SHA-256 enregistrée dans
+  `node_modules/.lock-hash`) ; tout écart — lock modifié, `node_modules` absent,
+  empreinte manquante — retombe sur un `npm ci` complet. Mesuré de bout en bout :
+  **2 min 07 → 32 s**. À noter, un cache de tarballs npm n'y suffisait pas
+  (3 s de mieux) : le coût est l'écriture des fichiers, pas le téléchargement.
+  Le volume de cache est tout de même monté, pour les fois où l'install a lieu.
+- **Les contraintes CHECK ne sont plus recréées à chaque déploiement.**
+  `schema.sql` utilisait `DROP CONSTRAINT IF EXISTS` + `ADD CONSTRAINT`, motif qui
+  **revalide toute la table sous verrou ACCESS EXCLUSIVE** — écritures bloquées,
+  pour un résultat identique. Cinq contraintes étaient concernées (`albums`,
+  `shares` ×3, `flower_likes`). Une fonction `ensure_check_constraint()` ne les
+  pose désormais que si elles sont absentes. Vérifié sur PostGIS 16 : sur une base
+  créée avec l'ancien schéma puis migrée, les cinq contraintes conservent le même
+  OID (donc aucune recréation), tout en rejetant toujours les valeurs invalides.
+  Le gain en durée est faible à ce volume (~20 ms sur 20 000 fleurs) — l'enjeu est
+  le verrou, qui grandit avec les données et bloque les écritures des bêta-testeurs.
+- **Cache npm BuildKit dans le `Dockerfile` du backend**, qui accélère la
+  reconstruction de l'image quand `package.json` change (le cas de cette version).
 - **Sources partagées entre `:app` et `:desktop`.** Les packages
   `network/dto`, `network/api`, `network/auth` et `ui/theme` sont compilés
   par les deux modules (`sharedSourceDirs`) plutôt que dupliqués : les
@@ -44,22 +129,173 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   à l'autre. Seuls `EncryptedTokenStore`, `Theme.kt` et `Type.kt`, liés au
   framework Android, sont exclus et réimplémentés côté bureau.
 
+### Supprimé
+- **Backfill des photos de couverture retiré de `db/schema.sql`.** L'`INSERT INTO
+  flower_photos … SELECT … FROM flowers` datait de l'introduction des photos
+  multiples, des dizaines de versions en arrière. Toutes les bases en service
+  l'ont reçu depuis, et `FlowersService.create()` insère désormais lui-même la
+  ligne de couverture : il rescannait `flowers` à chaque déploiement pour
+  n'insérer aucune ligne. Le rapprochement `species_id` (juste au-dessus dans le
+  fichier) est conservé — contrairement à celui-ci, il n'est pas mort : il est le
+  seul mécanisme qui rattrape une espèce **saisie librement au clavier**, cas que
+  ni l'autocomplétion (qui envoie `speciesId`) ni l'acceptation d'une proposition
+  (`ProposalsService` → `resolveOrCreateByName`) ne couvrent. Sans lui, ces fleurs
+  restent absentes de l'herbier, qui joint sur `species_id`.
+
+### Ajouté
+- **Cinq nouveaux territoires géographiques hors ligne et leurs badges pays.**
+  FloraPin reconnaît désormais les 9 régions anglaises (ONS 2024), les
+  4 provinces irlandaises (Tailte Éireann 2015), les 19 communautés et villes
+  autonomes espagnoles (IGN), les 20 régions italiennes (Istat 2026) et les
+  8 macro-régions japonaises (GSI 2015), soit 60 nouvelles subdivisions et
+  107 au total. Les sources projetées ont été converties en WGS84. Les couches
+  anglaise et espagnole ont été simplifiées topologiquement avec Mapshaper
+  0.7.48 en conservant respectivement 25 % et 6 % des sommets ; tous les assets
+  restent sous 1,5 Mo sans perte de subdivision. Une première observation
+  débloque le badge Angleterre, Irlande, Espagne, Italie ou Japon, tandis que
+  chaque subdivision distincte alimente les paliers mondiaux d'Explorateur.
+  Les tests couvrent une ville intérieure par subdivision, Okinawa, les
+  compteurs pays, les doublons régionaux et les positions hors périmètre.
+- **Détection suisse et badge « Suisse ».** Les 26 cantons sont désormais
+  résolus hors ligne à partir de swissBOUNDARIES3D 2026 de swisstopo. Une
+  simplification topologique pondérée conservant 30 % des sommets ramène
+  l'asset WGS84 de 4,06 Mo à 1,12 Mo sans supprimer de canton. Une première
+  observation suisse débloque le badge pays dédié et chaque canton distinct
+  alimente l'Explorateur mondial sans modifier les progressions France ou
+  Belgique. Les tests valident les 26 cantons et l'isolation des compteurs par
+  pays.
+- **Référence des subdivisions géographiques par pays.** Le document
+  `docs/COUNTRY_SUBDIVISIONS.md` consigne les niveaux retenus pour les badges et
+  la localisation détaillée en France, en Suisse, en Belgique, en Angleterre, en
+  Irlande, en Espagne, en Italie et au Japon, avec leur nombre et les
+  principales particularités administratives.
+- **Skill projet pour intégrer de nouveaux pays.** Le workflow
+  `$add-country-florapin` documente la sélection d'une source administrative
+  officielle, la normalisation GeoJSON, l'intégration au résolveur hors ligne et
+  aux badges, les tests et les changelogs. Son script valide les géométries,
+  fusionne les réponses API découpées, impose au besoin un mapping de libellés et
+  limite la taille de l'asset. Le guide décrit aussi la simplification
+  topologique Mapshaper des fichiers trop lourds, le choix du taux et les
+  contrôles anti-régression associés. La Suisse constitue sa première
+  intégration complète.
+- **Message facultatif joint aux journaux d'assistance.** Le formulaire de
+  Profil › Configuration accepte désormais une description libre du problème
+  (2 000 caractères maximum), transmise avec le rapport technique, stockée dans
+  `client_logs` et affichée dans la console de supervision.
+
 ### Corrigé
-- **Les photos ne s'affichaient pas dans le compagnon Windows.** Leur téléchargement
-  empruntait le client HTTP de l'API, qui appose un en-tête `Authorization:
-  Bearer`. Or ces URLs sont présignées (`AWS4-HMAC-SHA256`) : le stockage
-  répondait `400 InvalidRequest — request has multiple authentication types`
-  et aucune image n'arrivait. Un second client, sans authentification, sert
-  désormais les contenus signés (photos et tuiles de carte) ; il dérive du
-  premier, donc pool de connexions et dispatcher restent partagés. Le jeton
-  de session n'est plus transmis au stockage, qui n'en a pas l'usage. Le
-  défaut échappait aux tests, un serveur de bouchon ignorant l'en-tête
-  surnuméraire : `DesktopNetworkTest` emprunte maintenant le vrai chemin de
-  téléchargement.
-- **Marqueur perdu à l'extrême nord de la carte.** `MapMath.latToWorldY`
-  pouvait renvoyer une ordonnée très légèrement négative aux limites de
-  Mercator (arrondi flottant), ce qui plaçait la tuile calculée hors du monde
-  et écartait le marqueur du rendu. Le résultat est désormais borné.
+- **La ligne d'espèce de la fiche détail ne comprime plus son libellé en une
+  colonne.** Le nom occupe désormais la largeur restante, revient d'abord à la
+  ligne aux espaces puis, pour un mot trop long, à la lettre, avec une limite de
+  quatre lignes et une ellipse au-delà.
+- **L'action de demande d'identification est de nouveau visible au premier
+  regard.** Pour une fleur sans espèce, elle remplace directement le nom dans
+  l'en-tête de la fiche. Les mentions d'état redondantes sous le titre
+  (« À identifier », « Identification confirmée » ou « Espèce renseignée »)
+  sont supprimées, ainsi que la valeur « À identifier » dans l'aperçu.
+
+### Sécurité
+- **Backend : `sharp` 0.33.5 → 0.35.3 (libvips 8.15.3 → 8.18.3).** Corrige
+  `GHSA-f88m-g3jw-g9cj` (CVE-2026-33327, -33328, -35590, -35591), dont deux en gravité
+  haute. Exposition mesurée avant correction : les formats visés sont GIF/TIFF/VIPS et la
+  liste blanche de `encodeWebp` (jpeg, png, webp, heif) les rejetait avant tout décodage de
+  pixels — mais le loader restait sollicité pour lire l'en-tête (`sharp(gif).metadata()`
+  renvoie bien `format = 'gif'`), sur les cinq points d'entrée d'upload. Aucune API utilisée
+  ici ne change entre 0.33 et 0.35.
+- **Autres dépendances vulnérables montées** : `typeorm` 0.3.30 → 0.3.31
+  (`GHSA-2rp8-mm9q-fp49`, qui ne concernait pas ce projet — il n'utilise pas
+  `migration:generate`), `fast-xml-parser` 5.9.3 → 5.10.1, `protobufjs` 7.6.4 → 7.6.5,
+  `brace-expansion` (copies de premier niveau). Subsiste `brace-expansion` 2.1.2 imbriqué
+  sous `glob/`, laissé en l'état : la 5.x exporte un objet là où la 2.x exportait la
+  fonction, donc un override casserait `minimatch` → `glob` → `rimraf` → firebase-admin, et
+  le seul correctif automatique proposé est `typeorm@1.1.0` (majeur). Faille non atteignable
+  ici : aucun pattern glob ne provient d'un utilisateur de l'API. Détail dans
+  `docs/CODE-REVIEW-2026-07-26.md`.
+
+### Modifié
+- **La fiche détail abandonne son mode d'édition global au profit d'actions
+  ciblées.** Un crayon dans l'en-tête ouvre l'édition du nom d'espèce avec
+  l'autocomplétion existante ; la ligne Photos ouvre sa gestion dédiée et les
+  propositions d'identification restent accessibles dans l'aperçu.
+- **Le champ de notes unique devient un carnet de notes multiples.** L'onglet
+  Notes permet de créer, modifier et supprimer chaque entrée séparément. Le
+  stockage textuel reste compatible avec les sauvegardes et la synchronisation
+  existantes grâce à un séparateur lisible, et une ancienne note est reprise
+  automatiquement comme première entrée. Trois tests unitaires couvrent la
+  compatibilité, les paragraphes et l'exclusion des entrées vides.
+- **Passage à Android 16 (API 36).** `compileSdk`/`targetSdk` montent de 35 à 36,
+  palier exigé par le Play Store à partir du 31/08/2026. Chaîne d'outils alignée :
+  AGP 8.7.3 → 8.11.1 (premier palier supportant officiellement `compileSdk 36`) et
+  Gradle 8.11.1 → 8.13 (minimum requis par cet AGP). Aucun changement de
+  comportement du palier ne s'applique : l'app était déjà edge-to-edge
+  (`enableEdgeToEdge` + insets gérés écran par écran) et ne déclare ni contrainte
+  d'orientation/redimensionnement ni service au premier plan. Vérifié :
+  342 tests unitaires verts, lint sans erreur, APK et tests instrumentés assemblés,
+  `targetSdkVersion:'36'` confirmé dans l'APK produit.
+
+### Ajouté
+- **Détection belge et nouvelle section de badges « Pays ».**
+  `RegionResolver` fusionne désormais les 18 régions françaises avec les
+  géométries 2025 simplifiées d'AdminVector NGI-IGN pour la Région flamande, la
+  Région wallonne et la Région de Bruxelles-Capitale. Chaque région porte son
+  code pays (`FR`/`BE`). La grille sépare désormais « Collection », « Pays » et
+  « Entraide » : l'ancien badge `explorateur` devient « France » sans perdre les
+  paliers déjà persistés, « Belgique » se débloque à la première observation
+  belge, et le nouvel `explorateur_regions` compte les régions distinctes de tous
+  les pays aux seuils 1/5/10/15/20. Le repli de nom de lieu hors ligne bénéficie
+  également de cette couverture. Les tests valident le chargement des 21 régions,
+  trois villes représentatives, la séparation France/Belgique et l'agrégation
+  multinationale de l'Explorateur.
+- **Lint du backend opérationnel.** Le script `npm run lint` appelait `eslint`, qui
+  n'était ni dans les `devDependencies` ni dans le `package-lock.json` — et la CI ne
+  l'appelait jamais, d'où l'absence de symptôme. Ajout d'ESLint 9 en flat config
+  (`backend/eslint.config.mjs`) avec `typescript-eslint` type-aware, **sans Prettier**
+  (un formateur aurait réécrit tout le code existant). Le lint tourne désormais dans le
+  job backend de la CI, entre `npm ci` et `npm run build`. État : **0 erreur,
+  0 avertissement** (le premier passage en comptait 18 et 93).
+- **Typage du code backend renforcé** en traitant ces avertissements plutôt qu'en les
+  masquant : helper `AdminService.rows<T>()` qui redonne un type aux retours de
+  `DataSource.query` (typé `any` par TypeORM) avec les interfaces de lignes associées,
+  flux `listObjectsV2` du SDK MinIO typé via `ObjectListStream`,
+  `getRequest<{ user: AuthenticatedUser }>()` dans le décorateur `@CurrentUser`,
+  paramètre de `@Transform` typé dans `UpdateProfileDto`, 7 assertions de type inutiles
+  retirées, `jwt.decode<{exp:number}>()` au lieu d'un `as`, référence de méthode statique
+  remplacée par une lambda dans `species.service.ts`, seuil d'erreur serveur sorti de
+  l'énumération dans `all-exceptions.filter.ts`. Les règles « unsafe » passent en
+  **`error` sur `src/`** pour verrouiller l'acquis, et sont désactivées dans les fichiers
+  de test où Jest (`expect.objectContaining`) et supertest (`.body`) rendent `any` par
+  conception. `require-await` est désactivée : ses 7 occurrences étaient des pilotes de
+  repli honorant un contrat `Promise<T>`.
+- **Tests unitaires du module albums** (30 cas) : `AlbumsViewModelTest` (13) couvre
+  la création locale et collaborative (nettoyage du nom, `clientId` idempotent,
+  album rendu déjà synchronisé, échec réseau sans création locale), le renommage,
+  la suppression et le rattachement de fleurs en lot ; `AlbumCollaborationViewModelTest`
+  (17) couvre le chargement solo vs collaboratif, le filtrage des amis invitables,
+  `isOwner`, la préservation du nom local en attente de sync lors d'un réglage
+  serveur, et surtout les droits — `setMemberCanEdit` fusionne les entrées
+  existantes et force le régime `restricted`, un retrait est une entrée `false`
+  explicite, un album non synchronisé n'émet aucun appel.
+- Les trois ViewModels d'albums (`AlbumsViewModel`, `AlbumDetailViewModel`,
+  `AlbumCollaborationViewModel`) passent de `AndroidViewModel` à une injection par
+  constructeur + `companion object { fun factory(context) }`, conformément au
+  pattern déjà appliqué ailleurs (cf. `SharedFeedViewModel`) : c'est ce qui rend ces
+  tests possibles en JVM pur. `MemAlbumDao` (tests de `AlbumRepository`) devient
+  réutilisable et sert désormais aussi aux tests des ViewModels.
+- **Revue complète du projet** (`docs/CODE-REVIEW-2026-07-26.md`), référence
+  `main` @ `43764d3` / 1.23.0. Vérifie le traitement des 4 critiques et des 19
+  points importants de la revue du 2026-07-02 (tous corrigés sauf `bcryptjs` et
+  la doc API), et relève deux échéances : CVE libvips sur `sharp` < 0.35.0
+  (chemin des images utilisateur) et la deadline Play Store API 36.
+
+### Modifié
+- **En-têtes des onglets racine harmonisés.** Les titres « Partagées » et
+  « Albums » reprennent la couleur de marque de l'accueil. L'onglet
+  « Partagées » propose désormais les mêmes raccourcis vers la carte, les amis
+  et les notifications. Sur l'accueil, l'accès à la carte rejoint l'en-tête,
+  tandis que l'identification et son badge prennent place à droite de la barre
+  de recherche.
+
+_versionName 1.24.0, versionCode 39._
 
 ## [1.23.0] — 2026-07-25
 
@@ -1749,4 +1985,3 @@ synchronisation cloud optionnelle et partage entre amis.
 
 [Non publié]: https://github.com/antoinnneee/FloraPin/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/antoinnneee/FloraPin/releases/tag/v1.0.0
-

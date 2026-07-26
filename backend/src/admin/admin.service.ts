@@ -36,6 +36,51 @@ interface ImageRow {
   createdAt: Date;
 }
 
+/** Ligne d'un `SELECT COUNT(*)::int AS count`. */
+interface CountRow {
+  count: number;
+}
+
+/** Ligne de la synthèse `pg_database_size` / `pg_stat_activity`. */
+interface DatabaseStatsRow {
+  sizeBytes: string;
+  connections: number;
+}
+
+export interface RecentUserRow {
+  id: string;
+  email: string;
+  displayName: string;
+  emailVerified: boolean;
+  createdAt: Date;
+}
+
+export interface RecentFlowerRow {
+  id: string;
+  species: string | null;
+  visibility: string;
+  createdAt: Date;
+  needsIdentification: boolean;
+  ownerName: string;
+}
+
+export interface ClientLogRow {
+  id: string;
+  appVersion: string;
+  versionCode: number;
+  deviceModel: string;
+  androidVersion: string;
+  locale: string;
+  syncStatus: string | null;
+  syncError: string | null;
+  message: string | null;
+  logs: string;
+  createdAt: Date;
+  userId: string;
+  displayName: string;
+  email: string;
+}
+
 @Injectable()
 export class AdminService {
   constructor(
@@ -43,28 +88,41 @@ export class AdminService {
     private readonly storage: StorageService,
   ) {}
 
+  /**
+   * `DataSource.query` est typé `Promise<any>` : ce passage-plat rétablit un
+   * type de ligne explicite au lieu de propager `any` dans tout le service.
+   * Le type demandé n'est PAS vérifié à l'exécution — il doit rester aligné
+   * sur les alias du SELECT.
+   */
+  private async rows<T>(sql: string, parameters?: unknown[]): Promise<T[]> {
+    // Étape par `unknown` : sans elle, le `any` de `query` se propagerait au
+    // retour et l'assertion serait considérée comme sans effet.
+    const result: unknown = await this.dataSource.query(sql, parameters);
+    return result as T[];
+  }
+
   async overview() {
     const tableEntries = await Promise.all(
       MONITORED_TABLES.map(async (table) => {
         // Les identifiants viennent exclusivement de la constante ci-dessus.
-        const [row] = await this.dataSource.query(
+        const [row] = await this.rows<CountRow>(
           `SELECT COUNT(*)::int AS count FROM "${table}"`,
         );
         return [table, Number(row.count)] as const;
       }),
     );
-    const [database] = await this.dataSource.query(`
+    const [database] = await this.rows<DatabaseStatsRow>(`
       SELECT
         pg_database_size(current_database())::bigint AS "sizeBytes",
         (SELECT COUNT(*)::int FROM pg_stat_activity
           WHERE datname = current_database()) AS "connections"
     `);
-    const recentUsers = await this.dataSource.query(`
+    const recentUsers = await this.rows<RecentUserRow>(`
       SELECT id, email, display_name AS "displayName",
         email_verified AS "emailVerified", created_at AS "createdAt"
       FROM users ORDER BY created_at DESC LIMIT 10
     `);
-    const recentFlowers = await this.dataSource.query(`
+    const recentFlowers = await this.rows<RecentFlowerRow>(`
       SELECT f.id, f.species, f.visibility, f.created_at AS "createdAt",
         f.needs_identification AS "needsIdentification",
         u.display_name AS "ownerName"
@@ -124,10 +182,10 @@ export class AdminService {
         CASE kind WHEN 'flower' THEN 0 WHEN 'photo' THEN 1 ELSE 2 END,
         "createdAt" DESC
     `;
-    const [countRow] = await this.dataSource.query(
+    const [countRow] = await this.rows<CountRow>(
       `SELECT COUNT(*)::int AS count FROM (${imageUnion}) images`,
     );
-    const rows: ImageRow[] = await this.dataSource.query(
+    const rows = await this.rows<ImageRow>(
       `SELECT * FROM (${imageUnion}) images
        ORDER BY "createdAt" DESC LIMIT $1 OFFSET $2`,
       [pageSize, offset],
@@ -153,15 +211,15 @@ export class AdminService {
     const page = Math.max(1, requestedPage || 1);
     const pageSize = Math.min(50, Math.max(1, requestedPageSize || 12));
     const offset = (page - 1) * pageSize;
-    const [countRow] = await this.dataSource.query(
+    const [countRow] = await this.rows<CountRow>(
       'SELECT COUNT(*)::int AS count FROM client_logs',
     );
-    const items = await this.dataSource.query(
+    const items = await this.rows<ClientLogRow>(
       `SELECT l.id, l.app_version AS "appVersion",
         l.version_code AS "versionCode", l.device_model AS "deviceModel",
         l.android_version AS "androidVersion", l.locale,
         l.sync_status AS "syncStatus", l.sync_error AS "syncError",
-        l.logs, l.created_at AS "createdAt",
+        l.message, l.logs, l.created_at AS "createdAt",
         u.id AS "userId", u.display_name AS "displayName", u.email
        FROM client_logs l
        JOIN users u ON u.id = l.user_id

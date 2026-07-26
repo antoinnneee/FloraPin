@@ -6,6 +6,7 @@ import { FlowerPhoto } from '../flowers/flower-photo.entity';
 import { FlowersService } from '../flowers/flowers.service';
 import { FlowerLike } from '../likes/flower-like.entity';
 import { FlowerComment } from '../comments/flower-comment.entity';
+import { SpeciesService } from '../species/species.service';
 import { StorageService } from '../storage/storage.service';
 import { StubStorageService } from '../storage/stub-storage.service';
 import { SyncService } from './sync.service';
@@ -103,6 +104,12 @@ describe('SyncService', () => {
           },
         },
         { provide: StorageService, useClass: StubStorageService },
+        // FlowersService résout l'espèce au référentiel à l'écriture ; ces
+        // suites ne testent pas ce rattachement, un double inerte suffit.
+        {
+          provide: SpeciesService,
+          useValue: { resolveOrCreateByName: async () => null },
+        },
       ],
     }).compile();
     sync = moduleRef.get(SyncService);

@@ -584,7 +584,7 @@ private fun ConfigurationTab(
     state: ProfileUiState,
     onExport: (Uri) -> Unit,
     onImport: (Uri) -> Unit,
-    onSendDiagnostics: () -> Unit,
+    onSendDiagnostics: (String) -> Unit,
     onChangePassword: () -> Unit,
     onLogout: () -> Unit,
     onDeleteAccount: () -> Unit,
@@ -680,8 +680,10 @@ private fun DiagnosticsSection(
     sending: Boolean,
     message: String?,
     failed: Boolean,
-    onSend: () -> Unit,
+    onSend: (String) -> Unit,
 ) {
+    var userMessage by rememberSaveable { mutableStateOf("") }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -694,8 +696,21 @@ private fun DiagnosticsSection(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            OutlinedTextField(
+                value = userMessage,
+                onValueChange = { if (it.length <= MAX_DIAGNOSTICS_MESSAGE_CHARS) userMessage = it },
+                label = { Text("Votre message (facultatif)") },
+                placeholder = { Text("Décrivez le problème rencontré…") },
+                supportingText = {
+                    Text("${userMessage.length} / $MAX_DIAGNOSTICS_MESSAGE_CHARS")
+                },
+                minLines = 3,
+                maxLines = 5,
+                enabled = !sending,
+                modifier = Modifier.fillMaxWidth(),
+            )
             Button(
-                onClick = onSend,
+                onClick = { onSend(userMessage) },
                 enabled = !sending,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -715,6 +730,8 @@ private fun DiagnosticsSection(
         }
     }
 }
+
+private const val MAX_DIAGNOSTICS_MESSAGE_CHARS = 2_000
 
 /**
  * Section de vérification d'email (NODE-117), affichée tant que l'adresse n'est

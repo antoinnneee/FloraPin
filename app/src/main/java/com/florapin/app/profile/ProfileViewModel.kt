@@ -373,7 +373,7 @@ class ProfileViewModel(
     }
 
     /** Collecte les journaux récents du seul processus FloraPin et les envoie au serveur. */
-    fun sendDiagnostics() {
+    fun sendDiagnostics(message: String) {
         if (_state.value.diagnosticsSending) return
         _state.update {
             it.copy(
@@ -384,7 +384,7 @@ class ProfileViewModel(
         }
         viewModelScope.launch {
             try {
-                diagnostics.send()
+                diagnostics.send(message.trim().takeIf { it.isNotEmpty() })
                 _state.update {
                     it.copy(
                         diagnosticsSending = false,

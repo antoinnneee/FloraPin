@@ -46,7 +46,19 @@ object ImageStore {
     private val inFlight = mutableMapOf<String, Mutex>()
     private val inFlightLock = Any()
 
-    private val client: OkHttpClient get() = DesktopNetwork.httpClient
+    /**
+     * Client sans authentification : les URLs de photos sont présignées et
+     * le stockage refuse une requête qui porte en plus un en-tête
+     * `Authorization` (voir [DesktopNetwork.contentClient]).
+     */
+    private val client: OkHttpClient get() = DesktopNetwork.contentClient
+
+    /**
+     * Dossier du cache disque. Variable — et non constante tirée de
+     * [DesktopConfig] — pour qu'un test puisse l'isoler dans un répertoire
+     * temporaire au lieu d'écrire dans le profil de l'utilisateur.
+     */
+    internal var cacheDir: File = DesktopConfig.imageCacheDir
 
     /** Bitmap prêt à afficher, depuis la mémoire, le disque, puis le réseau. */
     suspend fun load(url: String): ImageBitmap? {
@@ -65,7 +77,7 @@ object ImageStore {
      */
     suspend fun fetch(url: String): File? {
         val key = cacheKey(url)
-        val file = File(DesktopConfig.imageCacheDir, key)
+        val file = File(cacheDir, key)
         if (file.isFile && file.length() > 0) return file
 
         val mutex = synchronized(inFlightLock) { inFlight.getOrPut(key) { Mutex() } }
@@ -136,7 +148,7 @@ object ImageStore {
     /** Purge les fichiers les plus anciens quand le cache dépasse son budget. */
     private fun trimDiskCache() {
         runCatching {
-            val files = DesktopConfig.imageCacheDir.listFiles()?.filter { it.isFile } ?: return
+            val files = cacheDir.listFiles()?.filter { it.isFile } ?: return
             var total = files.sumOf { it.length() }
             if (total <= DISK_BUDGET_BYTES) return
             files.sortedBy { it.lastModified() }.forEach { file ->
@@ -149,7 +161,7 @@ object ImageStore {
 
     /** Vide le cache disque (écran de réglages). Renvoie les octets libérés. */
     fun clearDiskCache(): Long {
-        val files = DesktopConfig.imageCacheDir.listFiles()?.filter { it.isFile } ?: return 0
+        val files = cacheDir.listFiles()?.filter { it.isFile } ?: return 0
         val freed = files.sumOf { it.length() }
         files.forEach { it.delete() }
         synchronized(memoryLock) {
@@ -161,5 +173,5 @@ object ImageStore {
 
     /** Poids actuel du cache disque, affiché dans les réglages. */
     fun diskCacheBytes(): Long =
-        DesktopConfig.imageCacheDir.listFiles()?.filter { it.isFile }?.sumOf { it.length() } ?: 0
+        cacheDir.listFiles()?.filter { it.isFile }?.sumOf { it.length() } ?: 0
 }

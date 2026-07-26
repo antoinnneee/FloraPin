@@ -17,6 +17,124 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+- **Message facultatif joint aux journaux d'assistance.** Le formulaire de
+  Profil › Configuration accepte désormais une description libre du problème
+  (2 000 caractères maximum), transmise avec le rapport technique, stockée dans
+  `client_logs` et affichée dans la console de supervision.
+
+### Corrigé
+- **La ligne d'espèce de la fiche détail ne comprime plus son libellé en une
+  colonne.** Le nom occupe désormais la largeur restante, revient d'abord à la
+  ligne aux espaces puis, pour un mot trop long, à la lettre, avec une limite de
+  quatre lignes et une ellipse au-delà.
+- **L'action de demande d'identification est de nouveau visible au premier
+  regard.** Pour une fleur sans espèce, elle remplace directement le nom dans
+  l'en-tête de la fiche. Les mentions d'état redondantes sous le titre
+  (« À identifier », « Identification confirmée » ou « Espèce renseignée »)
+  sont supprimées, ainsi que la valeur « À identifier » dans l'aperçu.
+
+### Sécurité
+- **Backend : `sharp` 0.33.5 → 0.35.3 (libvips 8.15.3 → 8.18.3).** Corrige
+  `GHSA-f88m-g3jw-g9cj` (CVE-2026-33327, -33328, -35590, -35591), dont deux en gravité
+  haute. Exposition mesurée avant correction : les formats visés sont GIF/TIFF/VIPS et la
+  liste blanche de `encodeWebp` (jpeg, png, webp, heif) les rejetait avant tout décodage de
+  pixels — mais le loader restait sollicité pour lire l'en-tête (`sharp(gif).metadata()`
+  renvoie bien `format = 'gif'`), sur les cinq points d'entrée d'upload. Aucune API utilisée
+  ici ne change entre 0.33 et 0.35.
+- **Autres dépendances vulnérables montées** : `typeorm` 0.3.30 → 0.3.31
+  (`GHSA-2rp8-mm9q-fp49`, qui ne concernait pas ce projet — il n'utilise pas
+  `migration:generate`), `fast-xml-parser` 5.9.3 → 5.10.1, `protobufjs` 7.6.4 → 7.6.5,
+  `brace-expansion` (copies de premier niveau). Subsiste `brace-expansion` 2.1.2 imbriqué
+  sous `glob/`, laissé en l'état : la 5.x exporte un objet là où la 2.x exportait la
+  fonction, donc un override casserait `minimatch` → `glob` → `rimraf` → firebase-admin, et
+  le seul correctif automatique proposé est `typeorm@1.1.0` (majeur). Faille non atteignable
+  ici : aucun pattern glob ne provient d'un utilisateur de l'API. Détail dans
+  `docs/CODE-REVIEW-2026-07-26.md`.
+
+### Modifié
+- **La fiche détail abandonne son mode d'édition global au profit d'actions
+  ciblées.** Un crayon dans l'en-tête ouvre l'édition du nom d'espèce avec
+  l'autocomplétion existante ; la ligne Photos ouvre sa gestion dédiée et les
+  propositions d'identification restent accessibles dans l'aperçu.
+- **Le champ de notes unique devient un carnet de notes multiples.** L'onglet
+  Notes permet de créer, modifier et supprimer chaque entrée séparément. Le
+  stockage textuel reste compatible avec les sauvegardes et la synchronisation
+  existantes grâce à un séparateur lisible, et une ancienne note est reprise
+  automatiquement comme première entrée. Trois tests unitaires couvrent la
+  compatibilité, les paragraphes et l'exclusion des entrées vides.
+- **Passage à Android 16 (API 36).** `compileSdk`/`targetSdk` montent de 35 à 36,
+  palier exigé par le Play Store à partir du 31/08/2026. Chaîne d'outils alignée :
+  AGP 8.7.3 → 8.11.1 (premier palier supportant officiellement `compileSdk 36`) et
+  Gradle 8.11.1 → 8.13 (minimum requis par cet AGP). Aucun changement de
+  comportement du palier ne s'applique : l'app était déjà edge-to-edge
+  (`enableEdgeToEdge` + insets gérés écran par écran) et ne déclare ni contrainte
+  d'orientation/redimensionnement ni service au premier plan. Vérifié :
+  342 tests unitaires verts, lint sans erreur, APK et tests instrumentés assemblés,
+  `targetSdkVersion:'36'` confirmé dans l'APK produit.
+
+### Ajouté
+- **Détection belge et nouvelle section de badges « Pays ».**
+  `RegionResolver` fusionne désormais les 18 régions françaises avec les
+  géométries 2025 simplifiées d'AdminVector NGI-IGN pour la Région flamande, la
+  Région wallonne et la Région de Bruxelles-Capitale. Chaque région porte son
+  code pays (`FR`/`BE`). La grille sépare désormais « Collection », « Pays » et
+  « Entraide » : l'ancien badge `explorateur` devient « France » sans perdre les
+  paliers déjà persistés, « Belgique » se débloque à la première observation
+  belge, et le nouvel `explorateur_regions` compte les régions distinctes de tous
+  les pays aux seuils 1/5/10/15/20. Le repli de nom de lieu hors ligne bénéficie
+  également de cette couverture. Les tests valident le chargement des 21 régions,
+  trois villes représentatives, la séparation France/Belgique et l'agrégation
+  multinationale de l'Explorateur.
+- **Lint du backend opérationnel.** Le script `npm run lint` appelait `eslint`, qui
+  n'était ni dans les `devDependencies` ni dans le `package-lock.json` — et la CI ne
+  l'appelait jamais, d'où l'absence de symptôme. Ajout d'ESLint 9 en flat config
+  (`backend/eslint.config.mjs`) avec `typescript-eslint` type-aware, **sans Prettier**
+  (un formateur aurait réécrit tout le code existant). Le lint tourne désormais dans le
+  job backend de la CI, entre `npm ci` et `npm run build`. État : **0 erreur,
+  0 avertissement** (le premier passage en comptait 18 et 93).
+- **Typage du code backend renforcé** en traitant ces avertissements plutôt qu'en les
+  masquant : helper `AdminService.rows<T>()` qui redonne un type aux retours de
+  `DataSource.query` (typé `any` par TypeORM) avec les interfaces de lignes associées,
+  flux `listObjectsV2` du SDK MinIO typé via `ObjectListStream`,
+  `getRequest<{ user: AuthenticatedUser }>()` dans le décorateur `@CurrentUser`,
+  paramètre de `@Transform` typé dans `UpdateProfileDto`, 7 assertions de type inutiles
+  retirées, `jwt.decode<{exp:number}>()` au lieu d'un `as`, référence de méthode statique
+  remplacée par une lambda dans `species.service.ts`, seuil d'erreur serveur sorti de
+  l'énumération dans `all-exceptions.filter.ts`. Les règles « unsafe » passent en
+  **`error` sur `src/`** pour verrouiller l'acquis, et sont désactivées dans les fichiers
+  de test où Jest (`expect.objectContaining`) et supertest (`.body`) rendent `any` par
+  conception. `require-await` est désactivée : ses 7 occurrences étaient des pilotes de
+  repli honorant un contrat `Promise<T>`.
+- **Tests unitaires du module albums** (30 cas) : `AlbumsViewModelTest` (13) couvre
+  la création locale et collaborative (nettoyage du nom, `clientId` idempotent,
+  album rendu déjà synchronisé, échec réseau sans création locale), le renommage,
+  la suppression et le rattachement de fleurs en lot ; `AlbumCollaborationViewModelTest`
+  (17) couvre le chargement solo vs collaboratif, le filtrage des amis invitables,
+  `isOwner`, la préservation du nom local en attente de sync lors d'un réglage
+  serveur, et surtout les droits — `setMemberCanEdit` fusionne les entrées
+  existantes et force le régime `restricted`, un retrait est une entrée `false`
+  explicite, un album non synchronisé n'émet aucun appel.
+- Les trois ViewModels d'albums (`AlbumsViewModel`, `AlbumDetailViewModel`,
+  `AlbumCollaborationViewModel`) passent de `AndroidViewModel` à une injection par
+  constructeur + `companion object { fun factory(context) }`, conformément au
+  pattern déjà appliqué ailleurs (cf. `SharedFeedViewModel`) : c'est ce qui rend ces
+  tests possibles en JVM pur. `MemAlbumDao` (tests de `AlbumRepository`) devient
+  réutilisable et sert désormais aussi aux tests des ViewModels.
+- **Revue complète du projet** (`docs/CODE-REVIEW-2026-07-26.md`), référence
+  `main` @ `43764d3` / 1.23.0. Vérifie le traitement des 4 critiques et des 19
+  points importants de la revue du 2026-07-02 (tous corrigés sauf `bcryptjs` et
+  la doc API), et relève deux échéances : CVE libvips sur `sharp` < 0.35.0
+  (chemin des images utilisateur) et la deadline Play Store API 36.
+
+### Modifié
+- **En-têtes des onglets racine harmonisés.** Les titres « Partagées » et
+  « Albums » reprennent la couleur de marque de l'accueil. L'onglet
+  « Partagées » propose désormais les mêmes raccourcis vers la carte, les amis
+  et les notifications. Sur l'accueil, l'accès à la carte rejoint l'en-tête,
+  tandis que l'identification et son badge prennent place à droite de la barre
+  de recherche.
+
 ## [1.23.0] — 2026-07-25
 
 ### Modifié
@@ -1705,4 +1823,3 @@ synchronisation cloud optionnelle et partage entre amis.
 
 [Non publié]: https://github.com/antoinnneee/FloraPin/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/antoinnneee/FloraPin/releases/tag/v1.0.0
-

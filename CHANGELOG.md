@@ -29,6 +29,14 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   de développement.
 
 ### Modifié
+- **Maquettes « Détail » et « Partagées » de la vitrine refaites d'après le
+  design actuel.** Le détail adopte la galerie asymétrique (couverture large,
+  vignette et compteur « n photos »), le titre d'espèce en display avec son
+  compteur de réactions, les onglets Aperçu / Notes / Discussion, le bloc
+  « Lieu d'observation » (mini-carte, commune, coordonnées) et les lignes
+  Espèce / Ajoutée le / Photos. Le flux passe aux cartes à pied lilas —
+  auteur, commune, « Commenter (n) » — avec réactions en surimpression et le
+  filtre « Ma sélection ».
 - **Maquettes de la vitrine alignées sur la barre de navigation réelle.** Elles
   montraient cinq onglets dont « Carte » ; l'app en compte quatre depuis que la
   prise de photo est devenue l'action centrale et que la carte est un écran

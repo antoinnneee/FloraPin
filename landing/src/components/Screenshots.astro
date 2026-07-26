@@ -89,62 +89,68 @@ const clusterPetals = Array.from({ length: 12 }, (_, i) => i * 30);
             <div class="topbar">
               <span class="back">←</span>
               <span class="title">Détail</span>
-              <span class="acts">📤 ⋮</span>
+              <span class="acts">🗒 ⤴ ⋯</span>
             </div>
 
             <div class="detail">
-              <img class="hero-photo" src="/img/flower-detail.webp" alt="" width="480" height="640" loading="lazy" decoding="async" />
-
-              <div class="thumbs">
-                <span class="thumbs-label">Photos (3)</span>
-                <span class="thumbs-add">➕ Ajouter</span>
-              </div>
-              <div class="thumb-row">
-                <img src="/img/flower-detail.webp" alt="" width="480" height="640" loading="lazy" decoding="async" />
-                <img src="/img/flower-anemone.webp" alt="" width="480" height="480" loading="lazy" decoding="async" />
-                <img src="/img/flower-orchid.webp" alt="" width="480" height="480" loading="lazy" decoding="async" />
+              <!-- Galerie asymétrique : la couverture domine, les autres photos
+                   s'empilent à droite sous un compteur cliquable. -->
+              <div class="photostrip">
+                <img class="g-main" src="/img/flower-detail.webp" alt="" width="480" height="640" loading="lazy" decoding="async" />
+                <img class="g-side" src="/img/flower-anemone.webp" alt="" width="480" height="480" loading="lazy" decoding="async" />
+                <span class="g-more"><b>📷</b>2 photos</span>
               </div>
 
-              <div class="row">
-                <span class="date">12 mai 2026</span>
-                <span class="like">❤️ 12</span>
+              <div class="idline">
+                <span class="sp-name">Pétunias</span>
+                <span class="sp-edit">✎</span>
+                <span class="hearts">❤️ 5</span>
               </div>
 
-              <p class="coords">📍 45.7640, 4.8357</p>
-
-              <div class="minimap">
-                <svg viewBox="0 0 200 90" preserveAspectRatio="none">
-                  <rect width="200" height="90" fill="#d5e8dc" />
-                  <g stroke="#c0d5c6" stroke-width="2" fill="none">
-                    <path d="M-5 30 C 40 18, 70 46, 205 26" />
-                    <path d="M-5 66 C 60 52, 110 78, 205 58" />
-                    <path d="M70 -5 L82 95" />
-                  </g>
-                </svg>
-                <span class="minimap-pin">🌸</span>
+              <div class="tabs">
+                <span class="tab on">Aperçu</span>
+                <span class="tab">Notes</span>
+                <span class="tab">Discussion</span>
               </div>
 
-              <div class="field">
-                <span class="field-label">Espèce</span>
-                <span class="field-value">Myosotis sylvatica</span>
-              </div>
-              <p class="species-link">🌿 Voir la fiche : Myosotis des bois</p>
-
-              <div class="comment">
-                <span class="avatar">M</span>
-                <div>
-                  <p class="comment-author">Marion</p>
-                  <p class="comment-text">Le bleu est superbe à cette saison !</p>
+              <p class="sec-title">Lieu d'observation</p>
+              <div class="place">
+                <div class="minimap">
+                  <svg viewBox="0 0 200 90" preserveAspectRatio="none">
+                    <rect width="200" height="90" fill="#e3ecdb" />
+                    <g stroke="#ffffff" stroke-width="7" fill="none" stroke-linecap="round">
+                      <path d="M-5 34 C 40 22, 70 50, 205 30" />
+                      <path d="M62 -5 L74 95" />
+                    </g>
+                    <g stroke="#c9d8bd" stroke-width="2.5" fill="none">
+                      <path d="M-5 66 C 60 52, 110 78, 205 58" />
+                    </g>
+                  </svg>
+                  <span class="minimap-pin">📍</span>
+                </div>
+                <div class="place-info">
+                  <p class="place-name">Cendras</p>
+                  <p class="place-coords">44,1550, 4,0537</p>
+                  <p class="place-link">Ouvrir la carte ›</p>
                 </div>
               </div>
-              <div class="comment">
-                <span class="avatar leo">L</span>
-                <div>
-                  <p class="comment-author">Léo</p>
-                  <p class="comment-text">Confirmé, c'est bien un myosotis des bois.</p>
-                </div>
+
+              <div class="inforow">
+                <span class="ico">🌼</span>
+                <span class="lbl">Espèce</span>
+                <span class="val">Pétunias</span>
+                <span class="chev">›</span>
               </div>
-              <p class="comment-input">Écrire un commentaire…</p>
+              <div class="inforow">
+                <span class="ico">📅</span>
+                <span class="lbl">Ajoutée le</span>
+                <span class="val">27 juin 2026</span>
+              </div>
+              <div class="inforow">
+                <span class="ico">📷</span>
+                <span class="lbl">Photos</span>
+                <span class="val">2</span>
+              </div>
             </div>
           </div>
           <PhoneNav active="home" />
@@ -159,12 +165,41 @@ const clusterPetals = Array.from({ length: 12 }, (_, i) => i * 30);
             <div class="statusbar"><span>9:41</span><span>▮▮▮</span></div>
             <div class="topbar">
               <span class="title">Partagées</span>
-              <span class="bell">🔔<i class="badge">3</i></span>
+              <span class="bell">🔔<i class="badge">6</i></span>
             </div>
 
             <div class="chips">
               <span class="chip on">Récentes</span>
               <span class="chip">Meilleures photos</span>
+              <span class="chip">★ Ma sélection</span>
+            </div>
+
+            <div class="masonry">
+              <article class="post">
+                <div class="post-photo">
+                  <img src="/img/flower-anemone.webp" alt="" width="480" height="480" loading="lazy" decoding="async" />
+                  <span class="ov">🤍</span>
+                  <span class="ov star">☆</span>
+                </div>
+                <div class="post-body">
+                  <p class="by">Skaynis</p>
+                  <p class="loc">📍 Bagneux</p>
+                  <p class="cmt">💬 Commenter (1)</p>
+                </div>
+              </article>
+
+              <article class="post">
+                <div class="post-photo">
+                  <img src="/img/flower-poppy.webp" alt="" width="480" height="480" loading="lazy" decoding="async" />
+                  <span class="ov">🤍</span>
+                  <span class="ov star">☆</span>
+                </div>
+                <div class="post-body">
+                  <p class="by">Mandy Jouanne</p>
+                  <p class="loc">📍 Bagneux</p>
+                  <p class="cmt">💬 Commenter (0)</p>
+                </div>
+              </article>
             </div>
 
             <p class="feed-sep"><span>Nouveau depuis votre dernière visite</span></p>
@@ -172,49 +207,29 @@ const clusterPetals = Array.from({ length: 12 }, (_, i) => i * 30);
             <div class="masonry">
               <article class="post">
                 <div class="post-photo">
-                  <img src="/img/flower-anemone.webp" alt="" width="480" height="480" loading="lazy" decoding="async" />
-                  <span class="post-like">🤍</span>
-                </div>
-                <div class="post-body">
-                  <p class="by">Partagée par Marion</p>
-                  <p class="sp">🌿 Anemone nemorosa</p>
-                  <p class="loc">📍 45.764, 4.835</p>
-                </div>
-              </article>
-
-              <article class="post">
-                <div class="post-photo">
-                  <img src="/img/flower-poppy.webp" alt="" width="480" height="480" loading="lazy" decoding="async" />
-                  <span class="post-like liked">❤️</span>
-                </div>
-                <div class="post-body">
-                  <p class="by">Partagée par Léo</p>
-                  <p class="sp">🌿 Papaver rhoeas</p>
-                  <p class="loc">📍 Position non partagée</p>
-                </div>
-              </article>
-
-              <article class="post">
-                <div class="post-photo">
                   <img src="/img/flower-orchid.webp" alt="" width="480" height="480" loading="lazy" decoding="async" />
-                  <span class="post-like">🤍</span>
+                  <span class="ov liked">❤️</span>
+                  <span class="ov star">☆</span>
+                  <span class="count">1 / 3</span>
+                  <span class="post-caption">Epipactis hell…</span>
                 </div>
                 <div class="post-body">
-                  <p class="by">Partagée par Sam</p>
-                  <p class="sp">🌿 À identifier</p>
-                  <p class="loc">📍 44.837, 0.579</p>
+                  <p class="by">Véronique</p>
+                  <p class="loc">📍 Uzech</p>
+                  <p class="cmt">💬 Commenter (0)</p>
                 </div>
               </article>
 
               <article class="post">
                 <div class="post-photo">
                   <img src="/img/flower-detail.webp" alt="" width="480" height="640" loading="lazy" decoding="async" />
-                  <span class="post-like liked">❤️</span>
+                  <span class="ov">🤍</span>
+                  <span class="ov star">☆</span>
                 </div>
                 <div class="post-body">
-                  <p class="by">Partagée par Marion</p>
-                  <p class="sp">🌿 Myosotis sylvatica</p>
-                  <p class="loc">📍 45.764, 4.835</p>
+                  <p class="by">Véronique</p>
+                  <p class="loc">📍 Yport</p>
+                  <p class="cmt">💬 Commenter (0)</p>
                 </div>
               </article>
 
@@ -222,13 +237,29 @@ const clusterPetals = Array.from({ length: 12 }, (_, i) => i * 30);
               <article class="post">
                 <div class="post-photo">
                   <img src="/img/flower-poppy.webp" alt="" width="480" height="480" loading="lazy" decoding="async" />
-                  <span class="post-like">🤍</span>
+                  <span class="ov liked">❤️</span>
+                  <span class="ov star">☆</span>
                 </div>
               </article>
               <article class="post">
                 <div class="post-photo">
                   <img src="/img/flower-anemone.webp" alt="" width="480" height="480" loading="lazy" decoding="async" />
-                  <span class="post-like">🤍</span>
+                  <span class="ov liked">❤️</span>
+                  <span class="ov star">☆</span>
+                </div>
+              </article>
+              <article class="post">
+                <div class="post-photo">
+                  <img src="/img/flower-detail.webp" alt="" width="480" height="640" loading="lazy" decoding="async" />
+                  <span class="ov">🤍</span>
+                  <span class="ov star">☆</span>
+                </div>
+              </article>
+              <article class="post">
+                <div class="post-photo">
+                  <img src="/img/flower-orchid.webp" alt="" width="480" height="480" loading="lazy" decoding="async" />
+                  <span class="ov">🤍</span>
+                  <span class="ov star">☆</span>
                 </div>
               </article>
             </div>
@@ -451,166 +482,197 @@ const clusterPetals = Array.from({ length: 12 }, (_, i) => i * 30);
 
   .detail {
     flex: 1;
-    min-height: 0;
     overflow: hidden;
-    padding: 0 0.9em 0.6em;
+    padding: 0 0.75em 0.6em;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55em;
   }
 
-  .hero-photo {
+  /* Couverture large à gauche, pile de vignettes à droite. */
+  .photostrip {
+    display: grid;
+    grid-template-columns: 1.85fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 0.4em;
+  }
+
+  .g-main {
+    grid-row: 1 / span 2;
     width: 100%;
-    height: 13.5em;
+    height: 100%;
+    max-height: 11.6em;
     object-fit: cover;
     border-radius: 0.7em;
   }
 
-  .thumbs {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 0.6em;
-  }
-
-  .thumbs-label {
-    font-size: 0.78em;
-    font-weight: 700;
-  }
-
-  .thumbs-add {
-    font-size: 0.66em;
-    font-weight: 700;
-    color: #386a53;
-  }
-
-  .thumb-row {
-    display: flex;
-    gap: 0.4em;
-    margin-top: 0.4em;
-  }
-
-  .thumb-row img {
-    width: 3.3em;
-    height: 3.3em;
+  .g-side {
+    width: 100%;
+    height: 5.6em;
     object-fit: cover;
-    border-radius: 0.35em;
+    border-radius: 0.7em;
   }
 
-  .row {
+  /* Tuile « n photos » : l'app y regroupe le reste de la galerie. */
+  .g-more {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15em;
+    height: 5.6em;
+    border-radius: 0.7em;
+    background: #e4efe6;
+    color: #2c5f45;
+    font-size: 0.62em;
+    font-weight: 700;
+  }
+
+  .g-more b {
+    font-size: 1.5em;
+    line-height: 1;
+  }
+
+  .idline {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin: 0.7em 0 0.35em;
+    gap: 0.4em;
   }
 
-  .date {
-    font-size: 0.9em;
+  .sp-name {
+    font-family: var(--font-display);
+    font-size: 1.32em;
+    font-weight: 700;
+    color: #2c5f45;
+    line-height: 1.1;
+  }
+
+  .sp-edit {
+    color: #6f9478;
+    font-size: 0.85em;
+  }
+
+  .hearts {
+    margin-left: auto;
+    background: #f1f4ef;
+    border-radius: 999px;
+    padding: 0.2em 0.6em;
+    font-size: 0.68em;
+    font-weight: 700;
+    color: #26382d;
+  }
+
+  /* Onglets segmentés : Aperçu / Notes / Discussion. */
+  .tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    background: #f1f4ef;
+    border-radius: 999px;
+    padding: 0.18em;
+  }
+
+  .tab {
+    text-align: center;
+    font-size: 0.66em;
+    padding: 0.42em 0;
+    border-radius: 999px;
+    color: #4d6455;
+  }
+
+  .tab.on {
+    background: #cfe6d8;
+    color: #1f4433;
     font-weight: 700;
   }
 
-  .like {
-    padding: 0.25em 0.65em;
-    border-radius: 1.3em;
-    background: #ffd9e2;
-    font-size: 0.72em;
+  .sec-title {
+    font-family: var(--font-display);
+    font-size: 0.92em;
     font-weight: 700;
-    color: #7d5260;
+    color: #2c5f45;
+    margin: 0.15em 0 0;
   }
 
-  .coords {
-    font-size: 0.72em;
-    color: #404943;
+  .place {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 0.6em;
+    align-items: center;
   }
 
   .minimap {
     position: relative;
-    margin: 0.6em 0;
-    border-radius: 0.7em;
+    border-radius: 0.6em;
     overflow: hidden;
-    height: 5.8em;
+    height: 5em;
   }
 
   .minimap svg {
     width: 100%;
     height: 100%;
+    display: block;
   }
 
   .minimap-pin {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -55%);
-    font-size: 1.2em;
-    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
-  }
-
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.1em;
-    padding: 0.45em 0.7em;
-    border: 1px solid #707972;
-    border-radius: 0.45em;
-  }
-
-  .field-label {
-    font-size: 0.62em;
-    color: #386a53;
-  }
-
-  .field-value {
+    top: 38%;
+    left: 46%;
     font-size: 0.85em;
   }
 
-  .species-link {
-    margin-top: 0.6em;
-    font-size: 0.75em;
+  .place-name {
+    margin: 0;
+    font-size: 0.86em;
     font-weight: 700;
-    color: #386a53;
+    color: #26382d;
   }
 
-  .comment {
+  .place-coords {
+    margin: 0.1em 0 0;
+    font-size: 0.62em;
+    color: #5a6c5f;
+  }
+
+  .place-link {
+    margin: 0.25em 0 0;
+    font-size: 0.66em;
+    font-weight: 700;
+    color: #2c5f45;
+  }
+
+  /* Lignes d'information : pastille ronde + libellé + valeur. */
+  .inforow {
     display: flex;
     align-items: center;
-    gap: 0.5em;
-    margin-top: 0.8em;
-    padding-top: 0.7em;
-    border-top: 1px solid #dce5dd;
+    gap: 0.55em;
+    border-top: 1px solid #e7ece5;
+    padding-top: 0.5em;
   }
 
-  .avatar {
+  .ico {
     display: grid;
     place-items: center;
-    flex: none;
     width: 1.9em;
     height: 1.9em;
     border-radius: 50%;
-    background: #ffd9e2;
-    color: #7d5260;
+    background: #e4efe6;
+    font-size: 0.66em;
+  }
+
+  .lbl {
+    font-size: 0.74em;
+    color: #26382d;
+  }
+
+  .val {
+    margin-left: auto;
+    font-size: 0.72em;
+    color: #5a6c5f;
+  }
+
+  .chev {
+    color: #9aa89d;
     font-size: 0.8em;
-    font-weight: 700;
-  }
-
-  .comment-author {
-    font-size: 0.68em;
-    font-weight: 700;
-  }
-
-  .comment-text {
-    font-size: 0.68em;
-    color: #404943;
-  }
-
-  .avatar.leo {
-    background: #d5e8dc;
-    color: #386a53;
-  }
-
-  .comment-input {
-    margin-top: 0.8em;
-    padding: 0.5em 0.8em;
-    border: 1px solid #c0c9c0;
-    border-radius: 1.4em;
-    font-size: 0.7em;
-    color: #707972;
   }
 
   /* ————— Flux ————— */
@@ -619,9 +681,10 @@ const clusterPetals = Array.from({ length: 12 }, (_, i) => i * 30);
     display: flex;
     align-items: center;
     gap: 0.5em;
-    padding: 0 0.9em 0.6em;
-    font-size: 0.65em;
-    color: #386a53;
+    margin: 0.5em 0.75em 0.35em;
+    font-size: 0.6em;
+    color: #4d6455;
+    white-space: nowrap;
   }
 
   .feed-sep::before,
@@ -629,65 +692,103 @@ const clusterPetals = Array.from({ length: 12 }, (_, i) => i * 30);
     content: '';
     flex: 1;
     height: 1px;
-    background: #c0d5c6;
+    background: #dce5dd;
   }
 
   .masonry {
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    align-content: start;
-    gap: 0.6em;
-    padding: 0 0.9em;
+    gap: 0.5em;
+    padding: 0 0.75em;
   }
 
   .post {
-    background: #fff;
-    border: 1px solid #dce5dd;
-    border-radius: 0.75em;
+    border-radius: 0.8em;
     overflow: hidden;
+    background: #ffffff;
   }
 
   .post-photo {
     position: relative;
-    aspect-ratio: 1;
   }
 
   .post-photo img {
     width: 100%;
-    height: 100%;
+    height: 6.2em;
     object-fit: cover;
+    display: block;
   }
 
-  .post-like {
+  /* Réactions posées sur la photo, dans des pastilles translucides. */
+  .ov {
     position: absolute;
-    right: 0.35em;
-    bottom: 0.35em;
+    top: 0.35em;
+    left: 50%;
+    transform: translateX(-130%);
     display: grid;
     place-items: center;
     width: 1.8em;
     height: 1.8em;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.86);
-    font-size: 0.7em;
+    background: rgba(30, 44, 34, 0.28);
+    font-size: 0.62em;
   }
 
+  .ov.star {
+    transform: translateX(30%);
+    color: #ffffff;
+  }
+
+  .count {
+    position: absolute;
+    top: 0.5em;
+    right: 0.5em;
+    font-size: 0.52em;
+    color: #ffffff;
+    background: rgba(30, 44, 34, 0.35);
+    border-radius: 999px;
+    padding: 0.1em 0.4em;
+  }
+
+  .post-caption {
+    position: absolute;
+    left: 0.5em;
+    bottom: 0.4em;
+    right: 0.5em;
+    font-size: 0.62em;
+    font-weight: 700;
+    color: #ffffff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Pied de carte lilas : la teinte qui distingue le flux d'amis. */
   .post-body {
-    padding: 0.5em 0.55em 0.6em;
+    background: #e9e2f0;
+    padding: 0.45em 0.5em 0.55em;
+    text-align: center;
   }
 
-  .by {
+  .post-body .by {
+    margin: 0;
     font-size: 0.68em;
     font-weight: 700;
-    color: #386a53;
+    color: #2c5f45;
   }
 
-  .sp,
-  .loc {
-    font-size: 0.62em;
-    color: #404943;
+  .post-body .loc {
+    margin: 0.2em 0 0;
+    font-size: 0.6em;
+    color: #26382d;
+  }
+
+  .post-body .cmt {
+    margin: 0.25em 0 0;
+    font-size: 0.6em;
+    font-weight: 700;
+    color: #2c5f45;
   }
 
   /* ————— Responsive ————— */

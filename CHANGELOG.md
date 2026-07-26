@@ -17,6 +17,19 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Corrigé
+- **Les photos ne s'affichaient pas dans le compagnon Windows.** Leur téléchargement
+  empruntait le client HTTP de l'API, qui appose un en-tête `Authorization:
+  Bearer`. Or ces URLs sont présignées (`AWS4-HMAC-SHA256`) : le stockage
+  répondait `400 InvalidRequest — request has multiple authentication types`
+  et aucune image n'arrivait. Un second client, sans authentification, sert
+  désormais les contenus signés (photos et tuiles de carte) ; il dérive du
+  premier, donc pool de connexions et dispatcher restent partagés. Le jeton
+  de session n'est plus transmis au stockage, qui n'en a pas l'usage. Le
+  défaut échappait aux tests, un serveur de bouchon ignorant l'en-tête
+  surnuméraire : `DesktopNetworkTest` emprunte maintenant le vrai chemin de
+  téléchargement.
+
 ## [1.24.0] — 2026-07-26
 
 ### Ajouté

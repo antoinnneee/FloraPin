@@ -20,6 +20,7 @@ import com.florapin.app.network.auth.TokenAuthenticator
 import com.florapin.app.network.auth.TokenStore
 import com.squareup.moshi.Moshi
 import java.time.Duration
+import okhttp3.Authenticator
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
@@ -56,12 +57,30 @@ class CompanionApis(
 object DesktopNetwork {
 
     /**
-     * Client partagé par toute l'application, y compris le téléchargement des
-     * images et des tuiles : un seul pool de connexions, et surtout un seul
-     * `TokenAuthenticator`, donc pas de refresh concurrents qui se
+     * Client des appels à l'API : un seul pour toute l'application, donc un
+     * seul `TokenAuthenticator` et pas de refresh concurrents qui se
      * révoqueraient mutuellement (même raisonnement que côté Android).
      */
     lateinit var httpClient: OkHttpClient
+        private set
+
+    /**
+     * Client des contenus téléchargés hors API — photos et tuiles de carte —
+     * **sans en-tête d'autorisation**.
+     *
+     * Les URLs de photos sont présignées (`X-Amz-Algorithm=AWS4-HMAC-SHA256`) :
+     * la signature est portée par l'URL elle-même. Y ajouter un `Authorization:
+     * Bearer` fait répondre au stockage
+     * `400 InvalidRequest — request has multiple authentication types`, et
+     * aucune image ne s'affiche. Le stockage étant servi par le même hôte que
+     * l'API, l'intercepteur d'authentification ne pouvait pas l'exclure sur le
+     * seul domaine.
+     *
+     * Séparer les deux clients évite aussi de transmettre le jeton de session à
+     * un service qui n'en a pas besoin. Le pool de connexions et le dispatcher
+     * restent partagés avec [httpClient] via `newBuilder()`.
+     */
+    lateinit var contentClient: OkHttpClient
         private set
 
     fun create(tokenStore: TokenStore, baseUrl: String = DesktopConfig.apiBaseUrl): CompanionApis {
@@ -78,6 +97,17 @@ object DesktopNetwork {
             .authenticator(TokenAuthenticator(tokenStore, refresher))
             .build()
         httpClient = client
+
+        // Dérivé du précédent pour hériter du pool de connexions et du
+        // dispatcher, mais dépouillé de toute authentification : voir la note
+        // sur les URLs présignées au-dessus de `contentClient`.
+        contentClient = client.newBuilder()
+            .apply {
+                interceptors().clear()
+                networkInterceptors().clear()
+            }
+            .authenticator(Authenticator.NONE)
+            .build()
 
         val retrofit = retrofit(baseUrl, client, moshi)
         return CompanionApis(

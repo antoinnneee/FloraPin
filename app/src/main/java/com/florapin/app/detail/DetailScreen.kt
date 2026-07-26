@@ -10,7 +10,6 @@ import android.graphics.RectF
 import android.net.Uri
 import android.view.MotionEvent
 import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +21,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -37,11 +37,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -464,106 +462,102 @@ private fun DetailContent(
     }
     var viewerStart by remember { mutableStateOf<Int?>(null) }
     var selectedSection by remember(flower.id) { mutableStateOf(DetailSection.OVERVIEW) }
-    var editing by remember(flower.id) { mutableStateOf(false) }
+    var showSpeciesEditor by remember(flower.id) { mutableStateOf(false) }
+    var showPhotoManager by remember(flower.id) { mutableStateOf(false) }
     val commentsState by commentsVm.state.collectAsStateWithLifecycle()
 
-    Box(modifier = modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = if (editing) 24.dp else 96.dp),
-        ) {
-            DetailPhotoMosaic(
-                models = viewerModels,
-                onOpen = { index -> viewerStart = index },
-                onAddPhoto = onAddPhoto,
-                mainModifier = Modifier.sharedFlowerImage(sharedScope, flower.id),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            )
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(bottom = 24.dp),
+    ) {
+        DetailPhotoMosaic(
+            models = viewerModels,
+            onOpen = { index -> viewerStart = index },
+            onAddPhoto = onAddPhoto,
+            mainModifier = Modifier.sharedFlowerImage(sharedScope, flower.id),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        )
 
-            DetailIdentity(
+        DetailIdentity(
+            flower = flower,
+            identificationVm = identificationVm,
+            likeState = likeState,
+            onToggleLike = onToggleLike,
+            onReact = onReact,
+            onOpenLikers = onOpenLikers,
+            onEditSpecies = { showSpeciesEditor = true },
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+        )
+
+        DetailSectionTabs(
+            selected = selectedSection,
+            commentCount = commentsState.comments.size,
+            onSelect = { selectedSection = it },
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        )
+
+        when (selectedSection) {
+            DetailSection.OVERVIEW -> ObservationOverview(
                 flower = flower,
-                likeState = likeState,
-                onToggleLike = onToggleLike,
-                onReact = onReact,
-                onOpenLikers = onOpenLikers,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                photoCount = viewerModels.size,
+                allFlowers = allFlowers,
+                onOpenFlower = onOpenFlower,
+                onOpenSpecies = onOpenSpecies,
+                onManagePhotos = { showPhotoManager = true },
+                proposalsVm = proposalsVm,
+                onSaveClassification = onSaveClassification,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             )
-
-            if (editing) {
-                EditObservationContent(
-                    flower = flower,
-                    photos = photos,
-                    speciesPicker = speciesPicker,
-                    identificationVm = identificationVm,
-                    proposalsVm = proposalsVm,
-                    onSaveNotes = onSaveNotes,
-                    onSaveClassification = onSaveClassification,
-                    onOpenSpecies = onOpenSpecies,
-                    onAddPhoto = onAddPhoto,
-                    onDeletePhoto = onDeletePhoto,
-                    onMakeCover = onMakeCover,
-                    onOpenPhoto = { index -> viewerStart = index + 1 },
-                    onDone = { editing = false },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-            } else {
-                DetailSectionTabs(
-                    selected = selectedSection,
-                    commentCount = commentsState.comments.size,
-                    onSelect = { selectedSection = it },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                )
-
-                when (selectedSection) {
-                    DetailSection.OVERVIEW -> ObservationOverview(
-                        flower = flower,
-                        photoCount = viewerModels.size,
-                        allFlowers = allFlowers,
-                        onOpenFlower = onOpenFlower,
-                        onOpenSpecies = onOpenSpecies,
+            DetailSection.NOTES -> ObservationNotes(
+                flowerId = flower.id,
+                storedNotes = flower.notes,
+                onSaveNotes = onSaveNotes,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+            )
+            DetailSection.DISCUSSION -> {
+                if (flower.serverId != null) {
+                    CommentsSection(
+                        viewModel = commentsVm,
+                        onOpenProfile = onOpenProfile,
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                     )
-                    DetailSection.NOTES -> ObservationNotes(
-                        notes = flower.notes,
+                } else {
+                    CommentsLockedNotice(
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                     )
-                    DetailSection.DISCUSSION -> {
-                        if (flower.serverId != null) {
-                            CommentsSection(
-                                viewModel = commentsVm,
-                                onOpenProfile = onOpenProfile,
-                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                            )
-                        } else {
-                            CommentsLockedNotice(
-                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                            )
-                        }
-                    }
                 }
             }
         }
+    }
 
-        if (!editing) {
-            ExtendedFloatingActionButton(
-                onClick = { editing = true },
-                icon = {
-                    BotanicalIcon(
-                        R.drawable.ic_edit_botanical,
-                        contentDescription = null,
-                        size = 24.dp,
-                    )
-                },
-                text = { Text("Modifier") },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp),
-            )
-        }
+    if (showSpeciesEditor) {
+        SpeciesEditorDialog(
+            flower = flower,
+            speciesPicker = speciesPicker,
+            onSave = { species, selected ->
+                onSaveClassification(species, flower.tags, selected)
+            },
+            onDismiss = { showSpeciesEditor = false },
+        )
+    }
+
+    if (showPhotoManager) {
+        PhotoManagementDialog(
+            photos = photos,
+            onAddPhoto = {
+                showPhotoManager = false
+                onAddPhoto()
+            },
+            onDeletePhoto = onDeletePhoto,
+            onMakeCover = onMakeCover,
+            onOpenPhoto = { index ->
+                showPhotoManager = false
+                viewerStart = index + 1
+            },
+            onDismiss = { showPhotoManager = false },
+        )
     }
 
     viewerStart?.let { start ->
@@ -754,22 +748,19 @@ private fun PhotoCountTile(
 @Composable
 private fun DetailIdentity(
     flower: FlowerEntity,
+    identificationVm: IdentificationRequestViewModel,
     likeState: com.florapin.app.likes.LikeState,
     onToggleLike: () -> Unit,
     onReact: (String) -> Unit,
     onOpenLikers: () -> Unit,
+    onEditSpecies: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val title = flower.speciesCommonName
-        ?: flower.species
-        ?: "Observation sans nom"
+        ?.takeIf { it.isNotBlank() }
+        ?: flower.species?.takeIf { it.isNotBlank() }
     val scientificName = flower.speciesScientificName
-        ?.takeIf { it.isNotBlank() && !it.equals(title, ignoreCase = true) }
-    val status = when {
-        flower.speciesId != null -> "Identification confirmée"
-        !flower.species.isNullOrBlank() -> "Espèce renseignée"
-        else -> "À identifier"
-    }
+        ?.takeIf { title != null && it.isNotBlank() && !it.equals(title, ignoreCase = true) }
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -780,38 +771,37 @@ private fun DetailIdentity(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.primary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            scientificName?.let {
+            if (title != null) {
                 Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontStyle = FontStyle.Italic,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    text = title,
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                BotanicalIcon(
-                    R.drawable.ic_identify_botanical,
-                    contentDescription = null,
-                    size = 22.dp,
+                scientificName?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            } else {
+                IdentificationRequestSection(
+                    flowerServerId = flower.serverId,
+                    viewModel = identificationVm,
                 )
-                Text(
-                    text = status,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
             }
+        }
+        IconButton(onClick = onEditSpecies) {
+            BotanicalIcon(
+                R.drawable.ic_edit_botanical,
+                contentDescription = "Modifier le nom de l’espèce",
+                size = 24.dp,
+            )
         }
         if (flower.serverId != null && likeState.loaded) {
             LikeButton(
@@ -882,9 +872,15 @@ private fun ObservationOverview(
     allFlowers: List<FlowerEntity>,
     onOpenFlower: (Long) -> Unit,
     onOpenSpecies: (String) -> Unit,
+    onManagePhotos: () -> Unit,
+    proposalsVm: ReceivedProposalsViewModel,
+    onSaveClassification: (String, List<String>, SpeciesDto?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val point = flower.toGeoPoint()
+    val speciesName = flower.speciesCommonName
+        ?.takeIf { it.isNotBlank() }
+        ?: flower.species?.takeIf { it.isNotBlank() }
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -930,21 +926,24 @@ private fun ObservationOverview(
         }
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f))
-        DetailInfoRow(
-            label = "Espèce",
-            value = flower.speciesCommonName ?: flower.species ?: "À identifier",
-            icon = {
-                BotanicalIcon(
-                    R.drawable.ic_flower_botanical,
-                    contentDescription = null,
-                    size = 21.dp,
-                )
-            },
-            onClick = flower.speciesId?.let { speciesId ->
-                { onOpenSpecies(speciesId) }
-            },
-        )
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.52f))
+        if (speciesName != null) {
+            DetailInfoRow(
+                label = "Espèce",
+                value = speciesName,
+                valueMaxLines = 4,
+                icon = {
+                    BotanicalIcon(
+                        R.drawable.ic_flower_botanical,
+                        contentDescription = null,
+                        size = 21.dp,
+                    )
+                },
+                onClick = flower.speciesId?.let { speciesId ->
+                    { onOpenSpecies(speciesId) }
+                },
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.52f))
+        }
         DetailInfoRow(
             label = "Ajoutée le",
             value = formatDetailCaptureDate(flower.createdAt),
@@ -969,7 +968,31 @@ private fun ObservationOverview(
                     modifier = Modifier.size(21.dp),
                 )
             },
+            onClick = onManagePhotos,
         )
+        if (flower.species.isNullOrBlank()) {
+            ReceivedProposalsSection(
+                viewModel = proposalsVm,
+                onAccept = { proposal ->
+                    flower.serverId?.let { serverId ->
+                        proposalsVm.accept(serverId, proposal) { species ->
+                            onSaveClassification(species, flower.tags, null)
+                        }
+                    }
+                },
+                onReject = { proposal ->
+                    flower.serverId?.let { serverId ->
+                        proposalsVm.reject(serverId, proposal)
+                    }
+                },
+                onThank = { proposal ->
+                    flower.serverId?.let { serverId ->
+                        proposalsVm.thank(serverId, proposal)
+                    }
+                },
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
     }
 }
 
@@ -1058,6 +1081,7 @@ private fun DetailInfoRow(
     icon: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    valueMaxLines: Int = 2,
 ) {
     val interactionModifier = if (onClick != null) {
         Modifier.clickable(onClick = onClick)
@@ -1082,14 +1106,18 @@ private fun DetailInfoRow(
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(min = 88.dp),
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 2,
+            softWrap = true,
+            maxLines = valueMaxLines,
             overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
         )
         if (onClick != null) {
             Icon(
@@ -1104,52 +1132,18 @@ private fun DetailInfoRow(
 
 @Composable
 private fun ObservationNotes(
-    notes: String,
+    flowerId: Long,
+    storedNotes: String,
+    onSaveNotes: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val notes = remember(storedNotes) { decodeObservationNotes(storedNotes) }
+    var noteEditorIndex by remember(flowerId) { mutableStateOf<Int?>(null) }
+    var noteToDelete by remember(flowerId) { mutableStateOf<Int?>(null) }
+
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(
-            text = "Notes d’observation",
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Text(
-            text = notes.ifBlank {
-                "Aucune note pour cette observation. Utilisez « Modifier » pour en ajouter."
-            },
-            style = MaterialTheme.typography.bodyLarge,
-            color = if (notes.isBlank()) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
-        )
-    }
-}
-
-@Composable
-private fun EditObservationContent(
-    flower: FlowerEntity,
-    photos: List<PhotoEntity>,
-    speciesPicker: SpeciesPickerViewModel,
-    identificationVm: IdentificationRequestViewModel,
-    proposalsVm: ReceivedProposalsViewModel,
-    onSaveNotes: (String) -> Unit,
-    onSaveClassification: (String, List<String>, SpeciesDto?) -> Unit,
-    onOpenSpecies: (String) -> Unit,
-    onAddPhoto: () -> Unit,
-    onDeletePhoto: (PhotoEntity) -> Unit,
-    onMakeCover: (PhotoEntity) -> Unit,
-    onOpenPhoto: (Int) -> Unit,
-    onDone: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1157,93 +1151,294 @@ private fun EditObservationContent(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Modifier l’observation",
+                text = "Notes d’observation",
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f),
             )
-            OutlinedButton(
-                onClick = onDone,
-                border = BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outlineVariant,
-                ),
-            ) {
-                Text("Terminer")
-            }
-        }
-
-        PhotoGallery(
-            photos = photos,
-            onAddPhoto = onAddPhoto,
-            onDeletePhoto = onDeletePhoto,
-            onMakeCover = onMakeCover,
-            onOpenPhoto = onOpenPhoto,
-        )
-
-        ClassificationEditor(
-            flowerId = flower.id,
-            initialSpecies = flower.species.orEmpty(),
-            speciesPicker = speciesPicker,
-            onSave = { species, selected ->
-                onSaveClassification(species, flower.tags, selected)
-            },
-        )
-
-        flower.speciesId?.let { speciesId ->
-            val label = flower.speciesCommonName
-                ?: flower.speciesScientificName
-                ?: flower.species
-                ?: "cette espèce"
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onOpenSpecies(speciesId) }
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            Button(onClick = { noteEditorIndex = notes.size }) {
                 BotanicalIcon(
-                    R.drawable.ic_identify_botanical,
+                    R.drawable.ic_add_botanical,
                     contentDescription = null,
-                    size = 24.dp,
+                    size = 20.dp,
                 )
                 Text(
-                    text = "Voir la fiche : $label",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                    text = "Nouvelle note",
+                    modifier = Modifier.padding(start = 8.dp),
                 )
             }
         }
 
-        if (flower.species.isNullOrBlank()) {
-            IdentificationRequestSection(
-                flowerServerId = flower.serverId,
-                viewModel = identificationVm,
-            )
-            ReceivedProposalsSection(
-                viewModel = proposalsVm,
-                onAccept = { proposal ->
-                    flower.serverId?.let { sid ->
-                        proposalsVm.accept(sid, proposal) { species ->
-                            onSaveClassification(species, flower.tags, null)
-                        }
+        if (notes.isEmpty()) {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.46f),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    BotanicalIcon(
+                        R.drawable.ic_add_botanical,
+                        contentDescription = null,
+                        size = 28.dp,
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "Aucune note pour le moment",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            text = "Ajoutez une observation sans modifier toute la fiche.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
-                },
-                onReject = { proposal ->
-                    flower.serverId?.let { sid -> proposalsVm.reject(sid, proposal) }
-                },
-                onThank = { proposal ->
-                    flower.serverId?.let { sid -> proposalsVm.thank(sid, proposal) }
-                },
-            )
+                }
+            }
+        } else {
+            notes.forEachIndexed { index, note ->
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
+                            alpha = 0.42f,
+                        ),
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "Note ${index + 1}",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.weight(1f),
+                            )
+                            IconButton(
+                                onClick = { noteEditorIndex = index },
+                                modifier = Modifier.size(44.dp),
+                            ) {
+                                BotanicalIcon(
+                                    R.drawable.ic_edit_botanical,
+                                    contentDescription = "Modifier la note ${index + 1}",
+                                    size = 21.dp,
+                                )
+                            }
+                            IconButton(
+                                onClick = { noteToDelete = index },
+                                modifier = Modifier.size(44.dp),
+                            ) {
+                                BotanicalIcon(
+                                    R.drawable.ic_delete_botanical,
+                                    contentDescription = "Supprimer la note ${index + 1}",
+                                    size = 21.dp,
+                                )
+                            }
+                        }
+                        Text(
+                            text = note,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(end = 16.dp),
+                        )
+                    }
+                }
+            }
         }
+    }
 
-        NotesEditor(
-            flowerId = flower.id,
-            initialNotes = flower.notes,
-            onSave = onSaveNotes,
+    noteEditorIndex?.let { index ->
+        NoteEditorDialog(
+            noteNumber = index + 1,
+            initialNote = notes.getOrNull(index).orEmpty(),
+            isNew = index >= notes.size,
+            onDismiss = { noteEditorIndex = null },
+            onSave = { note ->
+                val updatedNotes = notes.toMutableList()
+                if (index < updatedNotes.size) {
+                    updatedNotes[index] = note
+                } else {
+                    updatedNotes += note
+                }
+                onSaveNotes(encodeObservationNotes(updatedNotes))
+                noteEditorIndex = null
+            },
         )
     }
+
+    noteToDelete?.let { index ->
+        AlertDialog(
+            onDismissRequest = { noteToDelete = null },
+            title = { Text("Supprimer cette note ?") },
+            text = { Text("Cette action retire uniquement la note ${index + 1}.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val updatedNotes = notes.toMutableList().also { it.removeAt(index) }
+                        onSaveNotes(encodeObservationNotes(updatedNotes))
+                        noteToDelete = null
+                    },
+                ) {
+                    Text(
+                        text = "Supprimer",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { noteToDelete = null }) {
+                    Text("Annuler")
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun NoteEditorDialog(
+    noteNumber: Int,
+    initialNote: String,
+    isNew: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+) {
+    var note by remember(initialNote, isNew) { mutableStateOf(initialNote) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(if (isNew) "Nouvelle note" else "Modifier la note $noteNumber")
+        },
+        text = {
+            OutlinedTextField(
+                value = note,
+                onValueChange = { note = it },
+                label = { Text("Observation") },
+                minLines = 4,
+                maxLines = 8,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(note.trim()) },
+                enabled = note.isNotBlank() && note.trim() != initialNote.trim(),
+            ) {
+                Text(if (isNew) "Ajouter" else "Enregistrer")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Annuler")
+            }
+        },
+    )
+}
+
+@Composable
+private fun SpeciesEditorDialog(
+    flower: FlowerEntity,
+    speciesPicker: SpeciesPickerViewModel,
+    onSave: (String, SpeciesDto?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val initialSpecies = flower.species.orEmpty()
+    var species by remember(flower.id, initialSpecies) { mutableStateOf(initialSpecies) }
+    var selected by remember(flower.id, initialSpecies) { mutableStateOf<SpeciesDto?>(null) }
+    val suggestions by speciesPicker.suggestions.collectAsStateWithLifecycle()
+    val changed = species != initialSpecies || selected != null
+
+    fun dismiss() {
+        speciesPicker.clear()
+        onDismiss()
+    }
+
+    AlertDialog(
+        onDismissRequest = ::dismiss,
+        title = { Text("Modifier le nom de l’espèce") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = species,
+                    onValueChange = {
+                        species = it
+                        selected = null
+                        speciesPicker.onQueryChange(it)
+                    },
+                    label = { Text("Nom de l’espèce") },
+                    singleLine = true,
+                    keyboardOptions = singleLineKeyboardOptions(),
+                    keyboardActions = rememberSingleLineKeyboardActions(),
+                    supportingText = {
+                        selected?.let { Text("Rattachée à « ${it.commonName} »") }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (suggestions.isNotEmpty() && selected == null) {
+                    SpeciesSuggestions(
+                        suggestions = suggestions,
+                        onPick = { picked ->
+                            species = picked.scientificName
+                            selected = picked
+                            speciesPicker.clear()
+                        },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onSave(species, selected)
+                    dismiss()
+                },
+                enabled = changed,
+            ) {
+                Text("Enregistrer")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = ::dismiss) {
+                Text("Annuler")
+            }
+        },
+    )
+}
+
+@Composable
+private fun PhotoManagementDialog(
+    photos: List<PhotoEntity>,
+    onAddPhoto: () -> Unit,
+    onDeletePhoto: (PhotoEntity) -> Unit,
+    onMakeCover: (PhotoEntity) -> Unit,
+    onOpenPhoto: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Gérer les photos") },
+        text = {
+            PhotoGallery(
+                photos = photos,
+                onAddPhoto = onAddPhoto,
+                onDeletePhoto = onDeletePhoto,
+                onMakeCover = onMakeCover,
+                onOpenPhoto = onOpenPhoto,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Terminer")
+            }
+        },
+    )
 }
 
 private fun formatDetailCaptureDate(epochMillis: Long): String =
@@ -1324,68 +1519,6 @@ private fun PhotoThumbnail(
                     "Supprimer cette photo",
                 )
             }
-        }
-    }
-}
-
-/**
- * Édition de l'espèce, autocomplétée sur le référentiel (NODE-150).
- *
- * Le champ espèce interroge /species/search ; sélectionner une suggestion fixe
- * le nom scientifique et rattache la fleur (species_id). Une saisie libre reste
- * possible : aucune fiche n'est alors associée.
- */
-@Composable
-private fun ClassificationEditor(
-    flowerId: Long,
-    initialSpecies: String,
-    speciesPicker: SpeciesPickerViewModel,
-    onSave: (String, SpeciesDto?) -> Unit,
-) {
-    // Clés incluant la valeur initiale : le champ se resynchronise quand l'espèce
-    // change de l'extérieur (ex. acceptation d'une proposition d'ami). Comme
-    // initialSpecies ne bouge qu'à la sauvegarde/acceptation, la frappe en cours
-    // n'est pas perturbée.
-    var species by remember(flowerId, initialSpecies) { mutableStateOf(initialSpecies) }
-    // Fiche du référentiel sélectionnée ; null tant que l'utilisateur tape librement.
-    var selected by remember(flowerId, initialSpecies) { mutableStateOf<SpeciesDto?>(null) }
-    val suggestions by speciesPicker.suggestions.collectAsStateWithLifecycle()
-
-    val changed = species != initialSpecies || selected != null
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
-            value = species,
-            onValueChange = {
-                species = it
-                selected = null // toute frappe invalide la fiche choisie
-                speciesPicker.onQueryChange(it)
-            },
-            label = { Text("Espèce") },
-            singleLine = true,
-            keyboardOptions = singleLineKeyboardOptions(),
-            keyboardActions = rememberSingleLineKeyboardActions(),
-            supportingText = {
-                selected?.let { Text("Rattachée à « ${it.commonName} »") }
-            },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        if (suggestions.isNotEmpty() && selected == null) {
-            SpeciesSuggestions(
-                suggestions = suggestions,
-                onPick = { picked ->
-                    species = picked.scientificName
-                    selected = picked
-                    speciesPicker.clear()
-                },
-            )
-        }
-        Button(
-            onClick = { onSave(species, selected) },
-            enabled = changed,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Enregistrer l'espèce")
         }
     }
 }
@@ -1763,33 +1896,6 @@ private fun MiniMapFallback(point: GeoPoint) {
                 text = "Carte indisponible (clé MapTiler manquante)",
                 style = MaterialTheme.typography.labelSmall,
             )
-        }
-    }
-}
-
-@Composable
-private fun NotesEditor(
-    flowerId: Long,
-    initialNotes: String,
-    onSave: (String) -> Unit,
-) {
-    // Réinitialise le champ quand on change de fleur.
-    var notes by remember(flowerId) { mutableStateOf(initialNotes) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
-            value = notes,
-            onValueChange = { notes = it },
-            label = { Text("Notes") },
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 3,
-        )
-        Button(
-            onClick = { onSave(notes) },
-            enabled = notes != initialNotes,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Enregistrer les notes")
         }
     }
 }

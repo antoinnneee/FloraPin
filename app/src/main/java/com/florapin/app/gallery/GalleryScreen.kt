@@ -44,7 +44,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -67,7 +66,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,6 +78,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -131,7 +130,7 @@ fun GalleryScreen(
     val flowers by viewModel.flowers.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
     val sort by viewModel.sort.collectAsStateWithLifecycle()
-    val density by viewModel.density.collectAsStateWithLifecycle()
+    val displayMode by viewModel.displayMode.collectAsStateWithLifecycle()
     val identifyBadge by viewModel.identifyBadge.collectAsStateWithLifecycle()
     val friendsBadge by viewModel.friendsBadge.collectAsStateWithLifecycle()
     val unreadCommentFlowerIds by viewModel.unreadCommentFlowerIds.collectAsStateWithLifecycle()
@@ -141,10 +140,11 @@ fun GalleryScreen(
     val selectionActive = selectedIds.isNotEmpty()
     val landscape = isLandscape()
     val phonePortrait = !landscape && LocalConfiguration.current.screenWidthDp < 600
+    val isListView = displayMode.isList
+    val density = displayMode.density ?: GalleryDensity.COMFORTABLE
 
     var showAddToAlbum by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
-    var isListView by rememberSaveable { mutableStateOf(false) }
 
     // Recalcule les badges à l'affichage de la galerie (lancement + retour depuis
     // les écrans « à identifier » / amis, qui auront marqué leurs demandes vues).
@@ -411,13 +411,11 @@ fun GalleryScreen(
                         query = query,
                         onQueryChange = viewModel::setQuery,
                         selectedSort = sort,
-                        selectedDensity = density,
                         onSelectSort = viewModel::setSort,
-                        onSelectDensity = viewModel::setDensity,
+                        selectedDisplayMode = displayMode,
+                        onSelectDisplayMode = viewModel::setDisplayMode,
                         onOpenIdentify = onOpenIdentify,
                         identifyBadge = identifyBadge,
-                        isListView = isListView,
-                        onToggleView = { isListView = !isListView },
                         compact = true,
                     )
                 }
@@ -439,13 +437,11 @@ fun GalleryScreen(
                     query = query,
                     onQueryChange = viewModel::setQuery,
                     selectedSort = sort,
-                    selectedDensity = density,
                     onSelectSort = viewModel::setSort,
-                    onSelectDensity = viewModel::setDensity,
+                    selectedDisplayMode = displayMode,
+                    onSelectDisplayMode = viewModel::setDisplayMode,
                     onOpenIdentify = onOpenIdentify,
                     identifyBadge = identifyBadge,
-                    isListView = isListView,
-                    onToggleView = { isListView = !isListView },
                 )
                 galleryPane(
                     Modifier
@@ -607,13 +603,11 @@ private fun GallerySearchRow(
     query: String,
     onQueryChange: (String) -> Unit,
     selectedSort: GallerySort,
-    selectedDensity: GalleryDensity,
     onSelectSort: (GallerySort) -> Unit,
-    onSelectDensity: (GalleryDensity) -> Unit,
+    selectedDisplayMode: GalleryDisplayMode,
+    onSelectDisplayMode: (GalleryDisplayMode) -> Unit,
     onOpenIdentify: () -> Unit,
     identifyBadge: Int,
-    isListView: Boolean,
-    onToggleView: () -> Unit,
     modifier: Modifier = Modifier,
     compact: Boolean = false,
 ) {
@@ -631,35 +625,15 @@ private fun GallerySearchRow(
             query = query,
             onQueryChange = onQueryChange,
             selectedSort = selectedSort,
-            selectedDensity = selectedDensity,
             onSelectSort = onSelectSort,
-            onSelectDensity = onSelectDensity,
             modifier = Modifier.weight(1f),
         )
 
-        val viewModeShape = RoundedCornerShape(16.dp)
-        IconButton(
-            onClick = onToggleView,
-            modifier = Modifier
-                .size(if (compact) 52.dp else 56.dp)
-                .clip(viewModeShape)
-                .background(MaterialTheme.colorScheme.surface)
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, viewModeShape),
-        ) {
-            Icon(
-                imageVector = if (isListView) {
-                    Icons.Outlined.GridView
-                } else {
-                    Icons.AutoMirrored.Outlined.ViewList
-                },
-                contentDescription = if (isListView) {
-                    "Afficher en grille"
-                } else {
-                    "Afficher en liste"
-                },
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        }
+        GalleryDisplayModeAction(
+            selected = selectedDisplayMode,
+            onSelect = onSelectDisplayMode,
+            size = if (compact) 52.dp else 56.dp,
+        )
 
         val identifyShape = RoundedCornerShape(16.dp)
         BadgedBox(
@@ -690,15 +664,86 @@ private fun GallerySearchRow(
     }
 }
 
+/**
+ * Sélecteur unique des quatre présentations de l'accueil. Il remplace l'ancien
+ * basculement binaire liste/grille et récupère les trois densités auparavant
+ * rangées dans le menu de tri.
+ */
+@Composable
+private fun GalleryDisplayModeAction(
+    selected: GalleryDisplayMode,
+    onSelect: (GalleryDisplayMode) -> Unit,
+    size: Dp,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(16.dp)
+
+    Box {
+        IconButton(
+            onClick = { expanded = true },
+            modifier = Modifier
+                .size(size)
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.surface)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape),
+        ) {
+            Icon(
+                imageVector = if (selected.isList) {
+                    Icons.AutoMirrored.Outlined.ViewList
+                } else {
+                    Icons.Outlined.GridView
+                },
+                contentDescription = "Mode d’affichage : ${selected.label}",
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            Text(
+                text = "Mode d’affichage",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            GalleryDisplayMode.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.label) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = if (option.isList) {
+                                Icons.AutoMirrored.Outlined.ViewList
+                            } else {
+                                Icons.Outlined.GridView
+                            },
+                            contentDescription = null,
+                        )
+                    },
+                    trailingIcon = {
+                        RadioButton(
+                            selected = option == selected,
+                            onClick = null,
+                        )
+                    },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
 /** Barre de recherche par espèce, notes ou étiquette (NODE-120). */
 @Composable
 private fun SearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
     selectedSort: GallerySort,
-    selectedDensity: GalleryDensity,
     onSelectSort: (GallerySort) -> Unit,
-    onSelectDensity: (GalleryDensity) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     OutlinedTextField(
@@ -732,9 +777,7 @@ private fun SearchBar(
                 }
                 GalleryFilterAction(
                     selectedSort = selectedSort,
-                    selectedDensity = selectedDensity,
                     onSelectSort = onSelectSort,
-                    onSelectDensity = onSelectDensity,
                 )
             }
         },
@@ -746,15 +789,12 @@ private fun SearchBar(
 }
 
 /**
- * Menu unifié : le tri et la densité restent disponibles sans prendre une
- * rangée permanente au-dessus des photos.
+ * Menu de tri de la galerie. Le mode d'affichage vit dans son action dédiée.
  */
 @Composable
 private fun GalleryFilterAction(
     selectedSort: GallerySort,
-    selectedDensity: GalleryDensity,
     onSelectSort: (GallerySort) -> Unit,
-    onSelectDensity: (GalleryDensity) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -765,7 +805,7 @@ private fun GalleryFilterAction(
         ) {
             Icon(
                 imageVector = Icons.Outlined.Tune,
-                contentDescription = "Trier et régler la densité",
+                contentDescription = "Trier la galerie",
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
@@ -791,29 +831,6 @@ private fun GalleryFilterAction(
                     },
                     onClick = {
                         onSelectSort(order)
-                        expanded = false
-                    },
-                )
-            }
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            Text(
-                text = "Densité",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-            GalleryDensity.entries.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.label) },
-                    leadingIcon = {
-                        RadioButton(
-                            selected = option == selectedDensity,
-                            onClick = null,
-                        )
-                    },
-                    onClick = {
-                        onSelectDensity(option)
                         expanded = false
                     },
                 )

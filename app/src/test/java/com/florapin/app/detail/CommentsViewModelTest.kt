@@ -61,8 +61,19 @@ private class FakeCommentsApi : CommentsApi {
 /** API amis en mémoire : renvoie une liste figée d'amitiés (fake de test). */
 private class FakeFriendshipsApi(
     private val friendships: List<FriendshipDto>,
+    private var failuresRemaining: Int = 0,
 ) : FriendshipsApi {
-    override suspend fun list(): List<FriendshipDto> = friendships
+    var listCalls: Int = 0
+        private set
+
+    override suspend fun list(): List<FriendshipDto> {
+        listCalls += 1
+        if (failuresRemaining > 0) {
+            failuresRemaining -= 1
+            error("Réseau indisponible")
+        }
+        return friendships
+    }
     override suspend fun request(body: CreateFriendshipRequest): FriendshipDto =
         throw UnsupportedOperationException()
     override suspend fun requestById(
@@ -222,6 +233,30 @@ class CommentsViewModelTest {
 
             advanceUntilIdle()
 
+            assertEquals(
+                listOf("Marie"),
+                vm.state.value.mentionSuggestions.map { it.displayName },
+            )
+        }
+
+    @Test
+    fun `la saisie @ relance le chargement des amis apres un echec`() =
+        runTest(dispatcher) {
+            val friendsApi = FakeFriendshipsApi(
+                friendships = listOf(acceptedFriend("u-marie", "Marie")),
+                failuresRemaining = 1,
+            )
+            val vm = CommentsViewModel(FakeCommentsApi(), FakeDraftStore(), friendsApi)
+
+            vm.bind("flower-1")
+            advanceUntilIdle()
+            assertEquals(1, friendsApi.listCalls)
+            assertEquals(emptyList<FriendUserDto>(), vm.state.value.friends)
+
+            vm.updateDraft("Regarde @mar")
+            advanceUntilIdle()
+
+            assertEquals(2, friendsApi.listCalls)
             assertEquals(
                 listOf("Marie"),
                 vm.state.value.mentionSuggestions.map { it.displayName },

@@ -17,7 +17,7 @@ enum class GalleryDensity(
     val phonePortraitColumns: Int,
 ) {
     /** Dense : petites vignettes, davantage de colonnes. */
-    COMPACT("Compacte", 100.dp, phonePortraitColumns = 3),
+    COMPACT("Compact", 100.dp, phonePortraitColumns = 3),
 
     /** Palier par défaut photo-first : deux grandes colonnes sur téléphone. */
     COMFORTABLE("Confort", 150.dp, phonePortraitColumns = 2),
@@ -27,28 +27,66 @@ enum class GalleryDensity(
 }
 
 /**
- * Préférence locale « densité de la grille de la galerie » (réglage par appareil,
- * TÂCHE 6.8). Store dédié (prefs `florapin_gallery`) : ne partage pas le fichier
- * `florapin_sync` et n'appelle jamais `.clear()`.
+ * Les quatre présentations proposées directement depuis l'action d'affichage de
+ * l'accueil. Le mode liste n'a pas de densité ; les trois autres réutilisent les
+ * paliers historiques de la grille.
  */
-class GalleryDensityStore(context: Context) {
+enum class GalleryDisplayMode(
+    val label: String,
+    val density: GalleryDensity?,
+) {
+    LIST("Liste", null),
+    COMPACT("Compact", GalleryDensity.COMPACT),
+    COMFORTABLE("Confort", GalleryDensity.COMFORTABLE),
+    LARGE("Grande", GalleryDensity.LARGE),
+    ;
+
+    val isList: Boolean get() = this == LIST
+
+    companion object {
+        fun fromDensity(density: GalleryDensity): GalleryDisplayMode = when (density) {
+            GalleryDensity.COMPACT -> COMPACT
+            GalleryDensity.COMFORTABLE -> COMFORTABLE
+            GalleryDensity.LARGE -> LARGE
+        }
+    }
+}
+
+/**
+ * Préférence locale du mode d'affichage de la galerie (réglage par appareil).
+ *
+ * La première lecture migre implicitement l'ancienne préférence `grid_density`
+ * afin de conserver le rendu déjà choisi par les utilisateurs.
+ */
+class GalleryDisplayModeStore(context: Context) {
     private val prefs = context.applicationContext
         .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    /** Densité enregistrée, ou le défaut si aucune (ou valeur inconnue). */
-    fun density(): GalleryDensity {
-        val name = prefs.getString(KEY, null) ?: return DEFAULT
-        return runCatching { GalleryDensity.valueOf(name) }.getOrDefault(DEFAULT)
+    /** Mode enregistré, ancienne densité migrée, ou Confort par défaut. */
+    fun displayMode(): GalleryDisplayMode {
+        prefs.getString(MODE_KEY, null)?.let { name ->
+            return runCatching { GalleryDisplayMode.valueOf(name) }.getOrDefault(DEFAULT)
+        }
+        val legacyDensity = prefs.getString(LEGACY_DENSITY_KEY, null)
+            ?.let { name -> runCatching { GalleryDensity.valueOf(name) }.getOrNull() }
+            ?: return DEFAULT
+        return GalleryDisplayMode.fromDensity(legacyDensity)
     }
 
-    /** Persiste le palier de densité choisi. */
-    fun setDensity(density: GalleryDensity) {
-        prefs.edit().putString(KEY, density.name).apply()
+    /** Persiste le mode et maintient l'ancienne clé pour une éventuelle rétrogradation. */
+    fun setDisplayMode(mode: GalleryDisplayMode) {
+        prefs.edit()
+            .putString(MODE_KEY, mode.name)
+            .apply {
+                mode.density?.let { putString(LEGACY_DENSITY_KEY, it.name) }
+            }
+            .apply()
     }
 
     private companion object {
         const val PREFS = "florapin_gallery"
-        const val KEY = "grid_density"
-        val DEFAULT = GalleryDensity.COMFORTABLE
+        const val MODE_KEY = "display_mode"
+        const val LEGACY_DENSITY_KEY = "grid_density"
+        val DEFAULT = GalleryDisplayMode.COMFORTABLE
     }
 }

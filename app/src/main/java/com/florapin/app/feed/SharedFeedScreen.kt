@@ -57,6 +57,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
@@ -335,16 +336,21 @@ fun SharedFeedScreen(
 
 /** Action de l'en-tête, alignée visuellement sur les utilitaires de l'accueil. */
 @Composable
-private fun SharedHeaderAction(
+internal fun SharedHeaderAction(
     icon: Int,
     contentDescription: String,
     onClick: () -> Unit,
     badge: Int = 0,
+    badgeContainerColor: Color? = null,
+    iconSize: Dp = 28.dp,
 ) {
     BadgedBox(
         badge = {
             if (badge > 0) {
-                Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                Badge(
+                    containerColor = badgeContainerColor
+                        ?: MaterialTheme.colorScheme.primary,
+                ) {
                     Text(if (badge > 99) "99+" else "$badge")
                 }
             }
@@ -357,7 +363,7 @@ private fun SharedHeaderAction(
             Icon(
                 painter = painterResource(icon),
                 contentDescription = contentDescription,
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.size(iconSize),
                 tint = Color.Unspecified,
             )
         }
@@ -614,7 +620,7 @@ private fun BatchHeaderCard(
 }
 
 @Composable
-private fun SharedFlowerCard(
+internal fun SharedFlowerCard(
     item: SharedFlowerItem,
     saved: Boolean,
     onToggleSave: () -> Unit,

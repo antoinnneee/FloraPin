@@ -2,18 +2,22 @@ package com.florapin.app.navigation
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -30,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
@@ -79,8 +84,10 @@ fun FloraBottomBar(
     val systemInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val cameraSize = if (landscape) 48.dp else 72.dp
     val cameraOffset = if (landscape) 6.dp else 8.dp
-    val cradleGap = if (landscape) 6.dp else 8.dp
-    val outerRadius = cameraSize / 2 + cradleGap
+    // Une seule mesure pilote l'espace autour du bouton photo : berceau
+    // vertical et indicateurs sélectionnés des deux onglets centraux.
+    val cameraClearance = if (landscape) 6.dp else 8.dp
+    val outerRadius = cameraSize / 2 + cameraClearance
     val circleCenterY = cameraOffset + cameraSize / 2
     // Un tiers du bouton dépasse de la base ; le berceau ajoute seulement son
     // espacement concentrique. La mesure partagée sert aussi à dégager la fin
@@ -109,6 +116,23 @@ fun FloraBottomBar(
                     .fillMaxWidth()
                     .height(totalHeight),
             ) {
+                // Le contenu des écrans racine défile derrière la navigation.
+                // Ce voile progressif évite une coupure nette avec sa surface,
+                // tout en restant transparent au-dessus de la barre.
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .height(bumpHeight)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    MaterialTheme.colorScheme.surface,
+                                ),
+                            ),
+                        ),
+                )
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -139,12 +163,15 @@ fun FloraBottomBar(
                                     currentRoute = currentRoute,
                                     badge = 0,
                                     landscape = landscape,
+                                    cameraClearance = cameraClearance,
                                     onSelect = onSelect,
                                 )
                             }
 
-                            // Réserve une cinquième colonne exactement au centre.
-                            Spacer(modifier = Modifier.weight(1f))
+                            // La réserve centrale suit exactement le diamètre du
+                            // bouton ; les onglets adjacents ajoutent ensuite le
+                            // même dégagement que le berceau.
+                            Spacer(modifier = Modifier.width(cameraSize))
 
                             rightDestinations.forEach { destination ->
                                 DestinationItem(
@@ -156,6 +183,7 @@ fun FloraBottomBar(
                                         0
                                     },
                                     landscape = landscape,
+                                    cameraClearance = cameraClearance,
                                     onSelect = onSelect,
                                 )
                             }
@@ -282,43 +310,61 @@ private fun RowScope.DestinationItem(
     currentRoute: String?,
     badge: Int,
     landscape: Boolean,
+    cameraClearance: Dp,
     onSelect: (TopLevelDestination) -> Unit,
 ) {
-    NavigationBarItem(
-        selected = currentRoute == destination.route,
-        onClick = { onSelect(destination) },
-        // Le retrait empêche l'indicateur des deux destinations centrales de
-        // venir toucher visuellement le bouton photo.
+    val horizontalArrangement = when (destination) {
+        TopLevelDestination.ALBUMS -> Arrangement.End
+        TopLevelDestination.FEED -> Arrangement.Start
+        else -> Arrangement.Center
+    }
+    val cameraSidePadding = when (destination) {
+        TopLevelDestination.ALBUMS -> Modifier.padding(end = cameraClearance)
+        TopLevelDestination.FEED -> Modifier.padding(start = cameraClearance)
+        else -> Modifier
+    }
+    Row(
         modifier = Modifier
             .weight(1f)
-            .padding(horizontal = 3.dp),
-        icon = {
-            BadgedBox(
-                badge = {
-                    if (badge > 0) {
-                        Badge { Text(if (badge > 99) "99+" else "$badge") }
-                    }
-                },
-            ) {
-                // L'image n'est annoncée que lorsque le libellé est masqué.
-                Image(
-                    painter = painterResource(destination.icon),
-                    contentDescription = destination.label.takeIf { landscape },
-                    modifier = Modifier.size(if (landscape) 24.dp else 28.dp),
-                )
-            }
-        },
-        label = if (landscape) {
-            null
-        } else {
-            {
-                Text(
-                    text = destination.label,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Visible,
-                )
-            }
-        },
-    )
+            .fillMaxHeight()
+            .then(cameraSidePadding),
+        horizontalArrangement = horizontalArrangement,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        NavigationBarItem(
+            selected = currentRoute == destination.route,
+            onClick = { onSelect(destination) },
+            modifier = Modifier
+                .width(64.dp)
+                .fillMaxHeight(),
+            icon = {
+                BadgedBox(
+                    badge = {
+                        if (badge > 0) {
+                            Badge { Text(if (badge > 99) "99+" else "$badge") }
+                        }
+                    },
+                ) {
+                    // L'image n'est annoncée que lorsque le libellé est masqué.
+                    Image(
+                        painter = painterResource(destination.icon),
+                        contentDescription = destination.label.takeIf { landscape },
+                        modifier = Modifier.size(if (landscape) 24.dp else 28.dp),
+                    )
+                }
+            },
+            label = if (landscape) {
+                null
+            } else {
+                {
+                    Text(
+                        text = destination.label,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Visible,
+                    )
+                }
+            },
+        )
+    }
 }

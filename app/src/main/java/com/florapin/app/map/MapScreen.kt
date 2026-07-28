@@ -116,6 +116,7 @@ fun MapScreen(
     val offlineRegions by offlineViewModel.regions.collectAsStateWithLifecycle()
     val offlineCreating by offlineViewModel.isCreating.collectAsStateWithLifecycle()
     val offlineError by offlineViewModel.error.collectAsStateWithLifecycle()
+    val offlineNotice by offlineViewModel.notice.collectAsStateWithLifecycle()
     val offlineSuggestedName by offlineViewModel.suggestedName.collectAsStateWithLifecycle()
 
     // Position de l'utilisateur : permission + référence carte partagées entre le
@@ -139,6 +140,7 @@ fun MapScreen(
             regions = offlineRegions,
             isCreating = offlineCreating,
             error = offlineError,
+            notice = offlineNotice,
             onDownload = { name, detail ->
                 offlineSelection?.let { selection ->
                     offlineViewModel.download(

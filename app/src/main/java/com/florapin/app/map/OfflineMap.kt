@@ -43,6 +43,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import org.maplibre.android.MapLibre
 import org.maplibre.android.geometry.LatLngBounds
@@ -60,6 +61,7 @@ import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.ln
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.tan
 
@@ -76,13 +78,16 @@ enum class OfflineMapDetail(val label: String, val maximumZoom: Double) {
 data class OfflineMapRegionUi(
     val id: Long,
     val name: String,
-    val styleLabel: String,
+    val styleId: String,
     val progress: Float,
     val completedBytes: Long,
     val isComplete: Boolean,
     val isActive: Boolean,
     val createdAt: Long,
     val bounds: LatLngBounds,
+    val minimumZoom: Double,
+    val maximumZoom: Double,
+    val pixelRatio: Float,
 )
 
 /** Gère les régions persistantes du cache hors ligne MapLibre. */
@@ -104,8 +109,12 @@ class OfflineMapViewModel(application: Application) : AndroidViewModel(applicati
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private val _notice = MutableStateFlow<String?>(null)
+    val notice: StateFlow<String?> = _notice.asStateFlow()
+
     private val _suggestedName = MutableStateFlow<String?>(null)
     val suggestedName: StateFlow<String?> = _suggestedName.asStateFlow()
+    private val cleanedExpansionIds = mutableSetOf<Long>()
 
     init {
         manager.setOfflineMapboxTileCountLimit(OFFLINE_TOTAL_TILE_LIMIT)
@@ -119,6 +128,7 @@ class OfflineMapViewModel(application: Application) : AndroidViewModel(applicati
                 nativeRegions.clear()
                 regionMetadata.clear()
                 regionItems.clear()
+                cleanedExpansionIds.clear()
                 publish()
                 offlineRegions.orEmpty().forEach(::observe)
             }
@@ -138,28 +148,82 @@ class OfflineMapViewModel(application: Application) : AndroidViewModel(applicati
         pixelRatio: Float,
     ) {
         if (_isCreating.value) return
-        val maximumZoom = max(detail.maximumZoom, ceil(selection.currentZoom))
-        val tileCount = estimateTileCount(selection.bounds, selection.currentZoom, maximumZoom)
+        val requestedMinimumZoom = floor(selection.currentZoom)
+        val requestedMaximumZoom = max(detail.maximumZoom, ceil(selection.currentZoom))
+        val overlapping = findOverlappingRegionCluster(
+            selection = selection.bounds,
+            styleId = style.id,
+            regions = regionItems.values,
+        )
+        val coveringRegion = overlapping.firstOrNull {
+            it.covers(
+                bounds = selection.bounds,
+                minimumZoom = requestedMinimumZoom,
+                maximumZoom = requestedMaximumZoom,
+            )
+        }
+
+        if (coveringRegion != null) {
+            _error.value = null
+            val native = nativeRegions[coveringRegion.id]
+            if (!coveringRegion.isComplete) {
+                native?.setDownloadState(OfflineRegion.STATE_ACTIVE)
+                _notice.value = if (coveringRegion.isActive) {
+                    "Cette zone est déjà en cours de téléchargement."
+                } else {
+                    "Le téléchargement de cette zone a repris."
+                }
+            } else {
+                _notice.value = "Cette zone est déjà disponible hors ligne."
+            }
+            return
+        }
+
+        val mergedBounds = overlapping.fold(selection.bounds) { bounds, region ->
+            bounds.union(region.bounds)
+        }
+        val minimumZoom = min(
+            requestedMinimumZoom,
+            overlapping.minOfOrNull { it.minimumZoom } ?: requestedMinimumZoom,
+        )
+        val maximumZoom = max(
+            requestedMaximumZoom,
+            overlapping.maxOfOrNull { it.maximumZoom } ?: requestedMaximumZoom,
+        )
+        val mergedPixelRatio = max(
+            pixelRatio.coerceIn(1f, 2f),
+            overlapping.maxOfOrNull { it.pixelRatio } ?: 1f,
+        )
+        val tileCount = estimateTileCount(mergedBounds, minimumZoom, maximumZoom)
         if (selection.currentZoom < OFFLINE_MINIMUM_SELECTION_ZOOM ||
             tileCount > OFFLINE_REGION_TILE_LIMIT
         ) {
-            _error.value = "La zone est trop large. Zoomez davantage sur la carte."
+            _error.value = if (overlapping.isEmpty()) {
+                "La zone est trop large. Zoomez davantage sur la carte."
+            } else {
+                "L’agrandissement serait trop large. Zoomez davantage sur la carte."
+            }
+            _notice.value = null
             return
         }
 
         _error.value = null
+        _notice.value = null
         _isCreating.value = true
+        val existingName = overlapping.minByOrNull { it.createdAt }?.name
+        val regionName = existingName ?: name.trim().ifBlank { "Zone hors ligne" }
         val metadata = RegionMetadata(
-            name = name.trim().ifBlank { "Zone hors ligne" },
+            name = regionName,
             styleId = style.id,
             createdAt = System.currentTimeMillis(),
+            replacesIds = overlapping.map { it.id },
         )
         val definition = OfflineTilePyramidRegionDefinition(
             styleUrl,
-            selection.bounds,
-            floor(selection.currentZoom),
+            mergedBounds,
+            minimumZoom,
             maximumZoom,
-            pixelRatio.coerceIn(1f, 2f),
+            mergedPixelRatio,
             false,
         )
         manager.createOfflineRegion(
@@ -170,11 +234,17 @@ class OfflineMapViewModel(application: Application) : AndroidViewModel(applicati
                     _isCreating.value = false
                     observe(offlineRegion, metadata)
                     offlineRegion.setDownloadState(OfflineRegion.STATE_ACTIVE)
+                    if (metadata.replacesIds.isNotEmpty()) {
+                        _notice.value =
+                            "Agrandissement de « ${metadata.name} » : seules les nouvelles " +
+                            "tuiles sont téléchargées."
+                    }
                 }
 
                 override fun onError(error: String) {
                     _isCreating.value = false
                     _error.value = error
+                    _notice.value = null
                 }
             },
         )
@@ -209,6 +279,7 @@ class OfflineMapViewModel(application: Application) : AndroidViewModel(applicati
 
     fun clearError() {
         _error.value = null
+        _notice.value = null
     }
 
     fun suggestName(selection: OfflineMapSelection) {
@@ -240,6 +311,28 @@ class OfflineMapViewModel(application: Application) : AndroidViewModel(applicati
         val metadata = knownMetadata ?: RegionMetadata.fromBytes(region.metadata)
         nativeRegions[region.id] = region
         regionMetadata[region.id] = metadata
+        // Rend la définition disponible immédiatement pour la déduplication,
+        // sans attendre le callback asynchrone de statut. Un tap rapide après
+        // l'ouverture du dialogue ne peut ainsi pas recréer la même zone.
+        region.definition.bounds?.let { bounds ->
+            val definition = region.definition
+            val previous = regionItems[region.id]
+            regionItems[region.id] = OfflineMapRegionUi(
+                id = region.id,
+                name = metadata.name,
+                styleId = metadata.styleId,
+                progress = previous?.progress ?: 0f,
+                completedBytes = previous?.completedBytes ?: 0L,
+                isComplete = previous?.isComplete ?: false,
+                isActive = previous?.isActive ?: false,
+                createdAt = metadata.createdAt,
+                bounds = bounds,
+                minimumZoom = definition.minZoom,
+                maximumZoom = definition.maxZoom,
+                pixelRatio = definition.pixelRatio,
+            )
+            publish()
+        }
         region.setDeliverInactiveMessages(true)
         region.setObserver(object : OfflineRegion.OfflineRegionObserver {
             override fun onStatusChanged(status: OfflineRegionStatus) {
@@ -271,7 +364,8 @@ class OfflineMapViewModel(application: Application) : AndroidViewModel(applicati
 
     private fun update(region: OfflineRegion, status: OfflineRegionStatus) {
         val metadata = regionMetadata[region.id] ?: RegionMetadata.DEFAULT
-        val bounds = region.definition.bounds ?: return
+        val definition = region.definition
+        val bounds = definition.bounds ?: return
         val required = status.requiredResourceCount
         val progress = when {
             status.isComplete -> 1f
@@ -281,19 +375,64 @@ class OfflineMapViewModel(application: Application) : AndroidViewModel(applicati
         regionItems[region.id] = OfflineMapRegionUi(
             id = region.id,
             name = metadata.name,
-            styleLabel = MapStyle.fromId(metadata.styleId).label,
+            styleId = metadata.styleId,
             progress = progress,
             completedBytes = status.completedResourceSize,
             isComplete = status.isComplete,
             isActive = status.downloadState == OfflineRegion.STATE_ACTIVE,
             createdAt = metadata.createdAt,
             bounds = bounds,
+            minimumZoom = definition.minZoom,
+            maximumZoom = definition.maxZoom,
+            pixelRatio = definition.pixelRatio,
         )
         publish()
+        if (status.isComplete &&
+            metadata.replacesIds.isNotEmpty() &&
+            cleanedExpansionIds.add(region.id)
+        ) {
+            deleteReplacedRegions(region.id, metadata)
+        }
     }
 
     private fun publish() {
-        _regions.value = regionItems.values.sortedByDescending { it.createdAt }
+        val supersededIds = regionItems.keys
+            .flatMapTo(mutableSetOf()) { regionMetadata[it]?.replacesIds.orEmpty() }
+        _regions.value = regionItems.values
+            .filterNot { it.id in supersededIds }
+            .sortedByDescending { it.createdAt }
+    }
+
+    /**
+     * Supprime les anciennes définitions seulement après la fin de la région
+     * agrandie. Les ressources encore référencées par celle-ci restent dans la
+     * base MapLibre : aucune tuile commune n'est évincée.
+     */
+    private fun deleteReplacedRegions(
+        replacementId: Long,
+        replacementMetadata: RegionMetadata,
+    ) {
+        replacementMetadata.replacesIds
+            .filter { it != replacementId }
+            .forEach { replacedId ->
+                val replaced = nativeRegions[replacedId] ?: return@forEach
+                replaced.setDownloadState(OfflineRegion.STATE_INACTIVE)
+                replaced.setObserver(null)
+                replaced.delete(object : OfflineRegion.OfflineRegionDeleteCallback {
+                    override fun onDelete() {
+                        nativeRegions.remove(replacedId)
+                        regionMetadata.remove(replacedId)
+                        regionItems.remove(replacedId)
+                        publish()
+                        _notice.value = "La zone « ${replacementMetadata.name} » a été agrandie."
+                    }
+
+                    override fun onError(error: String) {
+                        _error.value = error
+                        observe(replaced)
+                    }
+                })
+            }
     }
 
     override fun onCleared() {
@@ -305,12 +444,14 @@ class OfflineMapViewModel(application: Application) : AndroidViewModel(applicati
         val name: String,
         val styleId: String,
         val createdAt: Long,
+        val replacesIds: List<Long> = emptyList(),
     ) {
         fun toBytes(): ByteArray = JSONObject()
             .put("owner", "florapin")
             .put("name", name)
             .put("style", styleId)
             .put("createdAt", createdAt)
+            .put("replaces", JSONArray(replacesIds))
             .toString()
             .toByteArray(Charsets.UTF_8)
 
@@ -323,6 +464,9 @@ class OfflineMapViewModel(application: Application) : AndroidViewModel(applicati
                     name = json.optString("name").ifBlank { DEFAULT.name },
                     styleId = json.optString("style").ifBlank { DEFAULT.styleId },
                     createdAt = json.optLong("createdAt", 0L),
+                    replacesIds = json.optJSONArray("replaces")?.let { ids ->
+                        List(ids.length()) { index -> ids.optLong(index) }
+                    }.orEmpty(),
                 )
             }.getOrDefault(DEFAULT)
         }
@@ -336,6 +480,7 @@ fun OfflineMapDialog(
     regions: List<OfflineMapRegionUi>,
     isCreating: Boolean,
     error: String?,
+    notice: String?,
     onDownload: (String, OfflineMapDetail) -> Unit,
     onToggle: (Long) -> Unit,
     onDelete: (Long) -> Unit,
@@ -393,12 +538,6 @@ fun OfflineMapDialog(
                             )
                         }
                     }
-                    Text(
-                        text = "Environ ${formatTileCount(tileCount)} tuiles, " +
-                            "du zoom ${floor(selection.currentZoom).toInt()} " +
-                            "au zoom ${maximumZoom?.toInt()}.",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
                     if (selection.currentZoom < OFFLINE_MINIMUM_SELECTION_ZOOM ||
                         tileCount > OFFLINE_REGION_TILE_LIMIT
                     ) {
@@ -430,6 +569,13 @@ fun OfflineMapDialog(
                     Text(
                         text = it,
                         color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                notice?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -480,7 +626,7 @@ private fun OfflineRegionRow(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(region.name, style = MaterialTheme.typography.titleSmall)
                     Text(
-                        "${region.styleLabel} · ${formatBytes(region.completedBytes)}",
+                        formatBytes(region.completedBytes),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -527,6 +673,34 @@ private fun OfflineRegionRow(
     }
 }
 
+/** Régions de même style reliées à la sélection, y compris par recouvrement en chaîne. */
+internal fun findOverlappingRegionCluster(
+    selection: LatLngBounds,
+    styleId: String,
+    regions: Collection<OfflineMapRegionUi>,
+): List<OfflineMapRegionUi> {
+    val remaining = regions.filter { it.styleId == styleId }.toMutableList()
+    val overlapping = mutableListOf<OfflineMapRegionUi>()
+    var mergedBounds = selection
+    while (true) {
+        val next = remaining.filter { mergedBounds.intersect(it.bounds) != null }
+        if (next.isEmpty()) break
+        overlapping += next
+        remaining.removeAll(next.toSet())
+        next.forEach { mergedBounds = mergedBounds.union(it.bounds) }
+    }
+    return overlapping
+}
+
+/** Vrai si une région contient déjà toute la demande, niveaux de zoom compris. */
+internal fun OfflineMapRegionUi.covers(
+    bounds: LatLngBounds,
+    minimumZoom: Double,
+    maximumZoom: Double,
+): Boolean = this.bounds.contains(bounds) &&
+    this.minimumZoom <= minimumZoom &&
+    this.maximumZoom >= maximumZoom
+
 private fun estimateTileCount(
     bounds: LatLngBounds,
     minimumZoom: Double,
@@ -561,8 +735,6 @@ private fun tileY(latitude: Double, tiles: Double): Long {
 
 private fun defaultRegionName(): String =
     "Zone ${DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date())}"
-
-private fun formatTileCount(value: Long): String = String.format("%,d", value).replace(',', ' ')
 
 private fun formatBytes(bytes: Long): String = when {
     bytes >= 1_000_000_000L -> String.format("%.1f Go", bytes / 1_000_000_000.0)

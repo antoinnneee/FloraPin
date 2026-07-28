@@ -62,11 +62,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     private val _sort = MutableStateFlow(GallerySort.DATE_DESC)
     val sort: StateFlow<GallerySort> = _sort.asStateFlow()
 
-    // Densité de la grille (TÂCHE 6.8) : store dédié, persistée par appareil.
-    private val densityStore = GalleryDensityStore(application)
-    private val _density = MutableStateFlow(densityStore.density())
-    /** Palier de densité de la grille courant (persisté). */
-    val density: StateFlow<GalleryDensity> = _density.asStateFlow()
+    // Présentation de l'accueil : liste ou l'un des trois paliers de grille.
+    private val displayModeStore = GalleryDisplayModeStore(application)
+    private val _displayMode = MutableStateFlow(displayModeStore.displayMode())
+    val displayMode: StateFlow<GalleryDisplayMode> = _displayMode.asStateFlow()
 
     val flowers: StateFlow<List<FlowerEntity>> =
         combine(repository.flowers, _query, _sort) { flowers, query, sort ->
@@ -85,10 +84,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         _sort.value = sort
     }
 
-    /** Change la densité de la grille et persiste le choix (TÂCHE 6.8). */
-    fun setDensity(density: GalleryDensity) {
-        _density.value = density
-        densityStore.setDensity(density)
+    /** Change la présentation de la galerie et persiste le choix. */
+    fun setDisplayMode(mode: GalleryDisplayMode) {
+        _displayMode.value = mode
+        displayModeStore.setDisplayMode(mode)
     }
 
     // --- Multi-sélection par appui long (TÂCHE 6.6) ---

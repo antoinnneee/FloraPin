@@ -17,7 +17,24 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.25.0] — 2026-07-28
+
 ### Ajouté
+- **Une galerie de validation visuelle est disponible dans le build debug.**
+  Elle présente les vrais composants Compose des écrans Partagées, Détail,
+  profil, commentaires, appareil photo et cartes hors ligne avec des données
+  locales, et permet de forcer le thème clair ou sombre pour refaire rapidement
+  des captures sans compte ni données serveur. La fiche de démonstration reprend
+  notamment toute la rangée d’actions, dont le bouton botanique d’édition du nom
+  (`debug/ScreenshotShowcaseActivity.kt`).
+- **Les zones de carte hors ligne peuvent maintenant être agrandies sans
+  doublon.** Une nouvelle sélection déjà couverte n’est pas retéléchargée ; une
+  sélection qui recouvre une zone du même style crée temporairement l’union des
+  emprises, en réutilisant le cache partagé de MapLibre afin de ne récupérer que
+  les tuiles manquantes. L’ancienne définition reste protégée jusqu’à la fin du
+  téléchargement, puis elle est supprimée sans évincer les ressources encore
+  référencées. Les remplacements en cours sont persistés dans les métadonnées
+  pour survivre à un redémarrage (`map/OfflineMap.kt`).
 - **Le compagnon Windows est proposé au téléchargement sur la vitrine.**
   Nouvelle section « Sur ordinateur » (`landing/src/components/WindowsApp.astro`)
   et chaîne de distribution : `./gradlew :desktop:publishWindowsRelease` produit
@@ -29,6 +46,49 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   de développement.
 
 ### Modifié
+- **Les présentations de l’accueil sont réunies dans le bouton d’affichage.**
+  L’ancienne bascule Liste/Grille ouvre désormais un menu proposant Liste,
+  Compact, Confort et Grande ; les trois densités quittent le menu de tri. Le
+  choix est persisté par appareil et l’ancienne préférence `grid_density` est
+  migrée automatiquement (`gallery/GalleryScreen.kt`, `GalleryViewModel.kt`,
+  `GalleryDensityStore.kt`).
+- **Le bouton de réaction garde une largeur constante dans les fiches.**
+  Le cœur vide avec un compteur à zéro et les réactions déjà présentes occupent
+  désormais la même emprise, sans décaler le titre de la fleur
+  (`likes/LikeButton.kt`).
+- **Le cœur de réaction des fiches ne fait plus apparaître de fond carré à
+  l’appui.** Son interaction conserve le retour haptique et le sélecteur de
+  réactions à l’appui long, sans indication rectangulaire parasite
+  (`likes/LikeButton.kt`).
+- **Le bouton de sollicitation d’identification tient désormais sur une seule
+  ligne.** Son libellé est raccourci en « 🔎 Demander »
+  (`identify/IdentificationRequestSection.kt`).
+- **La fenêtre des cartes hors ligne se concentre sur les informations utiles.**
+  L’estimation du nombre de tuiles et des niveaux de zoom n’est plus affichée,
+  tout comme le nom technique du style de carte dans les zones enregistrées ;
+  leur poids reste visible (`map/OfflineMap.kt`).
+- **Les commandes de flash et de zoom de l’appareil photo sont plus explicites.**
+  Le flash adopte un éclair redessiné, barré à l’arrêt, accompagné d’un badge
+  « A » agrandi en automatique et coloré seul en mode forcé. Le raccourci
+  « 10× » devient tactile et le curseur de zoom possède un cran discret à ×1,
+  complété par des mini-crans à ×2, ×3 et ×5, tous calculés selon la courbe de
+  champ de vision de CameraX ; le retour à ×1 du mode Pro utilise désormais le
+  même calcul exact (`capture/CameraScreen.kt`,
+  `drawable/ic_camera_flash.xml`).
+- **Le sélecteur de photo de profil s’ouvre directement à sa hauteur maximale.**
+  La feuille modale ignore désormais son état intermédiaire afin de rendre
+  immédiatement visible l’action « Choisir une photo du téléphone »
+  (`profile/ProfileScreen.kt`).
+- **Les états et la séparation visuelle des interfaces mobiles sont plus nets.**
+  Le bouton de réaction sans sélection utilise désormais un cœur contouré
+  (`likes/LikeButton.kt`) ; la navigation principale fond progressivement dans
+  le contenu défilant et emploie maintenant une mesure commune pour espacer le
+  bouton photo de son berceau et des fonds d’onglets sélectionnés
+  (`navigation/BottomNavBar.kt`) ; les onglets Aperçu, Notes et Discussion des
+  fiches sont centrés, et le titre « Notes
+  d’observation » est raccourci en « Notes ». Dans la gestion des photos, la
+  tuile d’ajout conserve le libellé court « Ajouter », quel que soit le nombre
+  d’images (`detail/DetailScreen.kt`).
 - **Maquettes « Détail » et « Partagées » de la vitrine refaites d'après le
   design actuel.** Le détail adopte la galerie asymétrique (couverture large,
   vignette et compteur « n photos »), le titre d'espèce en display avec son
@@ -46,6 +106,17 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   l'archive n'étant pas versionnée, un déploiement lancé depuis une machine qui
   ne l'a pas construite aurait effacé du VPS le téléchargement en ligne.
 ### Corrigé
+- **La liste des personnes ayant réagi dans une fiche se rafraîchit à chaque
+  ouverture.** Le ViewModel de la feuille étant conservé après sa fermeture, son
+  ancien raccourci idempotent gardait une liste non vide en cache après l’ajout
+  ou le retrait d’une réaction ; chaque réouverture resynchronise désormais les
+  données serveur (`likes/LikersSheet.kt`, `LikersViewModelTest.kt`).
+- **Les mentions d’amis restent utilisables depuis les commentaires de
+  « Partagées ».** Dans la feuille de discussion, les suggestions `@` sont
+  maintenant intégrées au-dessus du champ au lieu de pouvoir s’ouvrir derrière
+  le clavier. Le champ respecte aussi l’espace de l’IME, le chargement des amis
+  est signalé et une saisie de mention peut relancer un chargement réseau ayant
+  échoué (`detail/FlowerComments.kt`).
 - **Les photos ne s'affichaient pas dans le compagnon Windows.** Leur téléchargement
   empruntait le client HTTP de l'API, qui appose un en-tête `Authorization:
   Bearer`. Or ces URLs sont présignées (`AWS4-HMAC-SHA256`) : le stockage
@@ -57,6 +128,8 @@ et le projet suit le [versionnage sémantique](https://semver.org/lang/fr/).
   défaut échappait aux tests, un serveur de bouchon ignorant l'en-tête
   surnuméraire : `DesktopNetworkTest` emprunte maintenant le vrai chemin de
   téléchargement.
+
+_versionName 1.25.0, versionCode 40._
 
 ## [1.24.0] — 2026-07-26
 

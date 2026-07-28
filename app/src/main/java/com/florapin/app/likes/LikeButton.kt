@@ -2,14 +2,19 @@ package com.florapin.app.likes
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -22,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import com.florapin.app.network.dto.Reactions
@@ -52,6 +58,7 @@ fun LikeButton(
     showCount: Boolean = true,
 ) {
     var showPicker by remember { mutableStateOf(false) }
+    val reactionInteractionSource = remember { MutableInteractionSource() }
     val haptic = LocalHapticFeedback.current
     // Confirmations haptiques légères au like/réaction (QOL 6.15).
     val toggle = {
@@ -71,7 +78,13 @@ fun LikeButton(
             MaterialTheme.colorScheme.surface
         },
         tonalElevation = if (isPhotoOverlay) 0.dp else 1.dp,
-        modifier = if (isPhotoOverlay) modifier.size(40.dp) else modifier,
+        modifier = if (isPhotoOverlay) {
+            modifier.size(40.dp)
+        } else {
+            // La fiche conserve la même emprise avec un cœur vide ou une
+            // réaction : le titre ne se décale pas quand le compteur évolue.
+            modifier.width(64.dp)
+        },
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -91,23 +104,42 @@ fun LikeButton(
                 Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
             },
         ) {
-            Box {
-                Text(
-                    text = if (myReaction != null) Reactions.emoji(myReaction) else "🤍",
-                    style = if (isPhotoOverlay) {
-                        MaterialTheme.typography.titleMedium
-                    } else {
-                        MaterialTheme.typography.bodyMedium
-                    },
-                    modifier = if (isPhotoOverlay) {
-                        Modifier
-                    } else {
-                        Modifier.combinedClickable(
-                            onClick = toggle,
-                            onLongClick = { showPicker = true },
-                        )
-                    },
-                )
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = if (isPhotoOverlay) Modifier else Modifier.size(22.dp),
+            ) {
+                val reactionModifier = if (isPhotoOverlay) {
+                    Modifier
+                } else {
+                    Modifier.combinedClickable(
+                        interactionSource = reactionInteractionSource,
+                        indication = null,
+                        onClick = toggle,
+                        onLongClick = { showPicker = true },
+                    )
+                }
+                if (myReaction != null) {
+                    Text(
+                        text = Reactions.emoji(myReaction),
+                        style = if (isPhotoOverlay) {
+                            MaterialTheme.typography.titleMedium
+                        } else {
+                            MaterialTheme.typography.bodyMedium
+                        },
+                        modifier = reactionModifier,
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.FavoriteBorder,
+                        contentDescription = "Aimer",
+                        tint = if (isPhotoOverlay) {
+                            Color.White
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = reactionModifier.size(22.dp),
+                    )
+                }
                 ReactionPicker(
                     expanded = showPicker,
                     onDismiss = { showPicker = false },

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.verticalScroll
@@ -94,6 +95,8 @@ data class CommentsUiState(
     val replyingTo: FlowerCommentDto? = null,
     /** Amis acceptés (mentionnables), chargés une fois pour l'autocomplete `@`. */
     val friends: List<FriendUserDto> = emptyList(),
+    /** Chargement en cours des amis mentionnables. */
+    val friendsLoading: Boolean = false,
     /** Table `id → nom` des amis, pour rendre `@[id]` en `@Nom` dans la saisie. */
     val friendNamesById: Map<String, String> = emptyMap(),
     /** Suggestions courantes de l'autocomplete `@` (vide si pas de saisie `@…`). */
@@ -121,6 +124,7 @@ class CommentsViewModel(
     val state: StateFlow<CommentsUiState> = _state.asStateFlow()
 
     private var serverId: String? = null
+    private var friendsLoaded = false
 
     /** Associe la fleur [flowerServerId] (idempotent) et charge ses commentaires. */
     fun bind(flowerServerId: String) {
@@ -159,15 +163,21 @@ class CommentsViewModel(
      */
     private fun loadFriends() {
         val friendshipsApi = friendships ?: return
-        if (_state.value.friends.isNotEmpty()) return
+        if (friendsLoaded || _state.value.friendsLoading) return
+        _state.update { it.copy(friendsLoading = true) }
         viewModelScope.launch {
             val accepted = runCatching { friendshipsApi.list() }.getOrNull()
                 ?.filter { it.status == "accepted" }
                 ?.map { it.user }
-                ?: return@launch
+            if (accepted == null) {
+                _state.update { it.copy(friendsLoading = false) }
+                return@launch
+            }
+            friendsLoaded = true
             _state.update {
                 it.copy(
                     friends = accepted,
+                    friendsLoading = false,
                     friendNamesById = accepted.associate { u -> u.id to u.displayName },
                     // L'utilisateur peut avoir commencé à saisir `@…` pendant
                     // le chargement réseau : affiche alors les suggestions sans
@@ -211,6 +221,9 @@ class CommentsViewModel(
                 mentionSuggestions = suggestionsFor(text, safeCursor),
             )
         }
+        // Si le premier chargement réseau a échoué, une nouvelle saisie de
+        // mention offre une occasion naturelle de réessayer.
+        if (active != null && _state.value.friends.isEmpty()) loadFriends()
         serverId?.let { drafts.save(it, text) }
     }
 
@@ -431,7 +444,6 @@ fun CommentsSection(
         // locale TextFieldValue pour maîtriser le curseur (placé en fin après
         // insertion d'une mention), tout en gardant le brouillon persisté (String)
         // dans le ViewModel.
-        val mentionColor = MaterialTheme.colorScheme.primary
         var field by remember {
             mutableStateOf(TextFieldValue(state.draft, TextRange(state.draft.length)))
         }
@@ -444,82 +456,59 @@ fun CommentsSection(
         }
 
         val mentionMenuExpanded = state.mentionQuery != null
-        ExposedDropdownMenuBox(
-            expanded = mentionMenuExpanded,
-            onExpandedChange = { expanded ->
-                if (!expanded) viewModel.dismissMentionSuggestions()
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            OutlinedTextField(
-                value = field,
-                onValueChange = { newValue ->
-                    field = newValue
-                    viewModel.updateDraft(newValue.text, newValue.selection.end)
-                },
-                modifier = Modifier
-                    .menuAnchor(MenuAnchorType.PrimaryEditable, enabled = true)
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp),
-                placeholder = {
-                    Text(
-                        if (state.replyingTo != null) "Écrire une réponse…"
-                        else "Ajouter un commentaire… (@ pour mentionner)",
-                    )
-                },
-                enabled = !state.submitting,
-                maxLines = 4,
-                visualTransformation = remember(state.friendNamesById, mentionColor) {
-                    MentionVisualTransformation(state.friendNamesById, mentionColor)
-                },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = { viewModel.submit() }),
-                trailingIcon = {
-                    TextButton(
-                        onClick = { viewModel.submit() },
-                        enabled = state.draft.isNotBlank() && !state.submitting,
-                    ) {
-                        Text("Envoyer")
-                    }
-                },
-            )
+        val onFieldChange: (TextFieldValue) -> Unit = { newValue ->
+            field = newValue
+            viewModel.updateDraft(newValue.text, newValue.selection.end)
+        }
+        val onSelectMention: (FriendUserDto) -> Unit = { friend ->
+            val insertion = viewModel.selectMentionAt(friend, field.selection.end)
+            field = TextFieldValue(insertion.text, TextRange(insertion.cursor))
+        }
 
-            ExposedDropdownMenu(
-                expanded = mentionMenuExpanded,
-                onDismissRequest = viewModel::dismissMentionSuggestions,
-            ) {
-                if (state.mentionSuggestions.isEmpty()) {
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                if (state.friends.isEmpty()) {
-                                    "Aucun ami disponible"
-                                } else {
-                                    "Aucun ami correspondant"
-                                },
-                            )
-                        },
-                        enabled = false,
-                        onClick = {},
-                    )
-                } else {
-                    state.mentionSuggestions.forEach { friend ->
-                        DropdownMenuItem(
-                            text = {
-                                Text("@${friend.displayName.ifBlank { "Sans nom" }}")
-                            },
-                            onClick = {
-                                val insertion = viewModel.selectMentionAt(
-                                    friend,
-                                    field.selection.end,
-                                )
-                                field = TextFieldValue(
-                                    insertion.text,
-                                    TextRange(insertion.cursor),
-                                )
-                            },
-                        )
+        if (scrollComments) {
+            // Dans la bottom sheet du flux « Partagées », un popup ancré sous le
+            // champ peut passer derrière l'IME. La liste reste donc dans la feuille,
+            // juste au-dessus du champ, et réduit la liste des commentaires.
+            if (mentionMenuExpanded) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 216.dp),
+                ) {
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        MentionSuggestionItems(state = state, onSelect = onSelectMention)
                     }
+                }
+            }
+            CommentDraftField(
+                field = field,
+                state = state,
+                onValueChange = onFieldChange,
+                onSubmit = viewModel::submit,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            ExposedDropdownMenuBox(
+                expanded = mentionMenuExpanded,
+                onExpandedChange = { expanded ->
+                    if (!expanded) viewModel.dismissMentionSuggestions()
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                CommentDraftField(
+                    field = field,
+                    state = state,
+                    onValueChange = onFieldChange,
+                    onSubmit = viewModel::submit,
+                    modifier = Modifier
+                        .menuAnchor(MenuAnchorType.PrimaryEditable, enabled = true)
+                        .fillMaxWidth(),
+                )
+                ExposedDropdownMenu(
+                    expanded = mentionMenuExpanded,
+                    onDismissRequest = viewModel::dismissMentionSuggestions,
+                ) {
+                    MentionSuggestionItems(state = state, onSelect = onSelectMention)
                 }
             }
         }
@@ -529,6 +518,74 @@ fun CommentsSection(
                 text = it,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CommentDraftField(
+    field: TextFieldValue,
+    state: CommentsUiState,
+    onValueChange: (TextFieldValue) -> Unit,
+    onSubmit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val mentionColor = MaterialTheme.colorScheme.primary
+    OutlinedTextField(
+        value = field,
+        onValueChange = onValueChange,
+        modifier = modifier.heightIn(min = 56.dp),
+        placeholder = {
+            Text(
+                if (state.replyingTo != null) "Écrire une réponse…"
+                else "Ajouter un commentaire… (@ pour mentionner)",
+            )
+        },
+        enabled = !state.submitting,
+        maxLines = 4,
+        visualTransformation = remember(state.friendNamesById, mentionColor) {
+            MentionVisualTransformation(state.friendNamesById, mentionColor)
+        },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+        keyboardActions = KeyboardActions(onSend = { onSubmit() }),
+        trailingIcon = {
+            TextButton(
+                onClick = onSubmit,
+                enabled = state.draft.isNotBlank() && !state.submitting,
+            ) {
+                Text("Envoyer")
+            }
+        },
+    )
+}
+
+@Composable
+private fun MentionSuggestionItems(
+    state: CommentsUiState,
+    onSelect: (FriendUserDto) -> Unit,
+) {
+    if (state.mentionSuggestions.isEmpty()) {
+        DropdownMenuItem(
+            text = {
+                Text(
+                    when {
+                        state.friendsLoading -> "Chargement des amis…"
+                        state.friends.isEmpty() -> "Aucun ami disponible"
+                        else -> "Aucun ami correspondant"
+                    },
+                )
+            },
+            enabled = false,
+            onClick = {},
+        )
+    } else {
+        state.mentionSuggestions.forEach { friend ->
+            DropdownMenuItem(
+                text = {
+                    Text("@${friend.displayName.ifBlank { "Sans nom" }}")
+                },
+                onClick = { onSelect(friend) },
             )
         }
     }
@@ -562,7 +619,10 @@ fun CommentsBottomSheet(
                 onDismiss()
                 onOpenProfile(userId)
             },
-            modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp),
+            modifier = Modifier
+                .imePadding()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
         )
     }
 }

@@ -47,7 +47,7 @@ fun IdentificationRequestSection(
                         if (state is IdentificationRequestState.Sending) {
                             "Envoi…"
                         } else {
-                            "🔎 Demander une identification à mes amis"
+                            "🔎 Demander"
                         },
                     )
                 }

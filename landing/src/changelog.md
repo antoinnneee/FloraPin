@@ -18,15 +18,51 @@ Ce que l'application vous apporte de nouveau, version après version — sans ja
 
 ## En préparation
 
+## Version 1.25.0 — 28 juillet 2026
+
 ### Nouveau
+- **Une carte hors ligne existante peut maintenant être agrandie.** FloraPin
+  reconnaît les zones déjà enregistrées, évite de les télécharger une seconde
+  fois et récupère uniquement les nouvelles parties lorsque vous étendez la
+  zone, sans créer plusieurs cartes dans la liste.
 - **FloraPin pour ordinateur se télécharge depuis le site.** Une nouvelle
   section présente le compagnon Windows et propose le fichier : décompressez-le,
   lancez FloraPin, et retrouvez toutes vos fleurs sur grand écran. Rien d'autre
   à installer.
 
 ### Amélioré
+- **Le bouton d’affichage de l’accueil propose maintenant quatre présentations :
+  Liste, Compact, Confort et Grande.** Le choix est mémorisé sur votre appareil.
+- **Le bouton cœur garde maintenant la même largeur dans une fiche, qu’il
+  affiche zéro ou plusieurs réactions.**
+- **Le cœur des fiches réagit maintenant sans faire apparaître de carré
+  parasite lors de l’appui.**
+- **Le bouton pour solliciter une identification affiche simplement
+  « 🔎 Demander » sur une seule ligne.**
+- **L’écran des cartes hors ligne est plus simple.** Les détails techniques sur
+  les tuiles, les niveaux de zoom et le style de carte ont été retirés ; le poids
+  de chaque zone enregistrée reste affiché.
+- **Le flash de l’appareil photo est plus facile à comprendre.** Son icône
+  distingue clairement les modes désactivé, automatique et forcé, avec un « A »
+  bien visible. Le bouton « 10× » règle directement ce zoom et le curseur marque
+  maintenant un léger cran à ×1, ainsi que des mini-crans à ×2, ×3 et ×5.
+- **Le choix de la photo de profil s’ouvre maintenant entièrement.** Le bouton
+  permettant de sélectionner une image du téléphone est visible immédiatement.
+- **Les actions et les fiches de fleurs sont plus faciles à lire.** Un cœur vide
+  indique clairement une réaction non sélectionnée, la barre du bas se fond
+  doucement dans le contenu et l’espace autour du bouton photo est maintenant
+  régulier. Les onglets des fiches sont centrés, la partie des notes porte
+  simplement le titre « Notes » et le bouton de gestion des photos affiche le
+  libellé court « Ajouter ».
 - **Les aperçus de l'application sur le site correspondent à la version
   actuelle**, notamment le bouton photo au centre de la barre du bas.
+
+### Réparé
+- **La liste des personnes ayant réagi à une fleur reflète immédiatement les
+  ajouts et retraits lorsque vous la rouvrez, sans recharger toute la fiche.**
+- **Les suggestions d’amis avec « @ » sont de nouveau accessibles dans les
+  commentaires de l’écran Partagées.** Elles apparaissent au-dessus du champ,
+  sans être masquées par le clavier.
 
 ## Version 1.24.0 — 26 juillet 2026
 

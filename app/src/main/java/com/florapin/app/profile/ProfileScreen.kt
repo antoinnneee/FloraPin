@@ -44,6 +44,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -468,7 +469,7 @@ private fun RecentFlowersSection(
 /** Avatar courant et choix entre compagnons FloraPin ou galerie du téléphone. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AvatarPicker(
+internal fun AvatarPicker(
     avatarUrl: String?,
     seed: String,
     uploading: Boolean,
@@ -476,6 +477,7 @@ private fun AvatarPicker(
     onPickDefault: (Int) -> Unit,
 ) {
     var showChoices by remember { mutableStateOf(false) }
+    val choicesSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
     ) { uri -> uri?.let(onPick) }
@@ -515,7 +517,10 @@ private fun AvatarPicker(
     )
 
     if (showChoices) {
-        ModalBottomSheet(onDismissRequest = { showChoices = false }) {
+        ModalBottomSheet(
+            onDismissRequest = { showChoices = false },
+            sheetState = choicesSheetState,
+        ) {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),

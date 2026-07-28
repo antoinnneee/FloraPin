@@ -58,6 +58,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -82,6 +83,7 @@ import com.florapin.app.util.Haptics
 import kotlinx.coroutines.delay
 import java.util.Locale
 import kotlin.math.exp
+import kotlin.math.abs
 import kotlin.math.ln
 import kotlin.math.roundToInt
 
@@ -96,15 +98,15 @@ private val CameraGreen = Color(0xFFB8E0C6)
 private val CameraAmber = Color(0xFFF6C453)
 private val CameraDanger = Color(0xFFFFA69B)
 
-private enum class CameraMode {
+internal enum class CameraMode {
     CLASSIC,
     PRO,
 }
 
-private enum class FlashSetting(val captureMode: Int, val badge: String?) {
-    OFF(ImageCapture.FLASH_MODE_OFF, null),
-    AUTO(ImageCapture.FLASH_MODE_AUTO, "A"),
-    ON(ImageCapture.FLASH_MODE_ON, "•"),
+internal enum class FlashSetting(val captureMode: Int, val accessibilityLabel: String) {
+    OFF(ImageCapture.FLASH_MODE_OFF, "désactivé"),
+    AUTO(ImageCapture.FLASH_MODE_AUTO, "automatique"),
+    ON(ImageCapture.FLASH_MODE_ON, "forcé"),
     ;
 
     fun next(): FlashSetting = entries[(ordinal + 1) % entries.size]
@@ -412,7 +414,7 @@ fun CameraScreen(
 }
 
 @Composable
-private fun CameraTopBar(
+internal fun CameraTopBar(
     gpsFix: GpsFixState,
     mode: CameraMode,
     flash: FlashSetting,
@@ -436,11 +438,8 @@ private fun CameraTopBar(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            CameraIconButton(
-                icon = R.drawable.ic_camera_flash,
-                contentDescription = "Flash : ${flash.name.lowercase()}",
-                active = flash != FlashSetting.OFF,
-                badge = flash.badge,
+            FlashControlButton(
+                flash = flash,
                 proMode = mode == CameraMode.PRO,
                 onClick = onFlash,
             )
@@ -484,13 +483,77 @@ private fun CameraTopBar(
 }
 
 @Composable
+private fun FlashControlButton(
+    flash: FlashSetting,
+    proMode: Boolean,
+    onClick: () -> Unit,
+) {
+    val accent = if (proMode) CameraAmber else CameraGreen
+    val active = flash != FlashSetting.OFF
+    Box {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier
+                .size(42.dp)
+                .clip(CircleShape)
+                .background(if (active) accent.copy(alpha = 0.22f) else CameraGlass)
+                .then(
+                    if (active) {
+                        Modifier.border(1.dp, accent.copy(alpha = 0.62f), CircleShape)
+                    } else {
+                        Modifier
+                    },
+                ),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_camera_flash),
+                    contentDescription = "Flash ${flash.accessibilityLabel}",
+                    tint = if (active) accent else CameraWhite,
+                    modifier = Modifier.size(23.dp),
+                )
+                if (flash == FlashSetting.OFF) {
+                    Canvas(modifier = Modifier.size(25.dp)) {
+                        drawLine(
+                            color = CameraWhite,
+                            start = Offset(size.width * 0.18f, size.height * 0.18f),
+                            end = Offset(size.width * 0.82f, size.height * 0.82f),
+                            strokeWidth = 2.dp.toPx(),
+                            cap = StrokeCap.Round,
+                        )
+                    }
+                }
+            }
+        }
+        if (flash == FlashSetting.AUTO) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(18.dp)
+                    .clip(CircleShape)
+                    .background(accent)
+                    .border(1.5.dp, CameraInk, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "A",
+                    color = CameraInk,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun CameraIconButton(
     icon: Int,
     contentDescription: String,
     active: Boolean,
     proMode: Boolean,
     onClick: () -> Unit,
-    badge: String? = null,
 ) {
     val accent = if (proMode) CameraAmber else CameraGreen
     Box {
@@ -513,21 +576,6 @@ private fun CameraIconButton(
                 contentDescription = contentDescription,
                 tint = if (active) accent else CameraWhite,
                 modifier = Modifier.size(21.dp),
-            )
-        }
-        badge?.let {
-            Text(
-                text = it,
-                color = accent,
-                fontSize = 8.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(15.dp)
-                    .clip(CircleShape)
-                    .background(CameraInk)
-                    .border(1.dp, accent.copy(alpha = 0.75f), CircleShape),
             )
         }
     }
@@ -655,13 +703,15 @@ private fun CameraBottomControls(
 }
 
 @Composable
-private fun ClassicZoomControl(
+internal fun ClassicZoomControl(
     minZoom: Float,
     maxZoom: Float,
     zoomRatio: Float,
     linearZoom: Float,
     onLinearZoom: (Float) -> Unit,
 ) {
+    val quickZoomRatio = 10f.coerceIn(minZoom, maxZoom)
+    val quickZoomLinear = linearZoomForRatio(quickZoomRatio, minZoom, maxZoom)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -679,7 +729,9 @@ private fun ClassicZoomControl(
         )
         Slider(
             value = linearZoom.coerceIn(0f, 1f),
-            onValueChange = onLinearZoom,
+            onValueChange = { value ->
+                onLinearZoom(snapLinearZoomToStops(value, minZoom, maxZoom))
+            },
             colors = cameraSliderColors(CameraGreen),
             modifier = Modifier.weight(1f),
         )
@@ -691,18 +743,43 @@ private fun ClassicZoomControl(
             textAlign = TextAlign.End,
             modifier = Modifier.width(42.dp),
         )
-        Text(
-            text = formatZoom(maxZoom),
-            color = CameraMuted,
-            fontSize = 10.sp,
-            textAlign = TextAlign.End,
-            modifier = Modifier.width(36.dp),
-        )
+        Box(
+            modifier = Modifier
+                .width(42.dp)
+                .height(28.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(
+                    if (abs(linearZoom - quickZoomLinear) < 0.01f) {
+                        CameraGreen.copy(alpha = 0.24f)
+                    } else {
+                        CameraInk.copy(alpha = 0.38f)
+                    },
+                )
+                .border(
+                    width = 1.dp,
+                    color = CameraGreen.copy(alpha = 0.45f),
+                    shape = RoundedCornerShape(14.dp),
+                )
+                .semantics {
+                    contentDescription = "Régler le zoom sur ${formatZoom(quickZoomRatio)}"
+                    role = Role.Button
+                }
+                .clickable { onLinearZoom(quickZoomLinear) },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = formatZoom(quickZoomRatio),
+                color = CameraGreen,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 
 @Composable
-private fun CameraModeSelector(
+internal fun CameraModeSelector(
     selected: CameraMode,
     onSelect: (CameraMode) -> Unit,
 ) {
@@ -751,7 +828,7 @@ private fun ModeItem(
 }
 
 @Composable
-private fun ShutterButton(
+internal fun ShutterButton(
     isCapturing: Boolean,
     accent: Color,
     onClick: () -> Unit,
@@ -1033,15 +1110,12 @@ private fun ProAdjustmentPanel(
                 title = "Zoom",
                 value = formatZoom(zoomRatio),
                 sliderValue = linearZoom,
-                onSliderValue = onLinearZoom,
+                onSliderValue = { value ->
+                    onLinearZoom(snapLinearZoomToStops(value, minZoom, maxZoom))
+                },
                 resetLabel = "1×",
                 onReset = {
-                    val oneX = if (maxZoom == minZoom) {
-                        0f
-                    } else {
-                        ((1f - minZoom) / (maxZoom - minZoom)).coerceIn(0f, 1f)
-                    }
-                    onLinearZoom(oneX)
+                    onLinearZoom(linearZoomForRatio(1f, minZoom, maxZoom))
                 },
             )
             }
@@ -1243,6 +1317,48 @@ private fun formatZoom(value: Float): String =
     } else {
         String.format(Locale.ROOT, "%.1f×", value)
     }
+
+/**
+ * Convertit un ratio optique vers la position linéaire CameraX. CameraX rend
+ * linéaire le champ de vision (1 / ratio), pas directement le ratio de zoom.
+ */
+internal fun linearZoomForRatio(ratio: Float, minZoom: Float, maxZoom: Float): Float {
+    if (minZoom <= 0f || maxZoom <= minZoom) return 0f
+    val safeRatio = ratio.coerceIn(minZoom, maxZoom)
+    val inverseMin = 1f / minZoom
+    val inverseMax = 1f / maxZoom
+    return ((inverseMin - 1f / safeRatio) / (inverseMin - inverseMax)).coerceIn(0f, 1f)
+}
+
+/**
+ * Ajoute des crans magnétiques sans discrétiser le reste du curseur. ×1 garde
+ * une zone d'attraction légèrement plus large ; ×2, ×3 et ×5 restent subtils.
+ */
+internal fun snapLinearZoomToStops(
+    value: Float,
+    minZoom: Float,
+    maxZoom: Float,
+    oneXThreshold: Float = 0.025f,
+    secondaryThreshold: Float = 0.012f,
+): Float {
+    val safeValue = value.coerceIn(0f, 1f)
+    if (maxZoom <= minZoom) return safeValue
+    val nearestStop = listOf(
+        1f to oneXThreshold,
+        2f to secondaryThreshold,
+        3f to secondaryThreshold,
+        5f to secondaryThreshold,
+    )
+        .filter { (ratio, _) -> ratio in minZoom..maxZoom }
+        .map { (ratio, threshold) ->
+            val position = linearZoomForRatio(ratio, minZoom, maxZoom)
+            Triple(position, threshold, abs(safeValue - position))
+        }
+        .filter { (_, threshold, distance) -> distance <= threshold }
+        .minByOrNull { (_, _, distance) -> distance }
+
+    return nearestStop?.first ?: safeValue
+}
 
 private fun formatExposure(nanos: Long): String {
     val seconds = nanos / 1_000_000_000.0

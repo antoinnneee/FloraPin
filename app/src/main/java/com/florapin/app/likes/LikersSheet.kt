@@ -55,9 +55,14 @@ class LikersViewModel(
 
     private var serverId: String? = null
 
-    /** Associe la fleur [flowerServerId] (idempotent) et charge ses likers. */
+    /**
+     * Associe la fleur [flowerServerId] et recharge toujours ses likers.
+     *
+     * Le ViewModel survit à la fermeture de la feuille : ignorer un second bind
+     * laisserait donc affichée la liste antérieure après l'ajout ou le retrait
+     * d'une réaction dans la fiche.
+     */
     fun bind(flowerServerId: String) {
-        if (serverId == flowerServerId && _state.value.likers.isNotEmpty()) return
         serverId = flowerServerId
         load()
     }

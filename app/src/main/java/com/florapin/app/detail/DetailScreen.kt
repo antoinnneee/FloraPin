@@ -71,6 +71,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.FileProvider
@@ -427,7 +428,7 @@ fun FlowerDetailPage(
     }
 }
 
-private enum class DetailSection {
+internal enum class DetailSection {
     OVERVIEW,
     NOTES,
     DISCUSSION,
@@ -574,7 +575,7 @@ private fun DetailContent(
  * horizontal, ajout, suppression et choix de la couverture.
  */
 @Composable
-private fun DetailPhotoMosaic(
+internal fun DetailPhotoMosaic(
     models: List<Any?>,
     onOpen: (Int) -> Unit,
     onAddPhoto: () -> Unit,
@@ -629,6 +630,13 @@ private fun DetailPhotoMosaic(
                     contentDescription = "Troisième photo de la fleur",
                     onClick = { onOpen(2) },
                     overlayLabel = hiddenCount.takeIf { it > 0 }?.let { "+$it" },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                )
+            } else if (models.size == 2) {
+                AddPhotoTile(
+                    onClick = onAddPhoto,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth(),
@@ -708,6 +716,7 @@ private fun AddPhotoTile(
                 text = "Ajouter",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center,
             )
         }
     }
@@ -816,7 +825,7 @@ private fun DetailIdentity(
 }
 
 @Composable
-private fun DetailSectionTabs(
+internal fun DetailSectionTabs(
     selected: DetailSection,
     commentCount: Int,
     onSelect: (DetailSection) -> Unit,
@@ -857,7 +866,10 @@ private fun DetailSectionTabs(
                         },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 14.dp),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 14.dp),
                     )
                 }
             }
@@ -1131,7 +1143,7 @@ private fun DetailInfoRow(
 }
 
 @Composable
-private fun ObservationNotes(
+internal fun ObservationNotes(
     flowerId: Long,
     storedNotes: String,
     onSaveNotes: (String) -> Unit,
@@ -1151,7 +1163,7 @@ private fun ObservationNotes(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Notes d’observation",
+                text = "Notes",
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f),
